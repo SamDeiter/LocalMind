@@ -59,6 +59,7 @@ async function init() {
   populateVoices();
   voiceToggle.classList.add("active"); // Voice on by default
   checkHealth();
+  loadVersion();
   setInterval(checkHealth, 15000);
   bindEvents();
 }
@@ -721,5 +722,15 @@ function bindEvents() {
   });
 }
 
+
+// ── Version Badge ───────────────────────────────────────────────
+async function loadVersion() {
+  try {
+    const r = await fetch(`${API}/api/version`);
+    const d = await r.json();
+    const badge = document.getElementById("versionBadge");
+    if (badge) badge.textContent = `v${d.version} #${d.build}`;
+  } catch { /* ignore */ }
+}
 // ── Boot ────────────────────────────────────────────────────────
 init();

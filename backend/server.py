@@ -474,6 +474,17 @@ async def export_conversation(conv_id: str, format: str = "md"):
         )
 
 
+
+@app.get("/api/version")
+async def get_version():
+    """Return the current build version."""
+    import json as _json
+    version_file = Path(__file__).parent.parent / "version.json"
+    if version_file.exists():
+        with open(version_file) as f:
+            return _json.load(f)
+    return {"version": "unknown", "build": 0}
+
 # ── Serve Frontend ──────────────────────────────────────────────────────
 # Mount static files: JS/CSS served from /static/, HTML from /
 frontend_path = Path(__file__).parent.parent / "frontend"
