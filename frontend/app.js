@@ -686,22 +686,8 @@ function populateVoices() {
 }
 
 function speak(text) {
-  // Guard: don't speak if voice is disabled
-  if (!state.voiceEnabled) return;
-  // Cancel any currently playing speech first
-  speechSynthesis.cancel();
-  // Strip markdown for speech
-  const clean = text
-    .replace(/[#*`\[\]()_~>|-]/g, "")
-    .replace(/\n+/g, ". ")
-    .substring(0, 3000);
-  const utter = new SpeechSynthesisUtterance(clean);
-  const voices = speechSynthesis.getVoices();
-  const idx = parseInt(voiceSelect.value);
-  if (!isNaN(idx) && voices[idx]) utter.voice = voices[idx];
-  utter.rate = 1.0;
-  utter.pitch = 1.0;
-  speechSynthesis.speak(utter);
+  // TTS disabled until Piper integration (Sprint 3)
+  return;
 }
 
 // ── Voice Input (Web Speech API) ────────────────────────────────
