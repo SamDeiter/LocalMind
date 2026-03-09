@@ -461,6 +461,11 @@ async def chat(request: Request):
                 pass  # RAG query failed, continue without context
 
     image_base64 = body.get("image")  # Optional base64 image from webcam
+    editor_context = body.get("editor_context")  # Optional: file open in editor
+
+    # Inject editor context so AI knows what file the user is working on
+    if editor_context:
+        system_prompt += f"\n\n[EDITOR CONTEXT — The user currently has this file open in their editor]\n{editor_context}\n[/EDITOR CONTEXT]"
 
     # Create conversation if needed
     if not conversation_id:
@@ -843,6 +848,23 @@ async def hardware_status():
         "models": models,
         "system": system,
     }
+
+# ── Code Execution (Editor Run Button) ──────────────────────────────────
+@app.post("/api/tools/run")
+async def run_code_api(request: Request):
+    """Execute Python code from the editor's Run button."""
+    body = await request.json()
+    code = body.get("code", "")
+    if not code.strip():
+        return {"success": False, "error": "No code provided"}
+    try:
+        from backend.tools.run_code import RunCodeTool
+        tool = RunCodeTool()
+        result = await tool.execute(code=code)
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 # ── Document RAG ────────────────────────────────────────────────────────
 

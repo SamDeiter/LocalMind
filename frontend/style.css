@@ -1225,7 +1225,6 @@ body {
   border: 1px solid rgba(139, 92, 246, 0.25);
 }
 
-
 /* Memory Viewer */
 .memory-list {
   max-height: 0;
@@ -1477,5 +1476,101 @@ body {
 }
 .panel-divider:hover,
 .panel-divider:active {
+  background: var(--accent);
+}
+
+/* ── Editor Run Button ──────────────────────────────────────── */
+.editor-run-btn {
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #4ade80 !important;
+  margin-left: auto;
+}
+.editor-run-btn:hover {
+  background: rgba(34, 197, 94, 0.3) !important;
+  border-color: #4ade80 !important;
+}
+
+/* ── Editor Output Panel ────────────────────────────────────── */
+.editor-output {
+  border-top: 1px solid var(--border);
+  background: #141414;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+.editor-output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.editor-output-content {
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  flex: 1;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Drag & Drop Zone Overlay ───────────────────────────────── */
+.drop-zone-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.08);
+  border: 2px dashed rgba(99, 102, 241, 0.4);
+  border-radius: var(--radius);
+  z-index: 10;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+.drop-zone-overlay.active {
+  display: flex;
+  animation: dropPulse 1.5s ease-in-out infinite;
+}
+.drop-zone-content {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 500;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+@keyframes dropPulse {
+  0%,
+  100% {
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    border-color: rgba(99, 102, 241, 0.7);
+  }
+}
+
+/* ── File Tree Resize Handle ────────────────────────────────── */
+.file-tree-resize-handle {
+  height: 4px;
+  cursor: row-resize;
+  background: transparent;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.file-tree-resize-handle:hover,
+.file-tree-resize-handle:active {
   background: var(--accent);
 }

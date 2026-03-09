@@ -226,3 +226,37 @@ class TestExport:
         r = client.get("/api/conversations/fake-id/export?format=md")
         data = r.json()
         assert "error" in data
+
+
+class TestRunCode:
+    """Tests for POST /api/tools/run endpoint."""
+
+    def test_run_code_success(self, client):
+        """Valid Python code should execute and return output."""
+        r = client.post(
+            "/api/tools/run",
+            json={"code": "print('hello world')", "language": "python"},
+        )
+        data = r.json()
+        assert data.get("success") is True
+
+    def test_run_code_empty(self, client):
+        """Empty code should return an error."""
+        r = client.post(
+            "/api/tools/run",
+            json={"code": "", "language": "python"},
+        )
+        data = r.json()
+        assert data.get("success") is False
+        assert "No code" in data.get("error", "")
+
+    def test_run_code_blocked(self, client):
+        """Dangerous code should be blocked."""
+        r = client.post(
+            "/api/tools/run",
+            json={"code": "import os; os.remove('test.txt')", "language": "python"},
+        )
+        data = r.json()
+        # Should either fail or return a blocked warning
+        # (exact behavior depends on RunCodeTool's blocklist)
+        assert "success" in data

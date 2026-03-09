@@ -244,6 +244,20 @@ async function sendMessage() {
     conversation_id: state.currentConvId || undefined,
     system_prompt: systemPromptText.value || undefined,
   };
+
+  // Auto-inject editor context if a file is open
+  if (monacoEditor && editorCurrentPath) {
+    const editorCode = monacoEditor.getValue();
+    if (editorCode && editorCode.trim()) {
+      const lang = getLang(editorCurrentPath.split("/").pop());
+      const snippet =
+        editorCode.length > 2000
+          ? editorCode.substring(0, 2000) + "\n... (truncated)"
+          : editorCode;
+      body.editor_context = `File: ${editorCurrentPath} (${lang})\n\`\`\`${lang}\n${snippet}\n\`\`\``;
+    }
+  }
+
   if (state.capturedImage) {
     body.image = state.capturedImage;
     clearCapturedImage();
@@ -1081,73 +1095,6 @@ async function loadDocuments() {
   }
 }
 
-// ── Utility ─────────────────────────────────────────────────────
-function escapeHtml(text) {
-  const d = document.createElement("div");
-  d.textContent = text;
-  return d.innerHTML;
-}
-
-// ── Document RAG ────────────────────────────────────────────────
-async function uploadDocuments(files) {
-  for (const file of files) {
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const r = await fetch(`${API}/api/documents/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const d = await r.json();
-      if (d.success) {
-        console.log(`Indexed ${file.name}: ${d.chunks} chunks`);
-      } else {
-        console.error(`Upload failed: ${d.error}`);
-      }
-    } catch (e) {
-      console.error("Upload error:", e);
-    }
-  }
-  await loadDocuments();
-}
-
-async function loadDocuments() {
-  try {
-    const r = await fetch(`${API}/api/documents`);
-    const d = await r.json();
-    const list = document.getElementById("documentList");
-    const count = document.getElementById("docCount");
-    if (!list) return;
-
-    const docs = d.documents || [];
-    count.textContent = docs.length;
-    list.innerHTML = "";
-
-    docs.forEach((doc) => {
-      const div = document.createElement("div");
-      div.className = "document-item";
-      div.innerHTML = `
-        <span class="doc-icon">📄</span>
-        <span class="doc-name" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
-        <span class="doc-chunks">${doc.chunks} chunks</span>
-        <button class="delete-btn" title="Remove">✕</button>
-      `;
-      div.querySelector(".delete-btn").addEventListener("click", async () => {
-        await fetch(
-          `${API}/api/documents/${encodeURIComponent(doc.filename)}`,
-          {
-            method: "DELETE",
-          },
-        );
-        await loadDocuments();
-      });
-      list.appendChild(div);
-    });
-  } catch {
-    /* ignore */
-  }
-}
-
 // ── Hardware Dashboard ──────────────────────────────────────────
 let hwInterval = null;
 
@@ -1581,10 +1528,11 @@ document.getElementById("editorRunBtn")?.addEventListener("click", async () => {
   if (!monacoEditor || !editorCurrentPath) return;
   const code = monacoEditor.getValue();
   const outputPanel = document.getElementById("editorOutput");
-  if (!outputPanel) return;
+  const outputContent = document.getElementById("editorOutputContent");
+  if (!outputPanel || !outputContent) return;
 
-  outputPanel.style.display = "block";
-  outputPanel.textContent = "▶ Running...\n";
+  outputPanel.style.display = "flex";
+  outputContent.textContent = "▶ Running...\n";
 
   try {
     const r = await fetch(`${API}/api/tools/run`, {
@@ -1594,14 +1542,20 @@ document.getElementById("editorRunBtn")?.addEventListener("click", async () => {
     });
     const d = await r.json();
     if (d.success) {
-      outputPanel.textContent =
+      outputContent.textContent =
         d.result?.output || d.result || "✓ Completed (no output)";
     } else {
-      outputPanel.textContent = `❌ Error: ${d.error || d.result?.error || "Unknown error"}`;
+      outputContent.textContent = `❌ Error: ${d.error || d.result?.error || "Unknown error"}`;
     }
   } catch (e) {
-    outputPanel.textContent = `❌ Failed: ${e.message}`;
+    outputContent.textContent = `❌ Failed: ${e.message}`;
   }
+});
+
+// Wire output close button
+document.getElementById("editorOutputClose")?.addEventListener("click", () => {
+  const panel = document.getElementById("editorOutput");
+  if (panel) panel.style.display = "none";
 });
 
 // New file
