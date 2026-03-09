@@ -47,6 +47,7 @@ const captureCanvas = $("#captureCanvas");
 const imagePreview = $("#imagePreview");
 const previewImg = $("#previewImg");
 const removeImageBtn = $("#removeImageBtn");
+const micBtn = $("#micBtn");
 
 // ── Init ───────────────────────────────────────────────────────
 async function init() {
@@ -536,6 +537,108 @@ function speak(text) {
   speechSynthesis.speak(utter);
 }
 
+// ── Voice Input (Web Speech API) ────────────────────────────────
+let recognition = null;
+let isListening = false;
+
+function initSpeechRecognition() {
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    console.warn("[LocalMind] SpeechRecognition not supported in this browser");
+    if (micBtn) micBtn.title = "Voice input not supported in this browser";
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = "en-US";
+
+  let finalTranscript = "";
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.classList.add("mic-active");
+    micBtn.title = "Listening... (click to stop)";
+    finalTranscript = messageInput.value; // Preserve existing text
+    console.log("[LocalMind] 🎤 Listening started");
+  };
+
+  recognition.onresult = (event) => {
+    let interim = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += (finalTranscript ? " " : "") + transcript;
+      } else {
+        interim += transcript;
+      }
+    }
+    // Show final + interim (interim in lighter style via placeholder feel)
+    messageInput.value = finalTranscript + (interim ? " " + interim : "");
+    autoResize();
+  };
+
+  recognition.onerror = (event) => {
+    console.error("[LocalMind] 🎤 Speech error:", event.error);
+    if (event.error === "not-allowed") {
+      alert(
+        "Microphone access denied. Please allow microphone access in your browser settings.",
+      );
+    }
+    stopListening();
+  };
+
+  recognition.onend = () => {
+    // Auto-restart if still in listening mode (Chrome stops after silence)
+    if (isListening) {
+      try {
+        recognition.start();
+      } catch (e) {
+        stopListening();
+      }
+    }
+  };
+}
+
+function startListening() {
+  if (!recognition) {
+    initSpeechRecognition();
+    if (!recognition) {
+      alert("Voice input is not supported in this browser. Try Chrome.");
+      return;
+    }
+  }
+  try {
+    recognition.start();
+  } catch (e) {
+    console.error("[LocalMind] 🎤 Failed to start:", e);
+  }
+}
+
+function stopListening() {
+  isListening = false;
+  if (recognition) {
+    try {
+      recognition.stop();
+    } catch (e) {
+      /* ignore */
+    }
+  }
+  micBtn.classList.remove("mic-active");
+  micBtn.title = "Voice input (click to speak)";
+  console.log("[LocalMind] 🎤 Listening stopped");
+}
+
+function toggleMic() {
+  if (isListening) {
+    stopListening();
+  } else {
+    startListening();
+  }
+}
+
 // ── Camera (WebRTC) ─────────────────────────────────────────────
 let cameraStream = null;
 
@@ -695,6 +798,9 @@ function bindEvents() {
       : "Voice Off (click to unmute)";
     console.log("[LocalMind] Voice toggled:", state.voiceEnabled);
   });
+
+  // Voice input
+  micBtn.addEventListener("click", toggleMic);
 
   // Camera
   cameraBtn.addEventListener("click", openCamera);

@@ -903,32 +903,52 @@ body {
 
 /* Export button in conversation list */
 .export-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 2px 4px;
-    opacity: 0;
-    transition: opacity 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 .conversation-item:hover .export-btn {
-    opacity: 0.7;
+  opacity: 0.7;
 }
 .export-btn:hover {
-    opacity: 1 !important;
+  opacity: 1 !important;
 }
 
 /* Version badge in sidebar */
 .version-badge {
-    padding: 6px 12px;
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.4);
-    text-align: center;
-    letter-spacing: 0.5px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    cursor: default;
-    transition: color 0.2s;
+  padding: 6px 12px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  letter-spacing: 0.5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: default;
+  transition: color 0.2s;
 }
 .version-badge:hover {
-    color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Mic Button Active State ─────────────────────────────────── */
+#micBtn.mic-active {
+  color: var(--error);
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.5);
+  animation: mic-pulse 1.5s ease-in-out infinite;
+}
+#micBtn.mic-active svg {
+  stroke: var(--error);
+}
+@keyframes mic-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
 }
