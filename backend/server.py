@@ -250,120 +250,95 @@ async def chat(request: Request):
     except Exception:
         pass  # Memory not available, continue without it
 
-    # Get tool definitions for Ollama (formatted for the API)
-    tools = registry.get_ollama_tools()
+    # Grab tool defs once (read-only from here on)
+    tool_defs = registry.get_ollama_tools()
 
     async def stream_response():
-        """
-        Agent loop: call Ollama → if tool calls, execute → feed result → repeat.
-        Stream all events (tokens, tool_call, tool_result, done) as SSE.
-        """
         nonlocal ollama_messages
         full_response = ""
-        max_iterations = 10  # Safety: prevent infinite tool loops
-        logger.info(f"Starting stream_response. Messages count: {len(ollama_messages)}")
+        include_tools = bool(tool_defs)  # Flag: can this model use tools?
+        logger.info(f"Starting stream_response. Messages: {len(ollama_messages)}, include_tools: {include_tools}")
 
-        for iteration in range(max_iterations):
-            logger.info(f"Agent loop iteration {iteration + 1}/{max_iterations}")
+        for iteration in range(10):
+            logger.info(f"Agent loop iteration {iteration + 1}")
+
+            # Build payload
+            payload = {"model": model, "messages": ollama_messages, "stream": True}
+            if include_tools:
+                payload["tools"] = tool_defs
+
+            chunk_text = ""
+            tool_calls_found = []
+
             try:
-                ollama_payload = {
-                    "model": model,
-                    "messages": ollama_messages,
-                    "stream": True,
-                }
-                # Only include tools if we have any
-                if tools:
-                    ollama_payload["tools"] = tools
-                logger.info(f"Sending to Ollama: model={model}, msg_count={len(ollama_messages)}, tools_count={len(tools) if tools else 0}")
-                logger.debug(f"Ollama payload keys: {list(ollama_payload.keys())}")
-
                 async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-                    async with client.stream(
-                        "POST",
-                        f"{OLLAMA_BASE_URL}/api/chat",
-                        json=ollama_payload,
-                    ) as response:
-                        logger.info(f"Ollama response status: {response.status_code}")
+                    async with client.stream("POST", f"{OLLAMA_BASE_URL}/api/chat", json=payload) as response:
+                        logger.info(f"Ollama status: {response.status_code}")
+
                         if response.status_code != 200:
-                            error_body = await response.aread()
-                            logger.error(f"Ollama error response: {error_body.decode()}")
-                            yield f"data: {json.dumps({'error': f'Ollama returned {response.status_code}: {error_body.decode()}'})}"
+                            error_body = (await response.aread()).decode()
+                            logger.error(f"Ollama error: {error_body}")
+
+                            # If model doesn't support tools, disable and retry
+                            if "does not support tools" in error_body and include_tools:
+                                logger.info("Model doesn't support tools — disabling and retrying")
+                                include_tools = False
+                                continue  # Re-enter the for loop without tools
+
+                            yield f"data: {json.dumps({'error': error_body})}\n\n"
                             return
 
-                        # Accumulate the full response to detect tool calls
-                        chunk_text = ""
-                        tool_calls = []
-                        line_count = 0
-
+                        # Stream tokens line by line
                         async for line in response.aiter_lines():
                             if not line.strip():
                                 continue
-                            line_count += 1
                             try:
                                 data = json.loads(line)
                                 msg = data.get("message", {})
-
-                                # Stream text tokens to frontend immediately
                                 content = msg.get("content", "")
                                 if content:
                                     chunk_text += content
-                                    full_response += content
-                                    sse_data = json.dumps({'token': content, 'conversation_id': conversation_id})
-                                    logger.debug(f"Streaming token (line {line_count}): {content[:50]}...")
-                                    yield f"data: {sse_data}\n\n"
-
-                                # Detect tool calls
+                                    yield f"data: {json.dumps({'token': content, 'conversation_id': conversation_id})}\n\n"
                                 if msg.get("tool_calls"):
-                                    logger.info(f"Tool call detected: {msg['tool_calls']}")
-                                    tool_calls.extend(msg["tool_calls"])
-
-                                # Check if done
+                                    tool_calls_found.extend(msg["tool_calls"])
                                 if data.get("done"):
-                                    logger.info(f"Ollama stream done. Total lines: {line_count}, text_len: {len(chunk_text)}")
-
-                            except json.JSONDecodeError as e:
-                                logger.warning(f"JSON decode error on line {line_count}: {e}, raw: {line[:100]}")
+                                    logger.info(f"Stream segment done. text_len={len(chunk_text)}, tool_calls={len(tool_calls_found)}")
+                            except json.JSONDecodeError:
                                 continue
 
-                    # If no tool calls, we're done
-                    if not tool_calls:
-                        break
+                full_response += chunk_text
 
-                    # Execute each tool call
-                    for tc in tool_calls:
-                        func = tc.get("function", {})
-                        tool_name = func.get("name", "unknown")
-                        tool_args = func.get("arguments", {})
+                # No tool calls → we're done
+                if not tool_calls_found:
+                    break
 
-                        # Stream tool call event to frontend
-                        yield f"data: {json.dumps({'tool_call': {'name': tool_name, 'arguments': tool_args}})}\n\n"
+                # Execute tool calls and feed results back
+                for tc in tool_calls_found:
+                    func = tc.get("function", {})
+                    tool_name = func.get("name", "unknown")
+                    tool_args = func.get("arguments", {})
 
-                        # Execute the tool
-                        try:
-                            # Inject learning_enabled flag for memory tools
-                            if tool_name == "save_memory" and not learning_enabled:
-                                result = "Learning is paused. Memory not saved."
-                            else:
-                                result = registry.execute(tool_name, tool_args)
-                        except Exception as e:
-                            result = f"Error: {str(e)}"
+                    yield f"data: {json.dumps({'tool_call': {'name': tool_name, 'arguments': tool_args}})}\n\n"
 
-                        # Stream tool result to frontend
-                        yield f"data: {json.dumps({'tool_result': {'name': tool_name, 'result': result}})}\n\n"
+                    try:
+                        if tool_name == "save_memory" and not learning_enabled:
+                            result = "Learning is paused. Memory not saved."
+                        else:
+                            result = registry.execute(tool_name, tool_args)
+                    except Exception as e:
+                        result = f"Error: {str(e)}"
 
-                        # Add to conversation for next iteration
-                        ollama_messages.append({
-                            "role": "assistant",
-                            "content": chunk_text,
-                            "tool_calls": [tc],
-                        })
-                        ollama_messages.append({
-                            "role": "tool",
-                            "content": result,
-                        })
+                    yield f"data: {json.dumps({'tool_result': {'name': tool_name, 'result': result}})}\n\n"
 
-                    # Reset for next iteration (model will respond to tool results)
-                    chunk_text = ""
+                    ollama_messages.append({
+                        "role": "assistant",
+                        "content": chunk_text,
+                        "tool_calls": [tc],
+                    })
+                    ollama_messages.append({
+                        "role": "tool",
+                        "content": result,
+                    })
 
             except Exception as e:
                 logger.error(f"Stream error: {e}")
@@ -371,8 +346,8 @@ async def chat(request: Request):
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 break
 
-        # Save full response to DB
-        logger.info(f"Stream complete. Full response length: {len(full_response)}")
+        # Save response to DB
+        logger.info(f"Stream complete. Response length: {len(full_response)}")
         if full_response:
             db = get_db()
             db.execute(

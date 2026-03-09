@@ -165,7 +165,9 @@ async function loadConversation(id) {
         // Load default if no custom prompt saved
         systemPromptText.value = "";
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     renderMessages();
     welcomeScreen.style.display = "none";
@@ -207,6 +209,7 @@ async function sendMessage() {
   // Prepare placeholder for assistant response
   const assistantEl = appendMessage("assistant", "");
   addTypingIndicator(assistantEl);
+  let typingRemoved = false;
 
   state.streaming = true;
   sendBtn.disabled = true;
@@ -224,24 +227,51 @@ async function sendMessage() {
   }
 
   try {
+    console.log("[LocalMind] Sending chat request:", {
+      model: body.model,
+      msg_len: body.message?.length,
+      conv_id: body.conversation_id,
+    });
     const resp = await fetch(`${API}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: state.abortController.signal,
     });
+    console.log(
+      "[LocalMind] Fetch response status:",
+      resp.status,
+      resp.statusText,
+    );
 
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let fullText = "";
+    let chunkCount = 0;
     const contentEl = assistantEl.querySelector(".message-content");
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        console.log(
+          "[LocalMind] Reader done. Total chunks:",
+          chunkCount,
+          "fullText length:",
+          fullText.length,
+        );
+        break;
+      }
 
-      buffer += decoder.decode(value, { stream: true });
+      const rawChunk = decoder.decode(value, { stream: true });
+      chunkCount++;
+      if (chunkCount <= 5 || chunkCount % 20 === 0) {
+        console.log(
+          `[LocalMind] Chunk #${chunkCount}:`,
+          rawChunk.substring(0, 200),
+        );
+      }
+      buffer += rawChunk;
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
 
@@ -252,6 +282,12 @@ async function sendMessage() {
 
           // Token stream
           if (evt.token) {
+            if (!typingRemoved) {
+              typingRemoved = true;
+              console.log(
+                "[LocalMind] First token received, removing typing indicator",
+              );
+            }
             fullText += evt.token;
             contentEl.innerHTML = renderMarkdown(fullText);
             highlightCode();
@@ -282,8 +318,13 @@ async function sendMessage() {
           if (evt.done) {
             state.messages.push({ role: "assistant", content: fullText });
           }
-        } catch {
-          /* skip bad JSON */
+        } catch (parseErr) {
+          console.warn(
+            "[LocalMind] SSE parse error:",
+            parseErr,
+            "raw line:",
+            line.substring(0, 200),
+          );
         }
       }
     }
@@ -297,6 +338,13 @@ async function sendMessage() {
       const contentEl = assistantEl.querySelector(".message-content");
       contentEl.innerHTML = `<p style="color:var(--error)">Connection error: ${e.message}</p>`;
     }
+  }
+
+  // Remove typing indicator if it wasn't already removed by tokens
+  const leftoverTyping = assistantEl.querySelector(".typing-indicator");
+  if (leftoverTyping) {
+    console.log("[LocalMind] Removing leftover typing indicator");
+    leftoverTyping.remove();
   }
 
   state.streaming = false;
@@ -353,6 +401,27 @@ function createMessageEl(role, content) {
         </div>
     `;
   return div;
+}
+
+// ── Export Conversation ─────────────────────────────────────────
+async function exportConversation(id, title) {
+  try {
+    const r = await fetch(`${API}/api/conversations/${id}/messages`);
+    const d = await r.json();
+    const messages = d.messages || [];
+    const text = messages
+      .map((m) => `[${m.role.toUpperCase()}]\n${m.content}`)
+      .join("\n\n---\n\n");
+    const blob = new Blob([`# ${title}\n\n${text}`], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(title || "conversation").replace(/[^a-z0-9]/gi, "_")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error("Failed to export conversation", e);
+  }
 }
 
 function addTypingIndicator(el) {
@@ -447,6 +516,8 @@ function populateVoices() {
 }
 
 function speak(text) {
+  // Cancel any currently playing speech first
+  speechSynthesis.cancel();
   // Strip markdown for speech
   const clean = text
     .replace(/[#*`\[\]()_~>|-]/g, "")
@@ -565,12 +636,17 @@ function bindEvents() {
     // Save to backend if we have an active conversation
     if (state.currentConvId) {
       try {
-        await fetch(`${API}/api/conversations/${state.currentConvId}/system-prompt`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ system_prompt: systemPromptText.value }),
-        });
-      } catch { /* ignore */ }
+        await fetch(
+          `${API}/api/conversations/${state.currentConvId}/system-prompt`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ system_prompt: systemPromptText.value }),
+          },
+        );
+      } catch {
+        /* ignore */
+      }
     }
     systemPromptPanel.classList.remove("open");
   });
@@ -604,6 +680,16 @@ function bindEvents() {
     sidebar.classList.toggle("open"),
   );
 
+  // Voice toggle — click to toggle voice on/off, also stops current speech
+  voiceToggle.addEventListener("click", () => {
+    speechSynthesis.cancel(); // Stop any current speech immediately
+    state.voiceEnabled = !state.voiceEnabled;
+    voiceToggle.classList.toggle("active", state.voiceEnabled);
+    voiceToggle.title = state.voiceEnabled
+      ? "Voice On (click to mute)"
+      : "Voice Off (click to unmute)";
+  });
+
   // Camera
   cameraBtn.addEventListener("click", openCamera);
   closeCameraBtn.addEventListener("click", closeCamera);
@@ -627,6 +713,10 @@ function bindEvents() {
     if (e.ctrlKey && e.key === "n") {
       e.preventDefault();
       newChatBtn.click();
+    }
+    // Escape stops voice immediately
+    if (e.key === "Escape") {
+      speechSynthesis.cancel();
     }
   });
 }
