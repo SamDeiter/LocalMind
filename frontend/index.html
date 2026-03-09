@@ -77,7 +77,12 @@
                 </button>
 
                 <div class="model-selector">
-                    <select id="modelSelect"><option value="">Loading models...</option></select>
+                    <div class="mode-toggle" id="modeToggle">
+                        <button class="mode-btn" data-mode="fast" title="Always use fast 7B model">⚡ Fast</button>
+                        <button class="mode-btn active" data-mode="auto" title="Auto-select model by task complexity">🤖 Auto</button>
+                        <button class="mode-btn" data-mode="deep" title="Always use deep 32B model">🧠 Deep</button>
+                    </div>
+                    <select id="modelSelect" title="Override model" class="model-override-select" style="display:none"><option value="">Loading...</option></select>
                 </div>
 
                 <div class="top-bar-actions">
@@ -162,6 +167,8 @@
                 </div>
                 <div class="input-container">
                     <div class="input-actions-left">
+                        <button class="btn-icon" id="uploadBtn" title="Upload document for RAG">📎</button>
+                        <input type="file" id="fileInput" accept=".txt,.md,.py,.js,.ts,.json,.csv,.html,.css,.xml,.yaml,.yml,.toml,.cfg,.ini,.log,.sql,.sh,.bat,.ps1,.java,.cpp,.c,.h,.rb,.go,.rs,.php" style="display:none" multiple />
                         <button class="btn-icon" id="cameraBtn" title="Capture from camera">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>

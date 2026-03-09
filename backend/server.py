@@ -81,6 +81,88 @@ from backend.tools.registry import ToolRegistry
 OLLAMA_BASE_URL = "http://localhost:11434"
 DB_PATH = Path(__file__).parent / "conversations.db"
 
+# ── Multi-Model Routing ────────────────────────────────────────────────
+MODEL_TIERS = {
+    "light":  "qwen2.5-coder:7b",    # Fast — fits in VRAM, ~3-5x faster
+    "medium": "qwen2.5-coder:7b",    # Still fast for moderate tasks
+    "heavy":  "qwen2.5-coder:32b",   # Deep analysis — slower but smarter
+}
+
+import re
+
+def estimate_task_complexity(message: str, history_len: int = 0) -> dict:
+    """Score message complexity 0–10 and pick the right model tier."""
+    msg = message.lower().strip()
+    score = 5  # Start neutral
+
+    # ── Signals that push LIGHTER ──
+    # Greetings / politeness
+    if re.match(r'^(hi|hey|hello|yo|sup|thanks|thank you|ok|cool|got it|bye|gm|gn)\b', msg):
+        score -= 4
+    # Very short messages (< 20 chars)
+    if len(msg) < 20:
+        score -= 2
+    # Simple questions
+    if re.match(r'^(what is|who is|when did|where is|how do i|can you)\b', msg) and len(msg) < 80:
+        score -= 1
+
+    # ── Signals that push HEAVIER ──
+    # Code generation keywords
+    heavy_code = ["write a", "implement", "build a", "create a", "generate", "design a"]
+    if any(k in msg for k in heavy_code) and len(msg) > 40:
+        score += 2
+    # Deep analysis keywords
+    deep_analysis = ["refactor", "debug", "optimize", "review", "analyze", "architecture",
+                     "performance", "security audit", "explain the codebase", "full"]
+    if any(k in msg for k in deep_analysis):
+        score += 3
+    # Multi-file / project-level work
+    project_signals = ["project", "codebase", "repository", "multiple files", "entire"]
+    if any(k in msg for k in project_signals):
+        score += 2
+    # Contains code block (triple backticks)
+    if "```" in message:
+        score += 2
+    # Long messages suggest complex requests
+    if len(msg) > 200:
+        score += 1
+    if len(msg) > 500:
+        score += 1
+    # Long conversation context = likely complex ongoing task
+    if history_len > 10:
+        score += 1
+
+    # Clamp to 0-10
+    score = max(0, min(10, score))
+
+    # Map score to tier
+    if score <= 3:
+        tier = "light"
+    elif score <= 6:
+        tier = "medium"
+    else:
+        tier = "heavy"
+
+    model = MODEL_TIERS[tier]
+
+    # Build reason string
+    reasons = []
+    if score <= 3:
+        reasons.append("quick response")
+    elif score >= 7:
+        reasons.append("complex task detected")
+    if len(msg) < 20:
+        reasons.append("short message")
+    if len(msg) > 200:
+        reasons.append("detailed request")
+
+    return {
+        "score": score,
+        "tier": tier,
+        "model": model,
+        "reason": " • ".join(reasons) if reasons else "standard",
+    }
+
 # Default system prompt sent to the model
 DEFAULT_SYSTEM_PROMPT = """You are LocalMind — think of yourself as the user's brilliant, reliable friend who happens to be great with technology. You talk naturally, like a real person — not a corporate chatbot.
 
@@ -280,10 +362,17 @@ async def chat(request: Request):
     Streams all events (tokens, tool calls, tool results) to the frontend via SSE.
     """
     body = await request.json()
-    model = body.get("model", "qwen2.5-coder:32b")
+    model = body.get("model", "auto")
     message = body.get("message", "")
     conversation_id = body.get("conversation_id")
     system_prompt = body.get("system_prompt", "")
+
+    # Auto model routing: estimate task complexity and pick the right model
+    task_estimate = None
+    if model == "auto":
+        task_estimate = estimate_task_complexity(message, len(body.get("messages", [])))
+        model = task_estimate["model"]
+        logger.info(f"AUTO-ROUTE: score={task_estimate['score']} tier={task_estimate['tier']} → {model} ({task_estimate['reason']})")
     logger.info(f"CHAT REQUEST: model={model}, msg_len={len(message)}, conv_id={conversation_id}")
 
     # If no prompt in request, load from conversation or use default
@@ -382,6 +471,10 @@ async def chat(request: Request):
         # Send thinking event at start
         context_chars = sum(len(m.get('content', '')) for m in ollama_messages)
         yield f"data: {json.dumps({'thinking': {'model': model, 'messages': len(ollama_messages), 'context_chars': context_chars, 'tools_enabled': include_tools}})}\n\n"
+
+        # Send task estimation if auto-routing was used
+        if task_estimate:
+            yield f"data: {json.dumps({'task_estimate': task_estimate})}\n\n"
 
         for iteration in range(10):
             logger.info(f"Agent loop iteration {iteration + 1}")

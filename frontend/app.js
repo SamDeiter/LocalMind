@@ -62,6 +62,8 @@ async function init() {
   else voiceToggle.classList.remove("active");
   checkHealth();
   loadVersion();
+  startHwPolling();
+  loadDocuments();
   setInterval(checkHealth, 15000);
   bindEvents();
 }
@@ -1055,6 +1057,72 @@ async function loadDocuments() {
   }
 }
 
+// ── Utility ─────────────────────────────────────────────────────
+function escapeHtml(text) {
+  const d = document.createElement("div");
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+// ── Document RAG ────────────────────────────────────────────────
+async function uploadDocuments(files) {
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const r = await fetch(`${API}/api/documents/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const d = await r.json();
+      if (d.success) {
+        console.log(`Indexed ${file.name}: ${d.chunks} chunks`);
+      } else {
+        console.error(`Upload failed: ${d.error}`);
+      }
+    } catch (e) {
+      console.error("Upload error:", e);
+    }
+  }
+  await loadDocuments();
+}
+
+async function loadDocuments() {
+  try {
+    const r = await fetch(`${API}/api/documents`);
+    const d = await r.json();
+    const list = document.getElementById("documentList");
+    const count = document.getElementById("docCount");
+    if (!list) return;
+
+    const docs = d.documents || [];
+    count.textContent = docs.length;
+    list.innerHTML = "";
+
+    docs.forEach((doc) => {
+      const div = document.createElement("div");
+      div.className = "document-item";
+      div.innerHTML = `
+        <span class="doc-icon">📄</span>
+        <span class="doc-name" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
+        <span class="doc-chunks">${doc.chunks} chunks</span>
+        <button class="delete-btn" title="Remove">✕</button>
+      `;
+      div.querySelector(".delete-btn").addEventListener("click", async () => {
+        await fetch(
+          `${API}/api/documents/${encodeURIComponent(doc.filename)}`,
+          {
+            method: "DELETE",
+          },
+        );
+        await loadDocuments();
+      });
+      list.appendChild(div);
+    });
+  } catch {
+    /* ignore */
+  }
+}
 
 // ── Hardware Dashboard ──────────────────────────────────────────
 let hwInterval = null;
@@ -1099,7 +1167,9 @@ async function pollHardware() {
       modelLabel.textContent = "Model";
       vramBar.className = "hw-fill hw-fill-dim";
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function startHwPolling() {
