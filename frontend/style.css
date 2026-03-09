@@ -1225,6 +1225,94 @@ body {
   border: 1px solid rgba(139, 92, 246, 0.25);
 }
 
+
+/* Memory Viewer */
+.memory-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.memory-list.open {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.memory-empty {
+  padding: 12px 16px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+  font-style: italic;
+}
+.memory-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  font-size: 0.73rem;
+  color: rgba(255, 255, 255, 0.6);
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.memory-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.memory-cat {
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+.memory-cat-preference {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+.memory-cat-fact {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+.memory-cat-instruction {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+.memory-cat-context {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+.memory-cat-general {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+.memory-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.memory-time {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+  min-width: 70px;
+  text-align: right;
+}
+.memory-del {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.memory-del:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
 /* ── Editor Panel ────────────────────────────────────────────── */
 .editor-panel {
   display: none;

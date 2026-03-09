@@ -71,6 +71,7 @@ async function init() {
   checkHealth();
   loadVersion();
   startHwPolling();
+  loadMemories();
   loadDocuments();
   setInterval(checkHealth, 15000);
   bindEvents();
@@ -1531,6 +1532,48 @@ document
 editorToggle?.addEventListener("click", toggleEditorPanel);
 
 // Editor starts closed — user can toggle with the button
+
+
+
+// ── Memory Viewer ───────────────────────────────────────────────
+async function loadMemories() {
+  try {
+    const res = await fetch("/api/memories");
+    const data = await res.json();
+    const countEl = document.getElementById("memoryCount");
+    const listEl = document.getElementById("memoryList");
+    if (!countEl || !listEl) return;
+    countEl.textContent = data.count || 0;
+    if (!data.memories || data.memories.length === 0) {
+      listEl.innerHTML = '<div class="memory-empty">No memories yet. Chat naturally and I\'ll learn!</div>';
+      return;
+    }
+    listEl.innerHTML = data.memories.map(m => `
+      <div class="memory-item">
+        <span class="memory-cat memory-cat-${m.category}">${m.category}</span>
+        <span class="memory-text">${escapeHtml(m.content)}</span>
+        <span class="memory-time">${m.created_at}</span>
+        <button class="memory-del" onclick="deleteMemory('${m.id}')" title="Delete">✕</button>
+      </div>
+    `).join("");
+  } catch (e) {
+    console.warn("Memory load failed:", e);
+  }
+}
+
+async function deleteMemory(id) {
+  try {
+    await fetch(`/api/memories/${id}`, { method: "DELETE" });
+    await loadMemories();
+  } catch (e) {
+    console.warn("Memory delete failed:", e);
+  }
+}
+
+function toggleMemoryList() {
+  const list = document.getElementById("memoryList");
+  if (list) list.classList.toggle("open");
+}
 
 // ── Boot ────────────────────────────────────────────────────────
 init();

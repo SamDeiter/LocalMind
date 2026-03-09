@@ -302,6 +302,48 @@ async def memory_toggle(request: Request):
     learning_enabled = body.get("enabled", True)
     return {"learning_enabled": learning_enabled}
 
+
+# ── Memory List & Delete ────────────────────────────────────────────────
+@app.get("/api/memories")
+async def list_memories():
+    """List all stored memories with id, content, category, and timestamp."""
+    try:
+        from backend.tools.memory import _get_collection
+        import datetime
+        collection = _get_collection()
+        if collection.count() == 0:
+            return {"memories": [], "count": 0}
+        results = collection.get(include=["documents", "metadatas"])
+        memories = []
+        for doc_id, doc, meta in zip(results["ids"], results["documents"], results["metadatas"]):
+            ts = meta.get("created_at", "0")
+            try:
+                dt = datetime.datetime.fromtimestamp(float(ts)).strftime("%Y-%m-%d %H:%M")
+            except (ValueError, OSError):
+                dt = "unknown"
+            memories.append({
+                "id": doc_id,
+                "content": doc,
+                "category": meta.get("category", "general"),
+                "created_at": dt,
+            })
+        memories.sort(key=lambda m: m.get("created_at", ""), reverse=True)
+        return {"memories": memories, "count": len(memories)}
+    except Exception as e:
+        return {"memories": [], "count": 0, "error": str(e)}
+
+
+@app.delete("/api/memories/{memory_id}")
+async def delete_memory(memory_id: str):
+    """Delete a specific memory by its ID."""
+    try:
+        from backend.tools.memory import _get_collection
+        collection = _get_collection()
+        collection.delete(ids=[memory_id])
+        return {"success": True, "deleted": memory_id}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # ── File Browser ────────────────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
