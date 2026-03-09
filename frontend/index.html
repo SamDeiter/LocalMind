@@ -18,6 +18,8 @@
     <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
     <!-- Markdown parser -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <!-- Our styles -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -62,6 +64,32 @@
     </aside>
 
         <!-- ============================================================ -->
+        <!-- EDITOR PANEL                                                  -->
+        <!-- ============================================================ -->
+        <section class="editor-panel" id="editorPanel">
+            <div class="editor-file-tree" id="editorFileTree">
+                <div class="editor-file-header">
+                    <span>FILES</span>
+                    <div>
+                        <button class="btn-icon-sm" id="editorNewFile" title="New file">+</button>
+                        <button class="btn-icon-sm" id="editorRefresh" title="Refresh">↻</button>
+                    </div>
+                </div>
+                <div class="editor-file-list" id="editorFileList"></div>
+            </div>
+            <div class="editor-tabs" id="editorTabs"></div>
+            <div id="monacoContainer" class="monaco-container"></div>
+            <div class="editor-status" id="editorStatus">
+                <span id="editorLang">plaintext</span>
+                <span id="editorPath">No file open</span>
+                <button class="btn-sm" id="editorSendToAI" title="Send current file to AI as context">📎 Send to AI</button>
+            </div>
+        </section>
+
+        <!-- Drag handle to resize editor/chat -->
+        <div class="panel-divider" id="panelDivider"></div>
+
+        <!-- ============================================================ -->
         <!-- MAIN CHAT AREA                                                -->
         <!-- ============================================================ -->
         <main class="main-content">
@@ -86,6 +114,9 @@
                 </div>
 
                 <div class="top-bar-actions">
+                    <button class="btn-icon" id="editorToggle" title="Toggle Code Editor">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    </button>
                     <!-- Voice output toggle -->
                     <button class="btn-icon" id="voiceToggle" title="Toggle Voice Output">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -216,6 +247,6 @@
     <canvas id="captureCanvas" style="display:none"></canvas>
 
     <!-- App logic -->
-    <script src="app.js"></script>
+    <script src="app.js?v=3"></script>
 </body>
 </html>

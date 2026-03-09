@@ -21,7 +21,7 @@ const state = {
   streaming: false,
   model: "auto",
   mode: localStorage.getItem("localmind_mode") || "auto",
-  voiceEnabled: localStorage.getItem("localmind_voice") !== "off",
+  voiceEnabled: localStorage.getItem("localmind_voice") === "on",
   capturedImage: null,
   abortController: null,
 };

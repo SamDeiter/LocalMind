@@ -353,6 +353,25 @@ async def read_file_api(path: str):
         return {"error": str(e)}
 
 
+@app.post("/api/files/write")
+async def write_file_api(request: Request):
+    """Write content to a file relative to project root."""
+    body = await request.json()
+    path = body.get("path", "")
+    content = body.get("content", "")
+    target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+    # Security: prevent directory traversal
+    if not target.startswith(PROJECT_ROOT):
+        return {"error": "Access denied"}
+    try:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(content)
+        return {"success": True, "path": os.path.relpath(target, PROJECT_ROOT).replace("\\", "/")}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── Chat (Agent Loop with Tool Calling) ─────────────────────────────────
 @app.post("/api/chat")
 async def chat(request: Request):
