@@ -1202,6 +1202,51 @@ function startHwPolling() {
   hwInterval = setInterval(pollHardware, 3000);
 }
 
+// ── Memory Viewer ───────────────────────────────────────────────
+async function loadMemories() {
+  try {
+    const res = await fetch("/api/memories");
+    const data = await res.json();
+    const countEl = document.getElementById("memoryCount");
+    const listEl = document.getElementById("memoryList");
+    if (!countEl || !listEl) return;
+    countEl.textContent = data.count || 0;
+    if (!data.memories || data.memories.length === 0) {
+      listEl.innerHTML =
+        '<div class="memory-empty">No memories yet. Chat naturally and I\'ll learn!</div>';
+      return;
+    }
+    listEl.innerHTML = data.memories
+      .map(
+        (m) => `
+      <div class="memory-item">
+        <span class="memory-cat memory-cat-${m.category}">${m.category}</span>
+        <span class="memory-text">${escapeHtml(m.content)}</span>
+        <span class="memory-time">${m.created_at}</span>
+        <button class="memory-del" onclick="deleteMemory('${m.id}')" title="Delete">✕</button>
+      </div>
+    `,
+      )
+      .join("");
+  } catch (e) {
+    console.warn("Memory load failed:", e);
+  }
+}
+
+async function deleteMemory(id) {
+  try {
+    await fetch(`/api/memories/${id}`, { method: "DELETE" });
+    await loadMemories();
+  } catch (e) {
+    console.warn("Memory delete failed:", e);
+  }
+}
+
+function toggleMemoryList() {
+  const list = document.getElementById("memoryList");
+  if (list) list.classList.toggle("open");
+}
+
 // ── Monaco Code Editor ──────────────────────────────────────────
 let monacoEditor = null;
 let editorCurrentPath = null;
@@ -1281,11 +1326,7 @@ function initMonaco() {
             body: JSON.stringify({ path: editorCurrentPath, content }),
           });
           const d = await r.json();
-          if (d.success) {
-            showEditorStatus("Saved ✓", 2000);
-          } else {
-            showEditorStatus(`Error: ${d.error}`, 3000);
-          }
+          showEditorStatus(d.success ? "Saved ✓" : `Error: ${d.error}`, 2000);
         } catch (e) {
           showEditorStatus(`Save failed: ${e.message}`, 3000);
         }
@@ -1298,15 +1339,15 @@ function initMonaco() {
 
 function showEditorStatus(msg, duration) {
   const el = document.getElementById("editorPath");
+  if (!el) return;
   const prev = el.textContent;
   el.textContent = msg;
   el.style.color = "#34d399";
-  if (duration) {
+  if (duration)
     setTimeout(() => {
       el.textContent = prev;
       el.style.color = "";
     }, duration);
-  }
 }
 
 async function loadEditorFiles(dirPath, parentEl) {
@@ -1323,79 +1364,15 @@ async function loadEditorFiles(dirPath, parentEl) {
       item.className = "file-tree-item";
       item.dataset.path = f.path;
       item.dataset.type = f.type;
-
       const icon = f.type === "directory" ? "📁" : getFileIcon(f.name);
       const indent = (f.path.split("/").length - 1) * 12;
       item.style.paddingLeft = `${8 + indent}px`;
       item.innerHTML = `<span class="file-icon">${icon}</span><span class="file-name">${f.name}</span>`;
 
       if (f.type === "directory") {
-        item.addEventListener("click", async (e) => {
+        item.addEventListener("click", (e) => {
           e.stopPropagation();
-          const expanded = item.dataset.expanded === "true";
-          if (expanded) {
-            // Collapse: remove children
-            while (
-              item.nextSibling &&
-              item.nextSibling.dataset &&
-              item.nextSibling.dataset.path?.startsWith(f.path + "/")
-            ) {
-              item.nextSibling.remove();
-            }
-            item.dataset.expanded = "false";
-            item.querySelector(".file-icon").textContent = "📁";
-          } else {
-            item.dataset.expanded = "true";
-            item.querySelector(".file-icon").textContent = "📂";
-            // Insert children after this item
-            const childContainer = document.createDocumentFragment();
-            const cr = await fetch(
-              `${API}/api/files/list?path=${encodeURIComponent(f.path)}`,
-            );
-            const cd = await cr.json();
-            cd.files.forEach((cf) => {
-              const child = document.createElement("div");
-              child.className = "file-tree-item";
-              child.dataset.path = cf.path;
-              child.dataset.type = cf.type;
-              const cIndent = (cf.path.split("/").length - 1) * 12;
-              child.style.paddingLeft = `${8 + cIndent}px`;
-              const cIcon =
-                cf.type === "directory" ? "📁" : getFileIcon(cf.name);
-              child.innerHTML = `<span class="file-icon">${cIcon}</span><span class="file-name">${cf.name}</span>`;
-              if (cf.type === "file") {
-                child.addEventListener("click", (e2) => {
-                  e2.stopPropagation();
-                  openFileInEditor(cf.path, cf.name);
-                });
-              } else {
-                child.addEventListener("click", async (e2) => {
-                  e2.stopPropagation();
-                  // Recurse for deeper dirs
-                  const exp2 = child.dataset.expanded === "true";
-                  if (exp2) {
-                    while (
-                      child.nextSibling &&
-                      child.nextSibling.dataset?.path?.startsWith(cf.path + "/")
-                    )
-                      child.nextSibling.remove();
-                    child.dataset.expanded = "false";
-                    child.querySelector(".file-icon").textContent = "📁";
-                  } else {
-                    child.dataset.expanded = "true";
-                    child.querySelector(".file-icon").textContent = "📂";
-                    await loadEditorFiles(cf.path, child.parentElement);
-                  }
-                });
-              }
-              childContainer.appendChild(child);
-            });
-            item.after(
-              ...(childContainer.children.length
-                ? Array.from(childContainer.children)
-                : []),
-            );
-          }
+          toggleDir(item, f);
         });
       } else {
         item.addEventListener("click", (e) => {
@@ -1407,6 +1384,54 @@ async function loadEditorFiles(dirPath, parentEl) {
     });
   } catch (e) {
     console.error("Failed to load files:", e);
+  }
+}
+
+async function toggleDir(item, f) {
+  const expanded = item.dataset.expanded === "true";
+  if (expanded) {
+    while (
+      item.nextSibling &&
+      item.nextSibling.dataset?.path?.startsWith(f.path + "/")
+    ) {
+      item.nextSibling.remove();
+    }
+    item.dataset.expanded = "false";
+    item.querySelector(".file-icon").textContent = "📁";
+  } else {
+    item.dataset.expanded = "true";
+    item.querySelector(".file-icon").textContent = "📂";
+    const cr = await fetch(
+      `${API}/api/files/list?path=${encodeURIComponent(f.path)}`,
+    );
+    const cd = await cr.json();
+    const frag = document.createDocumentFragment();
+    cd.files.forEach((cf) => {
+      const child = document.createElement("div");
+      child.className = "file-tree-item";
+      child.dataset.path = cf.path;
+      child.dataset.type = cf.type;
+      const cIndent = (cf.path.split("/").length - 1) * 12;
+      child.style.paddingLeft = `${8 + cIndent}px`;
+      const cIcon = cf.type === "directory" ? "📁" : getFileIcon(cf.name);
+      child.innerHTML = `<span class="file-icon">${cIcon}</span><span class="file-name">${cf.name}</span>`;
+      if (cf.type === "file") {
+        child.addEventListener("click", (e2) => {
+          e2.stopPropagation();
+          openFileInEditor(cf.path, cf.name);
+        });
+      } else {
+        child.addEventListener("click", (e2) => {
+          e2.stopPropagation();
+          toggleDir(child, cf);
+        });
+      }
+      frag.appendChild(child);
+    });
+    // Insert children after parent item
+    const next = item.nextSibling;
+    const parent = item.parentElement;
+    Array.from(frag.children).forEach((c) => parent.insertBefore(c, next));
   }
 }
 
@@ -1441,7 +1466,6 @@ async function openFileInEditor(path, name) {
     monacoEditor.setValue(d.content);
     document.getElementById("editorLang").textContent = lang;
     document.getElementById("editorPath").textContent = path;
-    // Highlight active file in tree
     document
       .querySelectorAll(".file-tree-item")
       .forEach((el) => el.classList.remove("active"));
@@ -1456,14 +1480,15 @@ async function openFileInEditor(path, name) {
 
 // Editor panel toggle
 function toggleEditorPanel() {
+  if (!editorPanel) return;
   const visible = editorPanel.classList.toggle("visible");
-  panelDivider.classList.toggle("visible", visible);
-  editorToggle.classList.toggle("active", visible);
+  if (panelDivider) panelDivider.classList.toggle("visible", visible);
+  if (editorToggle) editorToggle.classList.toggle("active", visible);
   localStorage.setItem("localmind_editor", visible ? "on" : "off");
   if (visible && !monacoEditor) initMonaco();
 }
 
-// Send to AI
+// ── Enhancement 1: Send to AI (auto-sends!) ──────────────────
 document.getElementById("editorSendToAI")?.addEventListener("click", () => {
   if (!monacoEditor || !editorCurrentPath) return;
   const code = monacoEditor.getValue();
@@ -1471,8 +1496,112 @@ document.getElementById("editorSendToAI")?.addEventListener("click", () => {
   const context = `[Code from ${editorCurrentPath}]\n\`\`\`${lang}\n${code}\n\`\`\`\n\nPlease review/help with this code:`;
   const input = document.getElementById("messageInput");
   input.value = context;
-  input.focus();
   input.dispatchEvent(new Event("input", { bubbles: true }));
+  // Auto-send immediately
+  setTimeout(() => sendMessage(), 100);
+});
+
+// ── Enhancement 2: Drag & Drop Files to Chat ─────────────────
+(function setupDragDrop() {
+  const inputArea =
+    document.querySelector(".input-wrapper") ||
+    document.querySelector(".input-area");
+  if (!inputArea) return;
+
+  // Create drop zone overlay
+  const dropZone = document.createElement("div");
+  dropZone.className = "drop-zone-overlay";
+  dropZone.innerHTML =
+    '<div class="drop-zone-content">📂 Drop file here to attach</div>';
+  inputArea.style.position = "relative";
+  inputArea.appendChild(dropZone);
+
+  let dragCounter = 0;
+  inputArea.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    dragCounter++;
+    dropZone.classList.add("active");
+  });
+  inputArea.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dropZone.classList.remove("active");
+      dragCounter = 0;
+    }
+  });
+  inputArea.addEventListener("dragover", (e) => e.preventDefault());
+  inputArea.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropZone.classList.remove("active");
+
+    const files = Array.from(e.dataTransfer.files);
+    if (!files.length) return;
+
+    const input = document.getElementById("messageInput");
+    let contextParts = [];
+
+    for (const file of files) {
+      if (file.type.startsWith("image/")) {
+        // Image — convert to base64 for vision
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+        contextParts.push(
+          `[Image: ${file.name}]\n(Image attached for analysis)`,
+        );
+        // Store base64 for sending with message
+        if (!window._droppedImages) window._droppedImages = [];
+        window._droppedImages.push({ name: file.name, data: base64 });
+      } else {
+        // Text file — read content
+        const text = await file.text();
+        const lang = getLang(file.name);
+        contextParts.push(
+          `[File: ${file.name}]\n\`\`\`${lang}\n${text}\n\`\`\``,
+        );
+      }
+    }
+
+    const existing = input.value.trim();
+    input.value =
+      contextParts.join("\n\n") +
+      (existing ? "\n\n" + existing : "\n\nPlease review these files:");
+    input.focus();
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    showEditorStatus(`${files.length} file(s) attached`, 2000);
+  });
+})();
+
+// ── Enhancement 3: Run Python Script Button ──────────────────
+document.getElementById("editorRunBtn")?.addEventListener("click", async () => {
+  if (!monacoEditor || !editorCurrentPath) return;
+  const code = monacoEditor.getValue();
+  const outputPanel = document.getElementById("editorOutput");
+  if (!outputPanel) return;
+
+  outputPanel.style.display = "block";
+  outputPanel.textContent = "▶ Running...\n";
+
+  try {
+    const r = await fetch(`${API}/api/tools/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, language: "python" }),
+    });
+    const d = await r.json();
+    if (d.success) {
+      outputPanel.textContent =
+        d.result?.output || d.result || "✓ Completed (no output)";
+    } else {
+      outputPanel.textContent = `❌ Error: ${d.error || d.result?.error || "Unknown error"}`;
+    }
+  } catch (e) {
+    outputPanel.textContent = `❌ Failed: ${e.message}`;
+  }
 });
 
 // New file
@@ -1488,7 +1617,7 @@ document
         body: JSON.stringify({ path: name, content: "" }),
       });
       loadEditorFiles(".");
-      openFileInEditor(name, name);
+      setTimeout(() => openFileInEditor(name, name), 300);
     } catch (e) {
       showEditorStatus(`Create failed: ${e.message}`, 3000);
     }
@@ -1499,8 +1628,9 @@ document
   .getElementById("editorRefresh")
   ?.addEventListener("click", () => loadEditorFiles("."));
 
-// Panel divider drag-to-resize
+// ── Enhancement 4: Panel divider drag-to-resize ──────────────
 (function setupDivider() {
+  if (!panelDivider) return;
   let dragging = false;
   panelDivider.addEventListener("mousedown", (e) => {
     dragging = true;
@@ -1512,12 +1642,40 @@ document
     if (!dragging) return;
     const container = document.querySelector(".app-container");
     const rect = container.getBoundingClientRect();
-    const sidebarWidth = sidebar.offsetWidth;
-    const x = e.clientX - rect.left - sidebarWidth;
-    const minW = 250,
-      maxW = rect.width * 0.6;
-    const width = Math.max(minW, Math.min(maxW, x));
+    const sidebarEl = document.querySelector(".sidebar");
+    const sidebarW = sidebarEl ? sidebarEl.offsetWidth : 0;
+    const x = e.clientX - rect.left - sidebarW;
+    const width = Math.max(250, Math.min(rect.width * 0.6, x));
     editorPanel.style.width = `${width}px`;
+  });
+  document.addEventListener("mouseup", () => {
+    if (dragging) {
+      dragging = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+  });
+})();
+
+// File tree vertical resize
+(function setupFileTreeResize() {
+  const tree = document.querySelector(".editor-file-tree");
+  if (!tree) return;
+  const handle = document.createElement("div");
+  handle.className = "file-tree-resize-handle";
+  tree.appendChild(handle);
+  let dragging = false;
+  handle.addEventListener("mousedown", (e) => {
+    dragging = true;
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    e.preventDefault();
+  });
+  document.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const rect = tree.parentElement.getBoundingClientRect();
+    const h = e.clientY - rect.top;
+    tree.style.maxHeight = `${Math.max(80, Math.min(rect.height * 0.6, h))}px`;
   });
   document.addEventListener("mouseup", () => {
     if (dragging) {
@@ -1531,48 +1689,9 @@ document
 // Editor toggle button
 editorToggle?.addEventListener("click", toggleEditorPanel);
 
-// Editor starts closed — user can toggle with the button
-
-
-
-// ── Memory Viewer ───────────────────────────────────────────────
-async function loadMemories() {
-  try {
-    const res = await fetch("/api/memories");
-    const data = await res.json();
-    const countEl = document.getElementById("memoryCount");
-    const listEl = document.getElementById("memoryList");
-    if (!countEl || !listEl) return;
-    countEl.textContent = data.count || 0;
-    if (!data.memories || data.memories.length === 0) {
-      listEl.innerHTML = '<div class="memory-empty">No memories yet. Chat naturally and I\'ll learn!</div>';
-      return;
-    }
-    listEl.innerHTML = data.memories.map(m => `
-      <div class="memory-item">
-        <span class="memory-cat memory-cat-${m.category}">${m.category}</span>
-        <span class="memory-text">${escapeHtml(m.content)}</span>
-        <span class="memory-time">${m.created_at}</span>
-        <button class="memory-del" onclick="deleteMemory('${m.id}')" title="Delete">✕</button>
-      </div>
-    `).join("");
-  } catch (e) {
-    console.warn("Memory load failed:", e);
-  }
-}
-
-async function deleteMemory(id) {
-  try {
-    await fetch(`/api/memories/${id}`, { method: "DELETE" });
-    await loadMemories();
-  } catch (e) {
-    console.warn("Memory delete failed:", e);
-  }
-}
-
-function toggleMemoryList() {
-  const list = document.getElementById("memoryList");
-  if (list) list.classList.toggle("open");
+// Restore editor state
+if (localStorage.getItem("localmind_editor") === "on") {
+  setTimeout(toggleEditorPanel, 500);
 }
 
 // ── Boot ────────────────────────────────────────────────────────
