@@ -1,0 +1,22 @@
+{
+  "name": "localmind-frontend",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LocalMind AI Assistant — Frontend",
+  "scripts": {
+    "lint": "eslint modules/ app.js",
+    "lint:fix": "eslint modules/ app.js --fix",
+    "format": "prettier --write modules/ app.js",
+    "format:check": "prettier --check modules/ app.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "prettier": "^3.2.0"
+  }
+}

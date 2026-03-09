@@ -31,6 +31,10 @@ desktop.ini
 # Testing
 .pytest_cache/
 
+# Node (frontend tooling)
+node_modules/
+package-lock.json
+
 # ChromaDB local data
 chroma_data/
 
