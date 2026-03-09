@@ -90,7 +90,12 @@ async function checkHealth() {
 // ── Models & Modes ──────────────────────────────────────────────
 function resolveModel() {
   // Returns the model string to send to the server
-  return MODE_MODELS[state.mode] || "auto";
+  const mapped = MODE_MODELS[state.mode];
+  if (!mapped || mapped === "auto") {
+    // Auto mode: use whatever is selected in the dropdown
+    return modelSelect.value || "qwen2.5-coder:7b";
+  }
+  return mapped;
 }
 
 function activateMode(mode) {
