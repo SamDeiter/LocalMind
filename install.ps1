@@ -1,159 +1,119 @@
-# ============================================================================
-# LocalMind — Installation Script (PowerShell)
-#
-# One-command setup: installs Ollama, pulls models, creates Python venv,
-# installs dependencies, creates workspace, and sets up a launch shortcut.
-#
-# Usage: Right-click > Run with PowerShell, or:
-#   powershell -ExecutionPolicy Bypass -File install.ps1
-# ============================================================================
-
-$ErrorActionPreference = "Stop"
-
-# ── Colors for pretty output ────────────────────────────────────────
-function Write-Step { param([string]$msg) Write-Host "`n🔧 $msg" -ForegroundColor Cyan }
-function Write-OK { param([string]$msg) Write-Host "   ✅ $msg" -ForegroundColor Green }
-function Write-Warn { param([string]$msg) Write-Host "   ⚠️  $msg" -ForegroundColor Yellow }
-function Write-Err { param([string]$msg) Write-Host "   ❌ $msg" -ForegroundColor Red }
-
+﻿# LocalMind - Installation Script
+$ErrorActionPreference = 'Stop'
 $ProjectRoot = $PSScriptRoot
-$Workspace = Join-Path $HOME "LocalMind_Workspace"
-$VenvPath = Join-Path $ProjectRoot "venv"
+$Workspace = 'C:\LocalMind_Workspace'
+$VenvPath = Join-Path $ProjectRoot 'venv'
 
-Write-Host ""
-Write-Host "════════════════════════════════════════════" -ForegroundColor Magenta
-Write-Host "   🧠 LocalMind — Installation" -ForegroundColor White
-Write-Host "════════════════════════════════════════════" -ForegroundColor Magenta
+Write-Host ''
+Write-Host '============================================' -ForegroundColor Magenta
+Write-Host '   LocalMind - Installation' -ForegroundColor White
+Write-Host '============================================' -ForegroundColor Magenta
 
-# ── Step 1: Check for Ollama ────────────────────────────────────────
-Write-Step "Checking for Ollama..."
-
+# Step 1: Check for Ollama
+Write-Host ''
+Write-Host '[STEP] Checking for Ollama...' -ForegroundColor Cyan
 $ollamaPath = Get-Command ollama -ErrorAction SilentlyContinue
 if ($ollamaPath) {
     $version = & ollama --version 2>&1
-    Write-OK "Ollama found: $version"
-}
-else {
-    Write-Warn "Ollama not found. Installing..."
-    Write-Host "   Downloading Ollama installer..." -ForegroundColor Gray
-
-    $installerUrl = "https://ollama.com/download/OllamaSetup.exe"
-    $installerPath = Join-Path $env:TEMP "OllamaSetup.exe"
-
+    Write-Host ('  [OK] Ollama found: ' + $version) -ForegroundColor Green
+} else {
+    Write-Host '  [WARN] Ollama not found. Installing...' -ForegroundColor Yellow
+    $installerUrl = 'https://ollama.com/download/OllamaSetup.exe'
+    $installerPath = Join-Path $env:TEMP 'OllamaSetup.exe'
     try {
         Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
-        Write-Host "   Running installer (follow the prompts)..." -ForegroundColor Gray
+        Write-Host '  Running installer (follow the prompts)...' -ForegroundColor Gray
         Start-Process -FilePath $installerPath -Wait
-        Write-OK "Ollama installed. You may need to restart your terminal."
-    }
-    catch {
-        Write-Err "Failed to download Ollama. Please install manually from https://ollama.com"
-        Write-Host "   After installing, re-run this script." -ForegroundColor Gray
+        $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+        Write-Host '  [OK] Ollama installed' -ForegroundColor Green
+    } catch {
+        Write-Host '  [ERR] Failed to install Ollama. Get it from https://ollama.com' -ForegroundColor Red
         exit 1
     }
 }
 
-# ── Step 2: Start Ollama if not running ─────────────────────────────
-Write-Step "Ensuring Ollama is running..."
+# Step 2: Set Ollama model storage to D: drive (more space)
+Write-Host ''
+Write-Host '[STEP] Configuring Ollama model storage on D: drive...' -ForegroundColor Cyan
+$modelDir = 'D:\OllamaModels'
+if (-not (Test-Path $modelDir)) {
+    New-Item -ItemType Directory -Path $modelDir -Force | Out-Null
+}
+[System.Environment]::SetEnvironmentVariable('OLLAMA_MODELS', $modelDir, 'User')
+$env:OLLAMA_MODELS = $modelDir
+Write-Host ('  [OK] Models will be stored at: ' + $modelDir) -ForegroundColor Green
 
-$ollamaRunning = $null
+# Step 3: Start Ollama
+Write-Host ''
+Write-Host '[STEP] Ensuring Ollama is running...' -ForegroundColor Cyan
 try {
-    $ollamaRunning = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -Method Get -TimeoutSec 3 -ErrorAction SilentlyContinue
-}
-catch {}
-
-if (-not $ollamaRunning) {
-    Write-Host "   Starting Ollama..." -ForegroundColor Gray
-    Start-Process ollama -ArgumentList "serve" -WindowStyle Hidden
-    Start-Sleep -Seconds 3
-    Write-OK "Ollama started"
-}
-else {
-    Write-OK "Ollama is already running"
+    $null = Invoke-RestMethod -Uri 'http://localhost:11434/api/tags' -Method Get -TimeoutSec 3 -ErrorAction Stop
+    Write-Host '  [OK] Ollama is running' -ForegroundColor Green
+} catch {
+    Write-Host '  Starting Ollama...' -ForegroundColor Gray
+    Start-Process ollama -ArgumentList 'serve' -WindowStyle Hidden
+    Start-Sleep -Seconds 5
+    Write-Host '  [OK] Ollama started' -ForegroundColor Green
 }
 
-# ── Step 3: Pull models ────────────────────────────────────────────
-$models = @(
-    @{ Name = "qwen2.5-coder:32b"; Desc = "Main chat/coding model (~20GB)" },
-    @{ Name = "llama3.2-vision:11b"; Desc = "Vision/image analysis model (~7GB)" },
-    @{ Name = "nomic-embed-text"; Desc = "Memory embeddings (~300MB)" }
-)
-
-Write-Step "Pulling AI models (this may take a while on first run)..."
-
-foreach ($model in $models) {
-    Write-Host "   Pulling $($model.Name) — $($model.Desc)" -ForegroundColor Gray
-
-    try {
-        & ollama pull $model.Name
-        Write-OK "$($model.Name) ready"
-    }
-    catch {
-        Write-Warn "Failed to pull $($model.Name). You can pull it later with: ollama pull $($model.Name)"
-    }
+# Step 4: Pull model
+Write-Host ''
+Write-Host '[STEP] Pulling AI model (this takes a while on first run)...' -ForegroundColor Cyan
+Write-Host '  Pulling qwen2.5-coder:32b (~20GB) to D: drive...' -ForegroundColor Gray
+try {
+    & ollama pull qwen2.5-coder:32b
+    Write-Host '  [OK] Model ready' -ForegroundColor Green
+} catch {
+    Write-Host '  [WARN] Model pull failed. Run later: ollama pull qwen2.5-coder:32b' -ForegroundColor Yellow
 }
 
-# ── Step 4: Python virtual environment ──────────────────────────────
-Write-Step "Setting up Python environment..."
-
+# Step 5: Python venv
+Write-Host ''
+Write-Host '[STEP] Setting up Python environment...' -ForegroundColor Cyan
 if (-not (Test-Path $VenvPath)) {
     python -m venv $VenvPath
-    Write-OK "Virtual environment created"
+    Write-Host '  [OK] Virtual environment created' -ForegroundColor Green
+} else {
+    Write-Host '  [OK] Virtual environment already exists' -ForegroundColor Green
 }
-else {
-    Write-OK "Virtual environment already exists"
-}
-
-# Activate and install deps
-$pipPath = Join-Path $VenvPath "Scripts" "pip.exe"
-$reqPath = Join-Path $ProjectRoot "requirements.txt"
-
+$pipPath = Join-Path $VenvPath 'Scripts' 'pip.exe'
+$reqPath = Join-Path $ProjectRoot 'requirements.txt'
 & $pipPath install -r $reqPath --quiet
-Write-OK "Python dependencies installed"
+Write-Host '  [OK] Python dependencies installed' -ForegroundColor Green
 
-# ── Step 5: Create workspace directory ──────────────────────────────
-Write-Step "Creating workspace..."
-
+# Step 6: Workspace at C: root
+Write-Host ''
+Write-Host '[STEP] Creating workspace...' -ForegroundColor Cyan
 if (-not (Test-Path $Workspace)) {
     New-Item -ItemType Directory -Path $Workspace | Out-Null
-    Write-OK "Workspace created at: $Workspace"
+    Write-Host ('  [OK] Workspace: ' + $Workspace) -ForegroundColor Green
+} else {
+    Write-Host ('  [OK] Workspace exists: ' + $Workspace) -ForegroundColor Green
 }
-else {
-    Write-OK "Workspace already exists: $Workspace"
-}
 
-# ── Step 6: Create desktop shortcut ─────────────────────────────────
-Write-Step "Creating desktop shortcut..."
-
-$desktopPath = [Environment]::GetFolderPath("Desktop")
-$shortcutPath = Join-Path $desktopPath "LocalMind.lnk"
-$startScript = Join-Path $ProjectRoot "start.ps1"
-
+# Step 7: Desktop shortcut
+Write-Host ''
+Write-Host '[STEP] Creating desktop shortcut...' -ForegroundColor Cyan
 try {
-    $shell = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = "powershell.exe"
-    $shortcut.Arguments = "-ExecutionPolicy Bypass -File `"$startScript`""
-    $shortcut.WorkingDirectory = $ProjectRoot
-    $shortcut.Description = "Launch LocalMind AI Assistant"
-    $shortcut.Save()
-    Write-OK "Desktop shortcut created"
-}
-catch {
-    Write-Warn "Could not create shortcut. Run start.ps1 manually."
+    $desktopPath = [Environment]::GetFolderPath('Desktop')
+    $shortcutPath = Join-Path $desktopPath 'LocalMind.lnk'
+    $startScript = Join-Path $ProjectRoot 'start.ps1'
+    $wshell = New-Object -ComObject WScript.Shell
+    $sc = $wshell.CreateShortcut($shortcutPath)
+    $sc.TargetPath = 'powershell.exe'
+    $sc.Arguments = ('-ExecutionPolicy Bypass -File ' + [char]34 + $startScript + [char]34)
+    $sc.WorkingDirectory = $ProjectRoot
+    $sc.Description = 'Launch LocalMind AI Assistant'
+    $sc.Save()
+    Write-Host '  [OK] Desktop shortcut created' -ForegroundColor Green
+} catch {
+    Write-Host '  [WARN] Could not create shortcut.' -ForegroundColor Yellow
 }
 
-# ── Done! ──────────────────────────────────────────────────────────
-Write-Host ""
-Write-Host "════════════════════════════════════════════" -ForegroundColor Magenta
-Write-Host "   🧠 LocalMind is ready!" -ForegroundColor Green
-Write-Host "════════════════════════════════════════════" -ForegroundColor Magenta
-Write-Host ""
-Write-Host "   To start:  .\start.ps1" -ForegroundColor White
-Write-Host "   Or use the desktop shortcut." -ForegroundColor Gray
-Write-Host ""
-Write-Host "   📱 Remote access (phone):" -ForegroundColor White
-Write-Host "   1. Install Tailscale on PC + phone: https://tailscale.com/download" -ForegroundColor Gray
-Write-Host "   2. Start LocalMind" -ForegroundColor Gray
-Write-Host "   3. Open http://<your-tailscale-ip>:8000 on your phone" -ForegroundColor Gray
-Write-Host ""
+Write-Host ''
+Write-Host '============================================' -ForegroundColor Magenta
+Write-Host '   LocalMind is ready!' -ForegroundColor Green
+Write-Host '============================================' -ForegroundColor Magenta
+Write-Host ''
+Write-Host '   To start:  .\start.ps1' -ForegroundColor White
+Write-Host ''
