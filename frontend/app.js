@@ -15,7 +15,7 @@ const state = {
   model: "qwen2.5-coder:32b",
   streaming: false,
   abortController: null,
-  voiceEnabled: false,
+  voiceEnabled: true, // Voice on by default — LocalMind talks like a person
   capturedImage: null, // base64 string
 };
 
@@ -57,6 +57,7 @@ async function init() {
   await loadModels();
   await loadConversations();
   populateVoices();
+  voiceToggle.classList.add("active"); // Voice on by default
   checkHealth();
   setInterval(checkHealth, 15000);
   bindEvents();

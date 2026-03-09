@@ -1,52 +1,70 @@
 # 🧠 LocalMind
 
-**Your private, local AI coding assistant.** Powered by [Ollama](https://ollama.com) + [Qwen 2.5 Coder](https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct) — runs entirely on your machine. No API keys, no cloud, no cost.
+> Your private, local AI assistant that talks like a person — not a chatbot.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
-![Ollama](https://img.shields.io/badge/Ollama-Local%20AI-purple)
-![License](https://img.shields.io/badge/License-MIT-green)
+Everything runs on **your machine**. No cloud, no subscriptions, no data leaving your PC. Powered by [Ollama](https://ollama.com) for local LLMs and [ChromaDB](https://www.trychroma.com) for persistent memory.
 
 ---
 
 ## ✨ Features
 
-- 💬 **ChatGPT-like interface** — sleek dark mode UI with markdown & code highlighting
-- 🔒 **100% private** — nothing leaves your machine, ever
-- 🧑‍💻 **Built for coders** — syntax highlighting, copy-to-clipboard, language labels
-- 🔄 **Model switching** — swap between any Ollama model on the fly
-- 📝 **Conversation history** — saved locally in SQLite
-- 🎨 **Customizable** — system prompts, model preferences, and more
-- 📱 **Responsive** — works on desktop and mobile browsers
+| Feature                  | Description                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| 🗣️ **Voice Output**      | LocalMind speaks to you using selectable voices (Web Speech API)              |
+| 📷 **Camera/Vision**     | Capture images from your webcam and ask the AI to analyze them                |
+| 🧠 **Long-term Memory**  | Remembers facts about you across conversations (ChromaDB + Ollama embeddings) |
+| 🔍 **Web Search**        | Searches the web via DuckDuckGo Lite — no API key needed                      |
+| 📸 **Screenshots**       | Takes screenshots of your screen and describes what it sees                   |
+| 📋 **Clipboard**         | Reads your clipboard contents on command                                      |
+| 💻 **Code Execution**    | Runs Python code safely with timeout and blocklist protections                |
+| 📁 **File Operations**   | Reads, writes, and lists files — sandboxed to `~/LocalMind_Workspace`         |
+| 🚫 **No File Deletion**  | Safety first — LocalMind can never delete your files                          |
+| 🔒 **Pausable Learning** | Toggle memory on/off from the sidebar                                         |
+| 📱 **PWA**               | Install on your phone's home screen for mobile access                         |
+| 🌐 **Remote Access**     | Access from anywhere via Tailscale (WireGuard encryption)                     |
 
-## 📋 Requirements
+## 🏗️ Architecture
 
-- **Windows 10/11**
-- **Python 3.10+** ([download](https://python.org))
-- **~20GB disk space** for the AI model (one-time download)
+```
+LocalMind/
+├── backend/
+│   ├── server.py          # FastAPI server with agent loop
+│   ├── conversations.db   # SQLite for chat history
+│   └── tools/             # Plugin-based tool system
+│       ├── base.py        # Abstract base class for tools
+│       ├── registry.py    # Auto-discovers and routes tools
+│       ├── web_search.py  # DuckDuckGo Lite search
+│       ├── file_tools.py  # Sandboxed read/write/list
+│       ├── run_code.py    # Python execution with safety
+│       ├── memory.py      # ChromaDB vector memory
+│       ├── vision.py      # Image analysis via Ollama
+│       ├── screenshot.py  # Screen capture
+│       └── clipboard.py   # Clipboard access
+├── frontend/
+│   ├── index.html         # PWA shell with camera modal
+│   ├── style.css          # Premium dark theme + glassmorphism
+│   ├── app.js             # SSE streaming, voice, camera, tools
+│   ├── manifest.json      # PWA manifest
+│   └── sw.js              # Service worker for offline caching
+├── install.ps1            # One-click installer (Ollama + models + venv)
+├── start.ps1              # Launch script
+└── requirements.txt       # Python dependencies
+```
 
-## 🚀 Quick Install
+## 🚀 Quick Start
+
+### 1. Install
 
 ```powershell
-# 1. Clone the repo
+# Clone the repo
 git clone https://github.com/SamDeiter/LocalMind.git
 cd LocalMind
 
-# 2. Run the installer (installs Ollama, downloads the AI model, sets up Python)
+# Run the installer (downloads Ollama, models, creates venv)
 .\install.ps1
 ```
 
-That's it! The installer handles everything:
-
-- ✅ Installs [Ollama](https://ollama.com) (if not already installed)
-- ✅ Downloads the Qwen 2.5 Coder 32B model (~20GB, one-time)
-- ✅ Sets up a Python virtual environment
-- ✅ Creates a desktop shortcut
-
-## 🏃 Usage
-
-**Option 1:** Double-click the **LocalMind** shortcut on your Desktop.
-
-**Option 2:** Run from terminal:
+### 2. Start
 
 ```powershell
 .\start.ps1
@@ -54,77 +72,58 @@ That's it! The installer handles everything:
 
 Then open **http://localhost:8000** in your browser.
 
-## 💡 Tips
+### 3. Mobile Access (Optional)
 
-- Press **Shift+Enter** for multi-line input
-- Press **Ctrl+N** for a new conversation
-- Click the **⚙️ Settings** button to customize the system prompt
-- Use the **model dropdown** to switch between installed models
+1. Install [Tailscale](https://tailscale.com) on your PC and phone
+2. Start LocalMind on your PC
+3. Open `http://<your-tailscale-ip>:8000` on your phone
+4. Tap "Add to Home Screen" in your browser for the PWA experience
 
-### Installing Additional Models
+## 🔧 Tool Plugin System
 
-```powershell
-# Smaller, faster model for quick tasks
-ollama pull qwen2.5-coder:7b
+LocalMind uses a drop-in plugin architecture. Every `.py` file in `backend/tools/` that extends `BaseTool` is automatically discovered and available to the AI.
 
-# General-purpose large model
-ollama pull llama3.1:70b
+### Creating a Custom Tool
 
-# Fast general-purpose model
-ollama pull mistral:7b
+```python
+# backend/tools/my_tool.py
+from backend.tools.base import BaseTool
+
+class MyTool(BaseTool):
+    name = "my_tool"
+    description = "Does something cool"
+    parameters = {
+        "input": {"type": "string", "description": "What to process"}
+    }
+
+    def execute(self, **kwargs):
+        return f"Processed: {kwargs.get('input', '')}"
 ```
 
-Any model you pull will automatically appear in the model dropdown.
+Drop it in `backend/tools/` and restart the server. That's it.
 
-## 🗑️ Uninstall
+## 🔒 Safety
 
-```powershell
-.\uninstall.ps1
-```
+- **No file deletion** — `write_file` and `list_files` only, no delete capability
+- **Sandboxed workspace** — All file ops restricted to `~/LocalMind_Workspace`
+- **Code execution safety** — Timeout (30s), blocked imports (`os.system`, `subprocess`, `shutil.rmtree`)
+- **Pausable learning** — Toggle memory recording on/off from the UI
+- **Local-first** — All data stays on your machine
 
-The uninstaller will:
+## 📦 Dependencies
 
-- Stop the Ollama service
-- Optionally remove downloaded models (~20GB)
-- Remove the Python virtual environment
-- Remove the desktop shortcut
-- **Keep the project folder** (you can reinstall later)
+All open-source and free:
 
-## 🏗️ Project Structure
+| Package                                          | Purpose                      |
+| ------------------------------------------------ | ---------------------------- |
+| [Ollama](https://ollama.com)                     | Local LLM inference          |
+| [FastAPI](https://fastapi.tiangolo.com)          | Backend web framework        |
+| [ChromaDB](https://www.trychroma.com)            | Vector database for memories |
+| [mss](https://pypi.org/project/mss/)             | Screenshot capture           |
+| [Pillow](https://pillow.readthedocs.io)          | Image processing             |
+| [pyperclip](https://pypi.org/project/pyperclip/) | Clipboard access             |
+| [httpx](https://www.python-httpx.org)            | Async HTTP client            |
 
-```
-LocalMind/
-├── install.ps1           # One-command setup
-├── uninstall.ps1         # Clean removal
-├── start.ps1             # Quick launch
-├── README.md             # This file
-├── LICENSE               # MIT License
-├── backend/
-│   ├── server.py         # FastAPI backend (proxies to Ollama)
-│   └── requirements.txt  # Python dependencies
-└── frontend/
-    ├── index.html        # Chat UI
-    ├── style.css         # Dark mode design system
-    └── app.js            # Client-side logic
-```
+## 📄 License
 
-## 🛠️ Development
-
-Want to hack on LocalMind? Just open the project folder in your IDE:
-
-```powershell
-# Start the backend in development mode
-cd backend
-pip install -r requirements.txt
-uvicorn server:app --reload --port 8000
-```
-
-The frontend is vanilla HTML/CSS/JS — no build step required. Just edit and refresh.
-
-## 📜 License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-**Made with 🧠 by [Sam Deiter](https://github.com/SamDeiter)**
+MIT — do whatever you want with it.
