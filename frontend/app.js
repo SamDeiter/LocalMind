@@ -125,11 +125,16 @@ function renderConversations() {
     div.innerHTML = `
             <span>💬</span>
             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(c.title)}</span>
+            <button class="export-btn" title="Export conversation">📥</button>
             <button class="delete-btn" title="Delete conversation">✕</button>
         `;
     div.addEventListener("click", (e) => {
       if (e.target.closest(".delete-btn")) {
         deleteConversation(c.id);
+        return;
+      }
+      if (e.target.closest(".export-btn")) {
+        exportConversation(c.id, c.title);
         return;
       }
       loadConversation(c.id);

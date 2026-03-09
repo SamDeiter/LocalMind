@@ -9,16 +9,22 @@ the tool registry, and streams results back to the frontend via SSE.
 """
 
 import json
+import logging
 import sqlite3
 import time
+import traceback
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+# Configure logging with detailed output
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("localmind")
+
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 # Import our tool registry for the agent loop
@@ -174,6 +180,7 @@ async def chat(request: Request):
     message = body.get("message", "")
     conversation_id = body.get("conversation_id")
     system_prompt = body.get("system_prompt", "")
+    logger.info(f"CHAT REQUEST: model={model}, msg_len={len(message)}, conv_id={conversation_id}")
 
     # If no prompt in request, load from conversation or use default
     if not system_prompt and conversation_id:
@@ -254,28 +261,44 @@ async def chat(request: Request):
         nonlocal ollama_messages
         full_response = ""
         max_iterations = 10  # Safety: prevent infinite tool loops
+        logger.info(f"Starting stream_response. Messages count: {len(ollama_messages)}")
 
         for iteration in range(max_iterations):
+            logger.info(f"Agent loop iteration {iteration + 1}/{max_iterations}")
             try:
+                ollama_payload = {
+                    "model": model,
+                    "messages": ollama_messages,
+                    "stream": True,
+                }
+                # Only include tools if we have any
+                if tools:
+                    ollama_payload["tools"] = tools
+                logger.info(f"Sending to Ollama: model={model}, msg_count={len(ollama_messages)}, tools_count={len(tools) if tools else 0}")
+                logger.debug(f"Ollama payload keys: {list(ollama_payload.keys())}")
+
                 async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-                    # Call Ollama with REAL streaming (client.stream, not client.post)
                     async with client.stream(
                         "POST",
                         f"{OLLAMA_BASE_URL}/api/chat",
-                        json={
-                            "model": model,
-                            "messages": ollama_messages,
-                            "tools": tools if tools else None,
-                            "stream": True,
-                        },
+                        json=ollama_payload,
                     ) as response:
+                        logger.info(f"Ollama response status: {response.status_code}")
+                        if response.status_code != 200:
+                            error_body = await response.aread()
+                            logger.error(f"Ollama error response: {error_body.decode()}")
+                            yield f"data: {json.dumps({'error': f'Ollama returned {response.status_code}: {error_body.decode()}'})}"
+                            return
+
                         # Accumulate the full response to detect tool calls
                         chunk_text = ""
                         tool_calls = []
+                        line_count = 0
 
                         async for line in response.aiter_lines():
                             if not line.strip():
                                 continue
+                            line_count += 1
                             try:
                                 data = json.loads(line)
                                 msg = data.get("message", {})
@@ -285,13 +308,21 @@ async def chat(request: Request):
                                 if content:
                                     chunk_text += content
                                     full_response += content
-                                    yield f"data: {json.dumps({'token': content, 'conversation_id': conversation_id})}\n\n"
+                                    sse_data = json.dumps({'token': content, 'conversation_id': conversation_id})
+                                    logger.debug(f"Streaming token (line {line_count}): {content[:50]}...")
+                                    yield f"data: {sse_data}\n\n"
 
                                 # Detect tool calls
                                 if msg.get("tool_calls"):
+                                    logger.info(f"Tool call detected: {msg['tool_calls']}")
                                     tool_calls.extend(msg["tool_calls"])
 
-                            except json.JSONDecodeError:
+                                # Check if done
+                                if data.get("done"):
+                                    logger.info(f"Ollama stream done. Total lines: {line_count}, text_len: {len(chunk_text)}")
+
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"JSON decode error on line {line_count}: {e}, raw: {line[:100]}")
                                 continue
 
                     # If no tool calls, we're done
@@ -335,10 +366,13 @@ async def chat(request: Request):
                     chunk_text = ""
 
             except Exception as e:
+                logger.error(f"Stream error: {e}")
+                logger.error(traceback.format_exc())
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 break
 
         # Save full response to DB
+        logger.info(f"Stream complete. Full response length: {len(full_response)}")
         if full_response:
             db = get_db()
             db.execute(
@@ -419,6 +453,51 @@ async def update_system_prompt(conv_id: str, request: Request):
 async def get_default_system_prompt():
     """Return the server's default system prompt."""
     return {"system_prompt": DEFAULT_SYSTEM_PROMPT}
+
+
+@app.get("/api/conversations/{conv_id}/export")
+async def export_conversation(conv_id: str, format: str = "md"):
+    """Export a conversation as Markdown or JSON."""
+    db = get_db()
+    conv = db.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+    msgs = db.execute(
+        "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at",
+        (conv_id,),
+    ).fetchall()
+    db.close()
+
+    if not conv:
+        return {"error": "Conversation not found"}
+
+    if format == "json":
+        export_data = {
+            "title": conv["title"],
+            "model": conv["model"],
+            "created_at": conv["created_at"],
+            "messages": [dict(m) for m in msgs],
+        }
+        return Response(
+            content=json.dumps(export_data, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="localmind_{conv_id[:8]}.json"'},
+        )
+    else:
+        # Markdown format
+        lines = [f"# {conv['title']}\n"]
+        lines.append(f"*Model: {conv['model']}*\n")
+        lines.append("---\n")
+        for m in msgs:
+            role_label = "**You**" if m["role"] == "user" else "**LocalMind**"
+            lines.append(f"{role_label}:\n")
+            lines.append(f"{m['content']}\n")
+            lines.append("")
+        md_content = "\n".join(lines)
+        return Response(
+            content=md_content,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="localmind_{conv_id[:8]}.md"'},
+        )
+
 
 # ── Serve Frontend ──────────────────────────────────────────────────────
 # Mount static files: JS/CSS served from /static/, HTML from /
