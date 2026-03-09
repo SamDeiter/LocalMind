@@ -952,3 +952,53 @@ body {
     box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
   }
 }
+
+/* ── Code Viewer (tool results) ──────────────────────────────── */
+.code-viewer {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-top: 8px;
+}
+.code-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+.code-viewer-filename {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-copy-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.code-copy-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.code-viewer pre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  max-height: 400px;
+}
+.code-viewer pre code {
+  font-family: "JetBrains Mono", monospace;
+}

@@ -166,6 +166,56 @@ async def memory_toggle(request: Request):
     learning_enabled = body.get("enabled", True)
     return {"learning_enabled": learning_enabled}
 
+# ── File Browser ────────────────────────────────────────────────────────
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+@app.get("/api/files/list")
+async def list_files_api(path: str = "."):
+    """List files in a directory relative to project root."""
+    target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+    # Security: prevent directory traversal
+    if not target.startswith(PROJECT_ROOT):
+        return {"error": "Access denied", "files": []}
+    if not os.path.isdir(target):
+        return {"error": "Not a directory", "files": []}
+    try:
+        entries = []
+        for entry in sorted(os.listdir(target)):
+            if entry.startswith('.') or entry in ('__pycache__', 'node_modules', 'venv', '.git'):
+                continue
+            full = os.path.join(target, entry)
+            rel = os.path.relpath(full, PROJECT_ROOT).replace("\\", "/")
+            entries.append({
+                "name": entry,
+                "path": rel,
+                "type": "directory" if os.path.isdir(full) else "file",
+                "size": os.path.getsize(full) if os.path.isfile(full) else None,
+            })
+        return {"files": entries, "path": os.path.relpath(target, PROJECT_ROOT).replace("\\", "/")}
+    except Exception as e:
+        return {"error": str(e), "files": []}
+
+
+@app.get("/api/files/read")
+async def read_file_api(path: str):
+    """Read a file's content relative to project root."""
+    target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+    # Security: prevent directory traversal
+    if not target.startswith(PROJECT_ROOT):
+        return {"error": "Access denied"}
+    if not os.path.isfile(target):
+        return {"error": "File not found"}
+    try:
+        with open(target, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read(100_000)  # Cap at 100KB
+        return {
+            "content": content,
+            "path": os.path.relpath(target, PROJECT_ROOT).replace("\\", "/"),
+            "size": os.path.getsize(target),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 
 # ── Chat (Agent Loop with Tool Calling) ─────────────────────────────────
 @app.post("/api/chat")

@@ -475,10 +475,88 @@ function updateToolResult(container, result) {
   const statusEl = card.querySelector(".tool-status");
   statusEl.textContent = "✅ Done";
   const body = card.querySelector(".tool-call-body");
-  body.textContent =
+
+  const resultText =
     typeof result.result === "string"
-      ? result.result.substring(0, 2000)
-      : JSON.stringify(result.result, null, 2).substring(0, 2000);
+      ? result.result
+      : JSON.stringify(result.result, null, 2);
+
+  // For file operations, render with syntax highlighting
+  if (
+    result.name === "read_file" ||
+    result.name === "write_file" ||
+    result.name === "run_code"
+  ) {
+    const ext = getFileExtension(
+      result.name === "run_code" ? "output.py" : card.dataset.filePath || "",
+    );
+    const lang = extToLang(ext);
+    body.innerHTML = `
+      <div class="code-viewer">
+        <div class="code-viewer-header">
+          <span class="code-viewer-filename">${escapeHtml(card.dataset.filePath || result.name)}</span>
+          <button class="code-copy-btn" title="Copy to clipboard">📋 Copy</button>
+        </div>
+        <pre><code class="${lang}">${escapeHtml(resultText.substring(0, 5000))}</code></pre>
+      </div>`;
+    // Highlight
+    const codeEl = body.querySelector("pre code");
+    if (typeof hljs !== "undefined" && codeEl) {
+      hljs.highlightElement(codeEl);
+    }
+    // Copy button
+    const copyBtn = body.querySelector(".code-copy-btn");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(resultText).then(() => {
+          copyBtn.textContent = "✅ Copied!";
+          setTimeout(() => {
+            copyBtn.textContent = "📋 Copy";
+          }, 2000);
+        });
+      });
+    }
+  } else {
+    body.textContent = resultText.substring(0, 2000);
+  }
+}
+
+// Helper: extract file extension from path
+function getFileExtension(path) {
+  const match = path.match(/\.(\w+)$/);
+  return match ? match[1].toLowerCase() : "";
+}
+
+// Helper: map file extension to highlight.js language
+function extToLang(ext) {
+  const map = {
+    py: "python",
+    js: "javascript",
+    ts: "typescript",
+    html: "html",
+    css: "css",
+    json: "json",
+    md: "markdown",
+    sh: "bash",
+    bat: "batch",
+    yaml: "yaml",
+    yml: "yaml",
+    xml: "xml",
+    sql: "sql",
+    java: "java",
+    cpp: "cpp",
+    c: "c",
+    h: "c",
+    cs: "csharp",
+    rb: "ruby",
+    go: "go",
+    rs: "rust",
+    php: "php",
+    swift: "swift",
+    kt: "kotlin",
+    r: "r",
+  };
+  return map[ext] || "";
 }
 
 // ── Markdown ────────────────────────────────────────────────────
