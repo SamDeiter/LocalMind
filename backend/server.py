@@ -519,6 +519,27 @@ async def chat(request: Request):
 
     # Grab tool defs once (read-only from here on)
     tool_defs = registry.get_ollama_tools()
+    known_tool_names = {t.name for t in registry.tools}
+
+    def _extract_text_tool_call(text: str) -> list[dict]:
+        """Fallback: parse tool call JSON from model text output."""
+        import re as _re
+        calls = []
+        # Match JSON objects with "name" and "arguments" keys
+        pattern = _re.compile(
+            r'\{\s*"name"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})\s*\}',
+            _re.DOTALL,
+        )
+        for match in pattern.finditer(text):
+            name = match.group(1)
+            if name in known_tool_names:
+                try:
+                    args = json.loads(match.group(2))
+                    calls.append({"function": {"name": name, "arguments": args}})
+                except json.JSONDecodeError:
+                    pass
+        return calls
+
 
     async def stream_response():
         nonlocal ollama_messages
@@ -587,6 +608,13 @@ async def chat(request: Request):
 
                 full_response += chunk_text
 
+                # Fallback: detect tool calls embedded as text
+                if not tool_calls_found and chunk_text.strip():
+                    parsed = _extract_text_tool_call(chunk_text)
+                    if parsed:
+                        tool_calls_found.extend(parsed)
+                        logger.info(f"Parsed {len(parsed)} tool call(s) from text output")
+
                 # No tool calls → we're done
                 if not tool_calls_found:
                     break
@@ -603,7 +631,11 @@ async def chat(request: Request):
                         if tool_name == "save_memory" and not learning_enabled:
                             result = "Learning is paused. Memory not saved."
                         else:
-                            result = registry.execute(tool_name, tool_args)
+                            result = await registry.execute_tool(tool_name, tool_args)
+                            # Serialize dict result to string for model context
+                            if isinstance(result, dict):
+                                result = result.get("result", json.dumps(result))
+                            result = str(result)
                     except Exception as e:
                         result = f"Error: {str(e)}"
 
