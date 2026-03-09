@@ -15,7 +15,7 @@ const state = {
   model: "qwen2.5-coder:32b",
   streaming: false,
   abortController: null,
-  voiceEnabled: true, // Voice on by default — LocalMind talks like a person
+  voiceEnabled: localStorage.getItem("localmind_voice") !== "off", // Persisted
   capturedImage: null, // base64 string
 };
 
@@ -57,7 +57,8 @@ async function init() {
   await loadModels();
   await loadConversations();
   populateVoices();
-  voiceToggle.classList.add("active"); // Voice on by default
+  if (state.voiceEnabled) voiceToggle.classList.add("active");
+  else voiceToggle.classList.remove("active");
   checkHealth();
   loadVersion();
   setInterval(checkHealth, 15000);
@@ -517,6 +518,8 @@ function populateVoices() {
 }
 
 function speak(text) {
+  // Guard: don't speak if voice is disabled
+  if (!state.voiceEnabled) return;
   // Cancel any currently playing speech first
   speechSynthesis.cancel();
   // Strip markdown for speech
@@ -685,10 +688,12 @@ function bindEvents() {
   voiceToggle.addEventListener("click", () => {
     speechSynthesis.cancel(); // Stop any current speech immediately
     state.voiceEnabled = !state.voiceEnabled;
+    localStorage.setItem("localmind_voice", state.voiceEnabled ? "on" : "off");
     voiceToggle.classList.toggle("active", state.voiceEnabled);
     voiceToggle.title = state.voiceEnabled
       ? "Voice On (click to mute)"
       : "Voice Off (click to unmute)";
+    console.log("[LocalMind] Voice toggled:", state.voiceEnabled);
   });
 
   // Camera
@@ -722,7 +727,6 @@ function bindEvents() {
   });
 }
 
-
 // ── Version Badge ───────────────────────────────────────────────
 async function loadVersion() {
   try {
@@ -730,7 +734,9 @@ async function loadVersion() {
     const d = await r.json();
     const badge = document.getElementById("versionBadge");
     if (badge) badge.textContent = `v${d.version} #${d.build}`;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 // ── Boot ────────────────────────────────────────────────────────
 init();
