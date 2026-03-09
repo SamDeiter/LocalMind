@@ -1215,5 +1215,339 @@ function startHwPolling() {
   hwInterval = setInterval(pollHardware, 3000);
 }
 
+// ── Monaco Code Editor ──────────────────────────────────────────
+let monacoEditor = null;
+let editorCurrentPath = null;
+const editorPanel = document.getElementById("editorPanel");
+const panelDivider = document.getElementById("panelDivider");
+const editorToggle = document.getElementById("editorToggle");
+
+const EXT_LANG = {
+  js: "javascript",
+  ts: "typescript",
+  py: "python",
+  html: "html",
+  css: "css",
+  json: "json",
+  md: "markdown",
+  xml: "xml",
+  yaml: "yaml",
+  yml: "yaml",
+  sh: "shell",
+  bash: "shell",
+  sql: "sql",
+  rs: "rust",
+  go: "go",
+  java: "java",
+  cpp: "cpp",
+  c: "c",
+  rb: "ruby",
+  php: "php",
+  txt: "plaintext",
+  env: "plaintext",
+  gitignore: "plaintext",
+  ps1: "powershell",
+  bat: "bat",
+  toml: "ini",
+  cfg: "ini",
+  rules: "plaintext",
+};
+
+function getLang(filename) {
+  const ext = filename.split(".").pop().toLowerCase();
+  return EXT_LANG[ext] || "plaintext";
+}
+
+function initMonaco() {
+  require.config({
+    paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" },
+  });
+  require(["vs/editor/editor.main"], () => {
+    monacoEditor = monaco.editor.create(
+      document.getElementById("monacoContainer"),
+      {
+        value:
+          "// Open a file from the tree on the left\n// or create a new file with the + button",
+        language: "javascript",
+        theme: "vs-dark",
+        fontSize: 14,
+        fontFamily: "'JetBrains Mono', monospace",
+        minimap: { enabled: true },
+        wordWrap: "on",
+        automaticLayout: true,
+        renderLineHighlight: "all",
+        scrollBeyondLastLine: false,
+        padding: { top: 8 },
+      },
+    );
+
+    // Ctrl+S save
+    monacoEditor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+      async () => {
+        if (!editorCurrentPath) return;
+        const content = monacoEditor.getValue();
+        try {
+          const r = await fetch(`${API}/api/files/write`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: editorCurrentPath, content }),
+          });
+          const d = await r.json();
+          if (d.success) {
+            showEditorStatus("Saved ✓", 2000);
+          } else {
+            showEditorStatus(`Error: ${d.error}`, 3000);
+          }
+        } catch (e) {
+          showEditorStatus(`Save failed: ${e.message}`, 3000);
+        }
+      },
+    );
+
+    loadEditorFiles(".");
+  });
+}
+
+function showEditorStatus(msg, duration) {
+  const el = document.getElementById("editorPath");
+  const prev = el.textContent;
+  el.textContent = msg;
+  el.style.color = "#34d399";
+  if (duration) {
+    setTimeout(() => {
+      el.textContent = prev;
+      el.style.color = "";
+    }, duration);
+  }
+}
+
+async function loadEditorFiles(dirPath, parentEl) {
+  try {
+    const r = await fetch(
+      `${API}/api/files/list?path=${encodeURIComponent(dirPath)}`,
+    );
+    const d = await r.json();
+    const container = parentEl || document.getElementById("editorFileList");
+    if (!parentEl) container.innerHTML = "";
+
+    d.files.forEach((f) => {
+      const item = document.createElement("div");
+      item.className = "file-tree-item";
+      item.dataset.path = f.path;
+      item.dataset.type = f.type;
+
+      const icon = f.type === "directory" ? "📁" : getFileIcon(f.name);
+      const indent = (f.path.split("/").length - 1) * 12;
+      item.style.paddingLeft = `${8 + indent}px`;
+      item.innerHTML = `<span class="file-icon">${icon}</span><span class="file-name">${f.name}</span>`;
+
+      if (f.type === "directory") {
+        item.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const expanded = item.dataset.expanded === "true";
+          if (expanded) {
+            // Collapse: remove children
+            while (
+              item.nextSibling &&
+              item.nextSibling.dataset &&
+              item.nextSibling.dataset.path?.startsWith(f.path + "/")
+            ) {
+              item.nextSibling.remove();
+            }
+            item.dataset.expanded = "false";
+            item.querySelector(".file-icon").textContent = "📁";
+          } else {
+            item.dataset.expanded = "true";
+            item.querySelector(".file-icon").textContent = "📂";
+            // Insert children after this item
+            const childContainer = document.createDocumentFragment();
+            const cr = await fetch(
+              `${API}/api/files/list?path=${encodeURIComponent(f.path)}`,
+            );
+            const cd = await cr.json();
+            cd.files.forEach((cf) => {
+              const child = document.createElement("div");
+              child.className = "file-tree-item";
+              child.dataset.path = cf.path;
+              child.dataset.type = cf.type;
+              const cIndent = (cf.path.split("/").length - 1) * 12;
+              child.style.paddingLeft = `${8 + cIndent}px`;
+              const cIcon =
+                cf.type === "directory" ? "📁" : getFileIcon(cf.name);
+              child.innerHTML = `<span class="file-icon">${cIcon}</span><span class="file-name">${cf.name}</span>`;
+              if (cf.type === "file") {
+                child.addEventListener("click", (e2) => {
+                  e2.stopPropagation();
+                  openFileInEditor(cf.path, cf.name);
+                });
+              } else {
+                child.addEventListener("click", async (e2) => {
+                  e2.stopPropagation();
+                  // Recurse for deeper dirs
+                  const exp2 = child.dataset.expanded === "true";
+                  if (exp2) {
+                    while (
+                      child.nextSibling &&
+                      child.nextSibling.dataset?.path?.startsWith(cf.path + "/")
+                    )
+                      child.nextSibling.remove();
+                    child.dataset.expanded = "false";
+                    child.querySelector(".file-icon").textContent = "📁";
+                  } else {
+                    child.dataset.expanded = "true";
+                    child.querySelector(".file-icon").textContent = "📂";
+                    await loadEditorFiles(cf.path, child.parentElement);
+                  }
+                });
+              }
+              childContainer.appendChild(child);
+            });
+            item.after(
+              ...(childContainer.children.length
+                ? Array.from(childContainer.children)
+                : []),
+            );
+          }
+        });
+      } else {
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openFileInEditor(f.path, f.name);
+        });
+      }
+      container.appendChild(item);
+    });
+  } catch (e) {
+    console.error("Failed to load files:", e);
+  }
+}
+
+function getFileIcon(name) {
+  const ext = name.split(".").pop().toLowerCase();
+  const icons = {
+    py: "🐍",
+    js: "📜",
+    html: "🌐",
+    css: "🎨",
+    json: "📋",
+    md: "📝",
+    txt: "📄",
+  };
+  return icons[ext] || "📄";
+}
+
+async function openFileInEditor(path, name) {
+  if (!monacoEditor) return;
+  try {
+    const r = await fetch(
+      `${API}/api/files/read?path=${encodeURIComponent(path)}`,
+    );
+    const d = await r.json();
+    if (d.error) {
+      showEditorStatus(`Error: ${d.error}`, 3000);
+      return;
+    }
+    editorCurrentPath = path;
+    const lang = getLang(name);
+    monaco.editor.setModelLanguage(monacoEditor.getModel(), lang);
+    monacoEditor.setValue(d.content);
+    document.getElementById("editorLang").textContent = lang;
+    document.getElementById("editorPath").textContent = path;
+    // Highlight active file in tree
+    document
+      .querySelectorAll(".file-tree-item")
+      .forEach((el) => el.classList.remove("active"));
+    const active = document.querySelector(
+      `.file-tree-item[data-path="${path}"]`,
+    );
+    if (active) active.classList.add("active");
+  } catch (e) {
+    showEditorStatus(`Load failed: ${e.message}`, 3000);
+  }
+}
+
+// Editor panel toggle
+function toggleEditorPanel() {
+  const visible = editorPanel.classList.toggle("visible");
+  panelDivider.classList.toggle("visible", visible);
+  editorToggle.classList.toggle("active", visible);
+  localStorage.setItem("localmind_editor", visible ? "on" : "off");
+  if (visible && !monacoEditor) initMonaco();
+}
+
+// Send to AI
+document.getElementById("editorSendToAI")?.addEventListener("click", () => {
+  if (!monacoEditor || !editorCurrentPath) return;
+  const code = monacoEditor.getValue();
+  const lang = getLang(editorCurrentPath.split("/").pop());
+  const context = `[Code from ${editorCurrentPath}]\n\`\`\`${lang}\n${code}\n\`\`\`\n\nPlease review/help with this code:`;
+  const input = document.getElementById("messageInput");
+  input.value = context;
+  input.focus();
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+});
+
+// New file
+document
+  .getElementById("editorNewFile")
+  ?.addEventListener("click", async () => {
+    const name = prompt("New file name (e.g. script.py):");
+    if (!name) return;
+    try {
+      await fetch(`${API}/api/files/write`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: name, content: "" }),
+      });
+      loadEditorFiles(".");
+      openFileInEditor(name, name);
+    } catch (e) {
+      showEditorStatus(`Create failed: ${e.message}`, 3000);
+    }
+  });
+
+// Refresh file tree
+document
+  .getElementById("editorRefresh")
+  ?.addEventListener("click", () => loadEditorFiles("."));
+
+// Panel divider drag-to-resize
+(function setupDivider() {
+  let dragging = false;
+  panelDivider.addEventListener("mousedown", (e) => {
+    dragging = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    e.preventDefault();
+  });
+  document.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const container = document.querySelector(".app-container");
+    const rect = container.getBoundingClientRect();
+    const sidebarWidth = sidebar.offsetWidth;
+    const x = e.clientX - rect.left - sidebarWidth;
+    const minW = 250,
+      maxW = rect.width * 0.6;
+    const width = Math.max(minW, Math.min(maxW, x));
+    editorPanel.style.width = `${width}px`;
+  });
+  document.addEventListener("mouseup", () => {
+    if (dragging) {
+      dragging = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+  });
+})();
+
+// Editor toggle button
+editorToggle?.addEventListener("click", toggleEditorPanel);
+
+// Restore editor state
+if (localStorage.getItem("localmind_editor") === "on") {
+  setTimeout(toggleEditorPanel, 500);
+}
+
 // ── Boot ────────────────────────────────────────────────────────
 init();

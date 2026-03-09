@@ -1224,3 +1224,170 @@ body {
   color: #a78bfa;
   border: 1px solid rgba(139, 92, 246, 0.25);
 }
+
+/* ── Editor Panel ────────────────────────────────────────────── */
+.editor-panel {
+  display: none;
+  flex-direction: column;
+  width: 0;
+  min-width: 0;
+  height: 100vh;
+  background: #1e1e1e;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  transition: width 0.3s ease;
+}
+.editor-panel.visible {
+  display: flex;
+  width: 480px;
+  min-width: 250px;
+}
+
+/* File tree */
+.editor-file-tree {
+  display: flex;
+  flex-direction: column;
+  max-height: 200px;
+  border-bottom: 1px solid var(--border);
+}
+.editor-file-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.editor-file-header div {
+  display: flex;
+  gap: 4px;
+}
+.editor-file-list {
+  overflow-y: auto;
+  flex: 1;
+}
+.file-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  transition: background 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-tree-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+.file-tree-item.active {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+.file-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tabs (placeholder for multi-tab later) */
+.editor-tabs {
+  display: none;
+}
+
+/* Monaco container */
+.monaco-container {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Status bar */
+.editor-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: #181818;
+  border-top: 1px solid var(--border);
+}
+.editor-status span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editor-status span:first-child {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+/* Send to AI button */
+.btn-sm {
+  padding: 2px 8px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-left: auto;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.btn-sm:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: #60a5fa;
+}
+
+/* Small icon buttons for file tree header */
+.btn-icon-sm {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.btn-icon-sm:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Panel divider / drag handle */
+.panel-divider {
+  display: none;
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.panel-divider.visible {
+  display: block;
+}
+.panel-divider:hover,
+.panel-divider:active {
+  background: var(--accent);
+}
