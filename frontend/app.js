@@ -1055,5 +1055,58 @@ async function loadDocuments() {
   }
 }
 
+
+// ── Hardware Dashboard ──────────────────────────────────────────
+let hwInterval = null;
+
+async function pollHardware() {
+  try {
+    const r = await fetch(`${API}/api/hardware`);
+    const d = await r.json();
+
+    // CPU
+    const cpuBar = document.getElementById("cpuBar");
+    const cpuVal = document.getElementById("cpuVal");
+    if (cpuBar && d.system) {
+      cpuBar.style.width = `${d.system.cpu_percent}%`;
+      cpuVal.textContent = `${Math.round(d.system.cpu_percent)}%`;
+      cpuBar.className = `hw-fill ${d.system.cpu_percent > 80 ? "hw-fill-red" : d.system.cpu_percent > 50 ? "hw-fill-yellow" : "hw-fill-green"}`;
+    }
+
+    // RAM
+    const ramBar = document.getElementById("ramBar");
+    const ramVal = document.getElementById("ramVal");
+    if (ramBar && d.system) {
+      ramBar.style.width = `${d.system.ram_percent}%`;
+      ramVal.textContent = `${d.system.ram_used_gb}/${d.system.ram_total_gb} GB`;
+      ramBar.className = `hw-fill ${d.system.ram_percent > 85 ? "hw-fill-red" : d.system.ram_percent > 60 ? "hw-fill-yellow" : "hw-fill-green"}`;
+    }
+
+    // Model / VRAM
+    const vramBar = document.getElementById("vramBar");
+    const vramVal = document.getElementById("vramVal");
+    const modelLabel = document.getElementById("modelLabel");
+    if (vramBar && d.models && d.models.length > 0) {
+      const m = d.models[0];
+      const pct = m.size_gb > 0 ? Math.round((m.vram_gb / m.size_gb) * 100) : 0;
+      vramBar.style.width = `${pct}%`;
+      vramVal.textContent = `${m.vram_gb} GB VRAM`;
+      modelLabel.textContent = m.name.split(":")[0];
+      vramBar.className = "hw-fill hw-fill-purple";
+    } else {
+      vramBar.style.width = "0%";
+      vramVal.textContent = "No model loaded";
+      modelLabel.textContent = "Model";
+      vramBar.className = "hw-fill hw-fill-dim";
+    }
+  } catch { /* ignore */ }
+}
+
+function startHwPolling() {
+  if (hwInterval) return;
+  pollHardware();
+  hwInterval = setInterval(pollHardware, 3000);
+}
+
 // ── Boot ────────────────────────────────────────────────────────
 init();

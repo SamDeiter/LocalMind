@@ -28,5 +28,11 @@ desktop.ini
 *.swp
 *.swo
 
+# Testing
+.pytest_cache/
+
+# ChromaDB local data
+chroma_data/
+
 # Ollama models (managed separately)
 models/

@@ -136,7 +136,26 @@
             </div>
 
             <!-- Input area — camera button, text input, send -->
-            <div class="input-area">
+                    <div id="hardwareStatus" class="hardware-status">
+            <div class="hw-metrics">
+                <div class="hw-metric">
+                    <span class="hw-metric-label">CPU</span>
+                    <div class="hw-metric-bar"><div id="cpuBar" class="hw-fill"></div></div>
+                    <span id="cpuVal" class="hw-metric-val">0%</span>
+                </div>
+                <div class="hw-metric">
+                    <span class="hw-metric-label">RAM</span>
+                    <div class="hw-metric-bar"><div id="ramBar" class="hw-fill"></div></div>
+                    <span id="ramVal" class="hw-metric-val">0/0 GB</span>
+                </div>
+                <div class="hw-metric" id="modelMetric">
+                    <span class="hw-metric-label" id="modelLabel">Model</span>
+                    <div class="hw-metric-bar"><div id="vramBar" class="hw-fill hw-fill-purple"></div></div>
+                    <span id="vramVal" class="hw-metric-val">—</span>
+                </div>
+            </div>
+        </div>
+        <div class="input-area">
                 <div class="image-preview" id="imagePreview" style="display:none">
                     <img id="previewImg" alt="Captured image preview">
                     <button class="btn-icon remove-image" id="removeImageBtn" title="Remove image">✕</button>

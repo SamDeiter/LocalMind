@@ -1105,3 +1105,55 @@ body {
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.3);
 }
+
+/* Hardware Dashboard */
+.hardware-status {
+    display: flex;
+    padding: 6px 16px;
+    background: rgba(15, 15, 25, 0.5);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+.hw-metrics {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    align-items: center;
+}
+.hw-metric {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+.hw-metric-label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 32px;
+}
+.hw-metric-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.hw-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 2px;
+    transition: width 0.5s ease, background 0.3s;
+}
+.hw-fill-green { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.hw-fill-yellow { background: linear-gradient(90deg, #eab308, #facc15); }
+.hw-fill-red { background: linear-gradient(90deg, #ef4444, #f87171); }
+.hw-fill-purple { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.hw-fill-dim { background: rgba(255, 255, 255, 0.1); }
+.hw-metric-val {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.4);
+    min-width: 60px;
+    text-align: right;
+    white-space: nowrap;
+}

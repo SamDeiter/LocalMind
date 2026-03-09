@@ -566,6 +566,51 @@ async def get_version():
     return {"version": "unknown", "build": 0}
 
 
+
+@app.get("/api/hardware")
+async def hardware_status():
+    """Get loaded models, VRAM usage, and system metrics."""
+    import httpx
+    import psutil
+
+    # System metrics
+    cpu_pct = psutil.cpu_percent(interval=0.1)
+    mem = psutil.virtual_memory()
+    ram_used = round(mem.used / (1024**3), 1)
+    ram_total = round(mem.total / (1024**3), 1)
+
+    system = {
+        "cpu_percent": cpu_pct,
+        "ram_used_gb": ram_used,
+        "ram_total_gb": ram_total,
+        "ram_percent": mem.percent,
+    }
+
+    # GPU metrics via Ollama /api/ps
+    models = []
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
+            data = r.json()
+            for m in data.get("models", []):
+                size_gb = m.get("size", 0) / (1024**3)
+                vram_gb = m.get("size_vram", 0) / (1024**3)
+                models.append({
+                    "name": m.get("name", "unknown"),
+                    "size_gb": round(size_gb, 1),
+                    "vram_gb": round(vram_gb, 1),
+                    "processor": m.get("details", {}).get("quantization_level", ""),
+                    "expires": m.get("expires_at", ""),
+                })
+    except Exception:
+        pass
+
+    return {
+        "loaded": len(models) > 0,
+        "models": models,
+        "system": system,
+    }
+
 # ── Document RAG ────────────────────────────────────────────────────────
 
 @app.post("/api/documents/upload")
