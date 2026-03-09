@@ -10,6 +10,7 @@ the tool registry, and streams results back to the frontend via SSE.
 
 import json
 import logging
+import os
 import sqlite3
 import time
 import traceback
@@ -20,6 +21,52 @@ from pathlib import Path
 # Configure logging with detailed output
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("localmind")
+
+
+def kill_existing_server(port: int = 8000):
+    """Kill any existing process on the target port to prevent duplicate servers."""
+    import subprocess
+    import signal
+    try:
+        # Find PIDs using the port (Windows: netstat, Unix: lsof)
+        if os.name == "nt":
+            result = subprocess.run(
+                ["netstat", "-ano"], capture_output=True, text=True
+            )
+            current_pid = os.getpid()
+            pids_killed = set()
+            for line in result.stdout.splitlines():
+                if f":{port}" in line and "LISTENING" in line:
+                    parts = line.split()
+                    pid = int(parts[-1])
+                    if pid != current_pid and pid not in pids_killed:
+                        try:
+                            os.kill(pid, signal.SIGTERM)
+                            pids_killed.add(pid)
+                            logger.info(f"🔪 Killed existing server (PID {pid}) on port {port}")
+                        except (ProcessLookupError, PermissionError):
+                            pass
+        else:
+            result = subprocess.run(
+                ["lsof", "-ti", f":{port}"], capture_output=True, text=True
+            )
+            if result.stdout.strip():
+                for pid_str in result.stdout.strip().split("\n"):
+                    pid = int(pid_str)
+                    if pid != os.getpid():
+                        try:
+                            os.kill(pid, signal.SIGTERM)
+                            logger.info(f"🔪 Killed existing server (PID {pid}) on port {port}")
+                        except (ProcessLookupError, PermissionError):
+                            pass
+        if pids_killed if os.name == "nt" else result.stdout.strip():
+            time.sleep(1)  # Give processes time to release the port
+    except Exception as e:
+        logger.warning(f"Port guard check failed (non-fatal): {e}")
+
+
+# Kill any existing server on port 8000 before we start
+kill_existing_server(8000)
 
 import httpx
 from fastapi import FastAPI, Request, UploadFile, File
