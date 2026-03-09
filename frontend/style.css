@@ -1002,3 +1002,106 @@ body {
 .code-viewer pre code {
   font-family: "JetBrains Mono", monospace;
 }
+
+/* ── Thinking / Analytics Panel ──────────────────────────────── */
+.thinking-panel {
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  font-size: 0.78rem;
+}
+.thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.2s;
+}
+.thinking-header:hover {
+  background: var(--bg-hover);
+}
+.thinking-meta {
+  margin-left: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.thinking-toggle {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+.thinking-body {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.thinking-body strong {
+  color: var(--text-primary);
+}
+
+/* Document RAG sidebar */
+.sidebar-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.sidebar-section-header {
+  padding: 10px 16px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s;
+}
+.sidebar-section-header:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+.badge {
+  background: rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+  margin-left: auto;
+}
+.document-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.document-list.open {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.document-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  transition: background 0.2s;
+}
+.document-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.doc-icon {
+  font-size: 0.8rem;
+}
+.doc-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-chunks {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.3);
+}

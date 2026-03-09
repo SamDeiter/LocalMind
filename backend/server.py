@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(n
 logger = logging.getLogger("localmind")
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -64,6 +64,13 @@ learning_enabled = True
 
 # Tool registry (auto-discovers tools from backend/tools/)
 registry = ToolRegistry()
+
+# RAG imports
+try:
+    from backend.tools.rag import index_document, query_documents, list_indexed_documents, delete_document
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
 
 
 # ── Database Setup ──────────────────────────────────────────────────────
@@ -243,6 +250,19 @@ async def chat(request: Request):
             system_prompt = row_tmp["system_prompt"]
     if not system_prompt:
         system_prompt = DEFAULT_SYSTEM_PROMPT
+        # Inject RAG context if documents are indexed
+        if RAG_AVAILABLE:
+            try:
+                from backend.tools.rag import query_documents as _rag_query
+                rag_results = _rag_query(user_message, n_results=3)
+                if rag_results.get("results"):
+                    rag_context = "\n\nRelevant document context:\n"
+                    for r in rag_results["results"]:
+                        rag_context += f"[From {r['source']}]: {r['content'][:500]}\n"
+                    system_prompt += rag_context
+            except Exception:
+                pass  # RAG query failed, continue without context
+
     image_base64 = body.get("image")  # Optional base64 image from webcam
 
     # Create conversation if needed
@@ -307,7 +327,14 @@ async def chat(request: Request):
         nonlocal ollama_messages
         full_response = ""
         include_tools = bool(tool_defs)  # Flag: can this model use tools?
+        stream_start = time.time()
+        total_tokens = 0
+        total_tool_calls = 0
         logger.info(f"Starting stream_response. Messages: {len(ollama_messages)}, include_tools: {include_tools}")
+
+        # Send thinking event at start
+        context_chars = sum(len(m.get('content', '')) for m in ollama_messages)
+        yield f"data: {json.dumps({'thinking': {'model': model, 'messages': len(ollama_messages), 'context_chars': context_chars, 'tools_enabled': include_tools}})}\n\n"
 
         for iteration in range(10):
             logger.info(f"Agent loop iteration {iteration + 1}")
@@ -348,6 +375,7 @@ async def chat(request: Request):
                                 content = msg.get("content", "")
                                 if content:
                                     chunk_text += content
+                                    total_tokens += 1  # Approximate token count
                                     yield f"data: {json.dumps({'token': content, 'conversation_id': conversation_id})}\n\n"
                                 if msg.get("tool_calls"):
                                     tool_calls_found.extend(msg["tool_calls"])
@@ -407,8 +435,10 @@ async def chat(request: Request):
             db.commit()
             db.close()
 
-        # Signal done
-        yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id})}\n\n"
+        # Signal done with analytics
+        elapsed = round(time.time() - stream_start, 2)
+        tps = round(total_tokens / elapsed, 1) if elapsed > 0 else 0
+        yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id, 'analytics': {'elapsed_sec': elapsed, 'total_tokens': total_tokens, 'tokens_per_sec': tps, 'tool_calls': total_tool_calls, 'model': model}})}\n\n"
 
     return StreamingResponse(stream_response(), media_type="text/event-stream")
 
@@ -534,6 +564,40 @@ async def get_version():
         with open(version_file) as f:
             return _json.load(f)
     return {"version": "unknown", "build": 0}
+
+
+# ── Document RAG ────────────────────────────────────────────────────────
+
+@app.post("/api/documents/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Upload and index a document for RAG queries."""
+    if not RAG_AVAILABLE:
+        return {"error": "RAG not available — install chromadb"}
+
+    content = await file.read()
+    text = content.decode("utf-8", errors="replace")
+
+    if not text.strip():
+        return {"error": "Empty file"}
+
+    result = index_document(file.filename, text)
+    return result
+
+
+@app.get("/api/documents")
+async def list_documents():
+    """List all indexed documents."""
+    if not RAG_AVAILABLE:
+        return {"documents": []}
+    return list_indexed_documents()
+
+
+@app.delete("/api/documents/{filename:path}")
+async def remove_document(filename: str):
+    """Remove a document from the RAG index."""
+    if not RAG_AVAILABLE:
+        return {"error": "RAG not available"}
+    return delete_document(filename)
 
 # ── Serve Frontend ──────────────────────────────────────────────────────
 # Mount static files: JS/CSS served from /static/, HTML from /

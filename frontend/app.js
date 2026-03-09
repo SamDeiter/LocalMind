@@ -312,14 +312,64 @@ async function sendMessage() {
             state.currentConvId = evt.conversation_id;
             await loadConversations();
           }
+          // Thinking event — model context info at stream start
+          if (evt.thinking) {
+            const t = evt.thinking;
+            const thinkingEl = document.createElement("div");
+            thinkingEl.className = "thinking-panel";
+            thinkingEl.dataset.collapsed = "true";
+            thinkingEl.innerHTML = `
+              <div class="thinking-header">
+                <span>🧠 ${escapeHtml(t.model)}</span>
+                <span class="thinking-meta">${t.messages} msgs • ${Math.round(t.context_chars / 1000)}k chars${t.tools_enabled ? " • 🔧 tools" : ""}</span>
+                <span class="thinking-toggle">▸</span>
+              </div>
+              <div class="thinking-body" style="display:none">
+                <div><strong>Model:</strong> ${escapeHtml(t.model)}</div>
+                <div><strong>Messages:</strong> ${t.messages}</div>
+                <div><strong>Context:</strong> ${t.context_chars.toLocaleString()} chars</div>
+                <div><strong>Tools:</strong> ${t.tools_enabled ? "Enabled" : "Disabled"}</div>
+                <div class="thinking-analytics"></div>
+              </div>`;
+            thinkingEl
+              .querySelector(".thinking-header")
+              .addEventListener("click", () => {
+                const body = thinkingEl.querySelector(".thinking-body");
+                const toggle = thinkingEl.querySelector(".thinking-toggle");
+                const collapsed = body.style.display === "none";
+                body.style.display = collapsed ? "block" : "none";
+                toggle.textContent = collapsed ? "▾" : "▸";
+              });
+            contentEl.insertBefore(thinkingEl, contentEl.firstChild);
+          }
           // Error
           if (evt.error) {
             fullText += `\n\n**Error:** ${evt.error}`;
             contentEl.innerHTML = renderMarkdown(fullText);
           }
-          // Done
+          // Done — with analytics
           if (evt.done) {
             state.messages.push({ role: "assistant", content: fullText });
+            // Populate analytics panel if present
+            if (evt.analytics) {
+              const a = evt.analytics;
+              const analyticsEl = contentEl.querySelector(
+                ".thinking-analytics",
+              );
+              if (analyticsEl) {
+                analyticsEl.innerHTML = `
+                  <hr style="border-color: var(--border); margin: 6px 0">
+                  <div><strong>⏱ Time:</strong> ${a.elapsed_sec}s</div>
+                  <div><strong>📊 Tokens:</strong> ${a.total_tokens}</div>
+                  <div><strong>⚡ Speed:</strong> ${a.tokens_per_sec} tok/s</div>
+                  ${a.tool_calls ? `<div><strong>🔧 Tool calls:</strong> ${a.tool_calls}</div>` : ""}`;
+              }
+              // Update the thinking header meta with speed
+              const metaEl = contentEl.querySelector(".thinking-meta");
+              if (metaEl) {
+                metaEl.textContent += ` • ⚡ ${a.tokens_per_sec} tok/s • ${a.elapsed_sec}s`;
+              }
+            }
           }
         } catch (parseErr) {
           console.warn(
@@ -898,6 +948,28 @@ function bindEvents() {
     });
   });
 
+  // Document upload
+  const uploadBtn = document.getElementById("uploadBtn");
+  const fileInput = document.getElementById("fileInput");
+  if (uploadBtn && fileInput) {
+    uploadBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        uploadDocuments(e.target.files);
+        fileInput.value = "";
+      }
+    });
+  }
+
+  // Document list toggle
+  const docsToggle = document.getElementById("docsToggle");
+  const docList = document.getElementById("documentList");
+  if (docsToggle && docList) {
+    docsToggle.addEventListener("click", () => {
+      docList.classList.toggle("open");
+    });
+  }
+
   // Keyboard shortcuts
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey && e.key === "n") {
@@ -922,5 +994,66 @@ async function loadVersion() {
     /* ignore */
   }
 }
+
+// ── Document RAG ────────────────────────────────────────────────
+async function uploadDocuments(files) {
+  for (const file of files) {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const r = await fetch(`${API}/api/documents/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const d = await r.json();
+      if (d.success) {
+        console.log(`Indexed ${file.name}: ${d.chunks} chunks`);
+      } else {
+        console.error(`Upload failed: ${d.error}`);
+      }
+    } catch (e) {
+      console.error("Upload error:", e);
+    }
+  }
+  await loadDocuments();
+}
+
+async function loadDocuments() {
+  try {
+    const r = await fetch(`${API}/api/documents`);
+    const d = await r.json();
+    const list = document.getElementById("documentList");
+    const count = document.getElementById("docCount");
+    if (!list) return;
+
+    const docs = d.documents || [];
+    count.textContent = docs.length;
+    list.innerHTML = "";
+
+    docs.forEach((doc) => {
+      const div = document.createElement("div");
+      div.className = "document-item";
+      div.innerHTML = `
+        <span class="doc-icon">📄</span>
+        <span class="doc-name" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
+        <span class="doc-chunks">${doc.chunks} chunks</span>
+        <button class="delete-btn" title="Remove">✕</button>
+      `;
+      div.querySelector(".delete-btn").addEventListener("click", async () => {
+        await fetch(
+          `${API}/api/documents/${encodeURIComponent(doc.filename)}`,
+          {
+            method: "DELETE",
+          },
+        );
+        await loadDocuments();
+      });
+      list.appendChild(div);
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 // ── Boot ────────────────────────────────────────────────────────
 init();
