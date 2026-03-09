@@ -1544,10 +1544,7 @@ document
 // Editor toggle button
 editorToggle?.addEventListener("click", toggleEditorPanel);
 
-// Restore editor state
-if (localStorage.getItem("localmind_editor") === "on") {
-  setTimeout(toggleEditorPanel, 500);
-}
+// Editor starts closed — user can toggle with the button
 
 // ── Boot ────────────────────────────────────────────────────────
 init();
