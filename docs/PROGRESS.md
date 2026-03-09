@@ -84,3 +84,28 @@ When resuming, complete these in order:
 - **Frontend:** Vanilla HTML/CSS/JS, Monaco Editor (CDN)
 - **AI Models:** qwen2.5-coder:7b (fast), qwen2.5-coder:32b (deep)
 - **Hardware:** NVIDIA RTX 3080 (10GB VRAM)
+
+---
+
+## 🎯 Product Vision
+
+> **LocalMind: The AI workbench anyone can use — powerful enough for developers, safe enough for everyone.**
+
+### Positioning vs OpenClaw
+
+OpenClaw is a **power-user CLI agent** that gives full shell access through messaging apps. That's powerful but dangerous and invisible. LocalMind takes the opposite approach:
+
+| Principle                   | What It Means                                                   |
+| --------------------------- | --------------------------------------------------------------- |
+| **Visual first**            | Everything has a UI — no terminal required to get value         |
+| **Safe by default**         | No file deletion, sandboxed execution, pausable learning        |
+| **Zero config**             | One-click install, works out of the box, no WSL needed          |
+| **See what the AI does**    | Tool calls shown in real-time, not hidden behind a chat message |
+| **Your data, your machine** | No cloud, no accounts, no telemetry                             |
+
+### Strategic Priorities
+
+1. **Make the editor the center** — AI + code side-by-side, auto-context, run button
+2. **Show, don't tell** — Visual git diffs, live terminal output, tool execution previews
+3. **One-click everything** — Install, start, add tools, share workflows
+4. **Safety as a feature** — Confirmation dialogs for destructive actions, undo, audit log
