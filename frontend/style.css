@@ -1108,52 +1108,119 @@ body {
 
 /* Hardware Dashboard */
 .hardware-status {
-    display: flex;
-    padding: 6px 16px;
-    background: rgba(15, 15, 25, 0.5);
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  padding: 6px 16px;
+  background: rgba(15, 15, 25, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 .hw-metrics {
-    display: flex;
-    gap: 16px;
-    width: 100%;
-    align-items: center;
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  align-items: center;
 }
 .hw-metric {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
 }
 .hw-metric-label {
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.35);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    min-width: 32px;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 32px;
 }
 .hw-metric-bar {
-    flex: 1;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 2px;
-    overflow: hidden;
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
 }
 .hw-fill {
-    height: 100%;
-    width: 0%;
-    border-radius: 2px;
-    transition: width 0.5s ease, background 0.3s;
+  height: 100%;
+  width: 0%;
+  border-radius: 2px;
+  transition:
+    width 0.5s ease,
+    background 0.3s;
 }
-.hw-fill-green { background: linear-gradient(90deg, #22c55e, #4ade80); }
-.hw-fill-yellow { background: linear-gradient(90deg, #eab308, #facc15); }
-.hw-fill-red { background: linear-gradient(90deg, #ef4444, #f87171); }
-.hw-fill-purple { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
-.hw-fill-dim { background: rgba(255, 255, 255, 0.1); }
+.hw-fill-green {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+.hw-fill-yellow {
+  background: linear-gradient(90deg, #eab308, #facc15);
+}
+.hw-fill-red {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+.hw-fill-purple {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+.hw-fill-dim {
+  background: rgba(255, 255, 255, 0.1);
+}
 .hw-metric-val {
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.4);
-    min-width: 60px;
-    text-align: right;
-    white-space: nowrap;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+  min-width: 60px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── Mode Toggle ─────────────────────────────────────────────── */
+.mode-toggle {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 2px;
+}
+.mode-btn {
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.mode-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.08);
+}
+.mode-btn.active {
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+.model-override-select {
+  display: none;
+}
+
+/* ── Tier Badges ─────────────────────────────────────────────── */
+.tier-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: 8px;
+  letter-spacing: 0.02em;
+}
+.tier-badge.tier-light,
+.tier-badge.tier-medium {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+}
+.tier-badge.tier-heavy {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.25);
 }

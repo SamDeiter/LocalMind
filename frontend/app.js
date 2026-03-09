@@ -8,15 +8,22 @@
 const API = window.location.origin;
 
 // ── State ──────────────────────────────────────────────────────
+const MODE_MODELS = {
+  fast: "qwen2.5-coder:7b",
+  deep: "qwen2.5-coder:32b",
+  auto: "auto",
+};
+
 const state = {
   conversations: [],
   currentConvId: null,
   messages: [],
-  model: "qwen2.5-coder:32b",
   streaming: false,
+  model: "auto",
+  mode: localStorage.getItem("localmind_mode") || "auto",
+  voiceEnabled: localStorage.getItem("localmind_voice") !== "off",
+  capturedImage: null,
   abortController: null,
-  voiceEnabled: localStorage.getItem("localmind_voice") !== "off", // Persisted
-  capturedImage: null, // base64 string
 };
 
 // ── DOM refs ───────────────────────────────────────────────────
@@ -27,6 +34,7 @@ const newChatBtn = $("#newChatBtn");
 const conversationList = $("#conversationList");
 const learningToggle = $("#learningToggle");
 const modelSelect = $("#modelSelect");
+const modeToggle = $("#modeToggle");
 const voiceToggle = $("#voiceToggle");
 const voiceSelect = $("#voiceSelect");
 const systemPromptBtn = $("#systemPromptBtn");
@@ -79,7 +87,21 @@ async function checkHealth() {
   }
 }
 
-// ── Models ──────────────────────────────────────────────────────
+// ── Models & Modes ──────────────────────────────────────────────
+function resolveModel() {
+  // Returns the model string to send to the server
+  return MODE_MODELS[state.mode] || "auto";
+}
+
+function activateMode(mode) {
+  state.mode = mode;
+  localStorage.setItem("localmind_mode", mode);
+  // Update toggle buttons
+  modeToggle.querySelectorAll(".mode-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+}
+
 async function loadModels() {
   try {
     const r = await fetch(`${API}/api/models`);
@@ -92,22 +114,12 @@ async function loadModels() {
         opt.textContent = m.name;
         modelSelect.appendChild(opt);
       });
-      const saved = localStorage.getItem("localmind_model");
-      if (saved && d.models.some((m) => m.name === saved)) {
-        modelSelect.value = saved;
-        state.model = saved;
-      } else {
-        state.model = d.models[0].name;
-      }
-    } else {
-      const opt = document.createElement("option");
-      opt.value = "qwen2.5-coder:32b";
-      opt.textContent = "No models found";
-      modelSelect.appendChild(opt);
     }
   } catch {
     modelSelect.innerHTML = "<option>Server offline</option>";
   }
+  // Activate saved mode
+  activateMode(state.mode);
 }
 
 // ── Conversations ───────────────────────────────────────────────
@@ -221,7 +233,7 @@ async function sendMessage() {
   state.abortController = new AbortController();
 
   const body = {
-    model: state.model,
+    model: resolveModel(),
     message: text,
     conversation_id: state.currentConvId || undefined,
     system_prompt: systemPromptText.value || undefined,
@@ -343,6 +355,26 @@ async function sendMessage() {
                 toggle.textContent = collapsed ? "▾" : "▸";
               });
             contentEl.insertBefore(thinkingEl, contentEl.firstChild);
+          }
+          // Task estimate event — show tier badge
+          if (evt.task_estimate) {
+            const te = evt.task_estimate;
+            const thinkingPanel = contentEl.querySelector(".thinking-panel");
+            if (thinkingPanel) {
+              const badge = document.createElement("span");
+              badge.className = `tier-badge tier-${te.tier}`;
+              badge.textContent = te.tier === "heavy" ? "🧠 Deep" : "⚡ Fast";
+              badge.title = `Complexity: ${te.score}/10 — ${te.reason}`;
+              const header = thinkingPanel.querySelector(".thinking-header");
+              if (header) header.appendChild(badge);
+              // Add estimation details to thinking body
+              const body = thinkingPanel.querySelector(".thinking-body");
+              if (body) {
+                const estDiv = document.createElement("div");
+                estDiv.innerHTML = `<strong>Complexity:</strong> ${te.score}/10 (${te.tier}) — ${escapeHtml(te.reason)}`;
+                body.insertBefore(estDiv, body.firstChild);
+              }
+            }
           }
           // Error
           if (evt.error) {
@@ -851,10 +883,10 @@ function bindEvents() {
     messageInput.focus();
   });
 
-  // Model change
-  modelSelect.addEventListener("change", () => {
-    state.model = modelSelect.value;
-    localStorage.setItem("localmind_model", state.model);
+  // Mode toggle
+  modeToggle.addEventListener("click", (e) => {
+    const btn = e.target.closest(".mode-btn");
+    if (btn) activateMode(btn.dataset.mode);
   });
 
   // Voice toggle
