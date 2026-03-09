@@ -173,7 +173,19 @@ async def chat(request: Request):
     model = body.get("model", "qwen2.5-coder:32b")
     message = body.get("message", "")
     conversation_id = body.get("conversation_id")
-    system_prompt = body.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
+    system_prompt = body.get("system_prompt", "")
+
+    # If no prompt in request, load from conversation or use default
+    if not system_prompt and conversation_id:
+        db_tmp = get_db()
+        row_tmp = db_tmp.execute(
+            "SELECT system_prompt FROM conversations WHERE id = ?", (conversation_id,)
+        ).fetchone()
+        db_tmp.close()
+        if row_tmp and row_tmp["system_prompt"]:
+            system_prompt = row_tmp["system_prompt"]
+    if not system_prompt:
+        system_prompt = DEFAULT_SYSTEM_PROMPT
     image_base64 = body.get("image")  # Optional base64 image from webcam
 
     # Create conversation if needed
@@ -246,8 +258,9 @@ async def chat(request: Request):
         for iteration in range(max_iterations):
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-                    # Call Ollama with streaming
-                    response = await client.post(
+                    # Call Ollama with REAL streaming (client.stream, not client.post)
+                    async with client.stream(
+                        "POST",
                         f"{OLLAMA_BASE_URL}/api/chat",
                         json={
                             "model": model,
@@ -255,32 +268,31 @@ async def chat(request: Request):
                             "tools": tools if tools else None,
                             "stream": True,
                         },
-                    )
+                    ) as response:
+                        # Accumulate the full response to detect tool calls
+                        chunk_text = ""
+                        tool_calls = []
 
-                    # Accumulate the full response to detect tool calls
-                    chunk_text = ""
-                    tool_calls = []
+                        async for line in response.aiter_lines():
+                            if not line.strip():
+                                continue
+                            try:
+                                data = json.loads(line)
+                                msg = data.get("message", {})
 
-                    async for line in response.aiter_lines():
-                        if not line.strip():
-                            continue
-                        try:
-                            data = json.loads(line)
-                            msg = data.get("message", {})
+                                # Stream text tokens to frontend immediately
+                                content = msg.get("content", "")
+                                if content:
+                                    chunk_text += content
+                                    full_response += content
+                                    yield f"data: {json.dumps({'token': content, 'conversation_id': conversation_id})}\n\n"
 
-                            # Stream text tokens to frontend
-                            content = msg.get("content", "")
-                            if content:
-                                chunk_text += content
-                                full_response += content
-                                yield f"data: {json.dumps({'token': content, 'conversation_id': conversation_id})}\n\n"
+                                # Detect tool calls
+                                if msg.get("tool_calls"):
+                                    tool_calls.extend(msg["tool_calls"])
 
-                            # Detect tool calls
-                            if msg.get("tool_calls"):
-                                tool_calls.extend(msg["tool_calls"])
-
-                        except json.JSONDecodeError:
-                            continue
+                            except json.JSONDecodeError:
+                                continue
 
                     # If no tool calls, we're done
                     if not tool_calls:
@@ -374,6 +386,39 @@ async def delete_conversation(conv_id: str):
     db.close()
     return {"ok": True}
 
+
+
+
+@app.get("/api/conversations/{conv_id}")
+async def get_conversation(conv_id: str):
+    """Get conversation metadata including system prompt."""
+    db = get_db()
+    row = db.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+    db.close()
+    if not row:
+        return {"error": "Conversation not found"}
+    return dict(row)
+
+
+@app.put("/api/conversations/{conv_id}/system-prompt")
+async def update_system_prompt(conv_id: str, request: Request):
+    """Update the system prompt for a conversation."""
+    body = await request.json()
+    prompt = body.get("system_prompt", "")
+    db = get_db()
+    db.execute(
+        "UPDATE conversations SET system_prompt = ?, updated_at = ? WHERE id = ?",
+        (prompt, __import__('time').time(), conv_id),
+    )
+    db.commit()
+    db.close()
+    return {"ok": True, "system_prompt": prompt}
+
+
+@app.get("/api/default-system-prompt")
+async def get_default_system_prompt():
+    """Return the server's default system prompt."""
+    return {"system_prompt": DEFAULT_SYSTEM_PROMPT}
 
 # ── Serve Frontend ──────────────────────────────────────────────────────
 # Mount static files: JS/CSS served from /static/, HTML from /

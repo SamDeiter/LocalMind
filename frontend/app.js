@@ -142,12 +142,26 @@ async function loadConversation(id) {
   if (state.streaming) return;
   state.currentConvId = id;
   try {
+    // Load messages
     const r = await fetch(`${API}/api/conversations/${id}/messages`);
     const d = await r.json();
     state.messages = (d.messages || []).map((m) => ({
       role: m.role,
       content: m.content,
     }));
+
+    // Load conversation metadata (system prompt)
+    try {
+      const convR = await fetch(`${API}/api/conversations/${id}`);
+      const convD = await convR.json();
+      if (convD.system_prompt) {
+        systemPromptText.value = convD.system_prompt;
+      } else {
+        // Load default if no custom prompt saved
+        systemPromptText.value = "";
+      }
+    } catch { /* ignore */ }
+
     renderMessages();
     welcomeScreen.style.display = "none";
     renderConversations();
@@ -197,6 +211,7 @@ async function sendMessage() {
     model: state.model,
     message: text,
     conversation_id: state.currentConvId || undefined,
+    system_prompt: systemPromptText.value || undefined,
   };
   if (state.capturedImage) {
     body.image = state.capturedImage;
@@ -539,12 +554,30 @@ function bindEvents() {
   systemPromptBtn.addEventListener("click", () => {
     systemPromptPanel.classList.toggle("open");
   });
-  savePromptBtn.addEventListener("click", () => {
+  savePromptBtn.addEventListener("click", async () => {
+    // Save to localStorage as fallback
     localStorage.setItem("localmind_system_prompt", systemPromptText.value);
+    // Save to backend if we have an active conversation
+    if (state.currentConvId) {
+      try {
+        await fetch(`${API}/api/conversations/${state.currentConvId}/system-prompt`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ system_prompt: systemPromptText.value }),
+        });
+      } catch { /* ignore */ }
+    }
     systemPromptPanel.classList.remove("open");
   });
-  resetPromptBtn.addEventListener("click", () => {
-    systemPromptText.value = "";
+  resetPromptBtn.addEventListener("click", async () => {
+    // Load server's default prompt
+    try {
+      const r = await fetch(`${API}/api/default-system-prompt`);
+      const d = await r.json();
+      systemPromptText.value = d.system_prompt || "";
+    } catch {
+      systemPromptText.value = "";
+    }
     localStorage.removeItem("localmind_system_prompt");
   });
 
