@@ -1,33 +1,49 @@
 # Personal AI Assistant — Project Tasks
 
-## Planning
+## ✅ Phase 1 — Core Setup (Complete)
 
-- [/] Create implementation plan
-- [ ] Get user approval on plan
+- [x] Create install script (PowerShell)
+- [x] Create project folder structure
+- [x] FastAPI backend with Ollama integration
 
-## Phase 1 — Core Setup
+## ✅ Phase 2 — Web UI (Complete)
 
-- [ ] Create install script (PowerShell) — installs Ollama + pulls Qwen model
-- [ ] Create uninstall script (PowerShell) — clean removal
-- [ ] Create project folder structure
+- [x] Build chat interface with code syntax highlighting
+- [x] Add model selector (swap between models)
+- [x] Add conversation history / memory
+- [x] Dark mode, polished design
 
-## Phase 2 — Web UI
+## ✅ Phase 3 — Enhancements (Complete)
 
-- [ ] Build chat interface with code syntax highlighting
-- [ ] Add model selector (swap between models)
-- [ ] Add conversation history / memory
-- [ ] Dark mode, polished design
+- [x] Document RAG (talk to your files)
+- [x] Voice input (Web Speech API)
+- [x] System prompt customization
+- [x] Export conversations
+- [x] Hardware dashboard (CPU/RAM/VRAM)
+- [x] Multi-provider web search
+- [x] Memory viewer UI
 
-## Phase 3 — Enhancements
+## ✅ Phase 4 — Editor Enhancements (Complete)
 
-- [ ] Document RAG (talk to your files)
-- [ ] Voice input (Whisper)
-- [ ] System prompt customization
-- [ ] Export conversations
+- [x] Monaco code editor with file tree
+- [x] Send to AI auto-sends
+- [x] Drag & drop files to chat
+- [x] ▶ Run Python button + output panel
+- [x] Resizable editor panels
+- [x] Auto-context injection (editor → system prompt)
+- [x] CSS: drop zone overlay, output panel, run button
 
-## Verification
+## ✅ Phase 5 — Code Quality (Complete)
 
-- [ ] Test install script on clean state
-- [ ] Test uninstall script
-- [ ] Test chat with code generation
-- [ ] Push to GitHub
+- [x] Modularize `app.js` into 8 ES modules
+- [x] Set up ESLint (0 errors)
+- [x] Set up Jest (23 tests passing)
+- [x] Set up Prettier
+- [x] Add `node_modules` to `.gitignore`
+
+## 📋 Phase 6 — Git & Intelligence (Upcoming)
+
+- [ ] Git Awareness tool (status, diff, commit, log)
+- [ ] Project Context Loading (dir tree as context)
+- [ ] Interactive Onboarding Tutorial
+- [ ] Voice quality (Piper TTS)

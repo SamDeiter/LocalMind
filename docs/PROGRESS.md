@@ -1,8 +1,8 @@
 # 📊 LocalMind — Development Progress
 
-> Last updated: March 8, 2026
+> Last updated: March 9, 2026
 
-## Current Version: v0.3.0 #5
+## Current Version: v0.3.1
 
 ---
 
@@ -27,29 +27,31 @@
 
 ---
 
-## 🔨 In Progress — Editor Enhancements
+## ✅ Sprint 1.5 — Editor Enhancements (Complete)
 
-| Feature                   | Status        | Notes                                   |
-| ------------------------- | ------------- | --------------------------------------- |
-| Send to AI auto-sends     | 🔨 Code added | Clicks send automatically               |
-| Drag & drop files to chat | 🔨 Code added | FileReader for text + base64 for images |
-| ▶️ Run Python button      | 🔨 Code added | Needs `/api/tools/run` endpoint         |
-| Resizable panels          | 🔨 Code added | Horizontal + vertical drag handles      |
-| Auto-context injection    | 📋 Planned    | Editor file auto-included in chat       |
-| CSS for new features      | 📋 Planned    | Drop zone, output panel styles          |
+| Feature                   | Status  | Notes                                       |
+| ------------------------- | ------- | ------------------------------------------- |
+| Send to AI auto-sends     | ✅ Done | Clicks send automatically                   |
+| Drag & drop files to chat | ✅ Done | FileReader for text + base64 for images     |
+| ▶️ Run Python button      | ✅ Done | `/api/tools/run` endpoint + output panel    |
+| Resizable panels          | ✅ Done | Horizontal + vertical drag handles          |
+| Auto-context injection    | ✅ Done | Editor file auto-included in system prompt  |
+| CSS for new features      | ✅ Done | Drop zone overlay, output panel, run button |
+| App.js modularization     | ✅ Done | 1,653-line monolith → 8 ES modules          |
+| ESLint + Jest tooling     | ✅ Done | 0 errors, 23 unit tests passing             |
 
 ---
 
 ## 📋 Sprint 2 — "The Edge" (Upcoming)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Interactive Onboarding Tutorial | 📋 Planned | Guided 2-min tour on first launch — AI demos itself |
-| AI Time Machine | �� Planned | Every AI action versioned + replayable, undo any step |
-| Cross-Project Hub | 📋 Planned | AI remembers patterns across ALL your projects |
-| Git Awareness | 📋 Planned | status, diff, commit, log tools |
-| Project Context Loading | 📋 Planned | dir tree as context |
-| Voice Input | 📋 Planned | faster-whisper + mic UI |
+| Feature                         | Status     | Notes                                                 |
+| ------------------------------- | ---------- | ----------------------------------------------------- |
+| Interactive Onboarding Tutorial | 📋 Planned | Guided 2-min tour on first launch — AI demos itself   |
+| AI Time Machine                 | �� Planned | Every AI action versioned + replayable, undo any step |
+| Cross-Project Hub               | 📋 Planned | AI remembers patterns across ALL your projects        |
+| Git Awareness                   | 📋 Planned | status, diff, commit, log tools                       |
+| Project Context Loading         | 📋 Planned | dir tree as context                                   |
+| Voice Input                     | 📋 Planned | faster-whisper + mic UI                               |
 
 ## 📋 Sprint 3 — "The Polish"
 
@@ -85,19 +87,17 @@
 
 When resuming, complete these in order:
 
-1. **Finish editor wiring** — Add `/api/tools/run` endpoint in `server.py`, HTML elements for ▶️ Run button + output panel, CSS for drop zone + output panel
-2. **Auto-context injection** — Modify `sendMessage()` so the AI automatically sees the file open in the Monaco editor (inject as system context, not user message)
-3. **Test all 4 enhancements end-to-end** — Send to AI, drag-drop, run button, resizable panels
-4. **Git Awareness tool** — New `backend/tools/git_tools.py` with status, diff, commit, log
-5. **Project Context Loading** — Send directory tree as context so AI understands your project structure
-6. **Voice Input** — faster-whisper integration with mic button in the UI
+1. **Git Awareness tool** — New `backend/tools/git_tools.py` with status, diff, commit, log
+2. **Project Context Loading** — Send directory tree as context so AI understands your project structure
+3. **Voice Input** — faster-whisper integration with mic button in the UI
+4. **Interactive Onboarding Tutorial** — Guided 2-min tour on first launch
 
 ---
 
 ## 🏛️ Tech Stack
 
 - **Backend:** Python, FastAPI, Ollama, ChromaDB, SQLite
-- **Frontend:** Vanilla HTML/CSS/JS, Monaco Editor (CDN)
+- **Frontend:** Vanilla HTML/CSS/JS (ES Modules), Monaco Editor (CDN), ESLint, Jest
 - **AI Models:** qwen2.5-coder:7b (fast), qwen2.5-coder:32b (deep)
 - **Hardware:** NVIDIA RTX 3080 (10GB VRAM)
 
