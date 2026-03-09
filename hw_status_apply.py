@@ -1,13 +1,13 @@
 """
-Model Loading Indicator — shows hardware status when AI is loading into VRAM
+Model Loading + System Hardware Dashboard
 Adds:
-1. GET /api/hardware - backend endpoint proxying Ollama /api/ps
-2. Hardware status bar in UI header
-3. Polling logic to show loading state
+1. GET /api/hardware - Ollama model status + system CPU/RAM/GPU metrics
+2. Hardware status bar + system dashboard in UI
+3. Polling logic for real-time updates
 """
 
 # ──────────────────────────────────────────────────────────────────
-# 1. BACKEND: Add hardware status endpoint
+# 1. BACKEND: Add hardware + system status endpoint
 # ──────────────────────────────────────────────────────────────────
 
 server_path = r"c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\server.py"
@@ -17,13 +17,29 @@ with open(server_path, "r", encoding="utf-8") as f:
 hw_endpoint = '''
 @app.get("/api/hardware")
 async def hardware_status():
-    """Get loaded models and VRAM usage from Ollama."""
+    """Get loaded models, VRAM usage, and system metrics."""
     import httpx
+    import psutil
+
+    # System metrics
+    cpu_pct = psutil.cpu_percent(interval=0.1)
+    mem = psutil.virtual_memory()
+    ram_used = round(mem.used / (1024**3), 1)
+    ram_total = round(mem.total / (1024**3), 1)
+
+    system = {
+        "cpu_percent": cpu_pct,
+        "ram_used_gb": ram_used,
+        "ram_total_gb": ram_total,
+        "ram_percent": mem.percent,
+    }
+
+    # GPU metrics via Ollama /api/ps
+    models = []
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
             data = r.json()
-            models = []
             for m in data.get("models", []):
                 size_gb = m.get("size", 0) / (1024**3)
                 vram_gb = m.get("size_vram", 0) / (1024**3)
@@ -34,47 +50,57 @@ async def hardware_status():
                     "processor": m.get("details", {}).get("quantization_level", ""),
                     "expires": m.get("expires_at", ""),
                 })
-            return {"loaded": len(models) > 0, "models": models}
     except Exception:
-        return {"loaded": False, "models": []}
+        pass
+
+    return {
+        "loaded": len(models) > 0,
+        "models": models,
+        "system": system,
+    }
 
 '''
 
 marker = "# ── Document RAG"
+fallback = "# ── Serve Frontend"
 if "/api/hardware" not in server_code:
-    if marker in server_code:
-        server_code = server_code.replace(marker, hw_endpoint + marker)
-    else:
-        # Fallback: insert before Serve Frontend
-        server_code = server_code.replace("# ── Serve Frontend", hw_endpoint + "# ── Serve Frontend")
+    target = marker if marker in server_code else fallback
+    server_code = server_code.replace(target, hw_endpoint + target)
     with open(server_path, "w", encoding="utf-8") as f:
         f.write(server_code)
-    print("[OK] server.py — Added /api/hardware endpoint")
+    print("[OK] server.py — Added /api/hardware endpoint with system metrics")
 else:
-    print("[SKIP] server.py — Hardware endpoint exists")
+    print("[SKIP] server.py — Hardware endpoint already exists")
 
 
 # ──────────────────────────────────────────────────────────────────
-# 2. FRONTEND: Add hardware status bar to HTML
+# 2. FRONTEND: Add status bar + dashboard to HTML
 # ──────────────────────────────────────────────────────────────────
 
 html_path = r"c:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\index.html"
 with open(html_path, "r", encoding="utf-8") as f:
     html_code = f.read()
 
-# Add status bar above chat input
-status_bar = '''        <div id="hardwareStatus" class="hardware-status hidden">
-            <div class="hw-indicator">
-                <div class="hw-spinner"></div>
-                <span id="hwText">Loading model...</span>
+status_bar = '''        <div id="hardwareStatus" class="hardware-status">
+            <div class="hw-metrics">
+                <div class="hw-metric">
+                    <span class="hw-metric-label">CPU</span>
+                    <div class="hw-metric-bar"><div id="cpuBar" class="hw-fill"></div></div>
+                    <span id="cpuVal" class="hw-metric-val">0%</span>
+                </div>
+                <div class="hw-metric">
+                    <span class="hw-metric-label">RAM</span>
+                    <div class="hw-metric-bar"><div id="ramBar" class="hw-fill"></div></div>
+                    <span id="ramVal" class="hw-metric-val">0/0 GB</span>
+                </div>
+                <div class="hw-metric" id="modelMetric">
+                    <span class="hw-metric-label" id="modelLabel">Model</span>
+                    <div class="hw-metric-bar"><div id="vramBar" class="hw-fill hw-fill-purple"></div></div>
+                    <span id="vramVal" class="hw-metric-val">—</span>
+                </div>
             </div>
-            <div class="hw-bar-container">
-                <div id="hwBar" class="hw-bar"></div>
-            </div>
-            <span id="hwVram" class="hw-vram"></span>
         </div>'''
 
-# Insert above the input area
 if 'id="hardwareStatus"' not in html_code:
     html_code = html_code.replace(
         '<div class="input-area"',
@@ -82,9 +108,9 @@ if 'id="hardwareStatus"' not in html_code:
     )
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_code)
-    print("[OK] index.html — Added hardware status bar")
+    print("[OK] index.html — Added hardware dashboard")
 else:
-    print("[SKIP] index.html — Status bar exists")
+    print("[SKIP] index.html — Dashboard already exists")
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -96,96 +122,77 @@ with open(app_path, "r", encoding="utf-8") as f:
     app_code = f.read()
 
 hw_func = '''
-// ── Hardware Status (Model Loading Indicator) ───────────────────
-let hwPolling = null;
-let lastModelLoaded = null;
+// ── Hardware Dashboard ──────────────────────────────────────────
+let hwInterval = null;
 
-async function checkHardware() {
-  const bar = document.getElementById("hardwareStatus");
-  if (!bar) return;
-
+async function pollHardware() {
   try {
     const r = await fetch(`${API}/api/hardware`);
     const d = await r.json();
 
-    if (d.models && d.models.length > 0) {
-      const m = d.models[0];
-      const vramPct = m.size_gb > 0 ? Math.round((m.vram_gb / m.size_gb) * 100) : 100;
-      document.getElementById("hwText").textContent = `${m.name} loaded`;
-      document.getElementById("hwBar").style.width = `${vramPct}%`;
-      document.getElementById("hwVram").textContent = `${m.vram_gb}GB VRAM`;
-      bar.classList.remove("hidden");
-      bar.classList.add("loaded");
-      lastModelLoaded = m.name;
-
-      // Auto-hide after 5 seconds when fully loaded
-      setTimeout(() => {
-        bar.classList.add("hidden");
-        bar.classList.remove("loaded");
-      }, 5000);
-    } else {
-      bar.classList.add("hidden");
-      lastModelLoaded = null;
+    // CPU
+    const cpuBar = document.getElementById("cpuBar");
+    const cpuVal = document.getElementById("cpuVal");
+    if (cpuBar && d.system) {
+      cpuBar.style.width = `${d.system.cpu_percent}%`;
+      cpuVal.textContent = `${Math.round(d.system.cpu_percent)}%`;
+      cpuBar.className = `hw-fill ${d.system.cpu_percent > 80 ? "hw-fill-red" : d.system.cpu_percent > 50 ? "hw-fill-yellow" : "hw-fill-green"}`;
     }
-  } catch {
-    bar.classList.add("hidden");
-  }
+
+    // RAM
+    const ramBar = document.getElementById("ramBar");
+    const ramVal = document.getElementById("ramVal");
+    if (ramBar && d.system) {
+      ramBar.style.width = `${d.system.ram_percent}%`;
+      ramVal.textContent = `${d.system.ram_used_gb}/${d.system.ram_total_gb} GB`;
+      ramBar.className = `hw-fill ${d.system.ram_percent > 85 ? "hw-fill-red" : d.system.ram_percent > 60 ? "hw-fill-yellow" : "hw-fill-green"}`;
+    }
+
+    // Model / VRAM
+    const vramBar = document.getElementById("vramBar");
+    const vramVal = document.getElementById("vramVal");
+    const modelLabel = document.getElementById("modelLabel");
+    if (vramBar && d.models && d.models.length > 0) {
+      const m = d.models[0];
+      const pct = m.size_gb > 0 ? Math.round((m.vram_gb / m.size_gb) * 100) : 0;
+      vramBar.style.width = `${pct}%`;
+      vramVal.textContent = `${m.vram_gb} GB VRAM`;
+      modelLabel.textContent = m.name.split(":")[0];
+      vramBar.className = "hw-fill hw-fill-purple";
+    } else {
+      vramBar.style.width = "0%";
+      vramVal.textContent = "No model loaded";
+      modelLabel.textContent = "Model";
+      vramBar.className = "hw-fill hw-fill-dim";
+    }
+  } catch { /* ignore */ }
 }
 
 function startHwPolling() {
-  const bar = document.getElementById("hardwareStatus");
-  if (bar) {
-    bar.classList.remove("hidden");
-    bar.classList.remove("loaded");
-    document.getElementById("hwText").textContent = "Loading model into GPU...";
-    document.getElementById("hwBar").style.width = "0%";
-    document.getElementById("hwVram").textContent = "";
-  }
-
-  // Poll every 2s while loading
-  if (hwPolling) clearInterval(hwPolling);
-  hwPolling = setInterval(async () => {
-    await checkHardware();
-    const bar = document.getElementById("hardwareStatus");
-    if (bar && bar.classList.contains("loaded")) {
-      clearInterval(hwPolling);
-      hwPolling = null;
-    }
-  }, 2000);
+  if (hwInterval) return;
+  pollHardware();
+  hwInterval = setInterval(pollHardware, 3000);
 }
 
 '''
 
-if "checkHardware" not in app_code:
+if "pollHardware" not in app_code:
     app_code = app_code.replace("// ── Boot", hw_func + "// ── Boot")
-    print("[OK] app.js — Added hardware status functions")
+    print("[OK] app.js — Added hardware dashboard functions")
 else:
     print("[SKIP] app.js — Hardware functions exist")
 
-# Trigger hw poll when sending a message (model might need to load)
-if "startHwPolling" not in app_code:
-    # Patch is not applicable since function already inserted
-    pass
-else:
-    print("[SKIP] app.js — startHwPolling already referenced")
-
-# Call checkHardware on init
-if "checkHardware();" not in app_code:
-    app_code = app_code.replace("  loadDocuments();", "  loadDocuments();\n  checkHardware();")
-
-# Trigger loading indicator when user sends message
-old_send_start = "  sendBtn.disabled = true;"
-new_send_start = "  sendBtn.disabled = true;\n    startHwPolling();"  
-if "startHwPolling();" not in app_code and old_send_start in app_code:
-    app_code = app_code.replace(old_send_start, new_send_start, 1)  # Only first occurrence
-    print("[OK] app.js — Trigger loading indicator on send")
+# Call on init
+if "startHwPolling();" not in app_code:
+    app_code = app_code.replace("  loadDocuments();", "  loadDocuments();\n  startHwPolling();")
+    print("[OK] app.js — Start hardware polling on init")
 
 with open(app_path, "w", encoding="utf-8") as f:
     f.write(app_code)
 
 
 # ──────────────────────────────────────────────────────────────────
-# 4. FRONTEND: Add CSS for hardware status bar
+# 4. FRONTEND: CSS for hardware dashboard
 # ──────────────────────────────────────────────────────────────────
 
 css_path = r"c:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\style.css"
@@ -193,78 +200,66 @@ with open(css_path, "r", encoding="utf-8") as f:
     css_code = f.read()
 
 hw_css = """
-/* Hardware / Model Loading Status */
+/* Hardware Dashboard */
 .hardware-status {
     display: flex;
-    align-items: center;
-    gap: 10px;
     padding: 6px 16px;
-    background: rgba(139, 92, 246, 0.08);
-    border-top: 1px solid rgba(139, 92, 246, 0.15);
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
-    transition: all 0.3s ease;
+    background: rgba(15, 15, 25, 0.5);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
-.hardware-status.hidden {
-    display: none;
+.hw-metrics {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    align-items: center;
 }
-.hardware-status.loaded {
-    background: rgba(34, 197, 94, 0.08);
-    border-top-color: rgba(34, 197, 94, 0.15);
-}
-.hw-indicator {
+.hw-metric {
     display: flex;
     align-items: center;
     gap: 6px;
-    white-space: nowrap;
+    flex: 1;
 }
-.hw-spinner {
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(139, 92, 246, 0.3);
-    border-top-color: #8b5cf6;
-    border-radius: 50%;
-    animation: hw-spin 1s linear infinite;
+.hw-metric-label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 32px;
 }
-.loaded .hw-spinner {
-    border-color: rgba(34, 197, 94, 0.5);
-    border-top-color: #22c55e;
-    animation: none;
-}
-@keyframes hw-spin {
-    to { transform: rotate(360deg); }
-}
-.hw-bar-container {
+.hw-metric-bar {
     flex: 1;
     height: 4px;
     background: rgba(255, 255, 255, 0.06);
     border-radius: 2px;
     overflow: hidden;
 }
-.hw-bar {
+.hw-fill {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
     border-radius: 2px;
-    transition: width 0.5s ease;
+    transition: width 0.5s ease, background 0.3s;
 }
-.loaded .hw-bar {
-    background: linear-gradient(90deg, #22c55e, #4ade80);
-}
-.hw-vram {
-    font-size: 0.7rem;
+.hw-fill-green { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.hw-fill-yellow { background: linear-gradient(90deg, #eab308, #facc15); }
+.hw-fill-red { background: linear-gradient(90deg, #ef4444, #f87171); }
+.hw-fill-purple { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.hw-fill-dim { background: rgba(255, 255, 255, 0.1); }
+.hw-metric-val {
+    font-size: 0.65rem;
     color: rgba(255, 255, 255, 0.4);
+    min-width: 60px;
+    text-align: right;
     white-space: nowrap;
 }
 """
 
-if ".hardware-status" not in css_code:
+if ".hw-metrics" not in css_code:
     css_code += hw_css
     with open(css_path, "w", encoding="utf-8") as f:
         f.write(css_code)
-    print("[OK] style.css — Added hardware status styles")
+    print("[OK] style.css — Added hardware dashboard styles")
 else:
     print("[SKIP] style.css — Hardware styles exist")
 
 
-print("\n✅ Model loading indicator complete!")
+print("\n✅ Hardware dashboard complete!")

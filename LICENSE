@@ -19,3 +19,231 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+================================================================================
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+================================================================================
+
+LocalMind incorporates and/or depends on the following open-source projects.
+Each project is listed with its license type. The full text of each license
+can be found in the respective project's repository or distribution.
+
+
+--------------------------------------------------------------------------------
+1. Ollama
+   https://ollama.com
+   License: MIT License
+   Copyright (c) Ollama
+
+   Used for local large language model inference. Models downloaded by Ollama
+   (e.g., Gemma, Llama) are subject to their own licenses from their
+   respective creators (Google, Meta, etc.). Users are responsible for
+   reviewing and complying with model-specific licenses.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+2. FastAPI
+   https://fastapi.tiangolo.com
+   License: MIT License
+   Copyright (c) Sebastián Ramírez
+
+   Permission is hereby granted, free of charge, to any person obtaining a
+   copy of this software and associated documentation files (the "Software"),
+   to deal in the Software without restriction, including without limitation
+   the rights to use, copy, modify, merge, publish, distribute, sublicense,
+   and/or sell copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included
+   in all copies or substantial portions of the Software.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+3. Uvicorn
+   https://www.uvicorn.org
+   License: BSD 3-Clause License
+   Copyright (c) Tom Christie
+
+   Used as the ASGI server to run the FastAPI application.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+4. ChromaDB
+   https://www.trychroma.com
+   License: Apache License 2.0
+   Copyright (c) Chroma, Inc.
+
+   Used for vector storage of long-term memory embeddings. Licensed under
+   the Apache License, Version 2.0. You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+5. httpx
+   https://www.python-httpx.org
+   License: BSD 3-Clause License
+   Copyright (c) Encode OSS Ltd.
+
+   Used for asynchronous HTTP requests to Ollama and web search services.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+6. Pillow (PIL Fork)
+   https://pillow.readthedocs.io
+   License: Historical Permission Notice and Disclaimer (HPND)
+   Copyright (c) Jeffrey A. Clark (Alex) and contributors
+
+   Used for image processing and manipulation (webcam captures, screenshots).
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+7. mss (Multiple Screen Shots)
+   https://pypi.org/project/mss/
+   License: MIT License
+   Copyright (c) Mickaël Schoentgen
+
+   Used for cross-platform screenshot capture functionality.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+8. pyperclip
+   https://pypi.org/project/pyperclip/
+   License: BSD 3-Clause License
+   Copyright (c) Al Sweigart
+
+   Used for cross-platform clipboard read access.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+9. NumPy
+   https://numpy.org
+   License: BSD 3-Clause License
+   Copyright (c) NumPy Developers
+
+   Used as a transitive dependency for numerical operations (ChromaDB).
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+10. Starlette
+    https://www.starlette.io
+    License: BSD 3-Clause License
+    Copyright (c) Encode OSS Ltd.
+
+    The ASGI toolkit underpinning FastAPI. Provides routing, middleware,
+    request/response handling, and static file serving.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+11. Pydantic
+    https://docs.pydantic.dev
+    License: MIT License
+    Copyright (c) Samuel Colvin and contributors
+
+    Used for data validation and settings management in FastAPI.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+12. Highlight.js (Frontend CDN)
+    https://highlightjs.org
+    License: BSD 3-Clause License
+    Copyright (c) Ivan Sagalaev and contributors
+
+    Used for syntax highlighting of code blocks in the chat interface.
+    Loaded via CDN (jsdelivr.net) — not bundled with source.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+13. Marked.js (Frontend CDN)
+    https://marked.js.org
+    License: MIT License
+    Copyright (c) Christopher Jeffrey and contributors
+
+    Used for Markdown-to-HTML rendering in the chat interface.
+    Loaded via CDN (jsdelivr.net) — not bundled with source.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+14. Google Fonts — Inter & JetBrains Mono
+    https://fonts.google.com
+    License: SIL Open Font License 1.1
+
+    Inter: Copyright (c) Rasmus Andersson
+    JetBrains Mono: Copyright (c) JetBrains s.r.o.
+
+    These fonts are loaded via Google Fonts CDN and are not bundled with
+    the application source code.
+--------------------------------------------------------------------------------
+
+
+================================================================================
+AI MODEL LICENSES
+================================================================================
+
+LocalMind is designed to work with locally-hosted language models via Ollama.
+The AI models themselves are NOT part of this software and are subject to
+their own license agreements. Below are common models and their licenses:
+
+  - Gemma (Google):       Gemma Terms of Use
+                          https://ai.google.dev/gemma/terms
+
+  - Llama (Meta):         Meta Llama Community License
+                          https://llama.meta.com/llama3/license/
+
+  - Mistral:              Apache License 2.0
+                          https://mistral.ai
+
+  - Phi (Microsoft):      MIT License
+                          https://huggingface.co/microsoft/phi-2
+
+  - Qwen (Alibaba):       Tongyi Qianwen License
+                          https://huggingface.co/Qwen
+
+  - DeepSeek:             MIT License / DeepSeek License
+                          https://huggingface.co/deepseek-ai
+
+Users are solely responsible for reviewing, understanding, and complying
+with the license terms of any AI model they download and use with LocalMind.
+
+
+================================================================================
+WEB SPEECH API
+================================================================================
+
+The voice input (Speech Recognition) and voice output (Speech Synthesis)
+features use the Web Speech API, which is a browser-native capability.
+No third-party software is bundled for these features. Speech recognition
+may route audio through the browser vendor's cloud services (e.g., Google
+for Chrome). Users should review their browser's privacy policy.
+
+
+================================================================================
+DISCLAIMER
+================================================================================
+
+THIS SOFTWARE IS PROVIDED FOR EDUCATIONAL AND PERSONAL USE. THE AUTHOR(S)
+MAKE NO REPRESENTATIONS OR WARRANTIES REGARDING THE ACCURACY, RELIABILITY,
+OR SUITABILITY OF THE SOFTWARE FOR ANY PARTICULAR PURPOSE.
+
+THE AI MODELS USED WITH THIS SOFTWARE MAY GENERATE INACCURATE, BIASED, OR
+HARMFUL CONTENT. THE AUTHOR(S) ARE NOT RESPONSIBLE FOR ANY OUTPUT GENERATED
+BY AI MODELS RUNNING THROUGH THIS SOFTWARE.
+
+USERS ARE RESPONSIBLE FOR:
+  - Complying with all applicable laws and regulations
+  - Reviewing and complying with AI model license terms
+  - Ensuring appropriate use of AI-generated content
+  - Securing their own data and network environment
+  - Any consequences arising from the use of this software
+
+THE SOFTWARE DOES NOT COLLECT, TRANSMIT, OR STORE USER DATA ON EXTERNAL
+SERVERS. ALL DATA REMAINS ON THE USER'S LOCAL MACHINE UNLESS THE USER
+CONFIGURES EXTERNAL ACCESS (e.g., VIA TAILSCALE).
+
+
+================================================================================
+CONTACT
+================================================================================
+
+For questions about this license or the project:
+  GitHub: https://github.com/SamDeiter/LocalMind
