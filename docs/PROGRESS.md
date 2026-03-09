@@ -63,6 +63,19 @@
 | VS Code Extension  | 📋 Planned |
 | Team/Shared Memory | 📋 Planned |
 
+## 📋 Sprint 5 — "The Brain"
+
+| Feature                    | Status     | Notes                                                                      |
+| -------------------------- | ---------- | -------------------------------------------------------------------------- |
+| Autonomous Agent Mode      | 📋 Planned | "Work on X for 2 hours" — plans, codes, tests, commits                     |
+| Goal-based execution       | 📋 Planned | "Build feature Y and stop when tests pass"                                 |
+| Self-extending tools       | 📋 Planned | AI writes new tool plugins when it lacks a capability                      |
+| Learn from mistakes        | 📋 Planned | Log failed tool calls, adjust behavior over time                           |
+| Visual agent progress      | 📋 Planned | Watch the AI work in real-time: editor, terminal, diffs                    |
+| Project profiling          | 📋 Planned | Auto-index repos: tech stack, structure, dependencies                      |
+| Pattern learning           | 📋 Planned | Learn coding style, workflow habits, naming conventions from git history   |
+| Cross-project intelligence | 📋 Planned | Apply patterns from one project to another ("use the same approach as...") |
+
 ---
 
 ## 🚦 Next Steps (Priority Order)
