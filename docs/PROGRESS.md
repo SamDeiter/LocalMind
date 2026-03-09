@@ -42,11 +42,14 @@
 
 ## 📋 Sprint 2 — "The Edge" (Upcoming)
 
-| Feature                                       | Status     |
-| --------------------------------------------- | ---------- |
-| Git Awareness (status, diff, commit tools)    | 📋 Planned |
-| Project Context Loading (dir tree as context) | 📋 Planned |
-| Voice Input (faster-whisper + mic UI)         | 📋 Planned |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Interactive Onboarding Tutorial | 📋 Planned | Guided 2-min tour on first launch — AI demos itself |
+| AI Time Machine | �� Planned | Every AI action versioned + replayable, undo any step |
+| Cross-Project Hub | 📋 Planned | AI remembers patterns across ALL your projects |
+| Git Awareness | 📋 Planned | status, diff, commit, log tools |
+| Project Context Loading | 📋 Planned | dir tree as context |
+| Voice Input | 📋 Planned | faster-whisper + mic UI |
 
 ## 📋 Sprint 3 — "The Polish"
 
