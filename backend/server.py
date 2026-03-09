@@ -1,6 +1,11 @@
 """
-LocalMind — Backend Server v2
-FastAPI server with chat, agent loop, conversation management, and tool calling.
+LocalMind — Backend Server
+FastAPI server with agent loop, tool-calling, conversation management,
+memory toggle, and static frontend serving.
+
+All chat goes through a single /api/chat endpoint. The agent loop
+calls Ollama, detects tool_calls in the response, executes them via
+the tool registry, and streams results back to the frontend via SSE.
 """
 
 import json
@@ -16,15 +21,41 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from agent import agent_chat_streaming
-from model_router import route_model
+# Import our tool registry for the agent loop
+from backend.tools.registry import ToolRegistry
 
+# ── Constants ──────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"
 DB_PATH = Path(__file__).parent / "conversations.db"
 
+# Default system prompt sent to the model
+DEFAULT_SYSTEM_PROMPT = """You are LocalMind, a powerful local AI assistant. You have access to tools that let you:
+- Search the web for current information
+- Read, write, and list files in the user's workspace
+- Execute Python code
+- Save and recall memories about the user
+- Analyze images from the camera or screenshots
+- Take screenshots of the user's screen
+- Read the clipboard
 
-# ── Database Setup ──────────────────────────────────────────────────────────
+IMPORTANT BEHAVIORS:
+- When the user shares preferences, facts about themselves, or important context, use save_memory to remember it.
+- When you need to recall something about the user, use recall_memories.
+- You can NEVER delete files. You have no delete capability.
+- All file operations are sandboxed to ~/LocalMind_Workspace.
+- Be proactive about using your tools when they would be helpful.
+- When using tools, explain what you're doing and show the results clearly."""
+
+# Global: learning mode toggle (controlled by the frontend)
+learning_enabled = True
+
+# Tool registry (auto-discovers tools from backend/tools/)
+registry = ToolRegistry()
+
+
+# ── Database Setup ──────────────────────────────────────────────────────
 def init_db():
+    """Create conversations and messages tables if they don't exist."""
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute("""
         CREATE TABLE IF NOT EXISTS conversations (
@@ -32,8 +63,6 @@ def init_db():
             title TEXT NOT NULL,
             model TEXT NOT NULL,
             system_prompt TEXT DEFAULT '',
-            working_dir TEXT DEFAULT '',
-            is_agent BOOLEAN DEFAULT 0,
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL
         )
@@ -44,7 +73,6 @@ def init_db():
             conversation_id TEXT NOT NULL,
             role TEXT NOT NULL,
             content TEXT NOT NULL,
-            tool_data TEXT DEFAULT NULL,
             created_at REAL NOT NULL,
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )
@@ -54,21 +82,24 @@ def init_db():
 
 
 def get_db():
+    """Get a database connection with row factory enabled."""
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
-# ── App Lifecycle ───────────────────────────────────────────────────────────
+# ── App Lifecycle ───────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Initialize database on startup."""
     init_db()
     yield
 
 
-app = FastAPI(title="LocalMind", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="LocalMind", version="1.0.0", lifespan=lifespan)
 
+# Allow CORS from any origin (for local dev and Tailscale access)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -78,9 +109,10 @@ app.add_middleware(
 )
 
 
-# ── Health & Models ─────────────────────────────────────────────────────────
+# ── Health & Models ─────────────────────────────────────────────────────
 @app.get("/api/health")
 async def health_check():
+    """Check server and Ollama status."""
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5.0)
@@ -92,12 +124,13 @@ async def health_check():
 
 @app.get("/api/models")
 async def list_models():
+    """List all Ollama models available locally."""
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10.0)
             data = resp.json()
             models = [
-                {"name": m["name"], "size": m.get("size", 0), "modified_at": m.get("modified_at", "")}
+                {"name": m["name"], "size": m.get("size", 0)}
                 for m in data.get("models", [])
             ]
             return {"models": models}
@@ -105,68 +138,189 @@ async def list_models():
         return {"models": [], "error": str(e)}
 
 
-@app.post("/api/route-model")
-async def route_model_endpoint(request: Request):
-    """Intelligently select the best model for a given message."""
+# ── Memory Toggle ───────────────────────────────────────────────────────
+@app.get("/api/memory/status")
+async def memory_status():
+    """Return whether learning (memory saving) is enabled."""
+    return {"learning_enabled": learning_enabled}
+
+
+@app.post("/api/memory/toggle")
+async def memory_toggle(request: Request):
+    """Toggle learning mode on/off. When off, AI reads but doesn't save memories."""
+    global learning_enabled
     body = await request.json()
-    message = body.get("message", "")
-    preferred = body.get("preferred_model", None)
-    result = await route_model(message, preferred)
-    return result
+    learning_enabled = body.get("enabled", True)
+    return {"learning_enabled": learning_enabled}
 
 
-# ── Standard Chat (No Tools) ───────────────────────────────────────────────
+# ── Chat (Agent Loop with Tool Calling) ─────────────────────────────────
 @app.post("/api/chat")
 async def chat(request: Request):
+    """
+    Main chat endpoint. Sends user message to Ollama with tool definitions.
+    If the model requests tool calls, executes them and feeds results back.
+    Streams all events (tokens, tool calls, tool results) to the frontend via SSE.
+    """
     body = await request.json()
     model = body.get("model", "qwen2.5-coder:32b")
-    messages = body.get("messages", [])
+    message = body.get("message", "")
     conversation_id = body.get("conversation_id")
-    system_prompt = body.get("system_prompt", "")
+    system_prompt = body.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
+    image_base64 = body.get("image")  # Optional base64 image from webcam
 
-    ollama_messages = []
-    if system_prompt:
-        ollama_messages.append({"role": "system", "content": system_prompt})
-    ollama_messages.extend(messages)
+    # Create conversation if needed
+    if not conversation_id:
+        conversation_id = str(uuid.uuid4())
+        title = message[:50] + ("..." if len(message) > 50 else "")
+        db = get_db()
+        now = time.time()
+        db.execute(
+            "INSERT INTO conversations (id, title, model, system_prompt, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (conversation_id, title, model, system_prompt, now, now),
+        )
+        db.commit()
+        db.close()
 
-    # Save user message
-    if conversation_id and messages:
-        user_msg = messages[-1]
-        if user_msg.get("role") == "user":
-            db = get_db()
-            db.execute(
-                "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)",
-                (conversation_id, "user", user_msg["content"], time.time()),
-            )
-            db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (time.time(), conversation_id))
-            db.commit()
-            db.close()
+    # Load conversation history
+    db = get_db()
+    rows = db.execute(
+        "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at",
+        (conversation_id,),
+    ).fetchall()
+    db.close()
 
-    async def generate():
+    # Build messages list for Ollama
+    ollama_messages = [{"role": "system", "content": system_prompt}]
+    for row in rows:
+        ollama_messages.append({"role": row["role"], "content": row["content"]})
+
+    # Add current user message (with optional image for vision models)
+    user_msg = {"role": "user", "content": message}
+    if image_base64:
+        user_msg["images"] = [image_base64]
+    ollama_messages.append(user_msg)
+
+    # Save user message to DB
+    db = get_db()
+    db.execute(
+        "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+        (conversation_id, "user", message, time.time()),
+    )
+    db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (time.time(), conversation_id))
+    db.commit()
+    db.close()
+
+    # Load memory context (most recent memories) if learning is enabled
+    memory_context = ""
+    try:
+        memory_tool = registry.get_tool("recall_memories")
+        if memory_tool:
+            memories = memory_tool.execute(query=message, n_results=5)
+            if "No memories" not in memories:
+                memory_context = f"\n\n[REMEMBERED CONTEXT]\n{memories}\n[/REMEMBERED CONTEXT]\n"
+                # Inject memory into system prompt
+                ollama_messages[0]["content"] += memory_context
+    except Exception:
+        pass  # Memory not available, continue without it
+
+    # Get tool definitions for Ollama (formatted for the API)
+    tools = registry.get_ollama_tools()
+
+    async def stream_response():
+        """
+        Agent loop: call Ollama → if tool calls, execute → feed result → repeat.
+        Stream all events (tokens, tool_call, tool_result, done) as SSE.
+        """
+        nonlocal ollama_messages
         full_response = ""
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-                async with client.stream(
-                    "POST",
-                    f"{OLLAMA_BASE_URL}/api/chat",
-                    json={"model": model, "messages": ollama_messages, "stream": True},
-                ) as resp:
-                    async for line in resp.aiter_lines():
-                        if line.strip():
-                            try:
-                                chunk = json.loads(line)
-                                content = chunk.get("message", {}).get("content", "")
-                                if content:
-                                    full_response += content
-                                    yield f"data: {json.dumps({'content': content})}\n\n"
-                                if chunk.get("done", False):
-                                    yield f"data: {json.dumps({'done': True})}\n\n"
-                            except json.JSONDecodeError:
-                                continue
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        max_iterations = 10  # Safety: prevent infinite tool loops
 
-        if conversation_id and full_response:
+        for iteration in range(max_iterations):
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
+                    # Call Ollama with streaming
+                    response = await client.post(
+                        f"{OLLAMA_BASE_URL}/api/chat",
+                        json={
+                            "model": model,
+                            "messages": ollama_messages,
+                            "tools": tools if tools else None,
+                            "stream": True,
+                        },
+                    )
+
+                    # Accumulate the full response to detect tool calls
+                    chunk_text = ""
+                    tool_calls = []
+
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            data = json.loads(line)
+                            msg = data.get("message", {})
+
+                            # Stream text tokens to frontend
+                            content = msg.get("content", "")
+                            if content:
+                                chunk_text += content
+                                full_response += content
+                                yield f"data: {json.dumps({'token': content, 'conversation_id': conversation_id})}\n\n"
+
+                            # Detect tool calls
+                            if msg.get("tool_calls"):
+                                tool_calls.extend(msg["tool_calls"])
+
+                        except json.JSONDecodeError:
+                            continue
+
+                    # If no tool calls, we're done
+                    if not tool_calls:
+                        break
+
+                    # Execute each tool call
+                    for tc in tool_calls:
+                        func = tc.get("function", {})
+                        tool_name = func.get("name", "unknown")
+                        tool_args = func.get("arguments", {})
+
+                        # Stream tool call event to frontend
+                        yield f"data: {json.dumps({'tool_call': {'name': tool_name, 'arguments': tool_args}})}\n\n"
+
+                        # Execute the tool
+                        try:
+                            # Inject learning_enabled flag for memory tools
+                            if tool_name == "save_memory" and not learning_enabled:
+                                result = "Learning is paused. Memory not saved."
+                            else:
+                                result = registry.execute(tool_name, tool_args)
+                        except Exception as e:
+                            result = f"Error: {str(e)}"
+
+                        # Stream tool result to frontend
+                        yield f"data: {json.dumps({'tool_result': {'name': tool_name, 'result': result}})}\n\n"
+
+                        # Add to conversation for next iteration
+                        ollama_messages.append({
+                            "role": "assistant",
+                            "content": chunk_text,
+                            "tool_calls": [tc],
+                        })
+                        ollama_messages.append({
+                            "role": "tool",
+                            "content": result,
+                        })
+
+                    # Reset for next iteration (model will respond to tool results)
+                    chunk_text = ""
+
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                break
+
+        # Save full response to DB
+        if full_response:
             db = get_db()
             db.execute(
                 "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)",
@@ -175,166 +329,37 @@ async def chat(request: Request):
             db.commit()
             db.close()
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+        # Signal done
+        yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id})}\n\n"
+
+    return StreamingResponse(stream_response(), media_type="text/event-stream")
 
 
-# ── Agent Chat (With Tools) ────────────────────────────────────────────────
-@app.post("/api/agent/chat")
-async def agent_chat_endpoint(request: Request):
-    """Agentic chat — model can use tools (file ops, terminal, search)."""
-    body = await request.json()
-    model = body.get("model", "qwen2.5-coder:32b")
-    messages = body.get("messages", [])
-    conversation_id = body.get("conversation_id")
-    system_prompt = body.get("system_prompt", "")
-    working_dir = body.get("working_dir", "")
-    auto_execute = body.get("auto_execute", True)
-
-    if not working_dir:
-        return StreamingResponse(
-            iter([f"data: {json.dumps({'error': 'No working directory set. Please set a project directory in settings.'})}\n\n"]),
-            media_type="text/event-stream",
-        )
-
-    # Enhance system prompt for agent mode
-    agent_system_prompt = f"""{system_prompt}
-
-You are LocalMind, an agentic AI assistant with access to tools. You can read and write files, run terminal commands, search codebases, and search the web.
-
-WORKING DIRECTORY: {working_dir}
-
-INSTRUCTIONS:
-- When asked to build something, first explore the project structure, then create a step-by-step plan, then execute each step.
-- Always read existing files before modifying them.
-- When running commands, check the output for errors and fix them.
-- Be proactive: if you see issues, fix them without being asked.
-- For multi-step tasks, explain what you're doing at each step.
-- When creating files, always include proper comments and documentation.
-"""
-
-    # Save user message
-    if conversation_id and messages:
-        user_msg = messages[-1]
-        if user_msg.get("role") == "user":
-            db = get_db()
-            db.execute(
-                "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)",
-                (conversation_id, "user", user_msg["content"], time.time()),
-            )
-            db.execute("UPDATE conversations SET updated_at = ?, is_agent = 1 WHERE id = ?", (time.time(), conversation_id))
-            db.commit()
-            db.close()
-
-    async def generate():
-        full_text = ""
-        tool_events = []
-
-        async for event in agent_chat_streaming(
-            messages=messages,
-            model=model,
-            system_prompt=agent_system_prompt,
-            working_dir=working_dir,
-            auto_execute=auto_execute,
-        ):
-            # Forward all events to the frontend
-            yield f"data: {json.dumps(event)}\n\n"
-
-            if event.get("type") == "content":
-                full_text += event.get("content", "")
-            elif event.get("type") in ("tool_call", "tool_result"):
-                tool_events.append(event)
-
-        # Save assistant response with tool data
-        if conversation_id and (full_text or tool_events):
-            db = get_db()
-            db.execute(
-                "INSERT INTO messages (conversation_id, role, content, tool_data, created_at) VALUES (?, ?, ?, ?, ?)",
-                (
-                    conversation_id,
-                    "assistant",
-                    full_text,
-                    json.dumps(tool_events) if tool_events else None,
-                    time.time(),
-                ),
-            )
-            db.commit()
-            db.close()
-
-    return StreamingResponse(generate(), media_type="text/event-stream")
-
-
-# ── Conversation CRUD ───────────────────────────────────────────────────────
+# ── Conversation CRUD ───────────────────────────────────────────────────
 @app.get("/api/conversations")
 async def list_conversations():
+    """List all conversations, newest first."""
     db = get_db()
     rows = db.execute("SELECT * FROM conversations ORDER BY updated_at DESC").fetchall()
     db.close()
     return {"conversations": [dict(r) for r in rows]}
 
 
-@app.post("/api/conversations")
-async def create_conversation(request: Request):
-    body = await request.json()
-    conv_id = str(uuid.uuid4())
-    now = time.time()
+@app.get("/api/conversations/{conv_id}/messages")
+async def get_conversation_messages(conv_id: str):
+    """Get all messages for a conversation."""
     db = get_db()
-    db.execute(
-        "INSERT INTO conversations (id, title, model, system_prompt, working_dir, is_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            conv_id,
-            body.get("title", "New Conversation"),
-            body.get("model", "qwen2.5-coder:32b"),
-            body.get("system_prompt", ""),
-            body.get("working_dir", ""),
-            body.get("is_agent", False),
-            now,
-            now,
-        ),
-    )
-    db.commit()
-    db.close()
-    return {"id": conv_id, "title": body.get("title", "New Conversation")}
-
-
-@app.get("/api/conversations/{conv_id}")
-async def get_conversation(conv_id: str):
-    db = get_db()
-    conv = db.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
-    if not conv:
-        return {"error": "Conversation not found"}, 404
-    messages = db.execute(
-        "SELECT role, content, tool_data, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at",
+    rows = db.execute(
+        "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at",
         (conv_id,),
     ).fetchall()
     db.close()
-    return {
-        "conversation": dict(conv),
-        "messages": [dict(m) for m in messages],
-    }
-
-
-@app.put("/api/conversations/{conv_id}")
-async def update_conversation(conv_id: str, request: Request):
-    body = await request.json()
-    db = get_db()
-    updates = []
-    params = []
-    for field in ("title", "system_prompt", "working_dir", "is_agent"):
-        if field in body:
-            updates.append(f"{field} = ?")
-            params.append(body[field])
-    if updates:
-        updates.append("updated_at = ?")
-        params.append(time.time())
-        params.append(conv_id)
-        db.execute(f"UPDATE conversations SET {', '.join(updates)} WHERE id = ?", params)
-        db.commit()
-    db.close()
-    return {"ok": True}
+    return {"messages": [dict(r) for r in rows]}
 
 
 @app.delete("/api/conversations/{conv_id}")
 async def delete_conversation(conv_id: str):
+    """Delete a conversation and its messages."""
     db = get_db()
     db.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
     db.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
@@ -343,10 +368,14 @@ async def delete_conversation(conv_id: str):
     return {"ok": True}
 
 
-# ── Serve Frontend ──────────────────────────────────────────────────────────
+# ── Serve Frontend ──────────────────────────────────────────────────────
+# Mount static files: JS/CSS served from /static/, HTML from /
 frontend_path = Path(__file__).parent.parent / "frontend"
 if frontend_path.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
+    # Serve JS, CSS, manifest, sw.js as static files
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+    # Serve index.html and manifest.json at root
+    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="root")
 
 
 if __name__ == "__main__":
