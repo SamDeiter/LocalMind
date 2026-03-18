@@ -166,13 +166,14 @@ export async function loadDocuments() {
 // ── Version Badge ───────────────────────────────────────────────
 export async function loadVersion() {
   try {
-    const r = await fetch(`${API}/api/health`);
+    const r = await fetch(`${API}/api/version`);
     const d = await r.json();
     const badge = document.querySelector(".version-badge");
     if (badge && d.version) {
-      badge.textContent = `LocalMind v${d.version}`;
+      badge.textContent = `v${d.version} #${d.build || "?"}`;
+      badge.title = `LocalMind v${d.version} build #${d.build} — ${d.codename || ""}`;
     }
   } catch {
-    /* ignore */
+    /* ignore — version badge stays at placeholder */
   }
 }
