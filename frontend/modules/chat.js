@@ -156,6 +156,7 @@ export async function sendMessage() {
           continue;
         }
         chunkCount++;
+        console.log("[LocalMind] SSE event:", JSON.stringify(evt).substring(0, 120));
 
         if (!typingRemoved) {
           const dots = assistantEl.querySelector(".typing-dots");
@@ -165,6 +166,7 @@ export async function sendMessage() {
 
         if (evt.token) {
           fullText += evt.token;
+          console.log("[LocalMind] Token received, fullText length:", fullText.length, "contentEl:", !!contentEl);
           if (contentEl) {
             contentEl.innerHTML = renderMarkdown(fullText);
             highlightCode();
@@ -213,13 +215,16 @@ export async function sendMessage() {
     // TTS
     if (state.voiceEnabled && fullText) speak(fullText);
 
-    // Refresh conversation list
+    // Sync conversation state without clearing the visible streamed content.
+    // loadConversation + renderMessages would wipe the DOM and re-render,
+    // which flashes away the streamed response. Instead, just update the
+    // sidebar conversation list so the title/timestamp refresh.
     if (state.currentConvId) {
-      await loadConversation(state.currentConvId);
-      // Re-render messages from loaded conversation
-      renderMessages();
+      // Update sidebar highlight without re-rendering message area
+      await loadConversations();
+    } else {
+      await loadConversations();
     }
-    await loadConversations();
   } catch (e) {
     if (e.name === "AbortError") {
       console.log("[LocalMind] Request aborted by user");
