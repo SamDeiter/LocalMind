@@ -1,0 +1,16 @@
+[project]
+name = "localmind"
+version = "0.5.0"
+description = "Local-first AI assistant with tool calling and memory"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+log_cli = true
+log_cli_level = "INFO"
+
+[tool.pytest]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

@@ -24,3 +24,11 @@
 - ⚠️ No approval for actions — we have propose_action gating everything
 
 **Verdict:** No SDK/API worth integrating. Our tool system is already more secure by design. Their Skills pattern validates our approach but their security model is exactly what we're building to avoid. We should continue with our own architecture.
+
+## Dynamic Compression & HDR Texture Data Storage — 2026-03-18T17:38:26
+
+**Status:** 🔍 Needs Research
+**Question:** Can we dynamically compress/decompress data on the fly to make storage easier? Can data be encoded into HDR texture values for rapid GPU-accelerated load/unload? What steganographic or texture-based encoding techniques exist?
+
+### Findings
+_To be filled in during next research session_

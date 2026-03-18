@@ -1,61 +1,39 @@
 """
-Build Version Bumper — auto-increments the build number in version.json.
-
-Usage:
-    python bump_build.py              # Increment build number
-    python bump_build.py --patch      # Bump patch (0.3.0 -> 0.3.1)
-    python bump_build.py --minor      # Bump minor (0.3.0 -> 0.4.0)
-    python bump_build.py --major      # Bump major (0.3.0 -> 1.0.0)
-
-Can be used as a git pre-commit hook or called manually.
+Build Version Manager for LocalMind
+Auto-increments build number in version.json.
+Optional: --patch, --minor, --major to bump semver.
 """
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 VERSION_FILE = Path(__file__).parent / "version.json"
 
-
-def bump(level: str = "build"):
-    with open(VERSION_FILE, "r") as f:
-        data = json.load(f)
-
-    # Always increment build
+def bump(level=None):
+    data = json.loads(VERSION_FILE.read_text())
     data["build"] = data.get("build", 0) + 1
-    data["last_built"] = datetime.now().astimezone().isoformat()
+    data["last_built"] = datetime.now(timezone.utc).isoformat()
 
-    # Optionally bump semantic version
-    if level in ("patch", "minor", "major"):
-        parts = data["version"].split(".")
+    if level:
+        parts = data.get("version", "0.1.0").split(".")
         major, minor, patch = int(parts[0]), int(parts[1]), int(parts[2])
-
-        if level == "patch":
-            patch += 1
+        if level == "major":
+            major += 1; minor = 0; patch = 0
         elif level == "minor":
-            minor += 1
-            patch = 0
-        elif level == "major":
-            major += 1
-            minor = 0
-            patch = 0
-
+            minor += 1; patch = 0
+        elif level == "patch":
+            patch += 1
         data["version"] = f"{major}.{minor}.{patch}"
 
-    with open(VERSION_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-        f.write("\n")
-
-    print(f"✅ v{data['version']} build #{data['build']} — {data['last_built']}")
+    VERSION_FILE.write_text(json.dumps(data, indent=2) + "\n")
+    print(f"  v{data['version']} build #{data['build']}")
     return data
 
-
 if __name__ == "__main__":
-    level = "build"
-    if "--patch" in sys.argv:
-        level = "patch"
-    elif "--minor" in sys.argv:
-        level = "minor"
-    elif "--major" in sys.argv:
-        level = "major"
-    bump(level)
+    lvl = None
+    if len(sys.argv) > 1:
+        arg = sys.argv[1].lstrip("-")
+        if arg in ("patch", "minor", "major"):
+            lvl = arg
+    bump(lvl)

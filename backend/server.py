@@ -65,8 +65,8 @@ def kill_existing_server(port: int = 8000):
         logger.warning(f"Port guard check failed (non-fatal): {e}")
 
 
-# Kill any existing server on port 8000 before we start
-kill_existing_server(8000)
+# NOTE: kill_existing_server() is now called by run.py launcher.
+# Keeping the function here for backwards compatibility if run directly.
 
 import httpx
 from fastapi import FastAPI, Request, UploadFile, File
@@ -211,6 +211,8 @@ except ImportError:
 def init_db():
     """Create conversations and messages tables if they don't exist."""
     conn = sqlite3.connect(str(DB_PATH))
+    conn.execute("PRAGMA journal_mode=WAL")  # Safe concurrent reads for multi-worker
+    conn.execute("PRAGMA busy_timeout=5000")  # Wait up to 5s if locked
     conn.execute("""
         CREATE TABLE IF NOT EXISTS conversations (
             id TEXT PRIMARY KEY,
@@ -240,6 +242,8 @@ def get_db():
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 
