@@ -41,9 +41,14 @@
 - [x] Set up Prettier
 - [x] Add `node_modules` to `.gitignore`
 
-## 📋 Phase 6 — Git & Intelligence (Upcoming)
+## ✅ Phase 6 — Git & Intelligence (Complete)
 
-- [ ] Git Awareness tool (status, diff, commit, log)
-- [ ] Project Context Loading (dir tree as context)
+- [x] Git Awareness tool (status, diff, commit, log)
+- [x] Project Context Loading (dir tree as context)
+
+## 📋 Phase 7 — UX & Voice (Upcoming)
+
 - [ ] Interactive Onboarding Tutorial
 - [ ] Voice quality (Piper TTS)
+- [ ] Brain visualization (memory heatmap / knowledge graph)
+
