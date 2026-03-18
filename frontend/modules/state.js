@@ -63,10 +63,15 @@ export const editorToggle = document.getElementById("editorToggle");
 
 // ── DOM utilities ───────────────────────────────────────────────
 export function scrollToBottom() {
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  if (messagesContainer) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
 }
 
 export function autoResize() {
-  messageInput.style.height = "auto";
-  messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + "px";
+  if (messageInput) {
+    messageInput.style.height = "auto";
+    messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + "px";
+  }
 }
+
