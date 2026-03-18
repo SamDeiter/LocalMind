@@ -517,9 +517,11 @@ async def chat(request: Request):
     try:
         memory_tool = registry.get_tool("recall_memories")
         if memory_tool:
-            memories = memory_tool.execute(query=message, n_results=5)
-            if "No memories" not in memories:
-                memory_context = f"\n\n[REMEMBERED CONTEXT]\n{memories}\n[/REMEMBERED CONTEXT]\n"
+            memories = await memory_tool.execute(query=message, limit=5)
+            # memories is a dict: {"success": True, "result": "...", "memories": [...]}
+            mem_text = memories.get("result", "") if isinstance(memories, dict) else str(memories)
+            if mem_text and "No memories" not in mem_text and "No relevant" not in mem_text:
+                memory_context = f"\n\n[REMEMBERED CONTEXT]\n{mem_text}\n[/REMEMBERED CONTEXT]\n"
                 # Inject memory into system prompt
                 ollama_messages[0]["content"] += memory_context
                 logger.info(f"Injected memory context: {mem_text[:200]}")
