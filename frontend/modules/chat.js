@@ -212,8 +212,8 @@ export async function sendMessage() {
 
     state.messages.push({ role: "assistant", content: fullText });
 
-    // TTS
-    if (state.voiceEnabled && fullText) speak(fullText);
+    // TTS disabled by default — uncomment to re-enable voice responses
+    // if (state.voiceEnabled && fullText) speak(fullText);
 
     // Sync conversation state without clearing the visible streamed content.
     // loadConversation + renderMessages would wipe the DOM and re-render,
