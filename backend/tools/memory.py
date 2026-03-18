@@ -28,13 +28,22 @@ def get_learning_enabled() -> bool:
     return _learning_enabled
 
 
+# Module-level cache for ChromaDB client + collection
+# Avoids re-creating PersistentClient on every memory operation
+_chroma_client = None
+_chroma_collection = None
+
+
 def _get_collection():
-    """Get or create the memories ChromaDB collection."""
-    client = chromadb.PersistentClient(path=str(_db_path()))
-    return client.get_or_create_collection(
-        name="memories",
-        metadata={"hnsw:space": "cosine"},
-    )
+    """Get or create the memories ChromaDB collection (cached singleton)."""
+    global _chroma_client, _chroma_collection
+    if _chroma_collection is None:
+        _chroma_client = chromadb.PersistentClient(path=str(_db_path()))
+        _chroma_collection = _chroma_client.get_or_create_collection(
+            name="memories",
+            metadata={"hnsw:space": "cosine"},
+        )
+    return _chroma_collection
 
 
 def _db_path():

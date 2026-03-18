@@ -329,25 +329,52 @@ async def chat(request: Request):
     db.commit()
     db.close()
 
-    # ── Step 6: Auto-Save Personal Facts ──────────────────────────────
-    # Regex heuristic catches names, ages, preferences that the model
-    # might not save via tool calls (especially coding-focused models)
-    await _auto_save_facts(message)
+    # ── Step 6: Auto-Save Personal Facts (DEFERRED) ───────────────────
+    # Moved to AFTER streaming so the user gets their response immediately.
+    # The heuristic runs in the background after the SSE stream ends.
+    # (see _pending_auto_save below)
+    _pending_auto_save_msg = message  # Save for post-stream processing
 
-    # ── Step 7: Inject Memory Context ─────────────────────────────────
-    # Recall relevant memories and inject them into the system prompt
-    # so the AI can reference past conversations and user preferences
+    # ── Step 7: Inject Memory Context (FAST PATH) ─────────────────────
+    # PERF: We avoid calling recall_memories for simple tasks because it
+    # uses nomic-embed-text embeddings, which forces Ollama to swap models
+    # (unload 7B → load embed → unload embed → reload 7B = ~8s delay!).
+    #
+    # Instead, for simple messages we use get_recent_memories() which does
+    # a direct ChromaDB read without embeddings — no model swap needed.
+    # Full semantic recall is only used for complex/memory-related queries.
+    t_mem_start = time.time()
+    complexity_score = task_estimate["score"] if task_estimate else 5
+    memory_keywords = ["remember", "recall", "my name", "who am i", "what do you know",
+                       "told you", "last time", "previously", "forgot", "memory"]
+    needs_semantic_recall = (
+        complexity_score >= 5 or
+        any(kw in message.lower() for kw in memory_keywords)
+    )
+
     try:
-        memory_tool = _registry.get_tool("recall_memories")
-        if memory_tool:
-            memories = await memory_tool.execute(query=message, limit=5)
-            mem_text = memories.get("result", "") if isinstance(memories, dict) else str(memories)
-            if mem_text and "No memories" not in mem_text and "No relevant" not in mem_text:
-                memory_context = f"\n\n[REMEMBERED CONTEXT]\n{mem_text}\n[/REMEMBERED CONTEXT]\n"
+        if needs_semantic_recall:
+            # Full semantic search — only when the user is actually asking about memories
+            memory_tool = _registry.get_tool("recall_memories")
+            if memory_tool:
+                memories = await memory_tool.execute(query=message, limit=5)
+                mem_text = memories.get("result", "") if isinstance(memories, dict) else str(memories)
+                if mem_text and "No memories" not in mem_text and "No relevant" not in mem_text:
+                    memory_context = f"\n\n[REMEMBERED CONTEXT]\n{mem_text}\n[/REMEMBERED CONTEXT]\n"
+                    ollama_messages[0]["content"] += memory_context
+                    logger.info(f"Injected SEMANTIC memory context ({time.time() - t_mem_start:.2f}s): {mem_text[:200]}")
+        else:
+            # Fast path: direct DB read, no embeddings, no model swap
+            from backend.tools.memory import get_recent_memories
+            recent = get_recent_memories(n=5)
+            if recent:
+                mem_lines = [f"- [{m['category']}]: {m['content']}" for m in recent]
+                memory_context = f"\n\n[REMEMBERED CONTEXT]\n" + "\n".join(mem_lines) + "\n[/REMEMBERED CONTEXT]\n"
                 ollama_messages[0]["content"] += memory_context
-                logger.info(f"Injected memory context: {mem_text[:200]}")
+                logger.info(f"Injected FAST memory context ({time.time() - t_mem_start:.2f}s): {len(recent)} memories")
     except Exception as e:
         logger.warning(f"Memory recall failed (non-fatal): {e}")
+    logger.info(f"Memory phase completed in {time.time() - t_mem_start:.3f}s (semantic={needs_semantic_recall})")
 
     # ── Step 8: Prepare Tool Definitions ──────────────────────────────
     # Get available tool definitions for the model. Not all models
@@ -415,6 +442,7 @@ async def chat(request: Request):
                 "model": model,
                 "messages": ollama_messages,
                 "stream": True,
+                "keep_alive": "30m",  # Keep model warm in VRAM between requests
                 "options": {
                     "num_ctx": num_ctx,
                     "num_gpu": 99,     # Push all layers to GPU
@@ -534,6 +562,14 @@ async def chat(request: Request):
             )
             db.commit()
             db.close()
+
+        # ── Auto-Save Personal Facts (DEFERRED from Step 6) ──────────
+        # Run AFTER streaming so the user already has their response.
+        # This may trigger an embedding call, but it won't block the UX.
+        try:
+            await _auto_save_facts(_pending_auto_save_msg)
+        except Exception as e:
+            logger.warning(f"Deferred auto-save failed (non-fatal): {e}")
 
         # ── Send Analytics ────────────────────────────────────────────
         elapsed = round(time.time() - stream_start, 2)
