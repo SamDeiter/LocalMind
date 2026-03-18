@@ -76,6 +76,7 @@ from fastapi.staticfiles import StaticFiles
 
 # Import our tool registry for the agent loop
 from backend.tools.registry import ToolRegistry
+from backend.tools.propose_action import resolve_approval, get_pending_requests
 
 # ── Constants ──────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"
@@ -521,8 +522,9 @@ async def chat(request: Request):
                 memory_context = f"\n\n[REMEMBERED CONTEXT]\n{memories}\n[/REMEMBERED CONTEXT]\n"
                 # Inject memory into system prompt
                 ollama_messages[0]["content"] += memory_context
-    except Exception:
-        pass  # Memory not available, continue without it
+                logger.info(f"Injected memory context: {mem_text[:200]}")
+    except Exception as e:
+        logger.warning(f"Memory recall failed (non-fatal): {e}")
 
     # Grab tool defs once (read-only from here on)
     tool_defs = registry.get_ollama_tools()
@@ -633,6 +635,11 @@ async def chat(request: Request):
                     tool_args = func.get("arguments", {})
 
                     yield f"data: {json.dumps({'tool_call': {'name': tool_name, 'arguments': tool_args}})}\n\n"
+
+                    # If this is a propose_action call, emit an approval_request
+                    # SSE event so the frontend can render an approval card.
+                    if tool_name == "propose_action":
+                        yield f"data: {json.dumps({'approval_request': tool_args})}\n\n"
 
                     try:
                         if tool_name == "save_memory" and not learning_enabled:
@@ -850,6 +857,31 @@ async def hardware_status():
         "models": models,
         "system": system,
     }
+
+# ── Approval Flow Endpoints ──────────────────────────────────────────────
+@app.post("/api/approve/{request_id}")
+async def approve_action(request_id: str, request: Request):
+    """Approve or deny a pending action request from the AI."""
+    body = await request.json()
+    approved = body.get("approved", False)
+    success = resolve_approval(request_id, approved)
+    if not success:
+        return {"success": False, "error": "Request not found or already resolved"}
+    return {"success": True, "approved": approved}
+
+
+@app.get("/api/approvals")
+async def list_approvals():
+    """List all approval requests (pending and resolved) for the audit trail."""
+    from backend.tools.propose_action import _load_approval_log
+    return {"approvals": _load_approval_log()}
+
+
+@app.get("/api/approvals/pending")
+async def list_pending_approvals():
+    """List only pending approval requests."""
+    return {"pending": get_pending_requests()}
+
 
 # ── Code Execution (Editor Run Button) ──────────────────────────────────
 @app.post("/api/tools/run")

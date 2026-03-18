@@ -173,8 +173,72 @@ export async function sendMessage() {
           }
           scrollToBottom();
         } else if (evt.tool_call) {
-          const card = createToolCallCard(evt.tool_call);
+          // If this is a propose_action call, the approval card will be
+          // rendered by the approval_request event instead.
+          if (evt.tool_call.name !== "propose_action") {
+            const card = createToolCallCard(evt.tool_call);
+            if (contentEl) contentEl.appendChild(card);
+          }
+          scrollToBottom();
+        } else if (evt.approval_request) {
+          // Render an inline approval card for the user.
+          const req = evt.approval_request;
+          const card = document.createElement("div");
+          card.className = "approval-card";
+          const riskColors = { LOW: "#4caf50", MEDIUM: "#ff9800", HIGH: "#f44336" };
+          const riskColor = riskColors[req.risk_level] || "#ff9800";
+          const icons = {
+            install_package: "📦",
+            download_file: "📥",
+            use_cloud_model: "☁️",
+            web_submit: "🌐",
+            system_command: "🔧",
+          };
+          const icon = icons[req.action_type] || "⚡";
+          card.innerHTML = `
+            <div class="approval-header">
+              <span>${icon} Action Request</span>
+              <span class="approval-risk" style="color:${riskColor}">${req.risk_level || "MEDIUM"}</span>
+            </div>
+            <div class="approval-body">
+              <div class="approval-desc">${escapeHtml(req.description || "")}</div>
+              <div class="approval-reason"><em>${escapeHtml(req.reason || "")}</em></div>
+              ${req.estimated_cost ? `<div class="approval-cost">Cost: ${escapeHtml(req.estimated_cost)}</div>` : ""}
+              ${req.alternatives ? `<div class="approval-alt">Alt: ${escapeHtml(req.alternatives)}</div>` : ""}
+            </div>
+            <div class="approval-actions">
+              <button class="approval-btn approve" data-decision="true">✅ Approve</button>
+              <button class="approval-btn deny" data-decision="false">❌ Deny</button>
+            </div>
+          `;
           if (contentEl) contentEl.appendChild(card);
+          // Wire the buttons — they call POST /api/approve/:id
+          card.querySelectorAll(".approval-btn").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+              const approved = btn.dataset.decision === "true";
+              // Find the request_id from the pending approvals endpoint
+              try {
+                const res = await fetch(`${window.location.origin}/api/approvals/pending`);
+                const data = await res.json();
+                const pending = data.pending || [];
+                if (pending.length > 0) {
+                  const latestId = pending[pending.length - 1].request_id;
+                  await fetch(`${window.location.origin}/api/approve/${latestId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ approved }),
+                  });
+                  // Update card visual
+                  card.classList.add(approved ? "approved" : "denied");
+                  card.querySelector(".approval-actions").innerHTML = approved
+                    ? '<span class="approval-resolved">✅ Approved</span>'
+                    : '<span class="approval-resolved">❌ Denied</span>';
+                }
+              } catch (err) {
+                console.error("[LocalMind] Approval error:", err);
+              }
+            });
+          });
           scrollToBottom();
         } else if (evt.tool_result) {
           updateToolResult(contentEl, evt.tool_result);

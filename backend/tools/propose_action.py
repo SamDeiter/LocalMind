@@ -1,0 +1,198 @@
+"""
+Proposal-Approval Flow — Security gate for privileged actions.
+
+The AI must call propose_action before: installing packages, downloading
+files, using cloud APIs, submitting web forms, or any write action.
+The server sends an approval_request SSE event to the frontend, which
+renders an approval card inline in the chat. The tool blocks until the
+user approves or denies via the /api/approve endpoint.
+"""
+
+import asyncio
+import json
+import logging
+import time
+import uuid
+from pathlib import Path
+from typing import Any
+
+from .base import BaseTool
+
+logger = logging.getLogger("localmind.tools.propose_action")
+
+# ── Pending approvals store (in-memory + file-backed) ─────────────────
+_pending: dict[str, asyncio.Event] = {}
+_decisions: dict[str, bool] = {}
+_approval_log_path = Path.home() / "LocalMind_Workspace" / ".approvals.json"
+
+
+def _load_approval_log() -> list[dict]:
+    """Load the approval audit trail from disk."""
+    if _approval_log_path.exists():
+        try:
+            return json.loads(_approval_log_path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+    return []
+
+
+def _save_approval_log(log: list[dict]) -> None:
+    """Persist the approval audit trail to disk."""
+    _approval_log_path.parent.mkdir(parents=True, exist_ok=True)
+    _approval_log_path.write_text(
+        json.dumps(log, indent=2, default=str), encoding="utf-8"
+    )
+
+
+def resolve_approval(request_id: str, approved: bool) -> bool:
+    """Called by the /api/approve endpoint to resolve a pending request."""
+    if request_id not in _pending:
+        return False
+    _decisions[request_id] = approved
+    _pending[request_id].set()
+
+    # Log the decision
+    log = _load_approval_log()
+    for entry in log:
+        if entry.get("request_id") == request_id:
+            entry["decision"] = "approved" if approved else "denied"
+            entry["decided_at"] = time.time()
+            break
+    _save_approval_log(log)
+    return True
+
+
+def get_pending_requests() -> list[dict]:
+    """Return all pending (unresolved) approval requests."""
+    log = _load_approval_log()
+    return [e for e in log if e.get("decision") == "pending"]
+
+
+class ProposeActionTool(BaseTool):
+    """AI must call this before any privileged action.
+
+    Sends an approval card to the user and blocks until they decide.
+    """
+
+    @property
+    def name(self) -> str:
+        return "propose_action"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Request user approval before performing a privileged action. "
+            "Use this BEFORE: installing packages, downloading files, "
+            "sending data to cloud APIs, submitting web forms, or running "
+            "system commands. The user will see an approval card and must "
+            "click Approve or Deny."
+        )
+
+    @property
+    def parameters(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "action_type": {
+                    "type": "string",
+                    "description": (
+                        "Type of action: install_package, download_file, "
+                        "use_cloud_model, web_submit, system_command"
+                    ),
+                    "enum": [
+                        "install_package",
+                        "download_file",
+                        "use_cloud_model",
+                        "web_submit",
+                        "system_command",
+                    ],
+                },
+                "description": {
+                    "type": "string",
+                    "description": "What you want to do (e.g. 'Install pandas v2.1.0')",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Why you need to do this, tied to the user's task",
+                },
+                "risk_level": {
+                    "type": "string",
+                    "description": "Risk assessment: LOW, MEDIUM, or HIGH",
+                    "enum": ["LOW", "MEDIUM", "HIGH"],
+                },
+                "estimated_cost": {
+                    "type": "string",
+                    "description": "Cost estimate if applicable (e.g. 'Free', '$0.01')",
+                },
+                "alternatives": {
+                    "type": "string",
+                    "description": "Alternative approaches that don't need approval",
+                },
+            },
+            "required": ["action_type", "description", "reason", "risk_level"],
+        }
+
+    async def execute(self, **kwargs) -> dict[str, Any]:
+        """Create an approval request and wait for user decision."""
+        request_id = str(uuid.uuid4())
+        action_type = kwargs.get("action_type", "unknown")
+        description = kwargs.get("description", "")
+        reason = kwargs.get("reason", "")
+        risk_level = kwargs.get("risk_level", "MEDIUM")
+        estimated_cost = kwargs.get("estimated_cost", "Free")
+        alternatives = kwargs.get("alternatives", "None")
+
+        # Create the event for async waiting
+        event = asyncio.Event()
+        _pending[request_id] = event
+
+        # Log the request
+        log_entry = {
+            "request_id": request_id,
+            "action_type": action_type,
+            "description": description,
+            "reason": reason,
+            "risk_level": risk_level,
+            "estimated_cost": estimated_cost,
+            "alternatives": alternatives,
+            "decision": "pending",
+            "requested_at": time.time(),
+        }
+        log = _load_approval_log()
+        log.append(log_entry)
+        _save_approval_log(log)
+
+        # Store the request data so the SSE handler can read it
+        self._last_request = log_entry
+
+        # Wait for the user's decision (timeout after 5 minutes)
+        try:
+            await asyncio.wait_for(event.wait(), timeout=300)
+        except asyncio.TimeoutError:
+            _decisions[request_id] = False
+            # Update log
+            log = _load_approval_log()
+            for entry in log:
+                if entry.get("request_id") == request_id:
+                    entry["decision"] = "timeout"
+                    entry["decided_at"] = time.time()
+                    break
+            _save_approval_log(log)
+        finally:
+            _pending.pop(request_id, None)
+
+        approved = _decisions.pop(request_id, False)
+        if approved:
+            return {
+                "success": True,
+                "result": f"✅ Action approved: {description}",
+                "approved": True,
+                "request_id": request_id,
+            }
+        else:
+            return {
+                "success": False,
+                "result": f"❌ Action denied: {description}",
+                "approved": False,
+                "request_id": request_id,
+            }
