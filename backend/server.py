@@ -187,11 +187,20 @@ YOUR CAPABILITIES (use them proactively):
 - Check git status, view diffs, read commit history, and make commits in workspace repos
 - Load project directory trees to understand codebase structure
 
-IMPORTANT:
-- When the user shares something personal or a preference, save it to memory. Don't announce it every time — just do it naturally.
-- Use recall_memories when context about the user would help your response, especially their preferences and past requests.
-- When using tools, briefly mention what you're doing — like a person would. "Let me look that up..." or "I'll save that for next time."
-- Be proactive. If you can help more than asked, do it. That's what a good assistant does."""
+CRITICAL — MEMORY RULES (follow these EVERY time):
+1. When the user tells you their name, job, location, age, or ANY personal fact → IMMEDIATELY call save_memory with category='fact'.
+2. When the user expresses a preference (favorite color, language, tool, food, etc.) → IMMEDIATELY call save_memory with category='preference'.
+3. When the user gives you an instruction like "always do X" or "I prefer Y" → IMMEDIATELY call save_memory with category='instruction'.
+4. ALWAYS call recall_memories at the start of conversations to check what you know about the user.
+5. Don't announce saving — just do it silently in the background.
+
+EXAMPLE:
+  User: "My name is Sam"
+  You should: call save_memory(content="User's name is Sam", category="fact") AND respond naturally.
+
+GENERAL:
+- When using tools, briefly mention what you're doing — like a person would.
+- Be proactive. If you can help more than asked, do it."""
 
 # Global: learning mode toggle (controlled by the frontend)
 learning_enabled = True
@@ -534,6 +543,29 @@ async def chat(request: Request):
     db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (time.time(), conversation_id))
     db.commit()
     db.close()
+
+    # ── Auto-save heuristic: detect personal facts the model might miss ──
+    try:
+        import re as _auto_re
+        msg_lower = message.lower().strip()
+        auto_save_patterns = [
+            (_auto_re.compile(r"\b(?:my name is|i'?m called|call me|i am)\s+([A-Z][a-z]+)", _auto_re.IGNORECASE), "fact", "User's name is {}"),
+            (_auto_re.compile(r"\bi(?:'m| am)\s+(\d{1,3})\s*(?:years? old|yo)\b", _auto_re.IGNORECASE), "fact", "User is {} years old"),
+            (_auto_re.compile(r"\bi (?:work|am) (?:as |at |a |an )(.+?)(?:\.|$)", _auto_re.IGNORECASE), "fact", "User works as/at {}"),
+            (_auto_re.compile(r"\bi (?:love|prefer|like|enjoy)\s+(.+?)(?:\.|,|$)", _auto_re.IGNORECASE), "preference", "User likes/prefers {}"),
+            (_auto_re.compile(r"\bmy (?:favorite|fav|favourite)\s+(.+?)(?:is|:)\s*(.+?)(?:\.|,|$)", _auto_re.IGNORECASE), "preference", "User's favorite {} is {}"),
+        ]
+        save_tool = registry.get_tool("save_memory")
+        if save_tool and learning_enabled:
+            for pattern, category, template in auto_save_patterns:
+                match = pattern.search(message)
+                if match:
+                    groups = match.groups()
+                    content = template.format(*groups)
+                    await save_tool.execute(content=content, category=category)
+                    logger.info(f"AUTO-SAVED memory: [{category}] {content}")
+    except Exception as e:
+        logger.warning(f"Auto-save heuristic failed (non-fatal): {e}")
 
     # Load memory context (most recent memories) if learning is enabled
     memory_context = ""

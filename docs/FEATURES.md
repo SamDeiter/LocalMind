@@ -6,4 +6,4 @@
 - [ ] **2026-03-18T17:04:58** — AI self-discovery: Have the AI browse the internet to build a profile of itself, including generating an avatar/image of what it might look like. Part of the "digital life" personality system.
 - [ ] **2026-03-18T17:23:18** — Open-source Docker container that can be used by the AI for sandboxed code execution, or to contain/isolate the AI itself
 - [ ] **2026-03-18T17:28:24** — Gmail integration: AI reads user's Gmail to learn about them and personalize interactions. Must address security and privacy concerns (local-only processing, PII scrubbing, OAuth scopes, user approval flow, no cloud forwarding)
-- [ ] **2026-03-18T17:37:07** — Build number visible in the app UI so bugs can be tracked to specific versions
+- [ ] **2026-03-18T17:37:07** — Build number visible in the app UI, auto-incremented on each build/deploy. Wire `scripts/bump_build.py` + `version.json` into `run.py` so the build number bumps automatically every time the server starts in production mode.
