@@ -32,3 +32,12 @@
 
 ### Findings
 _To be filled in during next research session_
+
+## Partial Model Loading / Modular LoRA Hotswap — 2026-03-18T17:50:39
+
+**Status:** 🔍 Needs Research
+**Question:** Can we download only part of a model (e.g., a base model for general understanding) and then dynamically attach specialized layers (math, coding, etc.) from a more advanced model when a specific task is detected — then unload those layers when done? Is this possible with LoRA adapters, MoE architectures, or model sharding? What's the current state of the art for dynamic model composition?
+
+### Findings
+_To be filled in during next research session_
+
