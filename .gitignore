@@ -40,3 +40,6 @@ chroma_data/
 
 # Ollama models (managed separately)
 models/
+
+# Generated API docs (regenerate with: python scripts/generate_docs.py)
+docs/api/
