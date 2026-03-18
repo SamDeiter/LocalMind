@@ -61,11 +61,37 @@ export const editorPanel = document.getElementById("editorPanel");
 export const panelDivider = document.getElementById("panelDivider");
 export const editorToggle = document.getElementById("editorToggle");
 
-// ── DOM utilities ───────────────────────────────────────────────
-export function scrollToBottom() {
-  if (messagesContainer) {
+// ── Smart Scroll ────────────────────────────────────────────────
+let _userScrolledUp = false;
+
+function _isNearBottom() {
+  if (!messagesContainer) return true;
+  const threshold = 80; // px from bottom
+  return (messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight) < threshold;
+}
+
+// Track when user scrolls up manually during streaming
+if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", () => {
+    const mc = document.getElementById("messagesContainer");
+    if (mc) {
+      mc.addEventListener("scroll", () => {
+        _userScrolledUp = !_isNearBottom();
+      });
+    }
+  });
+}
+
+export function scrollToBottom(force = false) {
+  if (!messagesContainer) return;
+  if (force || !_userScrolledUp) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    _userScrolledUp = false;
   }
+}
+
+export function resetAutoScroll() {
+  _userScrolledUp = false;
 }
 
 export function autoResize() {

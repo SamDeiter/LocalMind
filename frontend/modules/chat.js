@@ -16,6 +16,7 @@ import {
   modelSelect,
   editorState,
   scrollToBottom,
+  resetAutoScroll,
   autoResize,
 } from "./state.js";
 import { escapeHtml, getLang, getFileExtension, extToLang } from "./utils.js";
@@ -87,6 +88,9 @@ export async function sendMessage() {
 
   state.streaming = true;
   sendBtn.disabled = true;
+  resetAutoScroll();
+  const stopBtn = document.getElementById("stopBtn");
+  if (stopBtn) stopBtn.style.display = "";
   state.abortController = new AbortController();
 
   const body = {
@@ -303,6 +307,8 @@ export async function sendMessage() {
     state.streaming = false;
     sendBtn.disabled = false;
     state.abortController = null;
+    const stopBtn = document.getElementById("stopBtn");
+    if (stopBtn) stopBtn.style.display = "none";
   }
 }
 

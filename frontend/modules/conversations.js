@@ -4,6 +4,7 @@
 
 import { API, state, messagesContainer, welcomeScreen } from "./state.js";
 import { escapeHtml } from "./utils.js";
+import { renderMessages } from "./chat.js";
 
 export async function loadConversations() {
   try {
@@ -49,6 +50,7 @@ export async function loadConversation(id) {
     state.currentConvId = id;
     state.messages = d.messages || [];
     renderConversations();
+    renderMessages();
     return d.messages || [];
   } catch (e) {
     console.error("Failed to load conversation:", e);

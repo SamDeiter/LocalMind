@@ -77,6 +77,8 @@ from fastapi.staticfiles import StaticFiles
 # Import our tool registry for the agent loop
 from backend.tools.registry import ToolRegistry
 from backend.tools.propose_action import resolve_approval, get_pending_requests
+from backend.model_router import route_model as route_model_hybrid, MODELS as MODEL_DEFS
+from backend.gemini_client import is_available as gemini_is_available
 
 # ── Constants ──────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"
@@ -435,8 +437,25 @@ async def chat(request: Request):
     task_estimate = None
     if model == "auto":
         task_estimate = estimate_task_complexity(message, len(body.get("messages", [])))
-        model = task_estimate["model"]
-        logger.info(f"AUTO-ROUTE: score={task_estimate['score']} tier={task_estimate['tier']} → {model} ({task_estimate['reason']})")
+        # Hybrid routing: check if Gemini should handle complex tasks
+        hybrid = route_model_hybrid(
+            complexity_score=task_estimate["score"],
+            force_local=body.get("force_local", False),
+            gemini_available=gemini_is_available(),
+            cloud_approved=body.get("cloud_approved", False),
+        )
+        if hybrid.get("provider") == "gemini" and hybrid.get("needs_approval"):
+            # Cloud model needs approval — fall back to local for now
+            model = task_estimate["model"]
+            task_estimate["cloud_suggested"] = hybrid["name"]
+            logger.info(f"AUTO-ROUTE: Cloud model {hybrid['name']} suggested but needs approval, using local {model}")
+        elif hybrid.get("provider") == "gemini":
+            model = hybrid["name"]
+            task_estimate["provider"] = "gemini"
+            logger.info(f"AUTO-ROUTE: Using cloud model {model} (pre-approved)")
+        else:
+            model = task_estimate["model"]
+            logger.info(f"AUTO-ROUTE: score={task_estimate['score']} tier={task_estimate['tier']} → {model} ({task_estimate['reason']})")
     logger.info(f"CHAT REQUEST: model={model}, msg_len={len(message)}, conv_id={conversation_id}")
 
     # If no prompt in request, load from conversation or use default
@@ -883,6 +902,43 @@ async def list_approvals():
 async def list_pending_approvals():
     """List only pending approval requests."""
     return {"pending": get_pending_requests()}
+
+
+
+# ── Dependency Lifecycle Manager ────────────────────────────────────────
+@app.get("/api/dependencies")
+async def list_dependencies():
+    """List all tracked dependencies with install date, usage, and status."""
+    try:
+        from backend.tools.dependency_manager import get_all_dependencies
+        deps = get_all_dependencies()
+        return {"dependencies": deps, "count": len(deps)}
+    except Exception as e:
+        return {"dependencies": [], "count": 0, "error": str(e)}
+
+
+@app.get("/api/dependencies/idle")
+async def list_idle_dependencies():
+    """List dependencies that haven't been used in >7 days."""
+    try:
+        from backend.tools.dependency_manager import get_idle_dependencies
+        idle = get_idle_dependencies()
+        return {"idle": idle, "count": len(idle)}
+    except Exception as e:
+        return {"idle": [], "count": 0, "error": str(e)}
+
+
+@app.post("/api/dependencies/{package}/pin")
+async def pin_dependency_api(package: str):
+    """Pin a dependency so it is never suggested for removal."""
+    try:
+        from backend.tools.dependency_manager import pin_dependency
+        success = pin_dependency(package)
+        if not success:
+            return {"success": False, "error": f"Package '{package}' not found"}
+        return {"success": True, "package": package, "status": "PINNED"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 # ── Code Execution (Editor Run Button) ──────────────────────────────────

@@ -20,7 +20,7 @@ Everything runs on **your machine**. No cloud, no subscriptions, no data leaving
 | 📁 **File Operations**        | Reads, writes, and lists files — sandboxed to `~/LocalMind_Workspace`         |
 | 🚫 **No File Deletion**       | Safety first — LocalMind can never delete your files                          |
 | 🔒 **Pausable Learning**      | Toggle memory on/off from the sidebar                                         |
-| ⚡🤖🧠 **Multi-Model Router** | Auto-selects fast 7B or deep 32B model based on task complexity               |
+| ⚡🤖🧠 **Multi-Model Router** | Auto-selects fast 7B or deep 32B model based on task complexity              |
 | 🖥️ **Integrated Code Editor** | Monaco Editor (VS Code engine) with file tree, Ctrl+S save, Send to AI        |
 | 📊 **Hardware Dashboard**     | Live CPU, RAM, VRAM monitoring in the status bar                              |
 | 📄 **Document RAG**           | Index files and ask questions about your documents                            |
