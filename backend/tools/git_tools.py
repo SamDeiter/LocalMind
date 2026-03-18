@@ -287,3 +287,69 @@ class GitCommitTool(BaseTool):
             "success": True,
             "result": f"Committed: {message}\n\n{commit_result['result']}",
         }
+
+
+class GitBranchTool(BaseTool):
+    """Create and switch to a new branch for self-improvement edits."""
+
+    @property
+    def name(self) -> str:
+        return "git_branch"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Create a new git branch in a workspace repository and optionally switch to it. "
+            "Use this before making self-edits to keep changes off the main branch. "
+            "Branch names are auto-prefixed with 'self-improve/' if not already. "
+            "Path is relative to ~/LocalMind_Workspace."
+        )
+
+    @property
+    def parameters(self) -> dict:
+        return {
+            "type": "object",
+            "properties": {
+                "repo_path": {
+                    "type": "string",
+                    "description": "Relative path to the git repository",
+                },
+                "branch_name": {
+                    "type": "string",
+                    "description": "Name for the new branch (e.g., 'fix-memory-leak'). Auto-prefixed with 'self-improve/'.",
+                },
+                "checkout": {
+                    "type": "boolean",
+                    "description": "Switch to the new branch after creating it (default: true)",
+                    "default": True,
+                },
+            },
+            "required": ["repo_path", "branch_name"],
+        }
+
+    async def execute(self, repo_path: str = "", branch_name: str = "", checkout: bool = True, **kwargs) -> dict:
+        if not branch_name.strip():
+            return {"success": False, "error": "Branch name cannot be empty"}
+
+        try:
+            repo = _validate_repo_path(repo_path)
+        except ValueError as exc:
+            return {"success": False, "error": str(exc)}
+
+        # Auto-prefix with self-improve/ if not already
+        if not branch_name.startswith("self-improve/"):
+            branch_name = f"self-improve/{branch_name}"
+
+        # Sanitize branch name
+        branch_name = branch_name.replace(" ", "-").lower()
+
+        if checkout:
+            result = _run_git(["checkout", "-b", branch_name], repo)
+        else:
+            result = _run_git(["branch", branch_name], repo)
+
+        if result["success"]:
+            action = "Created and switched to" if checkout else "Created"
+            result["result"] = f"{action} branch: {branch_name}"
+
+        return result

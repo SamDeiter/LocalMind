@@ -81,6 +81,19 @@ MODEL SELF-AWARENESS:
   than to give a mediocre answer.
 """
 
+SELF_IMPROVEMENT_SUFFIX = """
+
+SELF-IMPROVEMENT CAPABILITIES:
+- You can read your own source code with self_read and self_list.
+- You can edit your own source code with self_edit — but you MUST call
+  propose_action FIRST and get user approval before any edit.
+- After editing, ALWAYS call self_test to run pytest and validate your changes.
+- Use self_reflect to log improvement ideas for future sessions.
+- When making self-edits, use git_branch to create a feature branch first.
+  NEVER edit code directly on main.
+- You can view your pending improvement proposals with list_proposals.
+"""
+
 
 def configure(
     get_db_func,
@@ -277,6 +290,9 @@ async def chat(request: Request):
 
     # Add model self-awareness so the AI knows its own capabilities
     system_prompt += MODEL_AWARENESS_SUFFIX.format(model_name=model)
+
+    # Add self-improvement capabilities so the AI knows it can edit itself
+    system_prompt += SELF_IMPROVEMENT_SUFFIX
 
     # ── Step 3: Handle Image and Editor Context ───────────────────────
     image_base64 = body.get("image")  # Optional base64 image from webcam
