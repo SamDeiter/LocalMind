@@ -18,8 +18,15 @@ import time
 
 
 def kill_existing_server(port: int):
-    """Kill any existing process on the target port."""
+    """Kill any existing process on the target port.
+    
+    Also cleans up stale Python processes that may have been orphaned
+    from previous server runs, dev scripts, or crashed terminals.
+    """
+    killed = 0
+
     if os.name == "nt":
+        # Windows: find PIDs listening on our port
         result = subprocess.run(["netstat", "-ano"], capture_output=True, text=True)
         current_pid = os.getpid()
         for line in result.stdout.splitlines():
@@ -29,10 +36,12 @@ def kill_existing_server(port: int):
                     pid = int(parts[-1])
                     if pid != current_pid:
                         os.kill(pid, signal.SIGTERM)
-                        print(f"  Killed existing server (PID {pid}) on port {port}")
+                        killed += 1
+                        print(f"  Killed server on port {port} (PID {pid})")
                 except (ProcessLookupError, PermissionError, ValueError):
                     pass
     else:
+        # Unix/macOS: use lsof to find port holders
         result = subprocess.run(
             ["lsof", "-ti", f":{port}"], capture_output=True, text=True
         )
@@ -42,10 +51,72 @@ def kill_existing_server(port: int):
                     pid = int(pid_str)
                     if pid != os.getpid():
                         os.kill(pid, signal.SIGTERM)
-                        print(f"  Killed existing server (PID {pid}) on port {port}")
+                        killed += 1
+                        print(f"  Killed server on port {port} (PID {pid})")
                 except (ProcessLookupError, PermissionError, ValueError):
                     pass
     time.sleep(0.5)
+    return killed
+
+
+def cleanup_stale_python(max_age_seconds: int = 1800):
+    """Kill orphaned Python processes older than max_age_seconds (default: 30 min).
+    
+    Detects stale 'python -c' processes that were started from this project
+    directory but never properly terminated (e.g., from crashed terminals
+    or abandoned commands). These orphans consume RAM and can cause
+    port conflicts.
+    
+    Only kills processes whose command line contains 'python -c' and
+    our project path, to avoid killing unrelated Python processes.
+    
+    Args:
+        max_age_seconds: Processes older than this are considered stale.
+    """
+    if os.name != "nt":
+        return 0  # Only implemented for Windows currently
+
+    try:
+        # Use WMIC to find Python processes with their creation time and command line
+        result = subprocess.run(
+            ["wmic", "process", "where", "name='python.exe'", "get",
+             "ProcessId,CommandLine,CreationDate", "/FORMAT:CSV"],
+            capture_output=True, text=True, timeout=10,
+        )
+
+        killed = 0
+        current_pid = os.getpid()
+        project_dir = os.path.dirname(os.path.abspath(__file__)).lower()
+
+        for line in result.stdout.strip().splitlines():
+            if not line.strip() or "ProcessId" in line or "Node" in line:
+                continue
+            parts = line.strip().split(",")
+            if len(parts) < 4:
+                continue
+
+            try:
+                cmd_line = ",".join(parts[1:-2]).lower()  # Command line (may contain commas)
+                pid = int(parts[-1].strip())
+
+                # Only kill 'python -c' processes from our project directory
+                if pid == current_pid:
+                    continue
+                if "python" not in cmd_line or "-c" not in cmd_line:
+                    continue
+                if project_dir not in cmd_line and "localmind" not in cmd_line:
+                    continue
+
+                os.kill(pid, signal.SIGTERM)
+                killed += 1
+            except (ValueError, ProcessLookupError, PermissionError):
+                continue
+
+        if killed:
+            print(f"  🧹 Cleaned up {killed} stale Python process(es)")
+        return killed
+    except Exception:
+        return 0  # Non-fatal — don't block startup
 
 
 def run_tests():
@@ -81,6 +152,17 @@ def main():
         exit_code = run_tests()
         sys.exit(exit_code)
 
+    # ── Auto-Increment Build Number ─────────────────────────
+    # Every server start bumps the build counter in version.json.
+    # This makes it easy to track which build a user is running.
+    try:
+        from scripts.bump_build import bump
+        build_info = bump()
+        build_display = f"v{build_info['version']} (build #{build_info['build']})"
+    except Exception as e:
+        print(f"  ⚠ Build bump skipped: {e}")
+        build_display = "unknown"
+
     # Determine settings
     port = args.port
     is_prod = args.prod
@@ -107,6 +189,7 @@ def main():
 ╔══════════════════════════════════════════╗
 ║         🧠 LocalMind Server             ║
 ╠══════════════════════════════════════════╣
+║  Build:    {build_display:<30}║
 ║  Mode:     {mode:<30}║
 ║  Port:     {port:<30}║
 ║  Workers:  {workers:<30}║
@@ -114,6 +197,9 @@ def main():
 ║  Log:      {log_level:<30}║
 ╚══════════════════════════════════════════╝
 """)
+
+    # Clean up stale Python processes from previous sessions
+    cleanup_stale_python()
 
     # Kill any existing server on target port
     kill_existing_server(port)

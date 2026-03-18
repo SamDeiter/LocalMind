@@ -8,7 +8,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION_FILE = Path(__file__).parent / "version.json"
+# version.json lives at the project root (one level up from scripts/)
+VERSION_FILE = Path(__file__).parent.parent / "version.json"
 
 def bump(level=None):
     data = json.loads(VERSION_FILE.read_text())
