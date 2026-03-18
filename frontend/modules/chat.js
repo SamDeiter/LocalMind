@@ -22,6 +22,7 @@ import {
 import { escapeHtml, getLang, getFileExtension, extToLang } from "./utils.js";
 import { loadConversation, loadConversations } from "./conversations.js";
 import { speak, clearCapturedImage } from "./media.js";
+import { loadMemories } from "./sidebar.js";
 
 // ── Model & Health ──────────────────────────────────────────────
 export async function checkHealth() {
@@ -287,12 +288,11 @@ export async function sendMessage() {
     // loadConversation + renderMessages would wipe the DOM and re-render,
     // which flashes away the streamed response. Instead, just update the
     // sidebar conversation list so the title/timestamp refresh.
-    if (state.currentConvId) {
-      // Update sidebar highlight without re-rendering message area
-      await loadConversations();
-    } else {
-      await loadConversations();
-    }
+    await loadConversations();
+
+    // Refresh memory badge — auto-save heuristic may have saved new memories
+    // during this chat turn, so update the sidebar count + list
+    await loadMemories();
   } catch (e) {
     if (e.name === "AbortError") {
       console.log("[LocalMind] Request aborted by user");
