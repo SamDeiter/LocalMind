@@ -18,7 +18,7 @@ export const state = {
   streaming: false,
   model: "auto",
   mode: localStorage.getItem("localmind_mode") || "auto",
-  voiceEnabled: localStorage.getItem("localmind_voice") === "on",
+  voiceEnabled: false,  // Default OFF — user can toggle via speaker button
   capturedImage: null,
   abortController: null,
 };
