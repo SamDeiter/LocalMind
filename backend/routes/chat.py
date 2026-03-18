@@ -387,7 +387,39 @@ async def chat(request: Request):
             logger.info(f"Agent loop iteration {iteration + 1}")
 
             # Build Ollama API payload
-            payload = {"model": model, "messages": ollama_messages, "stream": True}
+            # PERF: Dynamic context window based on current task.
+            # Smaller context = more model layers in VRAM = faster inference.
+            # On a 10GB GPU, the 7B model at 32K context spills to CPU (~6 tok/s).
+            # At 4K context, it stays fully in VRAM (~50+ tok/s).
+            context_chars = sum(len(m.get("content", "")) for m in ollama_messages)
+            has_editor = bool(body.get("editor_context"))
+            tier = task_estimate.get("tier", "light") if task_estimate else "light"
+
+            # Scale context to what the task actually needs:
+            #   - Quick chat: 2048 (fast, snappy responses)
+            #   - Normal conversation: 4096 (enough for multi-turn)
+            #   - Editor open / long history: 8192 (code needs more room)
+            #   - Complex analysis: 16384 (deep reasoning tasks)
+            if tier == "heavy" or context_chars > 12000:
+                num_ctx = 16384
+            elif has_editor or context_chars > 6000 or tier == "medium":
+                num_ctx = 8192
+            elif context_chars > 2000:
+                num_ctx = 4096
+            else:
+                num_ctx = 2048
+
+            logger.info(f"Context window: num_ctx={num_ctx} (tier={tier}, chars={context_chars}, editor={has_editor})")
+
+            payload = {
+                "model": model,
+                "messages": ollama_messages,
+                "stream": True,
+                "options": {
+                    "num_ctx": num_ctx,
+                    "num_gpu": 99,     # Push all layers to GPU
+                },
+            }
             if include_tools:
                 payload["tools"] = tool_defs
 
