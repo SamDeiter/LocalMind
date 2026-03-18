@@ -71,6 +71,8 @@ export function bindEvents() {
     localStorage.setItem("localmind_voice", state.voiceEnabled ? "on" : "off");
     if (voiceBtn) voiceBtn.classList.toggle("active", state.voiceEnabled);
   });
+  // Ensure voice button UI matches default-off state
+  if (voiceBtn) voiceBtn.classList.remove("active");
   voiceSelect?.addEventListener("change", () => {
     /* voice stored by index */
   });
