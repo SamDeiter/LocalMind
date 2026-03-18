@@ -163,42 +163,44 @@ export async function sendMessage() {
           typingRemoved = true;
         }
 
-        if (evt.type === "token" && evt.token) {
+        if (evt.token) {
           fullText += evt.token;
           if (contentEl) {
             contentEl.innerHTML = renderMarkdown(fullText);
             highlightCode();
           }
           scrollToBottom();
-        } else if (evt.type === "tool_call") {
-          const card = createToolCallCard(evt);
+        } else if (evt.tool_call) {
+          const card = createToolCallCard(evt.tool_call);
           if (contentEl) contentEl.appendChild(card);
           scrollToBottom();
-        } else if (evt.type === "tool_result") {
-          updateToolResult(contentEl, evt);
+        } else if (evt.tool_result) {
+          updateToolResult(contentEl, evt.tool_result);
           scrollToBottom();
-        } else if (evt.type === "analytics") {
-          const a = evt;
+        } else if (evt.thinking) {
+          // Thinking/routing info — could display a subtle indicator
+          console.log("[LocalMind] Thinking:", evt.thinking);
+        } else if (evt.task_estimate) {
+          console.log("[LocalMind] Task estimate:", evt.task_estimate);
+        } else if (evt.analytics) {
+          const a = evt.analytics;
           const panel = document.createElement("div");
           panel.className = "thinking-panel";
           panel.innerHTML = `
             <div class="thinking-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
               <span>🧠 Thinking</span>
-              <span class="thinking-meta">${a.model_used || "model"} • ${a.total_tokens || "?"} tok • ${a.tokens_per_sec?.toFixed(1) || "?"} tok/s • ${a.elapsed_sec}s</span>
+              <span class="thinking-meta">${a.model || "model"} • ${a.total_tokens || "?"} tok • ${a.tokens_per_sec?.toFixed(1) || "?"} tok/s • ${a.elapsed_sec}s</span>
               <span class="thinking-toggle">▼</span>
             </div>
             <div class="thinking-body" style="display:none">
-              <strong>Tier:</strong> ${a.complexity_tier || "?"}<br>
-              <strong>Routing:</strong> ${a.routing_reason || "n/a"}<br>
-              <strong>Tools:</strong> ${a.tools_used?.join(", ") || "none"}<br>
-              <strong>Memory:</strong> ${a.memories_used || 0} used, ${a.memories_saved || 0} saved
+              <strong>Tool calls:</strong> ${a.tool_calls || 0}
             </div>`;
           if (contentEl) contentEl.appendChild(panel);
-        } else if (evt.type === "done") {
+        } else if (evt.done) {
           if (evt.conversation_id && !state.currentConvId) {
             state.currentConvId = evt.conversation_id;
           }
-        } else if (evt.type === "error") {
+        } else if (evt.error) {
           if (contentEl) {
             contentEl.innerHTML = `<div style="color: var(--error)">❌ ${escapeHtml(evt.error)}</div>`;
           }
