@@ -106,3 +106,39 @@ export function extToLang(ext) {
   };
   return map[ext] || ext || "plaintext";
 }
+
+/**
+ * Show a temporary toast notification.
+ */
+export function showToast(message, type = "info") {
+  const container = document.getElementById("toast-container") || createToastContainer();
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `
+    <span class="toast-message">${message}</span>
+    <button class="toast-close">&times;</button>
+  `;
+  
+  container.appendChild(toast);
+  
+  // Animate in
+  requestAnimationFrame(() => {
+    toast.classList.add("visible");
+  });
+
+  const close = () => {
+    toast.classList.remove("visible");
+    setTimeout(() => toast.remove(), 300);
+  };
+
+  toast.querySelector(".toast-close").onclick = close;
+  setTimeout(close, 5000);
+}
+
+function createToastContainer() {
+  const container = document.createElement("div");
+  container.id = "toast-container";
+  container.className = "toast-container";
+  document.body.appendChild(container);
+  return container;
+}

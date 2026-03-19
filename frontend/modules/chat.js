@@ -20,8 +20,8 @@ import {
   autoResize,
 } from "./state.js";
 import { escapeHtml, getLang, getFileExtension, extToLang } from "./utils.js";
-import { loadConversation, loadConversations } from "./conversations.js";
-import { speak, clearCapturedImage } from "./media.js";
+import { loadConversations } from "./conversations.js";
+import { clearCapturedImage } from "./media.js";
 import { loadMemories } from "./sidebar.js";
 
 // ── Model & Health ──────────────────────────────────────────────
@@ -316,6 +316,8 @@ export async function sendMessage() {
 export function clearMessages() {
   if (messagesContainer) messagesContainer.innerHTML = "";
   if (welcomeScreen) welcomeScreen.style.display = "";
+  const chatArea = document.getElementById("chatArea");
+  if (chatArea) chatArea.style.display = "none";
 }
 
 export function renderMessages() {

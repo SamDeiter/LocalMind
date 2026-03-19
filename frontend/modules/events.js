@@ -24,7 +24,7 @@ import {
 import { sendMessage, activateMode, clearMessages } from "./chat.js";
 import { loadConversations } from "./conversations.js";
 import { toggleMic, openCamera, closeCamera, captureFrame, clearCapturedImage } from "./media.js";
-import { uploadDocuments, toggleMemoryList, toggleProposalList, toggleActivityFeed, setAutonomyMode } from "./sidebar.js";
+import { uploadDocuments, toggleMemoryList, toggleProposalList, toggleActivityFeed, setAutonomyMode, triggerReflection, triggerExecution } from "./sidebar.js";
 
 export function bindEvents() {
   // Sidebar
@@ -131,6 +131,8 @@ export function bindEvents() {
 
   // Activity feed toggle
   $("#activityToggle")?.addEventListener("click", toggleActivityFeed);
+  $("#brainReflectBtn")?.addEventListener("click", triggerReflection);
+  $("#brainExecuteBtn")?.addEventListener("click", triggerExecution);
 
   // Autonomy mode buttons
   $("#modeSupervisedBtn")?.addEventListener("click", () => setAutonomyMode("supervised"));

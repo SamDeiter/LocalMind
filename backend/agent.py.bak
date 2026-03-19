@@ -60,9 +60,6 @@ async def agent_chat(
                 )
                 result = response.json()
 
-        except httpx.HTTPError as e:
-            yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
-            return
         except Exception as e:
             yield {"type": "error", "error": f"Failed to connect to Ollama: {e}"}
             return
@@ -107,16 +104,16 @@ async def agent_chat(
             yield tool_event
 
             # Execute the tool
-            try:
-                tool_result = execute_tool(tool_name, tool_args, working_dir)
-            except Exception as e:
-                yield {"type": "error", "error": f"Failed to execute tool {tool_name}: {e}"}
-                continue
+            tool_result = execute_tool(tool_name, tool_args, working_dir)
 
             # Yield the result
             yield {
                 "type": "tool_result",
-                "result": {"name": tool_name, "success": tool_result.get("success", False), "data": tool_result},
+                "result": {
+                    "name": tool_name,
+                    "success": tool_result.get("success", False),
+                    "data": tool_result,
+                },
             }
 
             # Add the tool result to the conversation for the next iteration
@@ -171,9 +168,6 @@ async def agent_chat_streaming(
                 )
                 result = response.json()
 
-        except httpx.HTTPError as e:
-            yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
-            return
         except Exception as e:
             yield {"type": "error", "error": f"Failed to connect to Ollama: {e}"}
             return
@@ -213,8 +207,6 @@ async def agent_chat_streaming(
                                         break
                                 except json.JSONDecodeError:
                                     continue
-            except httpx.HTTPError as e:
-                yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
             except Exception as e:
                 yield {"type": "error", "error": str(e)}
             yield {"type": "done"}
@@ -236,11 +228,7 @@ async def agent_chat_streaming(
                 "tool": {"name": tool_name, "arguments": tool_args, "iteration": iteration},
             }
 
-            try:
-                tool_result = execute_tool(tool_name, tool_args, working_dir)
-            except Exception as e:
-                yield {"type": "error", "error": f"Failed to execute tool {tool_name}: {e}"}
-                continue
+            tool_result = execute_tool(tool_name, tool_args, working_dir)
 
             yield {
                 "type": "tool_result",

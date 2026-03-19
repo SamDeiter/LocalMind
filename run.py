@@ -59,28 +59,20 @@ def kill_existing_server(port: int):
     return killed
 
 
-def cleanup_stale_python(max_age_seconds: int = 1800):
-    """Kill orphaned Python processes older than max_age_seconds (default: 30 min).
+def cleanup_stale_python():
+    """Kill stale or orphaned LocalMind processes.
     
-    Detects stale 'python -c' processes that were started from this project
-    directory but never properly terminated (e.g., from crashed terminals
-    or abandoned commands). These orphans consume RAM and can cause
-    port conflicts.
-    
-    Only kills processes whose command line contains 'python -c' and
-    our project path, to avoid killing unrelated Python processes.
-    
-    Args:
-        max_age_seconds: Processes older than this are considered stale.
+    Searches for all 'python.exe' processes where the command line contains
+    'run.py', 'backend.server', or 'uvicorn' and related project paths.
     """
     if os.name != "nt":
-        return 0  # Only implemented for Windows currently
+        return 0
 
     try:
-        # Use WMIC to find Python processes with their creation time and command line
+        # Get process list with command lines
         result = subprocess.run(
             ["wmic", "process", "where", "name='python.exe'", "get",
-             "ProcessId,CommandLine,CreationDate", "/FORMAT:CSV"],
+             "ProcessId,CommandLine", "/FORMAT:CSV"],
             capture_output=True, text=True, timeout=10,
         )
 
@@ -91,32 +83,36 @@ def cleanup_stale_python(max_age_seconds: int = 1800):
         for line in result.stdout.strip().splitlines():
             if not line.strip() or "ProcessId" in line or "Node" in line:
                 continue
+            
             parts = line.strip().split(",")
-            if len(parts) < 4:
+            if len(parts) < 3:
                 continue
 
             try:
-                cmd_line = ",".join(parts[1:-2]).lower()  # Command line (may contain commas)
+                # Command line is parts[1:-1] joined (to handle internal commas)
+                cmd_line = ",".join(parts[1:-1]).lower()
                 pid = int(parts[-1].strip())
 
-                # Only kill 'python -c' processes from our project directory
                 if pid == current_pid:
                     continue
-                if "python" not in cmd_line or "-c" not in cmd_line:
-                    continue
-                if project_dir not in cmd_line and "localmind" not in cmd_line:
-                    continue
-
-                os.kill(pid, signal.SIGTERM)
-                killed += 1
+                
+                # Keywords that identify a LocalMind related process
+                is_localmind = any(kw in cmd_line for kw in ["run.py", "backend.server", "uvicorn", "localmind"])
+                in_project = project_dir in cmd_line or "localmind" in cmd_line
+                
+                if is_localmind and in_project:
+                    print(f"  Killing stale process {pid}: {cmd_line[:60]}...")
+                    os.kill(pid, signal.SIGTERM)
+                    killed += 1
             except (ValueError, ProcessLookupError, PermissionError):
                 continue
 
         if killed:
-            print(f"  🧹 Cleaned up {killed} stale Python process(es)")
+            print(f"  🧹 Cleaned up {killed} stale LocalMind process(es)")
         return killed
-    except Exception:
-        return 0  # Non-fatal — don't block startup
+    except Exception as e:
+        print(f"  ⚠ Cleanup error: {e}")
+        return 0
 
 
 def run_tests():

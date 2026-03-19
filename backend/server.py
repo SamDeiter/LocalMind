@@ -109,7 +109,7 @@ from backend.gemini_client import is_available as gemini_is_available
 
 # ── Autonomy Engine ───────────────────────────────────────────────────
 # Background scheduler for autonomous health checks, reflection, and proposal execution
-from backend.autonomy import AutonomyEngine
+from backend.autonomy import AutonomyEngine, PROPOSALS_DIR
 autonomy_engine = AutonomyEngine(
     ollama_url="http://localhost:11434",
     default_model="qwen2.5-coder:7b",
@@ -445,13 +445,62 @@ async def autonomy_status():
     """Get the current autonomy engine status.
     
     Returns loop timing, proposal counts, test results, and uptime.
-    The frontend polls this alongside hardware status.
+    Also includes global counts for memories, documents, and proposals.
     """
     status = autonomy_engine.get_status()
     status["mode"] = autonomy_engine.mode
     status["start_time"] = autonomy_engine._start_time
     status["recent_events"] = autonomy_engine._recent_events[-20:]
+    
+    # Add global counts for sidebar synchronization
+    memories_count = 0
+    try:
+        from backend.tools.memory import _get_collection
+        memories_count = _get_collection().count()
+    except Exception:
+        pass
+        
+    documents_count = 0
+    try:
+        if RAG_AVAILABLE:
+            docs = list_indexed_documents()
+            documents_count = len(docs.get("documents", []))
+    except Exception:
+        pass
+        
+    proposals_count = 0
+    try:
+        if PROPOSALS_DIR.exists():
+            proposals_count = len(list(PROPOSALS_DIR.glob("*.json")))
+    except Exception:
+        pass
+        
+    status["memories_count"] = memories_count
+    status["documents_count"] = documents_count
+    status["proposals_count"] = proposals_count
+    
     return status
+
+
+@app.post("/api/autonomy/reflect")
+async def autonomy_reflect():
+    """Manually trigger the AI reflection cycle."""
+    autonomy_engine.trigger_reflection()
+    return {"ok": True, "message": "Reflection cycle triggered"}
+
+@app.post("/api/autonomy/execute")
+async def autonomy_execute():
+    """Manually trigger the AI execution cycle."""
+    autonomy_engine.trigger_execution()
+    return {"ok": True, "message": "Execution cycle triggered"}
+
+@app.post("/api/proposals/{proposal_id}/retry")
+async def retry_proposal(proposal_id: str):
+    """Reset a failed proposal to approved status for re-execution."""
+    updated = autonomy_engine.retry_proposal(proposal_id)
+    if updated:
+        return {"ok": True, "proposal": updated}
+    return {"ok": False, "message": "Proposal not found"}
 
 
 @app.post("/api/autonomy/toggle")
