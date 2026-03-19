@@ -36,6 +36,14 @@ export function bindEvents() {
     loadConversations();
   });
 
+  // Home button (logo) — go back to welcome/brain dashboard
+  $("#homeBtn")?.addEventListener("click", () => {
+    state.currentConvId = null;
+    state.messages = [];
+    clearMessages();
+    loadConversations();
+  });
+
   // Send button + Enter
   sendBtn?.addEventListener("click", sendMessage);
   messageInput?.addEventListener("keydown", (e) => {

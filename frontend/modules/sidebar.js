@@ -79,6 +79,21 @@ async function pollAutonomy() {
         label.textContent = "Starting...";
       }
     }
+
+    // Sync mode toggle buttons from server state
+    if (d.mode) {
+      const supBtn = document.getElementById("modeSupervisedBtn");
+      const autoBtn = document.getElementById("modeAutonomousBtn");
+      if (supBtn && autoBtn) {
+        supBtn.classList.toggle("active", d.mode === "supervised");
+        autoBtn.classList.toggle("active", d.mode === "autonomous");
+      }
+      // Also update brain dashboard mode badge
+      const brainMode = document.getElementById("brainMode");
+      if (brainMode) {
+        brainMode.textContent = d.mode === "autonomous" ? "🤖 Autonomous" : "🛡️ Supervised";
+      }
+    }
   } catch {
     /* server not ready yet */
   }
