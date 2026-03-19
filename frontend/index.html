@@ -69,7 +69,7 @@
 
         <!-- Learning mode toggle -->
         <div class="sidebar-footer">
-          <div class="memory-toggle">
+          <div class="memory-toggle" title="When enabled, the AI learns your preferences and remembers facts from conversations">
             <label class="toggle-label">
               <span>🧠 Learning</span>
               <input type="checkbox" id="learningToggle" checked />
@@ -79,27 +79,27 @@
         </div>
         <!-- Memory viewer -->
         <div class="sidebar-section" id="memorySection">
-          <div class="sidebar-section-header" id="memoryToggleBtn">
+          <div class="sidebar-section-header" id="memoryToggleBtn" title="Things the AI has learned about you — click to expand">
             🧠 Memories <span class="badge" id="memoryCount">0</span>
           </div>
           <div class="memory-list" id="memoryList"></div>
         </div>
         <div class="sidebar-section">
-          <div class="sidebar-section-header" id="docsToggle">
+          <div class="sidebar-section-header" id="docsToggle" title="Upload documents for the AI to reference when answering — click to expand">
             📚 Documents <span id="docCount" class="badge">0</span>
           </div>
           <div id="documentList" class="document-list"></div>
         </div>
         <!-- Proposals dashboard -->
         <div class="sidebar-section" id="proposalSection">
-          <div class="sidebar-section-header" id="proposalToggle">
+          <div class="sidebar-section-header" id="proposalToggle" title="AI-generated improvement ideas for the codebase — click to review and approve">
             🚀 Proposals <span id="proposalCount" class="badge">0</span>
           </div>
           <div id="proposalList" class="proposal-list"></div>
         </div>
         <!-- Autonomy Activity Feed -->
         <div class="sidebar-section" id="activitySection">
-          <div class="sidebar-section-header" id="activityToggle">
+          <div class="sidebar-section-header" id="activityToggle" title="Live feed showing what the AI engine is doing right now — click to expand">
             🤖 Activity
           </div>
           <div id="activityFeed" class="activity-feed">
@@ -377,9 +377,9 @@
               <span id="vramVal" class="hw-metric-val">—</span>
             </div>
             <div class="hw-metric" id="autonomyMetric">
-              <span id="autonomyIndicator" class="autonomy-dot autonomy-active"></span>
-              <span id="autonomyLabel" class="hw-metric-val" style="font-size: 0.7rem;">Starting...</span>
-              <span id="autonomyActivity" class="hw-metric-val" style="font-size: 0.65rem; opacity: 0.7; margin-left: 6px;"></span>
+              <span id="autonomyIndicator" class="autonomy-dot autonomy-active" title="Green = engine running, Gray = paused"></span>
+              <span id="autonomyLabel" class="hw-metric-val" style="font-size: 0.7rem;" title="Autonomy engine status">Starting...</span>
+              <span id="autonomyActivity" class="hw-metric-val" style="font-size: 0.65rem; opacity: 0.7; margin-left: 6px;" title="Current engine action"></span>
             </div>
           </div>
         </div>
