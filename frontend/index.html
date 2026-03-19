@@ -353,8 +353,12 @@
             <!-- Live AI Brain Activity Dashboard -->
             <div class="brain-dashboard" id="brainDashboard">
               <div class="brain-header">
-                <span class="brain-pulse"></span>
+                <span class="brain-pulse" id="brainPulse"></span>
                 <span class="brain-title">AI Brain Activity</span>
+                <div id="brainLoadingBanner" class="brain-loading-banner">
+                  <span class="brain-loading-spinner"></span>
+                  <span>Loading model into GPU memory…</span>
+                </div>
                 <div class="brain-header-actions">
                   <button id="brainReflectBtn" class="btn-brain-action" title="Manually trigger AI reflection cycle (Reflection -> Proposal -> Execution)">Reflect Now</button>
                   <button id="brainExecuteBtn" class="btn-brain-action accent-purple" title="Manually trigger immediate execution of approved proposals">Run Tasks</button>

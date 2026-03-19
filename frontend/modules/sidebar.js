@@ -67,17 +67,31 @@ async function pollAutonomy() {
     const d = await r.json();
     const indicator = document.getElementById("autonomyIndicator");
     const label = document.getElementById("autonomyLabel");
+    const loadingBanner = document.getElementById("brainLoadingBanner");
+    const brainPulse = document.getElementById("brainPulse");
+    const modelReady = d.health_check && d.health_check.model_loaded;
+
     if (indicator) {
       indicator.className = d.enabled ? "autonomy-dot autonomy-active" : "autonomy-dot autonomy-paused";
     }
     if (label) {
       if (!d.enabled) {
         label.textContent = "Paused";
-      } else if (d.health_check && d.health_check.model_loaded) {
+      } else if (modelReady) {
         label.textContent = "Active";
       } else {
-        label.textContent = "Starting...";
+        label.textContent = "Loading…";
       }
+    }
+
+    // Show/hide loading banner in brain dashboard
+    if (loadingBanner) {
+      loadingBanner.style.display = (d.enabled && !modelReady) ? "flex" : "none";
+    }
+
+    // Pulse dot: amber while loading, green when ready
+    if (brainPulse) {
+      brainPulse.classList.toggle("loading", d.enabled && !modelReady);
     }
 
     // Sync mode toggle buttons from server state
@@ -217,7 +231,12 @@ export function connectActivityFeed() {
   };
 
   activityEventSource.onerror = () => {
-    // Reconnect after 5s on error
+    // Close the broken connection before retrying
+    if (activityEventSource) {
+      activityEventSource.close();
+      activityEventSource = null;
+    }
+    console.warn("[SSE] Connection lost — reconnecting in 5s...");
     setTimeout(() => connectActivityFeed(), 5000);
   };
 
