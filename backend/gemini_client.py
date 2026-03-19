@@ -28,12 +28,12 @@ _PII_PATTERNS = [
     (re.compile(r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b'), '[CARD_REDACTED]'),
     # IP addresses
     (re.compile(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'), '[IP_REDACTED]'),
-    # Windows file paths with usernames
-    (re.compile(r'C:\\Users\\[^\\]+', re.IGNORECASE), 'C:\\Users\\[USER_REDACTED]'),
+    # Windows file paths with usernames — use lambda to avoid \U escape in re.sub
+    (re.compile(r'C:\\Users\\[^\\]+', re.IGNORECASE), lambda m: 'C:\\Users\\[USER_REDACTED]'),
     # Unix home dirs
     (re.compile(r'/home/[^/\s]+'), '/home/[USER_REDACTED]'),
-    # API keys (generic patterns)
-    (re.compile(r'\b(AIza[A-Za-z0-9_-]{35})\b'), '[API_KEY_REDACTED]'),
+    # API keys (generic patterns) — {35,} to match keys >= 35 chars
+    (re.compile(r'\b(AIza[A-Za-z0-9_-]{35,})\b'), '[API_KEY_REDACTED]'),
     (re.compile(r'\b(sk-[a-zA-Z0-9]{20,})\b'), '[API_KEY_REDACTED]'),
 ]
 

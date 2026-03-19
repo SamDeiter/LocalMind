@@ -30,6 +30,11 @@ def app_with_db(seeded_db):
     global _test_db_path
     _test_db_path = seeded_db
 
+    # The conversations router uses dependency injection via configure(),
+    # not module-level get_db. We must call configure() to inject the test DB.
+    from backend.routes import conversations
+    conversations.configure(_get_test_db, "You are LocalMind, a helpful AI assistant.")
+
     with patch("backend.server.DB_PATH", seeded_db), \
          patch("backend.server.get_db", _get_test_db):
         from backend.server import app
