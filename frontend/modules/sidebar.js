@@ -94,6 +94,64 @@ async function pollAutonomy() {
         brainMode.textContent = d.mode === "autonomous" ? "🤖 Autonomous" : "🛡️ Supervised";
       }
     }
+
+    // Sync brain dashboard counters from server
+    if (d.reflection) {
+      const ideasEl = document.getElementById("brainProposals");
+      if (ideasEl) ideasEl.textContent = d.reflection.proposals_logged || 0;
+      brainProposalCount = d.reflection.proposals_logged || 0;
+    }
+    if (d.execution) {
+      const execEl = document.getElementById("brainExecuted");
+      if (execEl) execEl.textContent = d.execution.proposals_executed || 0;
+      brainExecutedCount = d.execution.proposals_executed || 0;
+    }
+
+    // Sync uptime from server start_time
+    if (d.start_time) {
+      window._brainBootTime = d.start_time * 1000; // convert to ms
+      updateBrainUptime();
+    }
+
+    // On first poll, populate brain timeline from recent events
+    if (d.recent_events && d.recent_events.length > 0 && !window._brainCaughtUp) {
+      window._brainCaughtUp = true;
+      const timeline = document.getElementById("brainTimeline");
+      if (timeline) {
+        timeline.innerHTML = "";
+        // Show newest first (reverse)
+        const events = [...d.recent_events].reverse();
+        for (const event of events.slice(0, 20)) {
+          const icon = ACTION_ICONS[event.action] || "📋";
+          const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+          const evEl = document.createElement("div");
+          evEl.className = `brain-event ${isActive ? "brain-event-active" : ""}`;
+          evEl.innerHTML = `
+            <span class="brain-event-icon">${icon}</span>
+            <span class="brain-event-text">${escapeHtml(event.detail || event.action)}</span>
+            <span class="brain-event-time">${event.time || ""}</span>
+          `;
+          timeline.appendChild(evEl);
+        }
+      }
+      // Also populate sidebar activity feed
+      const feed = document.getElementById("activityFeed");
+      if (feed && feed.children.length <= 1) {
+        const events = [...d.recent_events].reverse();
+        for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {
+          const icon = ACTION_ICONS[event.action] || "📋";
+          const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+          const item = document.createElement("div");
+          item.className = `activity-item ${isActive ? "activity-active" : "activity-idle"}`;
+          item.innerHTML = `
+            <span class="activity-icon">${icon}</span>
+            <span class="activity-text">${escapeHtml(event.detail || event.action)}</span>
+            <span class="activity-time">${event.time || ""}</span>
+          `;
+          feed.appendChild(item);
+        }
+      }
+    }
   } catch {
     /* server not ready yet */
   }

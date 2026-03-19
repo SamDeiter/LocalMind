@@ -58,6 +58,8 @@ class AutonomyEngine:
         self.tasks: list[asyncio.Task] = []
         self._last_chat_time: float = 0.0
         self._activity_subscribers: list[asyncio.Queue] = []
+        self._recent_events: list[dict] = []  # ring buffer for dashboard reload
+        self._start_time: float = time.time()
 
         # Status tracking
         self.status = {
@@ -102,6 +104,10 @@ class AutonomyEngine:
             **extra,
         }
         self.status["current_activity"] = event
+        # Keep last 30 events for dashboard catchup on page refresh
+        self._recent_events.append(event)
+        if len(self._recent_events) > 30:
+            self._recent_events = self._recent_events[-30:]
         for q in self._activity_subscribers:
             try:
                 q.put_nowait(event)

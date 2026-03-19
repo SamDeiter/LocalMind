@@ -449,6 +449,8 @@ async def autonomy_status():
     """
     status = autonomy_engine.get_status()
     status["mode"] = autonomy_engine.mode
+    status["start_time"] = autonomy_engine._start_time
+    status["recent_events"] = autonomy_engine._recent_events[-20:]
     return status
 
 
