@@ -177,3 +177,68 @@ export async function loadVersion() {
     /* ignore — version badge stays at placeholder */
   }
 }
+
+// ── Proposals Dashboard ─────────────────────────────────────────
+export function toggleProposalList() {
+  const list = document.getElementById("proposalList");
+  if (list) list.classList.toggle("open");
+}
+
+export async function loadProposals() {
+  try {
+    const r = await fetch(`${API}/api/approvals/pending`);
+    const d = await r.json();
+    const countEl = document.getElementById("proposalCount");
+    const listEl = document.getElementById("proposalList");
+    if (!countEl || !listEl) return;
+
+    const pending = d.pending || [];
+    countEl.textContent = pending.length;
+
+    if (pending.length === 0) {
+      listEl.innerHTML =
+        '<div class="memory-empty">No pending proposals. The AI will suggest improvements after conversations.</div>';
+      return;
+    }
+
+    listEl.innerHTML = pending
+      .map(
+        (p) => `
+      <div class="proposal-card" data-id="${escapeHtml(p.request_id)}">
+        <div class="proposal-header">
+          <span class="proposal-type">${escapeHtml(p.action_type || "improvement")}</span>
+          <span class="proposal-risk" style="color:${p.risk_level === "HIGH" ? "#f44336" : p.risk_level === "LOW" ? "#4caf50" : "#ff9800"}">${escapeHtml(p.risk_level || "MEDIUM")}</span>
+        </div>
+        <div class="proposal-desc">${escapeHtml(p.description || "")}</div>
+        <div class="proposal-reason"><em>${escapeHtml(p.reason || "")}</em></div>
+        <div class="proposal-actions">
+          <button class="approval-btn approve" data-id="${escapeHtml(p.request_id)}" data-decision="true">✅ Approve</button>
+          <button class="approval-btn deny" data-id="${escapeHtml(p.request_id)}" data-decision="false">❌ Deny</button>
+        </div>
+      </div>
+    `,
+      )
+      .join("");
+
+    // Wire approve/deny buttons
+    listEl.querySelectorAll(".approval-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        const approved = btn.dataset.decision === "true";
+        try {
+          await fetch(`${API}/api/approve/${id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ approved }),
+          });
+          // Refresh list after action
+          await loadProposals();
+        } catch (err) {
+          console.error("[LocalMind] Proposal action error:", err);
+        }
+      });
+    });
+  } catch (e) {
+    console.warn("Proposals load failed:", e);
+  }
+}

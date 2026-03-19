@@ -1312,6 +1312,61 @@ body {
   background: rgba(239, 68, 68, 0.15);
 }
 
+/* ── Proposal Dashboard (Sidebar) ───────────────────────────── */
+.proposal-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.proposal-list.open {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.proposal-card {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.2s;
+}
+.proposal-card:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.proposal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.proposal-type {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.5);
+}
+.proposal-risk {
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+.proposal-desc {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 4px;
+}
+.proposal-reason {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 8px;
+}
+.proposal-actions {
+  display: flex;
+  gap: 6px;
+}
+.proposal-actions .approval-btn {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  border-radius: 6px;
+}
+
 /* ── Editor Panel ────────────────────────────────────────────── */
 .editor-panel {
   display: none;

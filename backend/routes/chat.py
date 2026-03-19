@@ -592,4 +592,24 @@ async def chat(request: Request):
         tps = round(total_tokens / elapsed, 1) if elapsed > 0 else 0
         yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id, 'analytics': {'elapsed_sec': elapsed, 'total_tokens': total_tokens, 'tokens_per_sec': tps, 'tool_calls': total_tool_calls, 'model': model}})}\n\n"
 
+        # ── Autonomous Reflection ─────────────────────────────────────
+        # After conversations with ≥3 exchanges, auto-reflect on potential
+        # self-improvements. Runs inline but is non-blocking (best-effort).
+        try:
+            msg_count = len(ollama_messages)
+            if msg_count >= 6:  # ≥3 exchanges = 6 messages (user+assistant pairs)
+                reflect_tool = _registry.get_tool("self_reflect")
+                if reflect_tool:
+                    summary = f"Conversation about: {user_message[:100]}. " \
+                              f"Model: {model}, {total_tokens} tokens, {total_tool_calls} tool calls. " \
+                              f"Exchanges: {msg_count // 2}."
+                    await reflect_tool.execute(
+                        observation=summary,
+                        category="auto_reflection",
+                        priority="low",
+                    )
+                    logger.info(f"AUTO-REFLECT: Logged reflection for conv {conversation_id}")
+        except Exception as e:
+            logger.debug(f"Auto-reflection skipped (non-fatal): {e}")
+
     return StreamingResponse(stream_response(), media_type="text/event-stream")

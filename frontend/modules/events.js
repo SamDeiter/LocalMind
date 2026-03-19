@@ -24,7 +24,7 @@ import {
 import { sendMessage, activateMode, clearMessages } from "./chat.js";
 import { loadConversations } from "./conversations.js";
 import { toggleMic, openCamera, closeCamera, captureFrame, clearCapturedImage } from "./media.js";
-import { uploadDocuments, toggleMemoryList } from "./sidebar.js";
+import { uploadDocuments, toggleMemoryList, toggleProposalList } from "./sidebar.js";
 
 export function bindEvents() {
   // Sidebar
@@ -117,6 +117,9 @@ export function bindEvents() {
 
   // Memory
   $("#memoryToggleBtn")?.addEventListener("click", toggleMemoryList);
+
+  // Proposals
+  $("#proposalToggle")?.addEventListener("click", toggleProposalList);
 
   // Stop button
   $("#stopBtn")?.addEventListener("click", () => {
