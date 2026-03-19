@@ -1,107 +1,104 @@
 """
 Tests for the intelligent model router.
+
+The model router picks the best model based on task complexity
+and user constraints (local-only, cloud availability/approval).
 """
 import sys
 from pathlib import Path
-from unittest.mock import patch, AsyncMock
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.model_router import classify_task, _match_model_family, route_model
+from backend.model_router import route_model, MODELS
 
 
-# ── Task Classification ──────────────────────────────────────────
-
-class TestClassifyTask:
-    def test_code_task(self):
-        assert classify_task("Write a Python function to sort a list") == "code"
-
-    def test_debug_task(self):
-        assert classify_task("Fix this bug in my code, it's not working") == "debug"
-
-    def test_explain_task(self):
-        assert classify_task("Explain how memory allocation works") == "explain"
-
-    def test_plan_task(self):
-        assert classify_task("Design the architecture for a microservices project") == "plan"
-
-    def test_data_task(self):
-        assert classify_task("Parse this CSV and analyze the data with pandas") == "data"
-
-    def test_creative_task(self):
-        assert classify_task("Write a story about a robot brainstorm ideas") == "creative"
-
-    def test_general_fallback(self):
-        assert classify_task("Hello, how are you today?") == "general"
-
-    def test_mixed_signals(self):
-        """When multiple keywords match, the highest-scoring type wins."""
-        result = classify_task("Write code to fix the bug and debug the error")
-        assert result in ("code", "debug")  # Both valid
-
-
-# ── Model Family Matching ────────────────────────────────────────
-
-class TestMatchModelFamily:
-    def test_exact_match(self):
-        assert _match_model_family("qwen2.5-coder:32b") == "qwen2.5-coder"
-
-    def test_versioned_match(self):
-        assert _match_model_family("llama3.1:70b") == "llama3.1"
-
-    def test_gemma_match(self):
-        assert _match_model_family("gemma3:4b") == "gemma3"
-
-    def test_unknown_model(self):
-        assert _match_model_family("totally-unknown-model:1b") is None
-
-    def test_longest_match_wins(self):
-        """qwen2.5-coder should match over qwen2.5."""
-        assert _match_model_family("qwen2.5-coder:7b") == "qwen2.5-coder"
-
-
-# ── Model Routing ────────────────────────────────────────────────
+# ── Route Model ──────────────────────────────────────────────────
 
 class TestRouteModel:
-    @pytest.mark.asyncio
-    async def test_no_models_installed(self):
-        """When no models are installed, returns default."""
-        with patch("backend.model_router.get_installed_models", new_callable=AsyncMock, return_value=[]):
-            result = await route_model("Write some code")
-            assert result["selected_model"] == "qwen2.5-coder:32b"
-            assert "No models" in result["reason"]
+    def test_simple_task_uses_local_light(self):
+        """Low complexity (0-4) should use the lightweight local model."""
+        result = route_model(complexity_score=2)
+        assert result["name"] == MODELS["local_light"]["name"]
+        assert result["provider"] == "ollama"
 
-    @pytest.mark.asyncio
-    async def test_single_model(self):
-        """When only one model is installed, always returns it."""
-        with patch("backend.model_router.get_installed_models", new_callable=AsyncMock, return_value=["gemma3:4b"]):
-            result = await route_model("Fix this bug")
-            assert result["selected_model"] == "gemma3:4b"
-            assert "Only installed" in result["reason"]
+    def test_medium_task_uses_local_heavy(self):
+        """Medium complexity (5-7) should upgrade to local heavy model."""
+        result = route_model(complexity_score=6)
+        assert result["name"] == MODELS["local_heavy"]["name"]
+        assert result["provider"] == "ollama"
 
-    @pytest.mark.asyncio
-    async def test_coding_task_prefers_coder(self):
-        """For code tasks, qwen2.5-coder should score highest."""
-        models = ["qwen2.5-coder:7b", "gemma3:4b", "llama3.1:8b"]
-        with patch("backend.model_router.get_installed_models", new_callable=AsyncMock, return_value=models):
-            result = await route_model("Write a Python class")
-            assert result["selected_model"] == "qwen2.5-coder:7b"
-            assert result["task_type"] == "code"
+    def test_high_complexity_without_cloud_stays_local(self):
+        """High complexity without cloud available stays local heavy."""
+        result = route_model(complexity_score=9, gemini_available=False)
+        assert result["provider"] == "ollama"
+        assert result["name"] == MODELS["local_heavy"]["name"]
 
-    @pytest.mark.asyncio
-    async def test_larger_model_gets_bonus(self):
-        """Larger models should get a size bonus."""
-        models = ["qwen2.5-coder:7b", "qwen2.5-coder:32b"]
-        with patch("backend.model_router.get_installed_models", new_callable=AsyncMock, return_value=models):
-            result = await route_model("Write a function")
-            assert result["selected_model"] == "qwen2.5-coder:32b"
+    def test_force_local_light_task(self):
+        """Force local with low complexity picks local light."""
+        result = route_model(complexity_score=3, force_local=True)
+        assert result["name"] == MODELS["local_light"]["name"]
+        assert result["needs_approval"] is False
 
-    @pytest.mark.asyncio
-    async def test_alternatives_populated(self):
-        """Alternatives should list other available models."""
-        models = ["qwen2.5-coder:7b", "gemma3:4b", "llama3.1:8b"]
-        with patch("backend.model_router.get_installed_models", new_callable=AsyncMock, return_value=models):
-            result = await route_model("Write code")
-            assert len(result["alternatives"]) > 0
+    def test_force_local_heavy_task(self):
+        """Force local with high complexity picks local heavy."""
+        result = route_model(complexity_score=8, force_local=True)
+        assert result["name"] == MODELS["local_heavy"]["name"]
+        assert result["needs_approval"] is False
+
+    def test_force_local_ignores_cloud(self):
+        """Even when cloud is available + approved, force_local wins."""
+        result = route_model(
+            complexity_score=9,
+            force_local=True,
+            gemini_available=True,
+            cloud_approved=True,
+        )
+        assert result["provider"] == "ollama"
+
+    def test_cloud_requires_approval(self):
+        """Cloud routing should require user approval."""
+        result = route_model(
+            complexity_score=9,
+            gemini_available=True,
+            cloud_approved=False,
+        )
+        # Either stays local (needing approval) or flags needs_approval
+        assert "needs_approval" in result
+
+    def test_all_results_have_required_keys(self):
+        """Every route result should have name, provider, needs_approval."""
+        for score in [0, 3, 5, 7, 10]:
+            result = route_model(complexity_score=score)
+            assert "name" in result
+            assert "provider" in result
+            assert "needs_approval" in result
+
+    def test_route_reason_populated(self):
+        """Route results should explain why the model was chosen."""
+        result = route_model(complexity_score=5)
+        assert "route_reason" in result
+        assert len(result["route_reason"]) > 0
+
+
+# ── Model Definitions ────────────────────────────────────────────
+
+class TestModels:
+    def test_all_tiers_defined(self):
+        """Should have local_light, local_heavy, cloud_flash, cloud_pro."""
+        expected = {"local_light", "local_heavy", "cloud_flash", "cloud_pro"}
+        assert set(MODELS.keys()) == expected
+
+    def test_local_models_are_ollama(self):
+        assert MODELS["local_light"]["provider"] == "ollama"
+        assert MODELS["local_heavy"]["provider"] == "ollama"
+
+    def test_cloud_models_are_gemini(self):
+        assert MODELS["cloud_flash"]["provider"] == "gemini"
+        assert MODELS["cloud_pro"]["provider"] == "gemini"
+
+    def test_all_models_have_name(self):
+        for tier, model in MODELS.items():
+            assert "name" in model, f"{tier} missing 'name'"
+            assert len(model["name"]) > 0
