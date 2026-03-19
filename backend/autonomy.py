@@ -9,20 +9,24 @@ Runs periodic tasks in the background without blocking chat:
   3. Execute Proposals (15m) — Pick approved proposals and self-edit
   4. Auto-Test       (after edits) — Run pytest, log results
 
-All proposal execution requires prior user approval.
+All proposal execution requires prior user approval via the sidebar UI.
 Logs everything to ~/LocalMind_Workspace/autonomy_log.jsonl.
 
 ARCHITECTURE:
   AutonomyEngine is created in server.py lifespan startup.
   It spawns asyncio tasks that run forever in the background.
   Toggle on/off via POST /api/autonomy/toggle.
+  Proposals listed/approved/denied via /api/autonomy/proposals endpoints.
 """
 
 import asyncio
 import json
 import logging
-import time
+import re
+import shutil
 import subprocess
+import time
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -32,6 +36,7 @@ logger = logging.getLogger("localmind.autonomy")
 
 LOG_FILE = Path.home() / "LocalMind_Workspace" / "autonomy_log.jsonl"
 PROPOSALS_DIR = Path.home() / "LocalMind_Workspace" / "proposals"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class AutonomyEngine:
@@ -101,9 +106,8 @@ class AutonomyEngine:
 
     async def _health_loop(self):
         """Every 60s: ping Ollama, pre-warm model if needed."""
-        # Initial warm-up on startup — wait a moment for server to be ready
-        await asyncio.sleep(5)
-        await self._prewarm_model()
+        # Wait a moment for server to be ready before first check
+        await asyncio.sleep(10)
 
         while True:
             try:
@@ -135,9 +139,14 @@ class AutonomyEngine:
                     "model_loaded": models_loaded,
                 }
 
-                # Pre-warm if no model is loaded (keeps response time fast)
+                # Only pre-warm if NO model is loaded at all.
+                # If the user already has a model in VRAM (even the 32B),
+                # don't evict it by loading the 7B.
                 if ollama_ok and not models_loaded:
+                    logger.info("No model in VRAM — pre-warming the default model")
                     await self._prewarm_model()
+                elif models_loaded:
+                    logger.debug("Model already loaded in VRAM — skipping pre-warm")
 
         except Exception:
             self.status["health_check"]["ollama_ok"] = False
@@ -204,7 +213,8 @@ class AutonomyEngine:
                     "5. Features users might want\n\n"
                     "Output a JSON object with keys: title, category "
                     "(performance/feature/bugfix/ux/security/code_quality), "
-                    "description, effort (small/medium/large), priority (low/medium/high/critical).\n"
+                    "description, files_affected (comma-separated list), "
+                    "effort (small/medium/large), priority (low/medium/high/critical).\n"
                     "Only output the JSON, nothing else."
                 )
 
@@ -249,7 +259,6 @@ class AutonomyEngine:
 
     async def _save_proposal(self, proposal: dict):
         """Save a proposal to the proposals directory."""
-        import uuid
         PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
 
         full_proposal = {
@@ -266,8 +275,62 @@ class AutonomyEngine:
             "created_at_human": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
+        # Normalize files_affected to list
+        if isinstance(full_proposal["files_affected"], str):
+            full_proposal["files_affected"] = [
+                f.strip() for f in full_proposal["files_affected"].split(",") if f.strip()
+            ]
+
         filepath = PROPOSALS_DIR / f"{full_proposal['id']}_{full_proposal['category']}.json"
         filepath.write_text(json.dumps(full_proposal, indent=2), encoding="utf-8")
+
+    # ── Proposal Management (called by API endpoints) ────────────────
+
+    def list_proposals(self, status_filter: str = "all") -> list[dict]:
+        """List all proposals, optionally filtered by status."""
+        if not PROPOSALS_DIR.exists():
+            return []
+
+        proposals = []
+        for f in sorted(PROPOSALS_DIR.glob("*.json")):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if status_filter == "all" or data.get("status") == status_filter:
+                    proposals.append(data)
+            except Exception:
+                continue
+
+        return proposals
+
+    def approve_proposal(self, proposal_id: str) -> Optional[dict]:
+        """Mark a proposal as approved so the execution loop will pick it up."""
+        return self._update_proposal_status(proposal_id, "approved")
+
+    def deny_proposal(self, proposal_id: str) -> Optional[dict]:
+        """Mark a proposal as denied."""
+        return self._update_proposal_status(proposal_id, "denied")
+
+    def _update_proposal_status(self, proposal_id: str, new_status: str) -> Optional[dict]:
+        """Update a proposal's status by ID. Returns updated proposal or None."""
+        if not PROPOSALS_DIR.exists():
+            return None
+
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if data.get("id") == proposal_id:
+                    data["status"] = new_status
+                    data["status_changed_at"] = time.time()
+                    data["status_changed_at_human"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                    f.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    self._log(f"proposal_{new_status}", {
+                        "id": proposal_id, "title": data.get("title", "?")
+                    })
+                    return data
+            except Exception:
+                continue
+
+        return None
 
     # ── Proposal Execution Loop ──────────────────────────────────────
 
@@ -287,7 +350,10 @@ class AutonomyEngine:
                 await asyncio.sleep(900)
 
     async def _execute_next_proposal(self):
-        """Find the highest-priority approved proposal and execute it."""
+        """Find the highest-priority approved proposal and execute it.
+
+        Flow: read file → ask AI for new content → write file → test → commit/revert
+        """
         if not PROPOSALS_DIR.exists():
             return
 
@@ -320,53 +386,109 @@ class AutonomyEngine:
         self._log("proposal_execution_start", {"id": proposal["id"], "title": proposal["title"]})
 
         try:
-            # Ask the AI to implement the proposal
-            async with httpx.AsyncClient(timeout=180.0) as client:
-                prompt = (
-                    f"You are LocalMind executing an approved improvement proposal.\n\n"
-                    f"PROPOSAL: {proposal['title']}\n"
-                    f"CATEGORY: {proposal['category']}\n"
-                    f"DESCRIPTION: {proposal['description']}\n"
-                    f"FILES: {proposal.get('files_affected', 'not specified')}\n\n"
-                    f"Output the EXACT code changes needed as a unified diff. "
-                    f"Be precise and minimal. Only change what's necessary."
-                )
+            # Step 1: Determine target files
+            files_affected = proposal.get("files_affected", [])
+            if isinstance(files_affected, str):
+                files_affected = [f.strip() for f in files_affected.split(",") if f.strip()]
 
-                resp = await client.post(
-                    f"{self.ollama_url}/api/generate",
-                    json={
-                        "model": self.default_model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {"num_predict": 1000, "num_ctx": 4096},
-                    },
-                )
+            if not files_affected:
+                # Ask AI to figure out which file to edit
+                files_affected = await self._identify_target_files(proposal)
 
-                if resp.status_code == 200:
-                    result = resp.json().get("response", "")
+            if not files_affected:
+                proposal["status"] = "failed"
+                proposal["error"] = "Could not determine which files to edit"
+                filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+                self._log("proposal_execution_failed", {
+                    "id": proposal["id"], "error": "no target files"
+                })
+                self.status["execution"]["last_run"] = time.time()
+                return
 
-                    # Log the result but DON'T auto-apply code changes
-                    # The user must review diffs before they're applied
-                    proposal["status"] = "executed"
-                    proposal["execution_result"] = result[:2000]
-                    proposal["execution_finished_at"] = time.time()
-                    filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+            # Step 2: Create git safety branch
+            branch_name = f"self-improve/{proposal['id']}-{proposal['category']}"
+            self._git_run(["checkout", "-b", branch_name])
+            self._log("git_branch_created", {"branch": branch_name})
+            logger.info(f"🌿 Created safety branch: {branch_name}")
 
-                    self.status["execution"]["proposals_executed"] += 1
-                    self.status["execution"]["last_result"] = proposal["title"]
-                    self._log("proposal_execution_done", {
-                        "id": proposal["id"],
-                        "title": proposal["title"],
-                    })
-                    logger.info(f"✅ Proposal executed: {proposal['title']}")
+            # Step 3: For each target file, read → AI → write
+            edits_applied = []
+            for target_file in files_affected[:3]:  # Cap at 3 files per proposal
+                success = await self._edit_single_file(target_file, proposal)
+                if success:
+                    edits_applied.append(target_file)
 
-                    # Run tests after execution
-                    await self._run_tests()
+            if not edits_applied:
+                # No edits were applied — clean up branch
+                self._git_run(["checkout", "main"])
+                self._git_run(["branch", "-D", branch_name])
+                proposal["status"] = "failed"
+                proposal["error"] = "AI could not generate valid edits"
+                filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+                self._log("proposal_execution_failed", {
+                    "id": proposal["id"], "error": "no edits applied"
+                })
+                self.status["execution"]["last_run"] = time.time()
+                return
+
+            # Step 4: Run tests
+            test_passed = await self._run_tests()
+
+            if test_passed:
+                # Step 5a: Tests passed — commit and log success
+                commit_msg = f"[autonomy] {proposal['title']}\n\nProposal ID: {proposal['id']}\nCategory: {proposal['category']}\nFiles: {', '.join(edits_applied)}"
+                self._git_run(["add", "-A"])
+                self._git_run(["commit", "-m", commit_msg])
+
+                proposal["status"] = "completed"
+                proposal["execution_result"] = f"✅ Applied to {len(edits_applied)} file(s), tests passed"
+                proposal["execution_finished_at"] = time.time()
+                proposal["files_edited"] = edits_applied
+                proposal["branch"] = branch_name
+                filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+
+                self.status["execution"]["proposals_executed"] += 1
+                self.status["execution"]["last_result"] = proposal["title"]
+                self._log("proposal_execution_done", {
+                    "id": proposal["id"],
+                    "title": proposal["title"],
+                    "files": edits_applied,
+                    "branch": branch_name,
+                })
+                logger.info(f"✅ Proposal executed: {proposal['title']} → branch {branch_name}")
+
+            else:
+                # Step 5b: Tests failed — revert from backups
+                for target_file in edits_applied:
+                    self._revert_file(target_file)
+
+                self._git_run(["checkout", "--", "."])
+                self._git_run(["checkout", "main"])
+                self._git_run(["branch", "-D", branch_name])
+
+                proposal["status"] = "failed"
+                proposal["error"] = "Tests failed after applying edits — reverted"
+                proposal["execution_finished_at"] = time.time()
+                filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+
+                self._log("proposal_execution_reverted", {
+                    "id": proposal["id"],
+                    "title": proposal["title"],
+                    "reason": "tests_failed",
+                })
+                logger.warning(f"⚠️ Proposal reverted: {proposal['title']} (tests failed)")
 
         except Exception as exc:
             proposal["status"] = "failed"
             proposal["error"] = str(exc)
             filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+
+            # Try to get back to main branch
+            try:
+                self._git_run(["checkout", "main"])
+            except Exception:
+                pass
+
             self._log("proposal_execution_failed", {
                 "id": proposal["id"],
                 "error": str(exc),
@@ -375,16 +497,223 @@ class AutonomyEngine:
 
         self.status["execution"]["last_run"] = time.time()
 
+    async def _identify_target_files(self, proposal: dict) -> list[str]:
+        """Ask the AI which file(s) to edit for a proposal."""
+        try:
+            # Get a directory listing for context
+            files_list = []
+            for p in PROJECT_ROOT.rglob("*.py"):
+                rel = p.relative_to(PROJECT_ROOT)
+                # Skip venv, __pycache__, .git
+                parts = rel.parts
+                if any(skip in parts for skip in ("venv", "__pycache__", ".git", "node_modules")):
+                    continue
+                files_list.append(str(rel).replace("\\", "/"))
+
+            for p in PROJECT_ROOT.rglob("*.js"):
+                rel = p.relative_to(PROJECT_ROOT)
+                parts = rel.parts
+                if any(skip in parts for skip in ("venv", "__pycache__", ".git", "node_modules")):
+                    continue
+                files_list.append(str(rel).replace("\\", "/"))
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                prompt = (
+                    f"Given this improvement proposal:\n"
+                    f"Title: {proposal['title']}\n"
+                    f"Category: {proposal['category']}\n"
+                    f"Description: {proposal['description']}\n\n"
+                    f"And these project files:\n{chr(10).join(files_list[:80])}\n\n"
+                    f"Which file(s) need to be edited? Return ONLY a JSON array of "
+                    f"relative file paths. Example: [\"backend/server.py\"]\n"
+                    f"Pick the 1-2 most important files. Only output the JSON array."
+                )
+
+                resp = await client.post(
+                    f"{self.ollama_url}/api/generate",
+                    json={
+                        "model": self.default_model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {"num_predict": 200, "num_ctx": 2048},
+                    },
+                )
+
+                if resp.status_code == 200:
+                    text = resp.json().get("response", "").strip()
+                    # Extract JSON array
+                    if "```" in text:
+                        text = text.split("```")[1]
+                        if text.startswith("json"):
+                            text = text[4:]
+                        text = text.strip()
+                    return json.loads(text)
+
+        except Exception as exc:
+            logger.warning(f"Failed to identify target files: {exc}")
+
+        return []
+
+    async def _edit_single_file(self, relative_path: str, proposal: dict) -> bool:
+        """Read a file, ask AI for improved version, write it back.
+
+        Returns True if the edit was successfully applied.
+        """
+        # Security checks (same as self_edit.py)
+        blocked_dirs = {"venv", ".git", "node_modules", "__pycache__", "memory_db"}
+        blocked_names = {".env", ".env.local", ".env.production"}
+        blocked_exts = {".key", ".pem", ".secret", ".p12", ".pfx"}
+
+        target = (PROJECT_ROOT / relative_path).resolve()
+
+        # Must stay inside project
+        if not str(target).startswith(str(PROJECT_ROOT)):
+            logger.warning(f"Path escapes project: {relative_path}")
+            return False
+
+        if target.name in blocked_names:
+            logger.warning(f"Blocked file: {target.name}")
+            return False
+
+        if target.suffix.lower() in blocked_exts:
+            logger.warning(f"Blocked extension: {target.suffix}")
+            return False
+
+        for part in target.relative_to(PROJECT_ROOT).parts:
+            if part in blocked_dirs:
+                logger.warning(f"Blocked directory: {part}")
+                return False
+
+        if not target.exists():
+            logger.warning(f"File not found: {relative_path}")
+            return False
+
+        try:
+            # Read current content
+            original_content = target.read_text(encoding="utf-8", errors="replace")
+
+            # Cap file size — don't edit huge files
+            if len(original_content) > 50_000:
+                logger.warning(f"File too large to edit: {relative_path} ({len(original_content)} chars)")
+                return False
+
+            # Ask AI for the improved version
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                prompt = (
+                    f"You are LocalMind, improving your own source code.\n\n"
+                    f"PROPOSAL: {proposal['title']}\n"
+                    f"CATEGORY: {proposal['category']}\n"
+                    f"DESCRIPTION: {proposal['description']}\n\n"
+                    f"FILE: {relative_path}\n"
+                    f"CURRENT CONTENT:\n```\n{original_content}\n```\n\n"
+                    f"Output the COMPLETE improved file content. "
+                    f"Make MINIMAL, TARGETED changes that address the proposal. "
+                    f"Do NOT remove existing functionality. "
+                    f"Do NOT add placeholder comments like 'rest of code here'. "
+                    f"Output ONLY the file content, no markdown fences, no explanation."
+                )
+
+                resp = await client.post(
+                    f"{self.ollama_url}/api/generate",
+                    json={
+                        "model": self.default_model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {"num_predict": 4000, "num_ctx": 8192},
+                    },
+                )
+
+                if resp.status_code != 200:
+                    logger.warning(f"Ollama returned {resp.status_code} for edit")
+                    return False
+
+                new_content = resp.json().get("response", "").strip()
+
+            # Strip markdown fences if AI wrapped its output
+            if new_content.startswith("```"):
+                lines = new_content.split("\n")
+                # Remove first line (```python or ```) and last line (```)
+                if lines[-1].strip() == "```":
+                    lines = lines[1:-1]
+                else:
+                    lines = lines[1:]
+                # Remove language hint from first line
+                new_content = "\n".join(lines)
+
+            # Sanity checks
+            if len(new_content) < 10:
+                logger.warning(f"AI returned too-short content for {relative_path}")
+                return False
+
+            if len(new_content) > 60_000:
+                logger.warning(f"AI returned too-large content for {relative_path}")
+                return False
+
+            # Don't apply if content is identical
+            if new_content.strip() == original_content.strip():
+                logger.info(f"No changes needed for {relative_path}")
+                return False
+
+            # Create backup
+            backup = target.with_suffix(target.suffix + ".bak")
+            shutil.copy2(target, backup)
+
+            # Write new content
+            target.write_text(new_content, encoding="utf-8")
+            logger.info(f"📝 Self-edit applied: {relative_path} ({len(new_content)} chars)")
+            self._log("self_edit_applied", {
+                "file": relative_path,
+                "original_size": len(original_content),
+                "new_size": len(new_content),
+                "proposal_id": proposal["id"],
+            })
+
+            return True
+
+        except Exception as exc:
+            logger.error(f"Failed to edit {relative_path}: {exc}")
+            return False
+
+    def _revert_file(self, relative_path: str):
+        """Restore a file from its .bak backup."""
+        target = (PROJECT_ROOT / relative_path).resolve()
+        backup = target.with_suffix(target.suffix + ".bak")
+
+        if backup.exists():
+            shutil.copy2(backup, target)
+            backup.unlink()
+            logger.info(f"↩️ Reverted: {relative_path}")
+        else:
+            logger.warning(f"No backup found for: {relative_path}")
+
+    def _git_run(self, args: list[str]) -> str:
+        """Run a git command in the project root. Returns stdout."""
+        try:
+            result = subprocess.run(
+                ["git"] + args,
+                cwd=str(PROJECT_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                error = result.stderr.strip() or f"git exited with code {result.returncode}"
+                logger.warning(f"Git command failed: git {' '.join(args)} → {error}")
+                return ""
+            return result.stdout.strip()
+        except Exception as exc:
+            logger.warning(f"Git command error: {exc}")
+            return ""
+
     # ── Auto-Test Runner ─────────────────────────────────────────────
 
-    async def _run_tests(self):
-        """Run pytest and log results."""
+    async def _run_tests(self) -> bool:
+        """Run pytest and return True if all tests pass."""
         try:
-            project_root = Path(__file__).parent.parent
             result = subprocess.run(
                 ["python", "-m", "pytest", "tests/", "-q", "--tb=no"],
                 capture_output=True, text=True, timeout=60,
-                cwd=str(project_root),
+                cwd=str(PROJECT_ROOT),
             )
 
             output = result.stdout.strip()
@@ -392,7 +721,6 @@ class AutonomyEngine:
             passed = failed = 0
             for line in output.splitlines():
                 if "passed" in line:
-                    import re
                     m = re.search(r"(\d+) passed", line)
                     if m:
                         passed = int(m.group(1))
@@ -409,8 +737,11 @@ class AutonomyEngine:
             self._log("auto_test", {"passed": passed, "failed": failed})
             logger.info(f"🧪 Auto-test: {passed} passed, {failed} failed")
 
+            return result.returncode == 0
+
         except Exception as exc:
             logger.warning(f"Auto-test failed: {exc}")
+            return False
 
     def get_status(self) -> dict:
         """Return the full autonomy status for the API."""

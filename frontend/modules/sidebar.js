@@ -214,55 +214,112 @@ export function toggleProposalList() {
 
 export async function loadProposals() {
   try {
-    const r = await fetch(`${API}/api/approvals/pending`);
+    const r = await fetch(`${API}/api/autonomy/proposals`);
     const d = await r.json();
     const countEl = document.getElementById("proposalCount");
     const listEl = document.getElementById("proposalList");
     if (!countEl || !listEl) return;
 
-    const pending = d.pending || [];
-    countEl.textContent = pending.length;
+    const proposals = d.proposals || [];
+    // Show count of actionable proposals (proposed = needs review)
+    const actionable = proposals.filter((p) => p.status === "proposed");
+    countEl.textContent = actionable.length;
 
-    if (pending.length === 0) {
+    if (proposals.length === 0) {
       listEl.innerHTML =
-        '<div class="memory-empty">No pending proposals. The AI will suggest improvements after conversations.</div>';
+        '<div class="memory-empty">No proposals yet. The AI will suggest improvements after running for a while.</div>';
       return;
     }
 
-    listEl.innerHTML = pending
+    const statusIcons = {
+      proposed: "📋",
+      approved: "⏳",
+      in_progress: "🔧",
+      completed: "✅",
+      failed: "❌",
+      denied: "🚫",
+    };
+    const priorityColors = {
+      critical: "#f44336",
+      high: "#ff9800",
+      medium: "#ffc107",
+      low: "#4caf50",
+    };
+    const categoryIcons = {
+      performance: "⚡",
+      feature: "✨",
+      bugfix: "🐛",
+      ux: "🎨",
+      security: "🔒",
+      code_quality: "🧹",
+    };
+
+    listEl.innerHTML = proposals
       .map(
         (p) => `
-      <div class="proposal-card" data-id="${escapeHtml(p.request_id)}">
+      <div class="proposal-card proposal-status-${p.status || "proposed"}" data-id="${escapeHtml(p.id)}">
         <div class="proposal-header">
-          <span class="proposal-type">${escapeHtml(p.action_type || "improvement")}</span>
-          <span class="proposal-risk" style="color:${p.risk_level === "HIGH" ? "#f44336" : p.risk_level === "LOW" ? "#4caf50" : "#ff9800"}">${escapeHtml(p.risk_level || "MEDIUM")}</span>
+          <span class="proposal-type">${categoryIcons[p.category] || "📋"} ${escapeHtml(p.category || "improvement")}</span>
+          <span class="proposal-priority" style="color:${priorityColors[p.priority] || "#ffc107"}">${escapeHtml(p.priority || "medium")}</span>
+          <span class="proposal-status-badge">${statusIcons[p.status] || "❓"} ${escapeHtml(p.status || "proposed")}</span>
         </div>
-        <div class="proposal-desc">${escapeHtml(p.description || "")}</div>
-        <div class="proposal-reason"><em>${escapeHtml(p.reason || "")}</em></div>
-        <div class="proposal-actions">
-          <button class="approval-btn approve" data-id="${escapeHtml(p.request_id)}" data-decision="true">✅ Approve</button>
-          <button class="approval-btn deny" data-id="${escapeHtml(p.request_id)}" data-decision="false">❌ Deny</button>
-        </div>
+        <div class="proposal-title">${escapeHtml(p.title || "Untitled")}</div>
+        <div class="proposal-desc">${escapeHtml(p.description || "").substring(0, 150)}${(p.description || "").length > 150 ? "…" : ""}</div>
+        ${
+          p.status === "proposed"
+            ? `
+          <div class="proposal-actions">
+            <button class="approval-btn approve" data-id="${escapeHtml(p.id)}" title="Approve this proposal">✅ Approve</button>
+            <button class="approval-btn deny" data-id="${escapeHtml(p.id)}" title="Deny this proposal">❌ Deny</button>
+          </div>`
+            : ""
+        }
+        ${
+          p.status === "completed"
+            ? `<div class="proposal-result">${escapeHtml(p.execution_result || "")}</div>`
+            : ""
+        }
+        ${
+          p.status === "failed"
+            ? `<div class="proposal-error">${escapeHtml(p.error || "Unknown error")}</div>`
+            : ""
+        }
       </div>
     `,
       )
       .join("");
 
     // Wire approve/deny buttons
-    listEl.querySelectorAll(".approval-btn").forEach((btn) => {
+    listEl.querySelectorAll(".approval-btn.approve").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        const id = btn.dataset.id;
-        const approved = btn.dataset.decision === "true";
+        btn.disabled = true;
+        btn.textContent = "⏳ Approving...";
         try {
-          await fetch(`${API}/api/approve/${id}`, {
+          await fetch(`${API}/api/autonomy/proposals/${btn.dataset.id}/approve`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ approved }),
           });
-          // Refresh list after action
           await loadProposals();
         } catch (err) {
-          console.error("[LocalMind] Proposal action error:", err);
+          console.error("[LocalMind] Proposal approve error:", err);
+          btn.disabled = false;
+          btn.textContent = "✅ Approve";
+        }
+      });
+    });
+
+    listEl.querySelectorAll(".approval-btn.deny").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "⏳ Denying...";
+        try {
+          await fetch(`${API}/api/autonomy/proposals/${btn.dataset.id}/deny`, {
+            method: "POST",
+          });
+          await loadProposals();
+        } catch (err) {
+          console.error("[LocalMind] Proposal deny error:", err);
+          btn.disabled = false;
+          btn.textContent = "❌ Deny";
         }
       });
     });
@@ -270,3 +327,4 @@ export async function loadProposals() {
     console.warn("Proposals load failed:", e);
   }
 }
+

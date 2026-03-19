@@ -455,6 +455,35 @@ async def toggle_autonomy():
     return {"enabled": new_state}
 
 
+@app.get("/api/autonomy/proposals")
+async def list_autonomy_proposals(status: str = "all"):
+    """List all autonomy proposals, optionally filtered by status.
+
+    Query params:
+        status: 'all', 'proposed', 'approved', 'in_progress', 'completed', 'failed', 'denied'
+    """
+    proposals = autonomy_engine.list_proposals(status_filter=status)
+    return {"proposals": proposals, "count": len(proposals)}
+
+
+@app.post("/api/autonomy/proposals/{proposal_id}/approve")
+async def approve_autonomy_proposal(proposal_id: str):
+    """Approve a proposal so the execution loop will pick it up."""
+    result = autonomy_engine.approve_proposal(proposal_id)
+    if result is None:
+        return {"ok": False, "error": f"Proposal not found: {proposal_id}"}
+    return {"ok": True, "proposal": result}
+
+
+@app.post("/api/autonomy/proposals/{proposal_id}/deny")
+async def deny_autonomy_proposal(proposal_id: str):
+    """Deny a proposal to prevent it from being executed."""
+    result = autonomy_engine.deny_proposal(proposal_id)
+    if result is None:
+        return {"ok": False, "error": f"Proposal not found: {proposal_id}"}
+    return {"ok": True, "proposal": result}
+
+
 @app.get("/api/version")
 async def get_version():
     """Return the current build version from version.json.
