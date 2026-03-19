@@ -506,12 +506,25 @@ class AutonomyEngine:
 
                 if self.enabled and not self.is_user_active():
                     self._emit_activity("checking", "Looking for approved proposals to execute...")
-                    await self._execute_next_proposal()
+                    # Process ALL approved proposals in this cycle, not just one
+                    executed_count = 0
+                    while True:
+                        had_work = await self._execute_next_proposal()
+                        if not had_work:
+                            break
+                        executed_count += 1
+                        # Brief pause between proposals so the dashboard can update
+                        await asyncio.sleep(5)
+                        # Re-check conditions
+                        if not self.enabled or self.is_user_active():
+                            break
+                    if executed_count > 0:
+                        logger.info(f"Executed {executed_count} proposal(s) this cycle")
                 else:
                     if self.is_user_active():
-                        logger.debug("Execution skipped — user is active")
+                        logger.debug("Execution skipped -- user is active")
                     else:
-                        logger.debug("Execution skipped — engine disabled")
+                        logger.debug("Execution skipped -- engine disabled")
             except asyncio.CancelledError:
                 break
             except Exception as exc:
@@ -525,7 +538,7 @@ class AutonomyEngine:
         Flow: read file → ask AI for new content → write file → test → commit/revert
         """
         if not PROPOSALS_DIR.exists():
-            return
+            return False
 
         # Find approved proposals, sorted by priority
         priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -541,7 +554,7 @@ class AutonomyEngine:
 
         if not approved:
             self.status["execution"]["last_run"] = time.time()
-            return
+            return False
 
         # Sort by priority
         approved.sort(key=lambda x: priority_order.get(x[1].get("priority", "low"), 3))
@@ -578,7 +591,7 @@ class AutonomyEngine:
                 })
                 self.status["execution"]["last_run"] = time.time()
                 self._emit_activity("error", "Failed: Could not determine target files")
-                return
+                return False
 
             # Step 2: Create git safety branch
             branch_name = f"self-improve/{proposal['id']}-{proposal['category']}"
@@ -611,7 +624,7 @@ class AutonomyEngine:
                 })
                 self.status["execution"]["last_run"] = time.time()
                 self._emit_activity("error", f"Failed: AI could not generate valid edits for {proposal['title']}")
-                return
+                return False
 
             # Step 4: Run tests
             self._emit_activity("testing", f"Running tests to verify: {proposal['title']}",
@@ -634,6 +647,7 @@ class AutonomyEngine:
                 filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
 
                 self.status["execution"]["proposals_executed"] += 1
+            return True
                 self.status["execution"]["last_result"] = proposal["title"]
                 self._log("proposal_execution_done", {
                     "id": proposal["id"],
