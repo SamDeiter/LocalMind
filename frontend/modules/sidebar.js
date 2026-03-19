@@ -1,5 +1,6 @@
 /**
- * Sidebar features — Hardware dashboard, Memory viewer, Document RAG, Version badge.
+ * Sidebar features — Hardware dashboard, Memory viewer, Document RAG,
+ * Proposals dashboard, Autonomy status, Version badge.
  */
 
 import { API, state } from "./state.js";
@@ -41,10 +42,13 @@ export async function pollHardware() {
       vramBar.className = "hw-fill hw-fill-purple";
     } else {
       if (vramBar) vramBar.style.width = "0%";
-      if (vramVal) vramVal.textContent = "No model loaded";
+      if (vramVal) vramVal.textContent = "Warming up...";
       if (modelLabel) modelLabel.textContent = "Model";
       if (vramBar) vramBar.className = "hw-fill hw-fill-dim";
     }
+
+    // Also poll autonomy status
+    await pollAutonomy();
   } catch {
     /* ignore */
   }
@@ -54,6 +58,30 @@ export function startHwPolling() {
   if (hwInterval) return;
   pollHardware();
   hwInterval = setInterval(pollHardware, 3000);
+}
+
+// ── Autonomy Status ─────────────────────────────────────────────
+async function pollAutonomy() {
+  try {
+    const r = await fetch(`${API}/api/autonomy/status`);
+    const d = await r.json();
+    const indicator = document.getElementById("autonomyIndicator");
+    const label = document.getElementById("autonomyLabel");
+    if (indicator) {
+      indicator.className = d.enabled ? "autonomy-dot autonomy-active" : "autonomy-dot autonomy-paused";
+    }
+    if (label) {
+      if (!d.enabled) {
+        label.textContent = "Paused";
+      } else if (d.health_check && d.health_check.model_loaded) {
+        label.textContent = "Active";
+      } else {
+        label.textContent = "Starting...";
+      }
+    }
+  } catch {
+    /* server not ready yet */
+  }
 }
 
 // ── Memory Viewer ───────────────────────────────────────────────

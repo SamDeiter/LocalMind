@@ -106,6 +106,14 @@ except ImportError:
 from backend.model_router import route_model as route_model_hybrid, MODELS as MODEL_DEFS
 from backend.gemini_client import is_available as gemini_is_available
 
+# ── Autonomy Engine ───────────────────────────────────────────────────
+# Background scheduler for autonomous health checks, reflection, and proposal execution
+from backend.autonomy import AutonomyEngine
+autonomy_engine = AutonomyEngine(
+    ollama_url="http://localhost:11434",
+    default_model="qwen2.5-coder:7b",
+)
+
 # ── Constants ─────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"
 DB_PATH = Path(__file__).parent / "conversations.db"
@@ -298,11 +306,13 @@ def get_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database and configure routers on startup."""
+    """Initialize database, configure routers, and start autonomy engine on startup."""
     init_db()
     _configure_routers()
-    logger.info("LocalMind server initialized")
+    await autonomy_engine.start()
+    logger.info("LocalMind server initialized (autonomy engine active)")
     yield
+    await autonomy_engine.stop()
 
 
 def _configure_routers():
@@ -424,6 +434,25 @@ async def list_models():
             return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
+
+
+# ── Autonomy Endpoints ────────────────────────────────────────────────
+
+@app.get("/api/autonomy/status")
+async def autonomy_status():
+    """Get the current autonomy engine status.
+    
+    Returns loop timing, proposal counts, test results, and uptime.
+    The frontend polls this alongside hardware status.
+    """
+    return autonomy_engine.get_status()
+
+
+@app.post("/api/autonomy/toggle")
+async def toggle_autonomy():
+    """Pause or resume the autonomy engine."""
+    new_state = autonomy_engine.toggle()
+    return {"enabled": new_state}
 
 
 @app.get("/api/version")
