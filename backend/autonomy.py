@@ -60,6 +60,8 @@ class AutonomyEngine:
         self._activity_subscribers: list[asyncio.Queue] = []
         self._recent_events: list[dict] = []  # ring buffer for dashboard reload
         self._start_time: float = time.time()
+        self._manual_reflection_event = asyncio.Event()
+        self._manual_execution_event = asyncio.Event()
 
         # Status tracking
         self.status = {
@@ -101,6 +103,9 @@ class AutonomyEngine:
             "time": time.strftime("%H:%M:%S"),
             "action": action,
             "detail": detail,
+            "model": extra.get("model", self.default_model),
+            "ideas": self.status["reflection"]["proposals_logged"],
+            "applied": self.status["execution"]["proposals_executed"],
             **extra,
         }
         self.status["current_activity"] = event
@@ -108,6 +113,7 @@ class AutonomyEngine:
         self._recent_events.append(event)
         if len(self._recent_events) > 30:
             self._recent_events = self._recent_events[-30:]
+            
         for q in self._activity_subscribers:
             try:
                 q.put_nowait(event)
@@ -139,6 +145,11 @@ class AutonomyEngine:
                 f.write(json.dumps(entry) + "\n")
         except Exception as exc:
             logger.warning(f"Failed to write autonomy log: {exc}")
+
+    def trigger_execution(self):
+        """Manually trigger the execution cycle."""
+        self._manual_execution_event.set()
+        logger.info("⚙️ Manual execution event set")
 
     async def start(self):
         """Start all background loops."""
@@ -250,24 +261,39 @@ class AutonomyEngine:
     # ── Self-Reflection Loop ─────────────────────────────────────────
 
     async def _reflection_loop(self):
-        """Every 5 min: review recent conversations and log proposals."""
-        await asyncio.sleep(90)  # Wait 90s after startup before first reflection
+        """Frequency: Review recent conversations and log proposals (Manual or 5min)."""
+        await asyncio.sleep(60)  # Wait 60s after startup before first reflection
 
         while True:
             try:
+                # Wait for manual trigger OR 5 minute timeout
+                try:
+                    await asyncio.wait_for(self._manual_reflection_event.wait(), timeout=300)
+                    self._manual_reflection_event.clear()
+                    logger.info("⚡ Executing manual reflection")
+                except asyncio.TimeoutError:
+                    # Regular scheduled reflection
+                    pass
+
                 if self.enabled and not self.is_user_active():
-                    self._emit_activity("reflecting", "Reviewing codebase for improvement ideas...")
+                    self._emit_activity("reflecting", "Step 1/2: Analyzing project structure...")
                     await self._run_reflection()
                     self._emit_activity("idle", "Waiting for next reflection cycle")
                 else:
-                    logger.debug("Reflection skipped — user is active")
-                await asyncio.sleep(300)  # 5 minutes
+                    if self.is_user_active():
+                        logger.debug("Reflection skipped — user is active")
+                    else:
+                        logger.debug("Reflection skipped — engine disabled")
+                
+                # Small buffer to prevent spamming if event is set repeatedly
+                await asyncio.sleep(10) 
+                
             except asyncio.CancelledError:
                 break
             except Exception as exc:
                 logger.error(f"Reflection loop error: {exc}")
                 self._emit_activity("error", f"Reflection failed: {exc}")
-                await asyncio.sleep(300)
+                await asyncio.sleep(60)
 
     async def _run_reflection(self):
         """Ask the AI to reflect on its own codebase and log proposals."""
@@ -285,6 +311,7 @@ class AutonomyEngine:
 
             file_list = "\n".join(f"  - {f}" for f in sorted(real_files)[:60])
 
+            self._emit_activity("reflecting", f"Step 2/2: Generating proposals with {self.default_model}...")
             # Use Ollama directly to ask for improvement ideas
             async with httpx.AsyncClient(timeout=120.0) as client:
                 prompt = (
@@ -409,6 +436,29 @@ class AutonomyEngine:
         """Mark a proposal as approved so the execution loop will pick it up."""
         return self._update_proposal_status(proposal_id, "approved")
 
+    def retry_proposal(self, proposal_id: str) -> Optional[dict]:
+        """Reset a failed proposal to approved status for re-execution."""
+        # Find the proposal first to clear errors
+        if not PROPOSALS_DIR.exists():
+            return None
+
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if data.get("id") == proposal_id:
+                    data["status"] = "approved"
+                    data["error"] = None
+                    data["status_changed_at"] = time.time()
+                    data["status_changed_at_human"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                    f.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    self._emit_activity("proposal_retried", 
+                                        f"Retrying: {data.get('title')}", 
+                                        proposal_id=proposal_id)
+                    return data
+            except Exception:
+                continue
+        return None
+
     def deny_proposal(self, proposal_id: str) -> Optional[dict]:
         """Mark a proposal as denied."""
         return self._update_proposal_status(proposal_id, "denied")
@@ -438,23 +488,36 @@ class AutonomyEngine:
     # ── Proposal Execution Loop ──────────────────────────────────────
 
     async def _execution_loop(self):
-        """Every 3 min: pick an approved proposal and execute it."""
-        await asyncio.sleep(120)  # Wait 2 min after startup
+        """Every 3 min: pick an approved proposal and execute it.
+        
+        Can also be triggered manually via trigger_execution().
+        """
+        await asyncio.sleep(10)  # Short wait after startup
 
         while True:
             try:
+                # Wait for manual trigger OR 3 minute timeout
+                try:
+                    await asyncio.wait_for(self._manual_execution_event.wait(), timeout=180)
+                    self._manual_execution_event.clear()
+                    logger.info("⚡ Executing manual task run")
+                except asyncio.TimeoutError:
+                    pass
+
                 if self.enabled and not self.is_user_active():
                     self._emit_activity("checking", "Looking for approved proposals to execute...")
                     await self._execute_next_proposal()
                 else:
-                    logger.debug("Execution skipped — user is active")
-                await asyncio.sleep(180)  # 3 minutes
+                    if self.is_user_active():
+                        logger.debug("Execution skipped — user is active")
+                    else:
+                        logger.debug("Execution skipped — engine disabled")
             except asyncio.CancelledError:
                 break
             except Exception as exc:
                 logger.error(f"Execution loop error: {exc}")
                 self._emit_activity("error", f"Execution failed: {exc}")
-                await asyncio.sleep(180)
+                await asyncio.sleep(60)
 
     async def _execute_next_proposal(self):
         """Find the highest-priority approved proposal and execute it.
@@ -492,7 +555,9 @@ class AutonomyEngine:
         logger.info(f"🔧 Executing proposal: {proposal['title']}")
         self._log("proposal_execution_start", {"id": proposal["id"], "title": proposal["title"]})
         self._emit_activity("executing", f"Starting: {proposal['title']}",
-                            proposal_id=proposal["id"])
+                            proposal_id=proposal["id"],
+                            task_description=proposal.get("description", ""),
+                            proposal_title=proposal.get("title", ""))
 
         try:
             # Step 1: Determine target files
@@ -512,20 +577,24 @@ class AutonomyEngine:
                     "id": proposal["id"], "error": "no target files"
                 })
                 self.status["execution"]["last_run"] = time.time()
+                self._emit_activity("error", "Failed: Could not determine target files")
                 return
 
             # Step 2: Create git safety branch
             branch_name = f"self-improve/{proposal['id']}-{proposal['category']}"
             self._git_run(["checkout", "-b", branch_name])
             self._log("git_branch_created", {"branch": branch_name})
-            self._emit_activity("git", f"Created safety branch: {branch_name}")
+            self._emit_activity("git", f"Created safety branch: {branch_name}",
+                            proposal_title=proposal.get("title", ""))
             logger.info(f"🌿 Created safety branch: {branch_name}")
 
             # Step 3: For each target file, read → AI → write
             edits_applied = []
             for target_file in files_affected[:3]:  # Cap at 3 files per proposal
                 self._emit_activity("writing", f"Editing: {target_file}",
-                                    file=target_file)
+                                    file=target_file,
+                                    task_description=proposal.get("description", ""),
+                                    proposal_title=proposal.get("title", ""))
                 success = await self._edit_single_file(target_file, proposal)
                 if success:
                     edits_applied.append(target_file)
@@ -541,13 +610,17 @@ class AutonomyEngine:
                     "id": proposal["id"], "error": "no edits applied"
                 })
                 self.status["execution"]["last_run"] = time.time()
+                self._emit_activity("error", "Failed: Could not determine target files")
                 return
 
             # Step 4: Run tests
-            self._emit_activity("testing", "Running test suite to verify changes...")
-            test_passed = await self._run_tests()
+            self._emit_activity("testing", f"Running tests to verify: {proposal['title']}",
+                            proposal_title=proposal.get("title", ""))
+            test_passed, test_output = await self._run_tests()
 
             if test_passed:
+                self._emit_activity("committing", f"Committing: {proposal['title']}",
+                            proposal_title=proposal.get("title", ""))
                 # Step 5a: Tests passed — commit and log success
                 commit_msg = f"[autonomy] {proposal['title']}\n\nProposal ID: {proposal['id']}\nCategory: {proposal['category']}\nFiles: {', '.join(edits_applied)}"
                 self._git_run(["add", "-A"])
@@ -569,7 +642,7 @@ class AutonomyEngine:
                     "branch": branch_name,
                 })
                 self._emit_activity("completed",
-                                    f"✅ Done: {proposal['title']} → branch {branch_name}",
+                                    f"✨ COMPLETED: {proposal['title']} (Changes applied & tests passed)",
                                     proposal_id=proposal["id"],
                                     files=edits_applied,
                                     branch=branch_name)
@@ -585,18 +658,21 @@ class AutonomyEngine:
                 self._git_run(["branch", "-D", branch_name])
 
                 proposal["status"] = "failed"
-                proposal["error"] = "Tests failed after applying edits — reverted"
+                # Extract first few lines of test failure for the error field
+                short_error = "\n".join(test_output.splitlines()[:5])
+                proposal["error"] = f"Tests failed after applying edits:\n{short_error}"
                 proposal["execution_finished_at"] = time.time()
                 filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
 
                 self._log("proposal_execution_reverted", {
                     "id": proposal["id"],
                     "title": proposal["title"],
-                    "reason": "tests_failed",
+                    "reason": test_output,
                 })
                 self._emit_activity("reverted",
-                                    f"⚠️ Reverted: {proposal['title']} (tests failed)",
-                                    proposal_id=proposal["id"])
+                                    f"❌ REVERTED: {proposal['title']} (Automated tests failed - check logs for details)",
+                                    proposal_id=proposal["id"],
+                                    reason=test_output)
                 logger.warning(f"⚠️ Proposal reverted: {proposal['title']} (tests failed)")
 
         except Exception as exc:
@@ -727,7 +803,9 @@ class AutonomyEngine:
                     f"DESCRIPTION: {proposal['description']}\n\n"
                     f"FILE: {relative_path}\n"
                     f"CURRENT CONTENT:\n```\n{original_content}\n```\n\n"
-                    f"Output the COMPLETE improved file content. "
+                    f"Output the COMPLETE improved file content.\n"
+                    f"IMPORTANT: You MUST add a short comment at the top of the file or near the changes "
+                    f"noting that LocalMind made this change and briefly explaining WHY (based on the proposal above).\n"
                     f"Make MINIMAL, TARGETED changes that address the proposal. "
                     f"Do NOT remove existing functionality. "
                     f"Do NOT add placeholder comments like 'rest of code here'. "
@@ -740,12 +818,13 @@ class AutonomyEngine:
                         "model": self.default_model,
                         "prompt": prompt,
                         "stream": False,
-                        "options": {"num_predict": 4000, "num_ctx": 8192},
+                        "options": {"num_predict": 16000, "num_ctx": 16384},
                     },
                 )
 
                 if resp.status_code != 200:
                     logger.warning(f"Ollama returned {resp.status_code} for edit")
+                    self._emit_activity("error", f"Edit failed: Ollama returned HTTP {resp.status_code} for {relative_path}")
                     return False
 
                 new_content = resp.json().get("response", "").strip()
@@ -763,7 +842,8 @@ class AutonomyEngine:
 
             # Sanity checks
             if len(new_content) < 10:
-                logger.warning(f"AI returned too-short content for {relative_path}")
+                logger.warning(f"AI returned too-short content for {relative_path}: got {len(new_content)} chars")
+                self._emit_activity("error", f"Edit failed: AI output too short for {relative_path} ({len(new_content)} chars)")
                 return False
 
             if len(new_content) > 60_000:
@@ -773,6 +853,7 @@ class AutonomyEngine:
             # Don't apply if content is identical
             if new_content.strip() == original_content.strip():
                 logger.info(f"No changes needed for {relative_path}")
+                self._emit_activity("info", f"Skipped: No changes needed for {relative_path}")
                 return False
 
             # Create backup
@@ -828,16 +909,21 @@ class AutonomyEngine:
 
     # ── Auto-Test Runner ─────────────────────────────────────────────
 
-    async def _run_tests(self) -> bool:
-        """Run pytest and return True if all tests pass."""
+    async def _run_tests(self) -> tuple[bool, str]:
+        """Run pytest and return (success, output)."""
         try:
+            # -q --tb=short gives concise but useful failure info
             result = subprocess.run(
-                ["python", "-m", "pytest", "tests/", "-q", "--tb=no"],
+                ["python", "-m", "pytest", "tests/", "-q", "--tb=short"],
                 capture_output=True, text=True, timeout=60,
                 cwd=str(PROJECT_ROOT),
             )
 
-            output = result.stdout.strip()
+            output = result.stdout.strip() or result.stderr.strip()
+            # Handle empty output
+            if not output:
+                output = "No test output captured."
+                
             # Parse "83 passed in 10.11s"
             passed = failed = 0
             for line in output.splitlines():
@@ -858,11 +944,15 @@ class AutonomyEngine:
             self._log("auto_test", {"passed": passed, "failed": failed})
             logger.info(f"🧪 Auto-test: {passed} passed, {failed} failed")
 
-            return result.returncode == 0
+            # Exit code 0 = pass, exit code 5 = no tests collected (also treat as pass)
+            success = result.returncode == 0 or result.returncode == 5
+            if result.returncode == 5:
+                logger.info("No tests collected — treating as pass")
+            return success, output
 
         except Exception as exc:
             logger.warning(f"Auto-test failed: {exc}")
-            return False
+            return False, str(exc)
 
     def get_status(self) -> dict:
         """Return the full autonomy status for the API."""

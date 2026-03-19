@@ -355,26 +355,44 @@
               <div class="brain-header">
                 <span class="brain-pulse"></span>
                 <span class="brain-title">AI Brain Activity</span>
-                <span class="brain-mode" id="brainMode" title="Current autonomy mode">🛡️ Supervised</span>
+                <div class="brain-header-actions">
+                  <button id="brainReflectBtn" class="btn-brain-action" title="Manually trigger AI reflection cycle (Reflection -> Proposal -> Execution)">Reflect Now</button>
+                  <button id="brainExecuteBtn" class="btn-brain-action accent-purple" title="Manually trigger immediate execution of approved proposals">Run Tasks</button>
+                  <span class="brain-mode" id="brainMode" title="Current autonomy mode">🛡️ Supervised</span>
+                </div>
               </div>
-              <div class="brain-stats">
-                <div class="brain-stat" title="Time since engine started">
+              <div class="brain-stats" id="brainStats">
+                <div class="brain-stat">
                   <span class="brain-stat-label">Uptime</span>
                   <span class="brain-stat-value" id="brainUptime">0m</span>
                 </div>
-                <div class="brain-stat" title="Number of improvement proposals generated">
+                <div class="brain-stat">
                   <span class="brain-stat-label">Ideas</span>
-                  <span class="brain-stat-value" id="brainProposals">0</span>
+                  <span class="brain-stat-value" id="brainIdeas">0</span>
                 </div>
-                <div class="brain-stat" title="Proposals successfully executed">
+                <div class="brain-stat">
                   <span class="brain-stat-label">Applied</span>
-                  <span class="brain-stat-value" id="brainExecuted">0</span>
+                  <span class="brain-stat-value" id="brainApplied">0</span>
                 </div>
-                <div class="brain-stat" title="Current engine action">
+                <div class="brain-stat">
                   <span class="brain-stat-label">Status</span>
-                  <span class="brain-stat-value" id="brainStatus">Starting...</span>
+                  <span class="brain-stat-value" id="brainStatus">Idle</span>
                 </div>
               </div>
+
+              <!-- New Live Progress Section -->
+              <div id="brainLiveProgress" class="brain-live-progress" style="display: none;">
+                <div class="brain-live-header">
+                   <span class="brain-focus-label">Current Focus</span>
+                   <span id="brainModelInfo" class="brain-model-info">ollama: llama3</span>
+                </div>
+                <div id="brainCurrentTask" class="brain-current-task">Analyzing codebase for improvements...</div>
+                <div id="brainTaskDescription" class="brain-task-description"></div>
+                <div class="brain-progress-container">
+                   <div id="brainProgressBar" class="brain-progress-bar"></div>
+                </div>
+              </div>
+
               <div class="brain-timeline" id="brainTimeline">
                 <div class="brain-event brain-event-idle">
                   <span class="brain-event-icon">💤</span>

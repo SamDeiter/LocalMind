@@ -3,8 +3,8 @@
  * Proposals dashboard, Autonomy status, Version badge.
  */
 
-import { API, state } from "./state.js";
-import { escapeHtml } from "./utils.js";
+import { API } from "./state.js";
+import { escapeHtml, showToast } from "./utils.js";
 
 // ── Hardware Dashboard ──────────────────────────────────────────
 let hwInterval = null;
@@ -91,20 +91,36 @@ async function pollAutonomy() {
       // Also update brain dashboard mode badge
       const brainMode = document.getElementById("brainMode");
       if (brainMode) {
-        brainMode.textContent = d.mode === "autonomous" ? "🤖 Autonomous" : "🛡️ Supervised";
+        const isAuto = d.mode === "autonomous";
+        brainMode.textContent = isAuto ? "🤖 Autonomous" : "🛡️ Supervised";
+        brainMode.classList.toggle("autonomous", isAuto);
       }
     }
 
     // Sync brain dashboard counters from server
     if (d.reflection) {
-      const ideasEl = document.getElementById("brainProposals");
+      const ideasEl = document.getElementById("brainIdeas");
       if (ideasEl) ideasEl.textContent = d.reflection.proposals_logged || 0;
       brainProposalCount = d.reflection.proposals_logged || 0;
     }
     if (d.execution) {
-      const execEl = document.getElementById("brainExecuted");
+      const execEl = document.getElementById("brainApplied");
       if (execEl) execEl.textContent = d.execution.proposals_executed || 0;
       brainExecutedCount = d.execution.proposals_executed || 0;
+    }
+
+    // Sync global counts for sidebar counters
+    if (d.memories_count !== undefined) {
+      const el = document.getElementById("memoryCount");
+      if (el) el.textContent = d.memories_count;
+    }
+    if (d.documents_count !== undefined) {
+      const el = document.getElementById("docCount");
+      if (el) el.textContent = d.documents_count;
+    }
+    if (d.proposals_count !== undefined) {
+      const el = document.getElementById("proposalCount");
+      if (el) el.textContent = d.proposals_count;
     }
 
     // Sync uptime from server start_time
@@ -188,8 +204,15 @@ export function connectActivityFeed() {
       addActivityItem(event);
       updateActivityBar(event);
       updateBrainDashboard(event);
-    } catch {
-      /* ignore parse errors */
+
+      // Show toast notifications for key events
+      if (event.action === "completed") {
+        showToast(`✨ ${event.detail}`, "info");
+      } else if (event.action === "error" || event.action === "reverted") {
+        showToast(`${ACTION_ICONS[event.action] || "⚠️"} ${event.detail}`, "error");
+      }
+    } catch (err) {
+      console.error("Failed to parse SSE event:", err);
     }
   };
 
@@ -254,13 +277,59 @@ function updateBrainDashboard(event) {
   }
 
   // Track counters
-  if (event.action === "proposal_created") brainProposalCount++;
-  if (event.action === "completed") brainExecutedCount++;
+  if (event.ideas !== undefined) brainProposalCount = event.ideas;
+  else if (event.action === "proposal_created") brainProposalCount++;
 
-  const ideasEl = document.getElementById("brainProposals");
-  const execEl = document.getElementById("brainExecuted");
+  if (event.applied !== undefined) brainExecutedCount = event.applied;
+  else if (event.action === "completed") brainExecutedCount++;
+
+  const ideasEl = document.getElementById("brainIdeas");
+  const execEl = document.getElementById("brainApplied");
   if (ideasEl) ideasEl.textContent = brainProposalCount;
   if (execEl) execEl.textContent = brainExecutedCount;
+
+  // Handle Live Progress Overlay
+  const liveSection = document.getElementById("brainLiveProgress");
+  const currentTaskEl = document.getElementById("brainCurrentTask");
+  const progressBar = document.getElementById("brainProgressBar");
+  const modelInfoEl = document.getElementById("brainModelInfo");
+
+  if (liveSection) {
+    const isExecuting = !["idle", "completed", "error", "reverted", "proposal_created"].includes(event.action);
+    liveSection.style.display = isExecuting ? "block" : "none";
+
+    if (isExecuting && currentTaskEl) {
+      currentTaskEl.textContent = event.detail || event.action;
+
+      // Show the task description (what the AI is actually doing)
+      const descEl = document.getElementById("brainTaskDescription");
+      if (descEl && event.task_description) {
+        descEl.textContent = event.task_description;
+        descEl.style.display = "block";
+      } else if (descEl && event.proposal_title) {
+        descEl.textContent = event.proposal_title;
+        descEl.style.display = "block";
+      } else if (descEl) {
+        descEl.style.display = "none";
+      }
+      
+      // Estimate progress based on action type
+      if (progressBar) {
+        let progress = 10;
+        if (event.action === "executing" || event.action === "checking") progress = 15;
+        else if (event.action === "git") progress = 30;
+        else if (event.action === "writing") progress = 50;
+        else if (event.action === "testing") progress = 70;
+        else if (event.action === "committing") progress = 90;
+        
+        progressBar.style.width = `${progress}%`;
+      }
+    }
+    
+    if (modelInfoEl && event.model) {
+      modelInfoEl.textContent = event.model;
+    }
+  }
 
   // Add event to brain timeline
   if (!timeline) return;
@@ -270,9 +339,19 @@ function updateBrainDashboard(event) {
 
   const evEl = document.createElement("div");
   evEl.className = `brain-event ${isActive ? "brain-event-active" : ""}`;
+  
+  // Build detailed event text
+  let eventText = escapeHtml(event.detail || event.action);
+  if (event.task_description && isActive) {
+    const shortDesc = event.task_description.length > 80 
+      ? event.task_description.substring(0, 80) + "..." 
+      : event.task_description;
+    eventText += `<br><span class="brain-event-desc">${escapeHtml(shortDesc)}</span>`;
+  }
+  
   evEl.innerHTML = `
     <span class="brain-event-icon">${icon}</span>
-    <span class="brain-event-text">${escapeHtml(event.detail || event.action)}</span>
+    <span class="brain-event-text">${eventText}</span>
     <span class="brain-event-time">${timeStr}</span>
   `;
 
@@ -520,7 +599,11 @@ export async function loadProposals() {
         }
         ${
           p.status === "failed"
-            ? `<div class="proposal-error">${escapeHtml(p.error || "Unknown error")}</div>`
+            ? `
+          <div class="proposal-error">${escapeHtml(p.error || "Unknown error")}</div>
+          <div class="proposal-actions">
+            <button class="retry-btn" data-id="${escapeHtml(p.id)}" title="Retry this proposal">🔄 Retry</button>
+          </div>`
             : ""
         }
       </div>
@@ -546,6 +629,15 @@ export async function loadProposals() {
       });
     });
 
+    // Wire retry buttons
+    listEl.querySelectorAll(".retry-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "⏳ Retrying...";
+        await retryProposal(btn.dataset.id);
+      });
+    });
+
     listEl.querySelectorAll(".approval-btn.deny").forEach((btn) => {
       btn.addEventListener("click", async () => {
         btn.disabled = true;
@@ -567,3 +659,95 @@ export async function loadProposals() {
   }
 }
 
+/**
+ * Manually trigger the AI reflection cycle.
+ */
+export async function triggerReflection() {
+  const btn = document.getElementById("brainReflectBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("loading");
+  }
+
+  try {
+    const resp = await fetch(`${API}/api/autonomy/reflect`, { method: "POST" });
+    const data = await resp.json();
+    if (data.ok) {
+      showToast("🧠 AI Reflection triggered", "info");
+    } else {
+      showToast("❌ Failed to trigger reflection", "error");
+    }
+  } catch (err) {
+    console.error("Failed to trigger reflection:", err);
+    showToast("❌ Connection error", "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove("loading");
+    }
+  }
+}
+
+/**
+ * Manually trigger the AI execution cycle.
+ */
+export async function triggerExecution() {
+  const btn = document.getElementById("brainExecuteBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("loading");
+    btn.textContent = "Running...";
+  }
+
+  try {
+    const resp = await fetch(`${API}/api/autonomy/execute`, { method: "POST" });
+    const data = await resp.json();
+    if (data.ok) {
+      showToast("⚙️ AI Task Execution triggered", "info");
+    } else {
+      showToast("❌ Failed to trigger task execution", "error");
+    }
+  } catch (err) {
+    console.error("Failed to trigger execution:", err);
+    showToast("❌ Connection error", "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove("loading");
+      btn.textContent = "Run Tasks";
+    }
+  }
+}
+
+/**
+ * Reset a failed proposal to approved status for re-execution.
+ */
+export async function retryProposal(id) {
+  try {
+    const r = await fetch(`${API}/api/proposals/${id}/retry`, { method: "POST" });
+    const data = await r.json();
+    if (data.ok) {
+      showToast("🔄 Proposal queued for retry", "info");
+      loadProposals();
+    } else {
+      showToast("❌ Failed to retry: " + (data.message || "Unknown error"), "error");
+    }
+  } catch {
+    showToast("❌ Connection error", "error");
+  }
+}
+
+// Make globally available for onclick handlers
+window.retryProposal = retryProposal;
+window.triggerReflection = triggerReflection;
+window.triggerExecution = triggerExecution;
+window.approveProposal = (id) => {
+    fetch(`${API}/api/proposals/${id}/approve`, { method: "POST" })
+        .then(r => r.json())
+        .then(d => { if(d.ok) { showToast("✅ Approved", "info"); loadProposals(); } });
+};
+window.denyProposal = (id) => {
+    fetch(`${API}/api/proposals/${id}/deny`, { method: "POST" })
+        .then(r => r.json())
+        .then(d => { if(d.ok) { showToast("❌ Denied", "info"); loadProposals(); } });
+};
