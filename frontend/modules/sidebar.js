@@ -84,6 +84,105 @@ async function pollAutonomy() {
   }
 }
 
+// ── Live Activity Feed (SSE) ──────────────────────────────────────
+let activityEventSource = null;
+const MAX_ACTIVITY_ITEMS = 15;
+
+const ACTION_ICONS = {
+  idle: "💤",
+  reflecting: "🔍",
+  proposal_created: "💡",
+  auto_approved: "🤖",
+  checking: "🔎",
+  executing: "⚡",
+  git: "🌿",
+  writing: "✍️",
+  testing: "🧪",
+  completed: "✅",
+  reverted: "⚠️",
+  error: "❌",
+  mode_changed: "🔄",
+};
+
+export function connectActivityFeed() {
+  if (activityEventSource) activityEventSource.close();
+
+  activityEventSource = new EventSource(`${API}/api/autonomy/activity`);
+
+  activityEventSource.onmessage = (e) => {
+    try {
+      const event = JSON.parse(e.data);
+      addActivityItem(event);
+      updateActivityBar(event);
+    } catch {
+      /* ignore parse errors */
+    }
+  };
+
+  activityEventSource.onerror = () => {
+    // Reconnect after 5s on error
+    setTimeout(() => connectActivityFeed(), 5000);
+  };
+}
+
+function addActivityItem(event) {
+  const feed = document.getElementById("activityFeed");
+  if (!feed) return;
+
+  const icon = ACTION_ICONS[event.action] || "📋";
+  const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+
+  const item = document.createElement("div");
+  item.className = `activity-item ${isActive ? "activity-active" : "activity-idle"}`;
+  item.innerHTML = `
+    <span class="activity-icon">${icon}</span>
+    <span class="activity-text">${escapeHtml(event.detail || event.action)}</span>
+    <span class="activity-time">${event.time || ""}</span>
+  `;
+
+  // Prepend (newest first)
+  feed.prepend(item);
+
+  // Trim old items
+  while (feed.children.length > MAX_ACTIVITY_ITEMS) {
+    feed.removeChild(feed.lastChild);
+  }
+}
+
+function updateActivityBar(event) {
+  const activityEl = document.getElementById("autonomyActivity");
+  if (activityEl) {
+    const icon = ACTION_ICONS[event.action] || "";
+    activityEl.textContent = `${icon} ${event.detail || event.action}`;
+  }
+}
+
+// ── Activity Toggle ─────────────────────────────────────────────
+export function toggleActivityFeed() {
+  const feed = document.getElementById("activityFeed");
+  if (feed) feed.classList.toggle("open");
+}
+
+// ── Autonomy Mode Toggle ────────────────────────────────────────
+export async function setAutonomyMode(mode) {
+  try {
+    const r = await fetch(`${API}/api/autonomy/mode`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      // Update button states
+      document.getElementById("modeSupervisedBtn")?.classList.toggle("active", mode === "supervised");
+      document.getElementById("modeAutonomousBtn")?.classList.toggle("active", mode === "autonomous");
+      console.log(`[LocalMind] Autonomy mode: ${mode}`);
+    }
+  } catch (e) {
+    console.warn("Mode switch failed:", e);
+  }
+}
+
 // ── Memory Viewer ───────────────────────────────────────────────
 export async function loadMemories() {
   try {

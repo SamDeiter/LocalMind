@@ -1858,3 +1858,144 @@ body {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
   50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   ACTIVITY FEED — Twitter-style live timeline
+   ══════════════════════════════════════════════════════════════════ */
+
+.activity-feed {
+  display: none;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+.activity-feed.open {
+  display: block;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-left: 2px solid rgba(255,255,255,0.08);
+  margin-left: 10px;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.65);
+  transition: all 0.25s ease;
+  animation: feedSlideIn 0.3s ease-out;
+  position: relative;
+}
+.activity-item::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transition: all 0.3s;
+}
+
+.activity-item.activity-active {
+  color: rgba(255,255,255,0.9);
+  border-left-color: #60a5fa;
+}
+.activity-item.activity-active::before {
+  background: #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.5);
+  animation: dotPulse 1.5s ease-in-out infinite;
+}
+
+.activity-item.activity-idle {
+  opacity: 0.6;
+}
+
+.activity-icon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.activity-text {
+  flex: 1;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.activity-time {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.35);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
+@keyframes feedSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.4); }
+  50%      { box-shadow: 0 0 0 5px rgba(96, 165, 250, 0); }
+}
+
+/* ── Autonomy Mode Toggle ──────────────────────────────────────── */
+
+.autonomy-mode-toggle {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.mode-switch {
+  display: flex;
+  gap: 4px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 3px;
+}
+.mode-btn-auto {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.72rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+}
+.mode-btn-auto:hover {
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.06);
+}
+.mode-btn-auto.active {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  box-shadow: 0 1px 4px rgba(96, 165, 250, 0.15);
+}
+.mode-btn-auto.active[data-mode="autonomous"] {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.15);
+}
+
+/* ── Sidebar Section improvements ──────────────────────────────── */
+
+.sidebar-section-header {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── Activity status bar supplement ────────────────────────────── */
+#autonomyActivity {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -97,6 +97,29 @@
           </div>
           <div id="proposalList" class="proposal-list"></div>
         </div>
+        <!-- Autonomy Activity Feed -->
+        <div class="sidebar-section" id="activitySection">
+          <div class="sidebar-section-header" id="activityToggle">
+            🤖 Activity
+          </div>
+          <div id="activityFeed" class="activity-feed">
+            <div class="activity-item activity-idle">
+              <span class="activity-dot"></span>
+              <span class="activity-text">Waiting to start...</span>
+            </div>
+          </div>
+        </div>
+        <!-- Autonomy Mode Toggle -->
+        <div class="autonomy-mode-toggle">
+          <div class="mode-switch">
+            <button class="mode-btn-auto active" id="modeSupervisedBtn" data-mode="supervised" title="You approve proposals before execution">
+              🛡️ Supervised
+            </button>
+            <button class="mode-btn-auto" id="modeAutonomousBtn" data-mode="autonomous" title="AI auto-approves and executes low/medium risk proposals">
+              🤖 Autonomous
+            </button>
+          </div>
+        </div>
         <div id="versionBadge" class="version-badge" title="Build info">
           loading...
         </div>
@@ -356,6 +379,7 @@
             <div class="hw-metric" id="autonomyMetric">
               <span id="autonomyIndicator" class="autonomy-dot autonomy-active"></span>
               <span id="autonomyLabel" class="hw-metric-val" style="font-size: 0.7rem;">Starting...</span>
+              <span id="autonomyActivity" class="hw-metric-val" style="font-size: 0.65rem; opacity: 0.7; margin-left: 6px;"></span>
             </div>
           </div>
         </div>

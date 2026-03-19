@@ -22,6 +22,7 @@ ARCHITECTURE:
   routes/documents.py   → RAG document upload/index/delete
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -446,7 +447,9 @@ async def autonomy_status():
     Returns loop timing, proposal counts, test results, and uptime.
     The frontend polls this alongside hardware status.
     """
-    return autonomy_engine.get_status()
+    status = autonomy_engine.get_status()
+    status["mode"] = autonomy_engine.mode
+    return status
 
 
 @app.post("/api/autonomy/toggle")
@@ -454,6 +457,58 @@ async def toggle_autonomy():
     """Pause or resume the autonomy engine."""
     new_state = autonomy_engine.toggle()
     return {"enabled": new_state}
+
+
+@app.post("/api/autonomy/mode")
+async def set_autonomy_mode(request: Request):
+    """Switch between 'supervised' and 'autonomous' mode."""
+    body = await request.json()
+    mode = body.get("mode", "supervised")
+    try:
+        new_mode = autonomy_engine.set_mode(mode)
+        return {"ok": True, "mode": new_mode}
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/autonomy/activity")
+async def autonomy_activity_stream(request: Request):
+    """SSE endpoint streaming real-time autonomy engine events.
+    
+    The frontend connects to this for the live activity feed.
+    Each event is a JSON object with action, detail, and timestamp.
+    """
+    from starlette.responses import StreamingResponse
+
+    queue = autonomy_engine.subscribe_activity()
+
+    async def event_generator():
+        try:
+            # Send current status as first event
+            status = autonomy_engine.get_status()
+            current = status.get("current_activity")
+            if current:
+                yield f"data: {json.dumps(current)}\n\n"
+            else:
+                yield f"data: {json.dumps({'action': 'idle', 'detail': 'Waiting...', 'time': time.strftime('%H:%M:%S')})}\n\n"
+
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield f"data: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    # Send keepalive
+                    yield f": keepalive\n\n"
+        finally:
+            autonomy_engine.unsubscribe_activity(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 

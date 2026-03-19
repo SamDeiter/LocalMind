@@ -46,18 +46,25 @@ class AutonomyEngine:
     # is allowed to make Ollama requests (prevents competition).
     CHAT_COOLDOWN = 30
 
+    # Risk levels that auto-execute in autonomous mode
+    AUTO_APPROVE_RISKS = {"low", "medium"}
+
     def __init__(self, ollama_url: str = "http://localhost:11434",
                  default_model: str = "qwen2.5-coder:7b"):
         self.ollama_url = ollama_url
         self.default_model = default_model
         self.enabled = True
+        self.mode = "supervised"  # "supervised" or "autonomous"
         self.tasks: list[asyncio.Task] = []
-        self._last_chat_time: float = 0.0  # timestamp of last user chat
+        self._last_chat_time: float = 0.0
+        self._activity_subscribers: list[asyncio.Queue] = []
 
         # Status tracking
         self.status = {
             "enabled": True,
+            "mode": "supervised",
             "started_at": None,
+            "current_activity": None,
             "health_check": {"last_run": None, "ollama_ok": False, "model_loaded": False},
             "reflection": {"last_run": None, "proposals_logged": 0},
             "execution": {"last_run": None, "proposals_executed": 0, "last_result": None},
@@ -65,16 +72,52 @@ class AutonomyEngine:
         }
 
     def notify_chat_activity(self):
-        """Called by the chat route whenever the user sends a message.
-
-        This tells the autonomy engine to back off and stop making
-        Ollama requests so the user gets full GPU throughput.
-        """
+        """Called by the chat route whenever the user sends a message."""
         self._last_chat_time = time.time()
 
     def is_user_active(self) -> bool:
         """Returns True if the user chatted within CHAT_COOLDOWN seconds."""
         return (time.time() - self._last_chat_time) < self.CHAT_COOLDOWN
+
+    # ── Live Activity Feed ──────────────────────────────────────────
+
+    def subscribe_activity(self) -> asyncio.Queue:
+        """Create a new subscriber queue for SSE activity events."""
+        q: asyncio.Queue = asyncio.Queue(maxsize=50)
+        self._activity_subscribers.append(q)
+        return q
+
+    def unsubscribe_activity(self, q: asyncio.Queue):
+        """Remove a subscriber queue."""
+        if q in self._activity_subscribers:
+            self._activity_subscribers.remove(q)
+
+    def _emit_activity(self, action: str, detail: str = "", **extra):
+        """Push a live activity event to all SSE subscribers."""
+        event = {
+            "ts": time.time(),
+            "time": time.strftime("%H:%M:%S"),
+            "action": action,
+            "detail": detail,
+            **extra,
+        }
+        self.status["current_activity"] = event
+        for q in self._activity_subscribers:
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass  # Drop oldest if subscriber is slow
+
+    def set_mode(self, mode: str) -> str:
+        """Switch between 'supervised' and 'autonomous' mode."""
+        if mode not in ("supervised", "autonomous"):
+            raise ValueError(f"Invalid mode: {mode}")
+        self.mode = mode
+        self.status["mode"] = mode
+        self._log("mode_changed", {"mode": mode})
+        self._emit_activity("mode_changed", f"Switched to {mode} mode")
+        logger.info(f"🤖 Autonomy mode: {mode}")
+        return mode
 
     def _log(self, event: str, data: dict = None):
         """Append a structured log entry to autonomy_log.jsonl."""
@@ -207,7 +250,9 @@ class AutonomyEngine:
         while True:
             try:
                 if self.enabled and not self.is_user_active():
+                    self._emit_activity("reflecting", "Reviewing codebase for improvement ideas...")
                     await self._run_reflection()
+                    self._emit_activity("idle", "Waiting for next reflection cycle")
                 else:
                     logger.debug("Reflection skipped — user is active")
                 await asyncio.sleep(1800)  # 30 minutes
@@ -215,6 +260,7 @@ class AutonomyEngine:
                 break
             except Exception as exc:
                 logger.error(f"Reflection loop error: {exc}")
+                self._emit_activity("error", f"Reflection failed: {exc}")
                 await asyncio.sleep(1800)
 
     async def _run_reflection(self):
@@ -265,6 +311,9 @@ class AutonomyEngine:
                         await self._save_proposal(proposal)
                         self.status["reflection"]["proposals_logged"] += 1
                         self._log("reflection_done", {"proposal": proposal.get("title", "?")})
+                        self._emit_activity("proposal_created", f"New proposal: {proposal.get('title', '?')}",
+                                            proposal_id=proposal.get("id", ""),
+                                            category=proposal.get("category", ""))
                         logger.info(f"💡 Auto-reflection logged: {proposal.get('title', '?')}")
 
                     except (json.JSONDecodeError, IndexError):
@@ -301,6 +350,21 @@ class AutonomyEngine:
             ]
 
         filepath = PROPOSALS_DIR / f"{full_proposal['id']}_{full_proposal['category']}.json"
+
+        # In autonomous mode, auto-approve low/medium risk proposals
+        risk = full_proposal.get("priority", "medium").lower()
+        if self.mode == "autonomous" and risk in self.AUTO_APPROVE_RISKS:
+            full_proposal["status"] = "approved"
+            full_proposal["auto_approved"] = True
+            full_proposal["status_changed_at"] = time.time()
+            self._log("proposal_auto_approved", {
+                "id": full_proposal["id"], "title": full_proposal["title"], "risk": risk
+            })
+            self._emit_activity("auto_approved",
+                                f"Auto-approved: {full_proposal['title']} (risk: {risk})",
+                                proposal_id=full_proposal["id"])
+            logger.info(f"🤖 Auto-approved proposal: {full_proposal['title']} (risk: {risk})")
+
         filepath.write_text(json.dumps(full_proposal, indent=2), encoding="utf-8")
 
     # ── Proposal Management (called by API endpoints) ────────────────
@@ -360,6 +424,7 @@ class AutonomyEngine:
         while True:
             try:
                 if self.enabled and not self.is_user_active():
+                    self._emit_activity("checking", "Looking for approved proposals to execute...")
                     await self._execute_next_proposal()
                 else:
                     logger.debug("Execution skipped — user is active")
@@ -368,6 +433,7 @@ class AutonomyEngine:
                 break
             except Exception as exc:
                 logger.error(f"Execution loop error: {exc}")
+                self._emit_activity("error", f"Execution failed: {exc}")
                 await asyncio.sleep(900)
 
     async def _execute_next_proposal(self):
@@ -405,6 +471,8 @@ class AutonomyEngine:
 
         logger.info(f"🔧 Executing proposal: {proposal['title']}")
         self._log("proposal_execution_start", {"id": proposal["id"], "title": proposal["title"]})
+        self._emit_activity("executing", f"Starting: {proposal['title']}",
+                            proposal_id=proposal["id"])
 
         try:
             # Step 1: Determine target files
@@ -430,11 +498,14 @@ class AutonomyEngine:
             branch_name = f"self-improve/{proposal['id']}-{proposal['category']}"
             self._git_run(["checkout", "-b", branch_name])
             self._log("git_branch_created", {"branch": branch_name})
+            self._emit_activity("git", f"Created safety branch: {branch_name}")
             logger.info(f"🌿 Created safety branch: {branch_name}")
 
             # Step 3: For each target file, read → AI → write
             edits_applied = []
             for target_file in files_affected[:3]:  # Cap at 3 files per proposal
+                self._emit_activity("writing", f"Editing: {target_file}",
+                                    file=target_file)
                 success = await self._edit_single_file(target_file, proposal)
                 if success:
                     edits_applied.append(target_file)
@@ -453,6 +524,7 @@ class AutonomyEngine:
                 return
 
             # Step 4: Run tests
+            self._emit_activity("testing", "Running test suite to verify changes...")
             test_passed = await self._run_tests()
 
             if test_passed:
@@ -476,6 +548,11 @@ class AutonomyEngine:
                     "files": edits_applied,
                     "branch": branch_name,
                 })
+                self._emit_activity("completed",
+                                    f"✅ Done: {proposal['title']} → branch {branch_name}",
+                                    proposal_id=proposal["id"],
+                                    files=edits_applied,
+                                    branch=branch_name)
                 logger.info(f"✅ Proposal executed: {proposal['title']} → branch {branch_name}")
 
             else:
@@ -497,6 +574,9 @@ class AutonomyEngine:
                     "title": proposal["title"],
                     "reason": "tests_failed",
                 })
+                self._emit_activity("reverted",
+                                    f"⚠️ Reverted: {proposal['title']} (tests failed)",
+                                    proposal_id=proposal["id"])
                 logger.warning(f"⚠️ Proposal reverted: {proposal['title']} (tests failed)")
 
         except Exception as exc:
