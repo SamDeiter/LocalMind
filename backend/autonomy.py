@@ -244,8 +244,8 @@ class AutonomyEngine:
     # ── Self-Reflection Loop ─────────────────────────────────────────
 
     async def _reflection_loop(self):
-        """Every 30 min: review recent conversations and log proposals."""
-        await asyncio.sleep(300)  # Wait 5 min after startup before first reflection
+        """Every 5 min: review recent conversations and log proposals."""
+        await asyncio.sleep(90)  # Wait 90s after startup before first reflection
 
         while True:
             try:
@@ -255,13 +255,13 @@ class AutonomyEngine:
                     self._emit_activity("idle", "Waiting for next reflection cycle")
                 else:
                     logger.debug("Reflection skipped — user is active")
-                await asyncio.sleep(1800)  # 30 minutes
+                await asyncio.sleep(300)  # 5 minutes
             except asyncio.CancelledError:
                 break
             except Exception as exc:
                 logger.error(f"Reflection loop error: {exc}")
                 self._emit_activity("error", f"Reflection failed: {exc}")
-                await asyncio.sleep(1800)
+                await asyncio.sleep(300)
 
     async def _run_reflection(self):
         """Ask the AI to reflect on its own codebase and log proposals."""
@@ -418,8 +418,8 @@ class AutonomyEngine:
     # ── Proposal Execution Loop ──────────────────────────────────────
 
     async def _execution_loop(self):
-        """Every 15 min: pick an approved proposal and execute it."""
-        await asyncio.sleep(600)  # Wait 10 min after startup
+        """Every 3 min: pick an approved proposal and execute it."""
+        await asyncio.sleep(120)  # Wait 2 min after startup
 
         while True:
             try:
@@ -428,13 +428,13 @@ class AutonomyEngine:
                     await self._execute_next_proposal()
                 else:
                     logger.debug("Execution skipped — user is active")
-                await asyncio.sleep(900)  # 15 minutes
+                await asyncio.sleep(180)  # 3 minutes
             except asyncio.CancelledError:
                 break
             except Exception as exc:
                 logger.error(f"Execution loop error: {exc}")
                 self._emit_activity("error", f"Execution failed: {exc}")
-                await asyncio.sleep(900)
+                await asyncio.sleep(180)
 
     async def _execute_next_proposal(self):
         """Find the highest-priority approved proposal and execute it.
