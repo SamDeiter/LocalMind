@@ -333,6 +333,7 @@ def _configure_routers():
         route_model_hybrid_func=route_model_hybrid,
         gemini_is_available_func=gemini_is_available,
         learning_enabled_func=lambda: learning_enabled,
+        autonomy_engine=autonomy_engine,
     )
 
     # Conversations router needs DB access and the default prompt
@@ -453,6 +454,7 @@ async def toggle_autonomy():
     """Pause or resume the autonomy engine."""
     new_state = autonomy_engine.toggle()
     return {"enabled": new_state}
+
 
 
 @app.get("/api/autonomy/proposals")

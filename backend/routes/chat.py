@@ -54,6 +54,7 @@ _estimate_task_complexity = None
 _route_model_hybrid = None
 _gemini_is_available = None
 _learning_enabled_fn = None  # Function to check learning state
+_autonomy_engine = None  # AutonomyEngine reference for chat cooldown
 
 # ── Task-Specific System Prompts ──────────────────────────────────────
 # Different prompts optimize the AI's behavior for different tasks.
@@ -104,6 +105,7 @@ def configure(
     route_model_hybrid_func,
     gemini_is_available_func,
     learning_enabled_func,
+    autonomy_engine=None,
 ):
     """Called by server.py to inject all dependencies.
     
@@ -112,7 +114,7 @@ def configure(
     """
     global _get_db, _registry, _OLLAMA_BASE_URL, _DEFAULT_SYSTEM_PROMPT
     global _estimate_task_complexity, _route_model_hybrid, _gemini_is_available
-    global _learning_enabled_fn
+    global _learning_enabled_fn, _autonomy_engine
     _get_db = get_db_func
     _registry = registry
     _OLLAMA_BASE_URL = ollama_base_url
@@ -121,6 +123,7 @@ def configure(
     _route_model_hybrid = route_model_hybrid_func
     _gemini_is_available = gemini_is_available_func
     _learning_enabled_fn = learning_enabled_func
+    _autonomy_engine = autonomy_engine
 
 
 # ── Helper: Auto-Save Heuristic ──────────────────────────────────────
@@ -227,6 +230,10 @@ async def chat(request: Request):
     model = body.get("model", "qwen2.5-coder:7b")
     conversation_id = body.get("conversation_id")
     system_prompt = body.get("system_prompt", "")
+
+    # Notify autonomy engine to back off while the user is chatting
+    if _autonomy_engine:
+        _autonomy_engine.notify_chat_activity()
 
     # ── Step 1: Auto Model Routing ────────────────────────────────────
     # If model is "auto", analyze the message complexity and pick the

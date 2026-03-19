@@ -42,12 +42,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 class AutonomyEngine:
     """Background scheduler for autonomous LocalMind operations."""
 
+    # How many seconds after the last chat message before autonomy
+    # is allowed to make Ollama requests (prevents competition).
+    CHAT_COOLDOWN = 30
+
     def __init__(self, ollama_url: str = "http://localhost:11434",
                  default_model: str = "qwen2.5-coder:7b"):
         self.ollama_url = ollama_url
         self.default_model = default_model
         self.enabled = True
         self.tasks: list[asyncio.Task] = []
+        self._last_chat_time: float = 0.0  # timestamp of last user chat
 
         # Status tracking
         self.status = {
@@ -58,6 +63,18 @@ class AutonomyEngine:
             "execution": {"last_run": None, "proposals_executed": 0, "last_result": None},
             "auto_test": {"last_run": None, "passed": 0, "failed": 0},
         }
+
+    def notify_chat_activity(self):
+        """Called by the chat route whenever the user sends a message.
+
+        This tells the autonomy engine to back off and stop making
+        Ollama requests so the user gets full GPU throughput.
+        """
+        self._last_chat_time = time.time()
+
+    def is_user_active(self) -> bool:
+        """Returns True if the user chatted within CHAT_COOLDOWN seconds."""
+        return (time.time() - self._last_chat_time) < self.CHAT_COOLDOWN
 
     def _log(self, event: str, data: dict = None):
         """Append a structured log entry to autonomy_log.jsonl."""
@@ -106,12 +123,12 @@ class AutonomyEngine:
 
     async def _health_loop(self):
         """Every 60s: ping Ollama, pre-warm model if needed."""
-        # Wait a moment for server to be ready before first check
-        await asyncio.sleep(10)
+        # Wait for server to be fully ready before first check
+        await asyncio.sleep(30)
 
         while True:
             try:
-                if self.enabled:
+                if self.enabled and not self.is_user_active():
                     await self._check_health()
                 await asyncio.sleep(60)
             except asyncio.CancelledError:
@@ -185,12 +202,14 @@ class AutonomyEngine:
 
     async def _reflection_loop(self):
         """Every 30 min: review recent conversations and log proposals."""
-        await asyncio.sleep(120)  # Wait 2 min after startup before first reflection
+        await asyncio.sleep(300)  # Wait 5 min after startup before first reflection
 
         while True:
             try:
-                if self.enabled:
+                if self.enabled and not self.is_user_active():
                     await self._run_reflection()
+                else:
+                    logger.debug("Reflection skipped — user is active")
                 await asyncio.sleep(1800)  # 30 minutes
             except asyncio.CancelledError:
                 break
@@ -336,12 +355,14 @@ class AutonomyEngine:
 
     async def _execution_loop(self):
         """Every 15 min: pick an approved proposal and execute it."""
-        await asyncio.sleep(300)  # Wait 5 min after startup
+        await asyncio.sleep(600)  # Wait 10 min after startup
 
         while True:
             try:
-                if self.enabled:
+                if self.enabled and not self.is_user_active():
                     await self._execute_next_proposal()
+                else:
+                    logger.debug("Execution skipped — user is active")
                 await asyncio.sleep(900)  # 15 minutes
             except asyncio.CancelledError:
                 break
