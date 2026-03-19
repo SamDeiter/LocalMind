@@ -266,19 +266,33 @@ class AutonomyEngine:
     async def _run_reflection(self):
         """Ask the AI to reflect on its own codebase and log proposals."""
         try:
+            # Gather ACTUAL file listing from the project so the AI doesn't hallucinate
+            project_root = Path(__file__).parent.parent
+            real_files = []
+            for ext in ("*.py", "*.js", "*.html", "*.css", "*.json", "*.md"):
+                for f in project_root.rglob(ext):
+                    rel = f.relative_to(project_root)
+                    # Skip node_modules, __pycache__, .git, memory_db
+                    skip = any(part.startswith(".") or part in ("node_modules", "__pycache__", "memory_db", "browser_recordings") for part in rel.parts)
+                    if not skip:
+                        real_files.append(str(rel).replace("\\", "/"))
+
+            file_list = "\n".join(f"  - {f}" for f in sorted(real_files)[:60])
+
             # Use Ollama directly to ask for improvement ideas
             async with httpx.AsyncClient(timeout=120.0) as client:
                 prompt = (
-                    "You are LocalMind, an AI assistant reviewing your own codebase. "
-                    "Think about what could be improved. Consider:\n"
-                    "1. Performance bottlenecks\n"
-                    "2. Missing error handling\n"
-                    "3. UX improvements\n"
-                    "4. Code quality issues\n"
-                    "5. Features users might want\n\n"
+                    "You are LocalMind, reviewing your OWN codebase to find improvements.\n\n"
+                    "HERE ARE THE ACTUAL FILES IN THIS PROJECT:\n"
+                    f"{file_list}\n\n"
+                    "RULES:\n"
+                    "- Only suggest changes to files listed above\n"
+                    "- Be specific — reference real file names\n"
+                    "- DO NOT invent files like 'auth.py' or 'database.py' that don't exist\n"
+                    "- Focus on: error handling gaps, UX polish, missing features, code cleanup\n\n"
                     "Output a JSON object with keys: title, category "
                     "(performance/feature/bugfix/ux/security/code_quality), "
-                    "description, files_affected (comma-separated list), "
+                    "description, files_affected (list of real filenames from above), "
                     "effort (small/medium/large), priority (low/medium/high/critical).\n"
                     "Only output the JSON, nothing else."
                 )
@@ -289,7 +303,7 @@ class AutonomyEngine:
                         "model": self.default_model,
                         "prompt": prompt,
                         "stream": False,
-                        "options": {"num_predict": 300, "num_ctx": 2048},
+                        "options": {"num_predict": 400, "num_ctx": 4096},
                     },
                 )
 
