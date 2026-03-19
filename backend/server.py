@@ -132,13 +132,18 @@ def estimate_task_complexity(message: str, history_len: int = 0) -> dict:
         model name, and human-readable reason.
     """
     msg = message.lower().strip()
-    score = 5  # Start neutral
+    score = 3  # Start biased toward fast — escalate only when needed
 
     # ── Signals that push LIGHTER ──
-    if re.match(r'^(hi|hey|hello|yo|sup|thanks|thank you|ok|cool|got it|bye|gm|gn)\b', msg):
-        score -= 4
-    if len(msg) < 20:
+    greetings = (
+        r'^(hi|hey|hello|yo|sup|thanks|thank you|ok|cool|got it|bye|gm|gn'
+        r'|how are|how you|how\'s it|what\'s up|good morning|good evening'
+        r'|what is my name|who am i|do you remember|tell me about me)\b'
+    )
+    if re.match(greetings, msg):
         score -= 2
+    if len(msg) < 30:
+        score -= 1
     if re.match(r'^(what is|who is|when did|where is|how do i|can you)\b', msg) and len(msg) < 80:
         score -= 1
 
