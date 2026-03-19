@@ -351,6 +351,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ── No-Cache Middleware (Dev Mode) ────────────────────────────────────
+# Prevents browser from caching stale JS/CSS files during development.
+# Without this, changes to frontend files may not take effect until
+# the user does a hard-refresh (Ctrl+Shift+R).
+@app.middleware("http")
+async def no_cache_static(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path.endswith((".js", ".css", ".html")) or path == "/":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # ── Register Routers ─────────────────────────────────────────────────
 # Each router handles a specific domain of the API.
 from backend.routes.chat import router as chat_router

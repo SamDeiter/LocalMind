@@ -15,7 +15,7 @@ allowing the AI to recall existing memories.
 import datetime
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 logger = logging.getLogger("localmind.routes.memory")
 
@@ -53,7 +53,7 @@ async def memory_status():
 
 
 @router.post("/memory/toggle")
-async def memory_toggle(request):
+async def memory_toggle(request: Request):
     """Toggle learning mode on/off.
     
     When learning is OFF:
@@ -65,7 +65,6 @@ async def memory_toggle(request):
     - AI saves personal facts, preferences, and instructions
     - Both via model-initiated tool calls and auto-save heuristic
     """
-    from fastapi import Request
     global learning_enabled
     body = await request.json()
     learning_enabled = body.get("enabled", True)
