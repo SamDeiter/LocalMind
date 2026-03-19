@@ -610,7 +610,7 @@ class AutonomyEngine:
                     "id": proposal["id"], "error": "no edits applied"
                 })
                 self.status["execution"]["last_run"] = time.time()
-                self._emit_activity("error", "Failed: Could not determine target files")
+                self._emit_activity("error", f"Failed: AI could not generate valid edits for {proposal['title']}")
                 return
 
             # Step 4: Run tests
@@ -750,6 +750,80 @@ class AutonomyEngine:
             logger.warning(f"Failed to identify target files: {exc}")
 
         return []
+
+    async def _identify_target_files(self, proposal):
+        """Ask the AI to determine which files should be edited for a proposal."""
+        try:
+            # Build a file listing of the project
+            project_files = []
+            for f in self.workspace_root.rglob("*"):
+                if f.is_file() and ".git" not in f.parts and "node_modules" not in f.parts:
+                    rel = f.relative_to(self.workspace_root)
+                    # Only include code files
+                    if rel.suffix in (".py", ".js", ".html", ".css", ".json", ".ts", ".jsx", ".tsx", ".md"):
+                        project_files.append(str(rel).replace("\\", "/"))
+
+            if not project_files:
+                return []
+
+            file_list = "\n".join(project_files[:100])  # Cap at 100 files
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                prompt = (
+                    f"You are a code assistant. Given the following proposal and project file list, "
+                    f"determine which files need to be modified.\n\n"
+                    f"PROPOSAL: {proposal['title']}\n"
+                    f"CATEGORY: {proposal['category']}\n"
+                    f"DESCRIPTION: {proposal['description']}\n\n"
+                    f"PROJECT FILES:\n{file_list}\n\n"
+                    f"Return ONLY a JSON array of relative file paths that should be modified. "
+                    f"Example: [\"backend/server.py\", \"frontend/style.css\"]\n"
+                    f"Return at most 3 files. Return ONLY the JSON array, nothing else."
+                )
+
+                resp = await client.post(
+                    f"{self.ollama_url}/api/generate",
+                    json={
+                        "model": self.default_model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {"num_predict": 500, "num_ctx": 8192},
+                    },
+                )
+
+                if resp.status_code != 200:
+                    logger.warning(f"Ollama returned {resp.status_code} for file targeting")
+                    return []
+
+                raw = resp.json().get("response", "").strip()
+                logger.info(f"File targeting response: {raw[:200]}")
+
+                # Extract JSON array from response
+                import json as json_mod
+                # Try direct parse first
+                try:
+                    files = json_mod.loads(raw)
+                    if isinstance(files, list):
+                        return [f for f in files if isinstance(f, str) and f.strip()]
+                except json_mod.JSONDecodeError:
+                    pass
+
+                # Try to extract array from markdown-wrapped response
+                match = re.search(r'\[([^\]]+)\]', raw)
+                if match:
+                    try:
+                        files = json_mod.loads(f"[{match.group(1)}]")
+                        if isinstance(files, list):
+                            return [f for f in files if isinstance(f, str) and f.strip()]
+                    except json_mod.JSONDecodeError:
+                        pass
+
+                logger.warning(f"Could not parse file targeting response: {raw[:200]}")
+                return []
+
+        except Exception as e:
+            logger.warning(f"_identify_target_files failed: {e}")
+            return []
 
     async def _edit_single_file(self, relative_path: str, proposal: dict) -> bool:
         """Read a file, ask AI for improved version, write it back.
