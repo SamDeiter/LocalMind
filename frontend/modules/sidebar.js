@@ -114,6 +114,7 @@ export function connectActivityFeed() {
       const event = JSON.parse(e.data);
       addActivityItem(event);
       updateActivityBar(event);
+      updateBrainDashboard(event);
     } catch {
       /* ignore parse errors */
     }
@@ -123,6 +124,13 @@ export function connectActivityFeed() {
     // Reconnect after 5s on error
     setTimeout(() => connectActivityFeed(), 5000);
   };
+
+  // Start uptime ticker
+  if (!window._brainUptimeInterval) {
+    window._brainBootTime = Date.now();
+    window._brainUptimeInterval = setInterval(updateBrainUptime, 10000);
+    updateBrainUptime();
+  }
 }
 
 function addActivityItem(event) {
@@ -155,6 +163,65 @@ function updateActivityBar(event) {
     const icon = ACTION_ICONS[event.action] || "";
     activityEl.textContent = `${icon} ${event.detail || event.action}`;
   }
+}
+
+// ── Brain Dashboard (Welcome Screen) ──────────────────────────────
+
+let brainProposalCount = 0;
+let brainExecutedCount = 0;
+
+function updateBrainDashboard(event) {
+  const timeline = document.getElementById("brainTimeline");
+  const statusEl = document.getElementById("brainStatus");
+
+  // Update status text
+  if (statusEl) {
+    const icon = ACTION_ICONS[event.action] || "";
+    statusEl.textContent = `${icon} ${event.action}`;
+  }
+
+  // Track counters
+  if (event.action === "proposal_created") brainProposalCount++;
+  if (event.action === "completed") brainExecutedCount++;
+
+  const ideasEl = document.getElementById("brainProposals");
+  const execEl = document.getElementById("brainExecuted");
+  if (ideasEl) ideasEl.textContent = brainProposalCount;
+  if (execEl) execEl.textContent = brainExecutedCount;
+
+  // Add event to brain timeline
+  if (!timeline) return;
+  const icon = ACTION_ICONS[event.action] || "📋";
+  const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+  const timeStr = event.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const evEl = document.createElement("div");
+  evEl.className = `brain-event ${isActive ? "brain-event-active" : ""}`;
+  evEl.innerHTML = `
+    <span class="brain-event-icon">${icon}</span>
+    <span class="brain-event-text">${escapeHtml(event.detail || event.action)}</span>
+    <span class="brain-event-time">${timeStr}</span>
+  `;
+
+  // Prepend newest first — remove placeholder if present
+  if (timeline.children.length === 1 && timeline.firstChild.textContent.includes("warming up")) {
+    timeline.innerHTML = "";
+  }
+  timeline.prepend(evEl);
+
+  // Keep max 20 events
+  while (timeline.children.length > 20) {
+    timeline.removeChild(timeline.lastChild);
+  }
+}
+
+function updateBrainUptime() {
+  const el = document.getElementById("brainUptime");
+  if (!el || !window._brainBootTime) return;
+  const secs = Math.floor((Date.now() - window._brainBootTime) / 1000);
+  if (secs < 60) el.textContent = `${secs}s`;
+  else if (secs < 3600) el.textContent = `${Math.floor(secs / 60)}m`;
+  else el.textContent = `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
 }
 
 // ── Activity Toggle ─────────────────────────────────────────────

@@ -349,6 +349,39 @@
                 <span class="feature-icon">💻</span><span>Code</span>
               </div>
             </div>
+
+            <!-- Live AI Brain Activity Dashboard -->
+            <div class="brain-dashboard" id="brainDashboard">
+              <div class="brain-header">
+                <span class="brain-pulse"></span>
+                <span class="brain-title">AI Brain Activity</span>
+                <span class="brain-mode" id="brainMode" title="Current autonomy mode">🛡️ Supervised</span>
+              </div>
+              <div class="brain-stats">
+                <div class="brain-stat" title="Time since engine started">
+                  <span class="brain-stat-label">Uptime</span>
+                  <span class="brain-stat-value" id="brainUptime">0m</span>
+                </div>
+                <div class="brain-stat" title="Number of improvement proposals generated">
+                  <span class="brain-stat-label">Ideas</span>
+                  <span class="brain-stat-value" id="brainProposals">0</span>
+                </div>
+                <div class="brain-stat" title="Proposals successfully executed">
+                  <span class="brain-stat-label">Applied</span>
+                  <span class="brain-stat-value" id="brainExecuted">0</span>
+                </div>
+                <div class="brain-stat" title="Current engine action">
+                  <span class="brain-stat-label">Status</span>
+                  <span class="brain-stat-value" id="brainStatus">Starting...</span>
+                </div>
+              </div>
+              <div class="brain-timeline" id="brainTimeline">
+                <div class="brain-event brain-event-idle">
+                  <span class="brain-event-icon">💤</span>
+                  <span class="brain-event-text">Engine warming up...</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
