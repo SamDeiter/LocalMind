@@ -312,17 +312,52 @@ class AutonomyEngine:
             file_list = "\n".join(f"  - {f}" for f in sorted(real_files)[:60])
 
             self._emit_activity("reflecting", f"Step 2/2: Generating proposals with {self.default_model}...")
+
+            # Determine current category distribution to force diversity
+            existing_proposals = self.list_proposals()
+            category_counts = {}
+            recent_titles = []
+            for p in existing_proposals:
+                cat = p.get("category", "unknown")
+                category_counts[cat] = category_counts.get(cat, 0) + 1
+                recent_titles.append(p.get("title", ""))
+
+            # Pick the LEAST represented category to focus on
+            focus_categories = ["performance", "feature", "ux", "security", "code_quality"]
+            category_weights = [(cat, category_counts.get(cat, 0)) for cat in focus_categories]
+            category_weights.sort(key=lambda x: x[1])
+            focus_category = category_weights[0][0]
+
+            # Build anti-repeat context from last 5 proposals
+            anti_repeat = ""
+            if recent_titles:
+                last_5 = recent_titles[-5:]
+                anti_repeat = (
+                    "\nALREADY PROPOSED (do NOT repeat these):\n"
+                    + "\n".join(f"  - {t}" for t in last_5)
+                    + "\n"
+                )
+
+            # Suppress over-represented categories
+            suppress = ""
+            dominant_cat = max(category_counts, key=category_counts.get) if category_counts else None
+            if dominant_cat and category_counts.get(dominant_cat, 0) > len(existing_proposals) * 0.4:
+                suppress = f"\nDo NOT propose anything in the \"{dominant_cat}\" category — we already have too many.\n"
+
             # Use Ollama directly to ask for improvement ideas
             async with httpx.AsyncClient(timeout=120.0) as client:
                 prompt = (
                     "You are LocalMind, reviewing your OWN codebase to find improvements.\n\n"
                     "HERE ARE THE ACTUAL FILES IN THIS PROJECT:\n"
                     f"{file_list}\n\n"
+                    f"FOCUS AREA: Look specifically for \"{focus_category}\" improvements.\n"
+                    f"{anti_repeat}"
+                    f"{suppress}"
                     "RULES:\n"
                     "- Only suggest changes to files listed above\n"
                     "- Be specific — reference real file names\n"
                     "- DO NOT invent files like 'auth.py' or 'database.py' that don't exist\n"
-                    "- Focus on: error handling gaps, UX polish, missing features, code cleanup\n\n"
+                    "- Think creatively — suggest something NOVEL, not just error handling\n\n"
                     "Output a JSON object with keys: title, category "
                     "(performance/feature/bugfix/ux/security/code_quality), "
                     "description, files_affected (list of real filenames from above), "
@@ -372,9 +407,40 @@ class AutonomyEngine:
             logger.warning(f"Reflection failed: {exc}")
             self.status["reflection"]["last_run"] = time.time()
 
+    def _is_duplicate_proposal(self, new_title: str) -> bool:
+        """Check if a similar proposal already exists (simple fuzzy match)."""
+        if not PROPOSALS_DIR.exists():
+            return False
+
+        new_words = set(new_title.lower().split())
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                existing_title = data.get("title", "")
+                existing_words = set(existing_title.lower().split())
+                # Jaccard similarity: intersection / union
+                if not new_words or not existing_words:
+                    continue
+                overlap = len(new_words & existing_words)
+                total = len(new_words | existing_words)
+                similarity = overlap / total if total > 0 else 0
+                if similarity > 0.70:
+                    logger.info(f"Duplicate detected: \"{new_title}\" ≈ \"{existing_title}\" ({similarity:.0%})")
+                    return True
+            except Exception:
+                continue
+        return False
+
     async def _save_proposal(self, proposal: dict):
-        """Save a proposal to the proposals directory."""
+        """Save a proposal to the proposals directory (with dedup check)."""
         PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Deduplication: skip if a very similar proposal already exists
+        title = proposal.get("title", "Untitled")
+        if self._is_duplicate_proposal(title):
+            self._log("proposal_deduplicated", {"title": title})
+            self._emit_activity("info", f"Skipped duplicate proposal: {title}")
+            return
 
         full_proposal = {
             "id": str(uuid.uuid4())[:8],
@@ -582,9 +648,20 @@ class AutonomyEngine:
                 # Ask AI to figure out which file to edit
                 files_affected = await self._identify_target_files(proposal)
 
+            # Validate all files actually exist on disk (filter out hallucinated paths)
+            valid_files = []
+            for f in files_affected:
+                resolved = (PROJECT_ROOT / f).resolve()
+                if resolved.exists() and str(resolved).startswith(str(PROJECT_ROOT)):
+                    valid_files.append(f)
+                else:
+                    logger.warning(f"Proposal references non-existent file: {f}")
+                    self._emit_activity("info", f"Filtered out non-existent file: {f}")
+            files_affected = valid_files
+
             if not files_affected:
                 proposal["status"] = "failed"
-                proposal["error"] = "Could not determine which files to edit"
+                proposal["error"] = "Could not determine which files to edit (all targets missing or invalid)"
                 filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
                 self._log("proposal_execution_failed", {
                     "id": proposal["id"], "error": "no target files"
@@ -803,11 +880,14 @@ class AutonomyEngine:
 
 
     async def _edit_single_file(self, relative_path: str, proposal: dict) -> bool:
-        """Read a file, ask AI for improved version, write it back.
+        """Read a file, ask AI for a search-and-replace diff, apply it.
+
+        Uses a targeted diff approach instead of whole-file rewrite,
+        which is far more reliable for small (7B) models.
 
         Returns True if the edit was successfully applied.
         """
-        # Security checks (same as self_edit.py)
+        # Security checks
         blocked_dirs = {"venv", ".git", "node_modules", "__pycache__", "memory_db"}
         blocked_names = {".env", ".env.local", ".env.production", "autonomy.py", "server.py", "run.py"}
         blocked_exts = {".key", ".pem", ".secret", ".p12", ".pfx"}
@@ -840,31 +920,29 @@ class AutonomyEngine:
             # Read current content
             original_content = target.read_text(encoding="utf-8", errors="replace")
 
-            # Cap file size — 7B models can't reliably rewrite large files
-            if len(original_content) > 15_000:
-                logger.warning(f"File too large to edit: {relative_path} ({len(original_content)} chars)")
-                self._emit_activity("info", f"Skipped {relative_path}: file too large ({len(original_content)} chars)")
-                return False
+            # Show only a relevant snippet to the AI (first 6000 chars max)
+            # This keeps the context window manageable for 7B models
+            file_preview = original_content[:6000]
+            if len(original_content) > 6000:
+                file_preview += f"\n\n# ... ({len(original_content) - 6000} more chars truncated)"
 
-            # Ask AI for the improved version
+            # Ask AI for a SEARCH-AND-REPLACE diff (much easier for 7B models)
             async with httpx.AsyncClient(timeout=180.0) as client:
                 prompt = (
-                    f"You are a careful code editor. Your job is to make a SMALL, TARGETED improvement to a file.\n\n"
-                    f"PROPOSAL: {proposal['title']}\n"
-                    f"DESCRIPTION: {proposal['description']}\n\n"
+                    f"You are a precise code editor. Make a SMALL, TARGETED fix.\n\n"
+                    f"TASK: {proposal['title']}\n"
+                    f"DETAILS: {proposal['description']}\n\n"
                     f"FILE: {relative_path}\n"
-                    f"CURRENT CONTENT:\n```\n{original_content}\n```\n\n"
-                    f"RULES (FOLLOW EXACTLY):\n"
-                    f"1. Output the COMPLETE file with your changes applied.\n"
-                    f"2. Keep ALL existing imports, functions, classes, and logic EXACTLY as they are.\n"
-                    f"3. Change ONLY the minimum lines needed to address the proposal.\n"
-                    f"4. Do NOT remove, rename, or reorganize existing code.\n"
-                    f"5. Do NOT add placeholder comments like 'rest of code here' or '...'.\n"
-                    f"6. Do NOT add any text before or after the file content.\n"
-                    f"7. Do NOT wrap the output in markdown code fences.\n"
-                    f"8. The output must be valid, runnable code.\n"
-                    f"9. If unsure, make NO changes — output the file exactly as-is.\n\n"
-                    f"Output the complete file content now:"
+                    f"```\n{file_preview}\n```\n\n"
+                    f"Output a JSON object with exactly these keys:\n"
+                    f'  "search": "the exact lines from the file to find (copy them exactly)"\n'
+                    f'  "replace": "the replacement lines with your improvement"\n'
+                    f'  "explanation": "one sentence explaining the change"\n\n'
+                    f"RULES:\n"
+                    f"1. The \"search\" value MUST be an exact copy of consecutive lines from the file.\n"
+                    f"2. Keep the change SMALL — only the minimum lines needed.\n"
+                    f"3. Output ONLY the JSON object, no markdown fences, no extra text.\n"
+                    f'4. If you cannot make a useful change, output: {{"search": "", "replace": "", "explanation": "no change needed"}}\n'
                 )
 
                 resp = await client.post(
@@ -873,50 +951,61 @@ class AutonomyEngine:
                         "model": self.default_model,
                         "prompt": prompt,
                         "stream": False,
-                        "options": {"num_predict": 16000, "num_ctx": 16384},
+                        "options": {"num_predict": 2000, "num_ctx": 8192},
                     },
                 )
 
                 if resp.status_code != 200:
                     logger.warning(f"Ollama returned {resp.status_code} for edit")
-                    self._emit_activity("error", f"Edit failed: Ollama returned HTTP {resp.status_code} for {relative_path}")
+                    self._emit_activity("error", f"Edit failed: Ollama HTTP {resp.status_code} for {relative_path}")
                     return False
 
-                new_content = resp.json().get("response", "").strip()
+                raw_response = resp.json().get("response", "").strip()
 
-            # Strip markdown fences if AI wrapped its output
-            if new_content.startswith("```"):
-                lines = new_content.split("\n")
-                # Remove first line (```python or ```) and last line (```)
-                if lines[-1].strip() == "```":
-                    lines = lines[1:-1]
+            # Parse the search/replace JSON
+            try:
+                # Strip markdown fences if present
+                json_text = raw_response
+                if "```" in json_text:
+                    json_text = json_text.split("```")[1]
+                    if json_text.startswith("json"):
+                        json_text = json_text[4:]
+                    json_text = json_text.strip()
+
+                diff = json.loads(json_text)
+            except (json.JSONDecodeError, IndexError):
+                # Fallback: try to extract JSON with regex
+                match = re.search(r'\{[^{}]*"search"[^{}]*\}', raw_response, re.DOTALL)
+                if match:
+                    try:
+                        diff = json.loads(match.group(0))
+                    except json.JSONDecodeError:
+                        logger.warning(f"Could not parse edit response for {relative_path}: {raw_response[:200]}")
+                        self._emit_activity("error", f"Edit failed: could not parse AI response for {relative_path}")
+                        return False
                 else:
-                    lines = lines[1:]
-                # Remove language hint from first line
-                new_content = "\n".join(lines)
+                    logger.warning(f"No JSON found in edit response for {relative_path}: {raw_response[:200]}")
+                    self._emit_activity("error", f"Edit failed: no valid JSON in AI response for {relative_path}")
+                    return False
 
-            # Sanity checks
-            if len(new_content) < 10:
-                logger.warning(f"AI returned too-short content for {relative_path}: got {len(new_content)} chars")
-                self._emit_activity("error", f"Edit failed: AI output too short for {relative_path} ({len(new_content)} chars)")
+            search_text = diff.get("search", "")
+            replace_text = diff.get("replace", "")
+            explanation = diff.get("explanation", "")
+
+            # No-op check
+            if not search_text or not replace_text or search_text == replace_text:
+                logger.info(f"AI returned no-op for {relative_path}: {explanation}")
+                self._emit_activity("info", f"Skipped: AI found no changes needed for {relative_path}")
                 return False
 
-            if len(new_content) > 60_000:
-                logger.warning(f"AI returned too-large content for {relative_path}")
+            # Verify the search text actually exists in the file
+            if search_text not in original_content:
+                logger.warning(f"Search text not found in {relative_path}. AI hallucinated the search block.")
+                self._emit_activity("error", f"Edit failed: search text not found in {relative_path}")
                 return False
 
-            # Don't apply if content is identical
-            if new_content.strip() == original_content.strip():
-                logger.info(f"No changes needed for {relative_path}")
-                self._emit_activity("info", f"Skipped: No changes needed for {relative_path}")
-                return False
-
-            # Guard against content shrinkage (model dropped code)
-            shrink_ratio = len(new_content) / max(len(original_content), 1)
-            if shrink_ratio < 0.70:
-                logger.warning(f"AI output is {shrink_ratio:.0%} of original size — likely dropped code. Rejecting.")
-                self._emit_activity("error", f"Edit rejected: AI dropped {100 - shrink_ratio*100:.0f}% of {relative_path}")
-                return False
+            # Apply the replacement
+            new_content = original_content.replace(search_text, replace_text, 1)
 
             # Syntax validation for Python files
             if relative_path.endswith(".py"):
@@ -933,13 +1022,16 @@ class AutonomyEngine:
 
             # Write new content
             target.write_text(new_content, encoding="utf-8")
-            logger.info(f"📝 Self-edit applied: {relative_path} ({len(new_content)} chars)")
+            logger.info(f"📝 Self-edit applied to {relative_path}: {explanation}")
             self._log("self_edit_applied", {
                 "file": relative_path,
                 "original_size": len(original_content),
                 "new_size": len(new_content),
+                "change_size": abs(len(replace_text) - len(search_text)),
+                "explanation": explanation,
                 "proposal_id": proposal["id"],
             })
+            self._emit_activity("edited", f"Applied: {explanation}", file=relative_path)
 
             return True
 

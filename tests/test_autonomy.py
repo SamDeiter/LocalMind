@@ -269,3 +269,37 @@ class TestAutonomyAPI:
         assert r.status_code == 200
         data = r.json()
         assert "enabled" in data
+
+
+# ── New Tests: Dedup, File Validation, Search-Replace ────────────
+
+class TestProposalDedup:
+    def test_dedup_rejects_similar_title(self, engine, proposals_dir, sample_proposal):
+        """A proposal with a near-identical title is flagged as duplicate."""
+        assert engine._is_duplicate_proposal("Add retry logic to Ollama calls") is True
+
+    def test_dedup_allows_different_title(self, engine, proposals_dir, sample_proposal):
+        """A clearly different proposal is NOT flagged as duplicate."""
+        assert engine._is_duplicate_proposal("Refactor CSS grid layout") is False
+
+
+class TestFileValidation:
+    @pytest.mark.asyncio
+    async def test_edit_rejects_nonexistent_file(self, engine, tmp_path):
+        """_edit_single_file returns False for a file that doesn't exist."""
+        with patch("backend.autonomy.PROJECT_ROOT", tmp_path):
+            result = await engine._edit_single_file(
+                "nonexistent.py", {"title": "test", "description": "test", "id": "x"}
+            )
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_edit_rejects_blocked_file(self, engine, tmp_path):
+        """_edit_single_file returns False for blocked files like autonomy.py."""
+        with patch("backend.autonomy.PROJECT_ROOT", tmp_path):
+            (tmp_path / "autonomy.py").write_text("x = 1", encoding="utf-8")
+            result = await engine._edit_single_file(
+                "autonomy.py", {"title": "test", "description": "test", "id": "x"}
+            )
+            assert result is False
+
