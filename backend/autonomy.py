@@ -1004,17 +1004,58 @@ class AutonomyEngine:
             # No-op check
             if not search_text or not replace_text or search_text == replace_text:
                 logger.info(f"AI returned no-op for {relative_path}: {explanation}")
-                self._emit_activity("info", f"Skipped: AI found no changes needed for {relative_path}")
+                self._emit_activity("info", f"Skipped: No changes needed for {relative_path}")
                 return False
 
-            # Verify the search text actually exists in the file
-            if search_text not in original_content:
-                logger.warning(f"Search text not found in {relative_path}. AI hallucinated the search block.")
+            # Multi-layer search matching to handle whitespace issues
+            matched = False
+
+            # Layer 1: Exact match
+            if search_text in original_content:
+                new_content = original_content.replace(search_text, replace_text, 1)
+                matched = True
+
+            # Layer 2: Normalize line endings (CRLF → LF → CRLF)
+            if not matched:
+                norm_search = search_text.replace("\r\n", "\n").replace("\r", "\n")
+                norm_content = original_content.replace("\r\n", "\n")
+                if norm_search in norm_content:
+                    new_content = original_content.replace("\r\n", "\n")
+                    new_content = new_content.replace(norm_search, replace_text.replace("\r\n", "\n"), 1)
+                    # Restore original line endings
+                    if "\r\n" in original_content:
+                        new_content = new_content.replace("\n", "\r\n")
+                    matched = True
+                    logger.info(f"Matched via line-ending normalization for {relative_path}")
+
+            # Layer 3: Strip trailing whitespace per line
+            if not matched:
+                stripped_search = "\n".join(l.rstrip() for l in search_text.replace("\r\n", "\n").split("\n"))
+                stripped_content = "\n".join(l.rstrip() for l in original_content.replace("\r\n", "\n").split("\n"))
+                if stripped_search in stripped_content:
+                    # Find the position in stripped content, map back to original
+                    idx = stripped_content.index(stripped_search)
+                    end = idx + len(stripped_search)
+                    # Count lines to find original position
+                    orig_lines = original_content.replace("\r\n", "\n").split("\n")
+                    stripped_lines = stripped_search.split("\n")
+                    start_line = stripped_content[:idx].count("\n")
+                    n_lines = len(stripped_lines)
+                    # Rebuild with replacement
+                    replace_lines = replace_text.replace("\r\n", "\n").split("\n")
+                    new_lines = orig_lines[:start_line] + replace_lines + orig_lines[start_line + n_lines:]
+                    sep = "\r\n" if "\r\n" in original_content else "\n"
+                    new_content = sep.join(new_lines)
+                    matched = True
+                    logger.info(f"Matched via whitespace-stripped lines for {relative_path}")
+
+            if not matched:
+                logger.warning(
+                    f"Search text not found in {relative_path}. "
+                    f"Search (first 150 chars): {repr(search_text[:150])}"
+                )
                 self._emit_activity("error", f"Edit failed: search text not found in {relative_path}")
                 return False
-
-            # Apply the replacement
-            new_content = original_content.replace(search_text, replace_text, 1)
 
             # Syntax validation for Python files
             if relative_path.endswith(".py"):
