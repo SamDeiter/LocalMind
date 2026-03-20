@@ -840,27 +840,31 @@ class AutonomyEngine:
             # Read current content
             original_content = target.read_text(encoding="utf-8", errors="replace")
 
-            # Cap file size — don't edit huge files
-            if len(original_content) > 50_000:
+            # Cap file size — 7B models can't reliably rewrite large files
+            if len(original_content) > 15_000:
                 logger.warning(f"File too large to edit: {relative_path} ({len(original_content)} chars)")
+                self._emit_activity("info", f"Skipped {relative_path}: file too large ({len(original_content)} chars)")
                 return False
 
             # Ask AI for the improved version
             async with httpx.AsyncClient(timeout=180.0) as client:
                 prompt = (
-                    f"You are LocalMind, improving your own source code.\n\n"
+                    f"You are a careful code editor. Your job is to make a SMALL, TARGETED improvement to a file.\n\n"
                     f"PROPOSAL: {proposal['title']}\n"
-                    f"CATEGORY: {proposal['category']}\n"
                     f"DESCRIPTION: {proposal['description']}\n\n"
                     f"FILE: {relative_path}\n"
                     f"CURRENT CONTENT:\n```\n{original_content}\n```\n\n"
-                    f"Output the COMPLETE improved file content.\n"
-                    f"IMPORTANT: You MUST add a short comment at the top of the file or near the changes "
-                    f"noting that LocalMind made this change and briefly explaining WHY (based on the proposal above).\n"
-                    f"Make MINIMAL, TARGETED changes that address the proposal. "
-                    f"Do NOT remove existing functionality. "
-                    f"Do NOT add placeholder comments like 'rest of code here'. "
-                    f"Output ONLY the file content, no markdown fences, no explanation."
+                    f"RULES (FOLLOW EXACTLY):\n"
+                    f"1. Output the COMPLETE file with your changes applied.\n"
+                    f"2. Keep ALL existing imports, functions, classes, and logic EXACTLY as they are.\n"
+                    f"3. Change ONLY the minimum lines needed to address the proposal.\n"
+                    f"4. Do NOT remove, rename, or reorganize existing code.\n"
+                    f"5. Do NOT add placeholder comments like 'rest of code here' or '...'.\n"
+                    f"6. Do NOT add any text before or after the file content.\n"
+                    f"7. Do NOT wrap the output in markdown code fences.\n"
+                    f"8. The output must be valid, runnable code.\n"
+                    f"9. If unsure, make NO changes — output the file exactly as-is.\n\n"
+                    f"Output the complete file content now:"
                 )
 
                 resp = await client.post(
@@ -906,6 +910,22 @@ class AutonomyEngine:
                 logger.info(f"No changes needed for {relative_path}")
                 self._emit_activity("info", f"Skipped: No changes needed for {relative_path}")
                 return False
+
+            # Guard against content shrinkage (model dropped code)
+            shrink_ratio = len(new_content) / max(len(original_content), 1)
+            if shrink_ratio < 0.70:
+                logger.warning(f"AI output is {shrink_ratio:.0%} of original size — likely dropped code. Rejecting.")
+                self._emit_activity("error", f"Edit rejected: AI dropped {100 - shrink_ratio*100:.0f}% of {relative_path}")
+                return False
+
+            # Syntax validation for Python files
+            if relative_path.endswith(".py"):
+                try:
+                    compile(new_content, relative_path, "exec")
+                except SyntaxError as syn_err:
+                    logger.warning(f"AI produced invalid Python for {relative_path}: {syn_err}")
+                    self._emit_activity("error", f"Edit rejected: syntax error in {relative_path} line {syn_err.lineno}")
+                    return False
 
             # Create backup
             backup = target.with_suffix(target.suffix + ".bak")
