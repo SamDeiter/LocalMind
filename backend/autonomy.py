@@ -32,6 +32,8 @@ from typing import Optional
 
 import httpx
 
+from backend.model_router import get_autonomy_models, get_startup_model
+
 logger = logging.getLogger("localmind.autonomy")
 
 LOG_FILE = Path.home() / "LocalMind_Workspace" / "autonomy_log.jsonl"
@@ -53,6 +55,13 @@ class AutonomyEngine:
                  default_model: str = "qwen2.5-coder:7b"):
         self.ollama_url = ollama_url
         self.default_model = default_model
+
+        # Tiered model routing for autonomy tasks
+        autonomy_models = get_autonomy_models()
+        self.reflection_model = autonomy_models["reflection"]
+        self.editing_model = autonomy_models["editing"]
+        self.targeting_model = autonomy_models["file_targeting"]
+        self.startup_model = get_startup_model()
         self.enabled = True
         self.mode = "supervised"  # "supervised" or "autonomous"
         self.tasks: list[asyncio.Task] = []
@@ -234,13 +243,13 @@ class AutonomyEngine:
         """Send a tiny prompt to Ollama to load the model into VRAM."""
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                logger.info(f"🔥 Pre-warming model: {self.default_model}")
-                self._log("prewarm_start", {"model": self.default_model})
+                logger.info(f"🔥 Pre-warming model: {self.startup_model}")
+                self._log("prewarm_start", {"model": self.startup_model})
 
                 resp = await client.post(
                     f"{self.ollama_url}/api/generate",
                     json={
-                        "model": self.default_model,
+                        "model": self.startup_model,
                         "prompt": "hi",
                         "stream": False,
                         "options": {"num_predict": 1, "num_ctx": 256},
@@ -250,8 +259,8 @@ class AutonomyEngine:
 
                 if resp.status_code == 200:
                     self.status["health_check"]["model_loaded"] = True
-                    self._log("prewarm_done", {"model": self.default_model})
-                    logger.info(f"✅ Model pre-warmed: {self.default_model}")
+                    self._log("prewarm_done", {"model": self.startup_model})
+                    logger.info(f"✅ Model pre-warmed: {self.startup_model}")
                 else:
                     logger.warning(f"Pre-warm failed: {resp.status_code}")
 
@@ -311,7 +320,7 @@ class AutonomyEngine:
 
             file_list = "\n".join(f"  - {f}" for f in sorted(real_files)[:60])
 
-            self._emit_activity("reflecting", f"Step 2/2: Generating proposals with {self.default_model}...")
+            self._emit_activity("reflecting", f"Step 2/2: Generating proposals with {self.reflection_model}...")
 
             # Determine current category distribution to force diversity
             existing_proposals = self.list_proposals()
@@ -368,7 +377,7 @@ class AutonomyEngine:
                 resp = await client.post(
                     f"{self.ollama_url}/api/generate",
                     json={
-                        "model": self.default_model,
+                        "model": self.reflection_model,
                         "prompt": prompt,
                         "stream": False,
                         "options": {"num_predict": 400, "num_ctx": 4096},
@@ -831,7 +840,7 @@ class AutonomyEngine:
                 resp = await client.post(
                     f"{self.ollama_url}/api/generate",
                     json={
-                        "model": self.default_model,
+                        "model": self.targeting_model,
                         "prompt": prompt,
                         "stream": False,
                         "options": {"num_predict": 200, "num_ctx": 4096},
@@ -948,7 +957,7 @@ class AutonomyEngine:
                 resp = await client.post(
                     f"{self.ollama_url}/api/generate",
                     json={
-                        "model": self.default_model,
+                        "model": self.editing_model,
                         "prompt": prompt,
                         "stream": False,
                         "options": {"num_predict": 2000, "num_ctx": 8192},

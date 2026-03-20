@@ -20,6 +20,12 @@ logger = logging.getLogger("localmind.model_router")
 
 # ── Model Definitions ──────────────────────────────────────────────────
 MODELS = {
+    "local_micro": {
+        "name": "gemma3:4b",
+        "provider": "ollama",
+        "privacy": "fully_private",
+        "description": "Tiny local model for instant startup and simple chat",
+    },
     "local_light": {
         "name": "qwen2.5-coder:7b",
         "provider": "ollama",
@@ -74,7 +80,14 @@ def route_model(
         model["route_reason"] = "User prefers local processing"
         return model
 
-    # Simple tasks → always local
+    # Trivial tasks → micro model (instant response)
+    if complexity_score <= 2:
+        model = MODELS["local_micro"].copy()
+        model["needs_approval"] = False
+        model["route_reason"] = "Simple chat — using micro model"
+        return model
+
+    # Simple tasks → local light
     if complexity_score <= 4:
         model = MODELS["local_light"].copy()
         model["needs_approval"] = False
@@ -138,3 +151,21 @@ def get_available_models() -> list[dict]:
             entry["available"] = True  # Assume Ollama is running
         models.append(entry)
     return models
+
+
+def get_autonomy_models() -> dict:
+    """Return model names for autonomy engine tasks.
+    
+    Reflection/proposals → 7B (good enough for JSON generation)
+    Code editing → 32B (needs precision for search-replace diffs)
+    """
+    return {
+        "reflection": MODELS["local_light"]["name"],
+        "editing": MODELS["local_heavy"]["name"],
+        "file_targeting": MODELS["local_light"]["name"],
+    }
+
+
+def get_startup_model() -> str:
+    """Return the model to pre-warm on boot (smallest available)."""
+    return MODELS["local_micro"]["name"]
