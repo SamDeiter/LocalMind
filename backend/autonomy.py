@@ -728,6 +728,17 @@ class AutonomyEngine:
                     continue
                 files_list.append(str(rel).replace("\\", "/"))
 
+            for p in PROJECT_ROOT.rglob("*.html"):
+                rel = p.relative_to(PROJECT_ROOT)
+                parts = rel.parts
+                if any(skip in parts for skip in ("venv", "__pycache__", ".git", "node_modules")):
+                    continue
+                files_list.append(str(rel).replace("\\", "/"))
+
+            if not files_list:
+                logger.warning("No project files found for targeting")
+                return []
+
             async with httpx.AsyncClient(timeout=60.0) as client:
                 prompt = (
                     f"Given this improvement proposal:\n"
@@ -746,98 +757,50 @@ class AutonomyEngine:
                         "model": self.default_model,
                         "prompt": prompt,
                         "stream": False,
-                        "options": {"num_predict": 200, "num_ctx": 2048},
+                        "options": {"num_predict": 200, "num_ctx": 4096},
                     },
                 )
 
                 if resp.status_code == 200:
                     text = resp.json().get("response", "").strip()
-                    # Extract JSON array
+                    logger.info(f"File targeting raw response: {text[:300]}")
+
+                    # Strip markdown fences if present
                     if "```" in text:
                         text = text.split("```")[1]
                         if text.startswith("json"):
                             text = text[4:]
                         text = text.strip()
-                    return json.loads(text)
+
+                    # Try direct JSON parse
+                    try:
+                        result = json.loads(text)
+                        if isinstance(result, list):
+                            return [f for f in result if isinstance(f, str) and f.strip()]
+                    except json.JSONDecodeError:
+                        pass
+
+                    # Fallback: extract JSON array with regex
+                    import re as _re
+                    match = _re.search(r'\[([^\]]+)\]', text)
+                    if match:
+                        try:
+                            result = json.loads(f"[{match.group(1)}]")
+                            if isinstance(result, list):
+                                return [f for f in result if isinstance(f, str) and f.strip()]
+                        except json.JSONDecodeError:
+                            pass
+
+                    logger.warning(f"Could not parse file targeting response: {text[:200]}")
+                else:
+                    logger.warning(f"Ollama returned {resp.status_code} for file targeting")
 
         except Exception as exc:
             logger.warning(f"Failed to identify target files: {exc}")
 
         return []
 
-    async def _identify_target_files(self, proposal):
-        """Ask the AI to determine which files should be edited for a proposal."""
-        try:
-            # Build a file listing of the project
-            project_files = []
-            for f in self.workspace_root.rglob("*"):
-                if f.is_file() and ".git" not in f.parts and "node_modules" not in f.parts:
-                    rel = f.relative_to(self.workspace_root)
-                    # Only include code files
-                    if rel.suffix in (".py", ".js", ".html", ".css", ".json", ".ts", ".jsx", ".tsx", ".md"):
-                        project_files.append(str(rel).replace("\\", "/"))
 
-            if not project_files:
-                return []
-
-            file_list = "\n".join(project_files[:100])  # Cap at 100 files
-
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                prompt = (
-                    f"You are a code assistant. Given the following proposal and project file list, "
-                    f"determine which files need to be modified.\n\n"
-                    f"PROPOSAL: {proposal['title']}\n"
-                    f"CATEGORY: {proposal['category']}\n"
-                    f"DESCRIPTION: {proposal['description']}\n\n"
-                    f"PROJECT FILES:\n{file_list}\n\n"
-                    f"Return ONLY a JSON array of relative file paths that should be modified. "
-                    f"Example: [\"backend/server.py\", \"frontend/style.css\"]\n"
-                    f"Return at most 3 files. Return ONLY the JSON array, nothing else."
-                )
-
-                resp = await client.post(
-                    f"{self.ollama_url}/api/generate",
-                    json={
-                        "model": self.default_model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {"num_predict": 500, "num_ctx": 8192},
-                    },
-                )
-
-                if resp.status_code != 200:
-                    logger.warning(f"Ollama returned {resp.status_code} for file targeting")
-                    return []
-
-                raw = resp.json().get("response", "").strip()
-                logger.info(f"File targeting response: {raw[:200]}")
-
-                # Extract JSON array from response
-                import json as json_mod
-                # Try direct parse first
-                try:
-                    files = json_mod.loads(raw)
-                    if isinstance(files, list):
-                        return [f for f in files if isinstance(f, str) and f.strip()]
-                except json_mod.JSONDecodeError:
-                    pass
-
-                # Try to extract array from markdown-wrapped response
-                match = re.search(r'\[([^\]]+)\]', raw)
-                if match:
-                    try:
-                        files = json_mod.loads(f"[{match.group(1)}]")
-                        if isinstance(files, list):
-                            return [f for f in files if isinstance(f, str) and f.strip()]
-                    except json_mod.JSONDecodeError:
-                        pass
-
-                logger.warning(f"Could not parse file targeting response: {raw[:200]}")
-                return []
-
-        except Exception as e:
-            logger.warning(f"_identify_target_files failed: {e}")
-            return []
 
     async def _edit_single_file(self, relative_path: str, proposal: dict) -> bool:
         """Read a file, ask AI for improved version, write it back.
@@ -846,7 +809,7 @@ class AutonomyEngine:
         """
         # Security checks (same as self_edit.py)
         blocked_dirs = {"venv", ".git", "node_modules", "__pycache__", "memory_db"}
-        blocked_names = {".env", ".env.local", ".env.production"}
+        blocked_names = {".env", ".env.local", ".env.production", "autonomy.py", "server.py", "run.py"}
         blocked_exts = {".key", ".pem", ".secret", ".p12", ".pfx"}
 
         target = (PROJECT_ROOT / relative_path).resolve()
