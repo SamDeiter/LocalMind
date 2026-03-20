@@ -320,7 +320,29 @@
         <div class="messages-container" id="messagesContainer">
           <!-- Welcome screen shown when no conversation is active -->
           <div class="welcome-screen" id="welcomeScreen">
-            <div class="welcome-icon">🧠</div>
+            <!-- Neural Topology SVG (from UIIdea) -->
+            <div class="neural-topology">
+              <svg class="neural-svg" viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="lineGrad" x1="50" y1="40" x2="350" y2="160" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#7459f7" />
+                    <stop offset="1" stop-color="#00eefc" />
+                  </linearGradient>
+                </defs>
+                <!-- Connection lines -->
+                <path class="neural-path-animate" d="M80 50 L200 100 M200 100 L320 60 M200 100 L140 170 M200 100 L280 160 M80 50 L130 80" stroke="url(#lineGrad)" stroke-width="0.5" />
+                <path d="M320 60 L280 160 M140 170 L280 160" stroke="rgba(175, 162, 255, 0.15)" stroke-width="0.5" />
+                <!-- Central node (pulsing) -->
+                <circle class="neural-node-pulse" cx="200" cy="100" r="8" fill="#afa2ff" />
+                <circle cx="200" cy="100" r="16" stroke="#afa2ff" stroke-opacity="0.2" stroke-width="1" />
+                <!-- Peripheral nodes -->
+                <circle cx="80" cy="50" r="4" fill="#00eefc" />
+                <circle cx="320" cy="60" r="4" fill="#00eefc" />
+                <circle cx="140" cy="170" r="4" fill="#ff6b98" />
+                <circle cx="280" cy="160" r="4" fill="#00eefc" />
+                <circle cx="130" cy="80" r="3" fill="#afa2ff" />
+              </svg>
+            </div>
             <h1>LocalMind</h1>
             <p>Your private AI assistant. Everything runs locally.</p>
             <div class="feature-grid">
