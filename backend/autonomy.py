@@ -795,46 +795,42 @@ class AutonomyEngine:
         self.status["execution"]["last_run"] = time.time()
 
     async def _identify_target_files(self, proposal: dict) -> list[str]:
-        """Ask the AI which file(s) to edit for a proposal."""
+        """Ask the AI which file(s) to edit for a proposal.
+
+        Validates AI suggestions against the actual project file list
+        to prevent hallucinated paths from reaching the edit stage.
+        """
         try:
             # Get a directory listing for context
             files_list = []
-            for p in PROJECT_ROOT.rglob("*.py"):
-                rel = p.relative_to(PROJECT_ROOT)
-                # Skip venv, __pycache__, .git
-                parts = rel.parts
-                if any(skip in parts for skip in ("venv", "__pycache__", ".git", "node_modules")):
-                    continue
-                files_list.append(str(rel).replace("\\", "/"))
-
-            for p in PROJECT_ROOT.rglob("*.js"):
-                rel = p.relative_to(PROJECT_ROOT)
-                parts = rel.parts
-                if any(skip in parts for skip in ("venv", "__pycache__", ".git", "node_modules")):
-                    continue
-                files_list.append(str(rel).replace("\\", "/"))
-
-            for p in PROJECT_ROOT.rglob("*.html"):
-                rel = p.relative_to(PROJECT_ROOT)
-                parts = rel.parts
-                if any(skip in parts for skip in ("venv", "__pycache__", ".git", "node_modules")):
-                    continue
-                files_list.append(str(rel).replace("\\", "/"))
+            skip_dirs = {"venv", "__pycache__", ".git", "node_modules", "memory_db", ".bak"}
+            for ext in ("*.py", "*.js", "*.html", "*.css"):
+                for p in PROJECT_ROOT.rglob(ext):
+                    rel = p.relative_to(PROJECT_ROOT)
+                    if any(skip in rel.parts for skip in skip_dirs):
+                        continue
+                    files_list.append(str(rel).replace("\\", "/"))
 
             if not files_list:
                 logger.warning("No project files found for targeting")
                 return []
 
+            # Build a numbered file list so the AI can reference by number
+            numbered = "\n".join(f"  {i+1}. {f}" for i, f in enumerate(files_list[:80]))
+            files_set = set(files_list)
+
             async with httpx.AsyncClient(timeout=60.0) as client:
                 prompt = (
-                    f"Given this improvement proposal:\n"
-                    f"Title: {proposal['title']}\n"
-                    f"Category: {proposal['category']}\n"
-                    f"Description: {proposal['description']}\n\n"
-                    f"And these project files:\n{chr(10).join(files_list[:80])}\n\n"
-                    f"Which file(s) need to be edited? Return ONLY a JSON array of "
-                    f"relative file paths. Example: [\"backend/server.py\"]\n"
-                    f"Pick the 1-2 most important files. Only output the JSON array."
+                    f"You are a code targeting assistant. Pick which file(s) to edit.\n\n"
+                    f"PROPOSAL: {proposal['title']}\n"
+                    f"CATEGORY: {proposal['category']}\n"
+                    f"DETAILS: {proposal['description']}\n\n"
+                    f"AVAILABLE FILES (pick ONLY from this list):\n{numbered}\n\n"
+                    f"RULES:\n"
+                    f"1. You MUST pick files from the list above. Do NOT invent file paths.\n"
+                    f"2. Pick 1-2 files maximum.\n"
+                    f"3. Output ONLY a JSON array of file paths, e.g. [\"backend/server.py\"]\n"
+                    f"4. No explanation, no markdown, just the JSON array.\n"
                 )
 
                 resp = await client.post(
@@ -847,39 +843,59 @@ class AutonomyEngine:
                     },
                 )
 
-                if resp.status_code == 200:
-                    text = resp.json().get("response", "").strip()
-                    logger.info(f"File targeting raw response: {text[:300]}")
+                if resp.status_code != 200:
+                    logger.warning(f"Ollama returned {resp.status_code} for file targeting")
+                    return []
 
-                    # Strip markdown fences if present
-                    if "```" in text:
-                        text = text.split("```")[1]
-                        if text.startswith("json"):
-                            text = text[4:]
-                        text = text.strip()
+                text = resp.json().get("response", "").strip()
+                logger.info(f"File targeting raw response: {text[:300]}")
 
-                    # Try direct JSON parse
-                    try:
-                        result = json.loads(text)
-                        if isinstance(result, list):
-                            return [f for f in result if isinstance(f, str) and f.strip()]
-                    except json.JSONDecodeError:
-                        pass
+                # Strip markdown fences if present
+                if "```" in text:
+                    text = text.split("```")[1]
+                    if text.startswith("json"):
+                        text = text[4:]
+                    text = text.strip()
 
+                # Parse JSON array
+                candidates = []
+                try:
+                    result = json.loads(text)
+                    if isinstance(result, list):
+                        candidates = [f for f in result if isinstance(f, str) and f.strip()]
+                except json.JSONDecodeError:
                     # Fallback: extract JSON array with regex
-                    import re as _re
-                    match = _re.search(r'\[([^\]]+)\]', text)
+                    match = re.search(r'\[([^\]]+)\]', text)
                     if match:
                         try:
                             result = json.loads(f"[{match.group(1)}]")
                             if isinstance(result, list):
-                                return [f for f in result if isinstance(f, str) and f.strip()]
+                                candidates = [f for f in result if isinstance(f, str) and f.strip()]
                         except json.JSONDecodeError:
                             pass
 
+                if not candidates:
                     logger.warning(f"Could not parse file targeting response: {text[:200]}")
-                else:
-                    logger.warning(f"Ollama returned {resp.status_code} for file targeting")
+                    return []
+
+                # Validate: only return files that actually exist in the project
+                validated = []
+                for candidate in candidates:
+                    candidate = candidate.strip().strip("/")
+                    if candidate in files_set:
+                        validated.append(candidate)
+                    else:
+                        # Fuzzy fallback: try matching by basename
+                        basename = candidate.rsplit("/", 1)[-1]
+                        matches = [f for f in files_list if f.endswith("/" + basename) or f == basename]
+                        if len(matches) == 1:
+                            validated.append(matches[0])
+                            logger.info(f"Fuzzy-matched '{candidate}' → '{matches[0]}'")
+                        else:
+                            logger.warning(f"AI suggested non-existent file: '{candidate}' (no match in project)")
+                            self._emit_activity("info", f"Ignored hallucinated path: {candidate}")
+
+                return validated[:3]
 
         except Exception as exc:
             logger.warning(f"Failed to identify target files: {exc}")
