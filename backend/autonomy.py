@@ -192,8 +192,8 @@ class AutonomyEngine:
 
     async def _health_loop(self):
         """Every 60s: ping Ollama, pre-warm model if needed."""
-        # Wait for server to be fully ready before first check
-        await asyncio.sleep(30)
+        # Short delay for server startup, then check immediately
+        await asyncio.sleep(5)
 
         while True:
             try:
@@ -242,7 +242,7 @@ class AutonomyEngine:
     async def _prewarm_model(self):
         """Send a tiny prompt to Ollama to load the model into VRAM."""
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 logger.info(f"🔥 Pre-warming model: {self.startup_model}")
                 self._log("prewarm_start", {"model": self.startup_model})
 
