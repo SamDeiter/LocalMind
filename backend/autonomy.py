@@ -647,7 +647,6 @@ class AutonomyEngine:
                 filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
 
                 self.status["execution"]["proposals_executed"] += 1
-            return True
                 self.status["execution"]["last_result"] = proposal["title"]
                 self._log("proposal_execution_done", {
                     "id": proposal["id"],
@@ -661,6 +660,7 @@ class AutonomyEngine:
                                     files=edits_applied,
                                     branch=branch_name)
                 logger.info(f"✅ Proposal executed: {proposal['title']} → branch {branch_name}")
+                return True
 
             else:
                 # Step 5b: Tests failed — revert from backups
