@@ -314,10 +314,18 @@ export async function sendMessage() {
 
 // ── Message Rendering ───────────────────────────────────────────
 export function clearMessages() {
-  if (messagesContainer) messagesContainer.innerHTML = "";
-  if (welcomeScreen) welcomeScreen.style.display = "";
-  const chatArea = document.getElementById("chatArea");
-  if (chatArea) chatArea.style.display = "none";
+  if (messagesContainer) {
+    // Remove only message elements, preserve the welcome screen
+    const messages = messagesContainer.querySelectorAll(".message");
+    messages.forEach((m) => m.remove());
+  }
+  if (welcomeScreen) {
+    // Re-append in case it was removed, then show it
+    if (messagesContainer && !messagesContainer.contains(welcomeScreen)) {
+      messagesContainer.appendChild(welcomeScreen);
+    }
+    welcomeScreen.style.display = "";
+  }
 }
 
 export function renderMessages() {
