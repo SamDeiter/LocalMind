@@ -1,29 +1,31 @@
 /**
  * dashboard.js — Live data feed for the LocalMind dashboard
  * Connects neural topology nodes + metrics bars + status bar
- * to the existing /api/hardware and /api/autonomy/status endpoints.
+ * to /api/hardware and /api/autonomy/status endpoints.
  */
 
-const API = window.location.origin;
+const DASH_API = window.location.origin;
 let dashboardInterval = null;
 
 /** Update neural topology SVG nodes and metric cards with live hardware data */
 async function updateDashboardMetrics() {
   try {
-    const r = await fetch(`${API}/api/hardware`);
+    const r = await fetch(`${DASH_API}/api/hardware`);
     if (!r.ok) return;
     const hw = await r.json();
+    const sys = hw.system || {};
+    const models = hw.models || [];
 
     // ── CPU ──
-    const cpuPct = hw.cpu_percent ?? 0;
+    const cpuPct = sys.cpu_percent ?? 0;
     const cpuEl = document.getElementById("metricCpu");
     const cpuBar = document.getElementById("metricCpuBar");
     const nodeCpuVal = document.getElementById("nodeCpuVal");
     if (cpuEl) cpuEl.textContent = `${cpuPct}%`;
-    if (cpuBar) cpuBar.style.width = `${cpuPct}%`;
+    if (cpuBar) cpuBar.style.width = `${Math.min(cpuPct, 100)}%`;
     if (nodeCpuVal) nodeCpuVal.textContent = `${cpuPct}%`;
 
-    // Color the CPU node based on load
+    // Color CPU node based on load
     const nodeCpu = document.getElementById("nodeCpu");
     if (nodeCpu) {
       if (cpuPct > 80) nodeCpu.setAttribute("fill", "#ff6b98");
@@ -32,8 +34,8 @@ async function updateDashboardMetrics() {
     }
 
     // ── RAM ──
-    const ramUsed = hw.ram_used_gb ?? 0;
-    const ramTotal = hw.ram_total_gb ?? 0;
+    const ramUsed = sys.ram_used_gb ?? 0;
+    const ramTotal = sys.ram_total_gb ?? 0;
     const ramPct = ramTotal > 0 ? (ramUsed / ramTotal * 100) : 0;
     const ramEl = document.getElementById("metricRam");
     const ramBar = document.getElementById("metricRamBar");
@@ -42,16 +44,24 @@ async function updateDashboardMetrics() {
     if (ramBar) ramBar.style.width = `${ramPct}%`;
     if (nodeRamVal) nodeRamVal.textContent = `${ramUsed.toFixed(1)}GB`;
 
-    // ── VRAM ──
-    const vramUsed = hw.vram_used_gb ?? 0;
-    const vramTotal = hw.vram_total_gb ?? 0;
-    const vramPct = vramTotal > 0 ? (vramUsed / vramTotal * 100) : 0;
+    // ── VRAM (from loaded models) ──
+    let vramUsed = 0;
+    let vramTotal = 0;
+    let modelName = "No model";
+    if (models.length > 0) {
+      vramUsed = models.reduce((sum, m) => sum + (m.vram_gb || 0), 0);
+      vramTotal = vramUsed; // Ollama doesn't report total VRAM, just what's allocated
+      modelName = models[0].name || "Unknown";
+    }
     const vramEl = document.getElementById("metricVram");
     const vramBar = document.getElementById("metricVramBar");
     const nodeGpuVal = document.getElementById("nodeGpuVal");
-    if (vramEl) vramEl.textContent = `${vramUsed.toFixed(1)} / ${vramTotal.toFixed(0)}GB`;
-    if (vramBar) vramBar.style.width = `${vramPct}%`;
-    if (nodeGpuVal) nodeGpuVal.textContent = `${vramUsed.toFixed(1)}GB`;
+    // Use a rough estimate: most GPUs are 4-24GB, show percentage of a reasonable max
+    const estimatedVramMax = 24; // Will show proportional bar
+    const vramPct = estimatedVramMax > 0 ? (vramUsed / estimatedVramMax * 100) : 0;
+    if (vramEl) vramEl.textContent = vramUsed > 0 ? `${vramUsed.toFixed(1)}GB` : "--";
+    if (vramBar) vramBar.style.width = `${Math.min(vramPct, 100)}%`;
+    if (nodeGpuVal) nodeGpuVal.textContent = vramUsed > 0 ? `${vramUsed.toFixed(1)}GB` : "--";
 
     // Color GPU node
     const nodeGpu = document.getElementById("nodeGpu");
@@ -60,27 +70,30 @@ async function updateDashboardMetrics() {
       else if (vramPct > 50) nodeGpu.setAttribute("fill", "#f59e0b");
       else nodeGpu.setAttribute("fill", "#00eefc");
     }
+
+    // Update status bar model
+    const statusModel = document.getElementById("statusModel");
+    if (statusModel) statusModel.textContent = modelName;
+
   } catch {
     // Silently fail — hardware API may not be available
   }
 }
 
-/** Update status bar with connection + model info */
+/** Update status bar with connection + engine info */
 async function updateStatusBar() {
   try {
     const dot = document.getElementById("statusDot");
     const connEl = document.getElementById("statusConnection");
-    const modelEl = document.getElementById("statusModel");
     const engineEl = document.getElementById("statusEngine");
     const versionEl = document.getElementById("statusVersion");
 
     // Check autonomy status
-    const r = await fetch(`${API}/api/autonomy/status`);
+    const r = await fetch(`${DASH_API}/api/autonomy/status`);
     if (r.ok) {
       const s = await r.json();
       if (dot) dot.classList.add("connected");
       if (connEl) connEl.textContent = "Connected";
-      if (modelEl) modelEl.textContent = s.current_model || "No model";
       if (engineEl) engineEl.textContent = `Engine: ${s.status || "Idle"}`;
 
       // Update memory count in neural topology
@@ -95,7 +108,7 @@ async function updateStatusBar() {
 
     // Version
     try {
-      const vr = await fetch(`${API}/api/version`);
+      const vr = await fetch(`${DASH_API}/api/version`);
       if (vr.ok) {
         const vd = await vr.json();
         if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
@@ -104,7 +117,7 @@ async function updateStatusBar() {
 
     // Memory count for neural node
     try {
-      const mr = await fetch(`${API}/api/memories`);
+      const mr = await fetch(`${DASH_API}/api/memories`);
       if (mr.ok) {
         const memories = await mr.json();
         const nodeMemVal = document.getElementById("nodeMemVal");
@@ -122,18 +135,15 @@ async function updateStatusBar() {
 
 /** Initialize dashboard data feeds */
 function initDashboard() {
-  // Initial load
   updateDashboardMetrics();
   updateStatusBar();
-
-  // Refresh every 3 seconds
   dashboardInterval = setInterval(() => {
     updateDashboardMetrics();
     updateStatusBar();
   }, 3000);
 }
 
-/** Stop dashboard updates (e.g., when entering a conversation) */
+/** Stop dashboard updates */
 function stopDashboard() {
   if (dashboardInterval) {
     clearInterval(dashboardInterval);
@@ -148,5 +158,4 @@ if (document.readyState === "loading") {
   initDashboard();
 }
 
-// Export for use by other modules
 window.dashboardModule = { initDashboard, stopDashboard, updateDashboardMetrics, updateStatusBar };
