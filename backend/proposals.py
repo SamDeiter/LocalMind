@@ -8,6 +8,7 @@ Extracted from autonomy.py to keep files lean and editable.
 
 import json
 import logging
+import shutil
 import time
 import uuid
 from pathlib import Path
@@ -16,8 +17,36 @@ from typing import Optional
 logger = logging.getLogger("localmind.autonomy.proposals")
 
 PROPOSALS_DIR = Path.home() / "LocalMind_Workspace" / "proposals"
+ARCHIVE_DIR = Path.home() / "LocalMind_Workspace" / "proposals_archive"
 
-MAX_RETRIES = 2  # Max times a proposal can be retried before permanent blacklist
+MAX_RETRIES = 5  # Max times a proposal can be retried before permanent blacklist
+
+# Synonym groups for dedup normalization
+_SYNONYM_GROUPS = [
+    {"improve", "enhance", "refine", "upgrade", "optimize", "boost"},
+    {"add", "implement", "introduce", "create", "include"},
+    {"error", "exception", "fault", "failure"},
+    {"handling", "management", "processing"},
+    {"refactor", "restructure", "reorganize", "rework", "clean"},
+    {"fix", "resolve", "repair", "patch", "correct"},
+]
+
+# Build lookup: word -> canonical form (first word in its group)
+_SYNONYM_MAP: dict[str, str] = {}
+for group in _SYNONYM_GROUPS:
+    canonical = sorted(group)[0]  # alphabetically first as canonical
+    for word in group:
+        _SYNONYM_MAP[word] = canonical
+
+
+def _normalize_title(title: str) -> set[str]:
+    """Normalize a title into a set of canonical words for dedup comparison."""
+    words = set(title.lower().split())
+    # Remove common filler words
+    filler = {"in", "the", "a", "an", "for", "of", "to", "and", "with", "on", "is", "by"}
+    words -= filler
+    # Map synonyms to canonical forms
+    return {_SYNONYM_MAP.get(w, w) for w in words}
 
 
 class ProposalManager:
@@ -25,43 +54,63 @@ class ProposalManager:
 
     def __init__(self):
         self._failed_titles: set[str] = set()
+        # Load failed titles from existing proposals on startup
+        self._load_failed_titles()
 
-    def is_duplicate(self, new_title: str) -> bool:
-        """Check if a similar proposal already exists (Jaccard + failed-title check)."""
+    def _load_failed_titles(self):
+        """Load failed proposal titles from disk on startup."""
         if not PROPOSALS_DIR.exists():
-            # Still check against failed titles
-            return self._is_failed_title(new_title)
-
-        new_words = set(new_title.lower().split())
+            return
         for f in PROPOSALS_DIR.glob("*.json"):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
-                existing_title = data.get("title", "")
-                existing_words = set(existing_title.lower().split())
-                if not new_words or not existing_words:
-                    continue
-                overlap = len(new_words & existing_words)
-                total = len(new_words | existing_words)
-                similarity = overlap / total if total > 0 else 0
-                if similarity > 0.70:
-                    logger.info(f"Duplicate detected: \"{new_title}\" ≈ \"{existing_title}\" ({similarity:.0%})")
-                    return True
+                if data.get("status") == "failed":
+                    self._failed_titles.add(data.get("title", ""))
             except Exception:
                 continue
 
+    def is_duplicate(self, new_title: str) -> bool:
+        """Check if a similar proposal already exists.
+
+        Uses normalized word-set overlap with synonym mapping
+        to catch rephrasings like 'Improve Error Handling' ≈ 'Enhance Exception Management'.
+        """
+        new_words = _normalize_title(new_title)
+        if not new_words:
+            return False
+
+        # Check against proposals on disk
+        if PROPOSALS_DIR.exists():
+            for f in PROPOSALS_DIR.glob("*.json"):
+                try:
+                    data = json.loads(f.read_text(encoding="utf-8"))
+                    existing_title = data.get("title", "")
+                    existing_words = _normalize_title(existing_title)
+                    if not existing_words:
+                        continue
+                    overlap = len(new_words & existing_words)
+                    total = len(new_words | existing_words)
+                    similarity = overlap / total if total > 0 else 0
+                    if similarity > 0.55:
+                        logger.info(f"Duplicate detected: \"{new_title}\" ≈ \"{existing_title}\" ({similarity:.0%})")
+                        return True
+                except Exception:
+                    continue
+
+        # Check against failed titles in memory
         return self._is_failed_title(new_title)
 
     def _is_failed_title(self, new_title: str) -> bool:
-        """Check against failed titles in memory (lower threshold)."""
-        new_words = set(new_title.lower().split())
+        """Check against failed titles in memory."""
+        new_words = _normalize_title(new_title)
         for failed_title in self._failed_titles:
-            failed_words = set(failed_title.lower().split())
+            failed_words = _normalize_title(failed_title)
             if not new_words or not failed_words:
                 continue
             overlap = len(new_words & failed_words)
             total = len(new_words | failed_words)
             similarity = overlap / total if total > 0 else 0
-            if similarity > 0.50:
+            if similarity > 0.45:
                 logger.info(f"Blocked (similar to failed): \"{new_title}\" ≈ \"{failed_title}\" ({similarity:.0%})")
                 return True
         return False
@@ -91,6 +140,7 @@ class ProposalManager:
             "source": "autonomy_reflection",
             "created_at": time.time(),
             "created_at_human": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "retry_count": 0,
         }
 
         # Normalize files_affected to list
@@ -160,12 +210,13 @@ class ProposalManager:
                         return None
                     data["status"] = "approved"
                     data["error"] = None
+                    data["retry_count"] = retry_count + 1  # Increment on retry, not on failure
                     data["status_changed_at"] = time.time()
                     data["status_changed_at_human"] = time.strftime("%Y-%m-%d %H:%M:%S")
                     f.write_text(json.dumps(data, indent=2), encoding="utf-8")
                     if emit_activity:
                         emit_activity("proposal_retried",
-                                      f"Retrying: {data.get('title')}",
+                                      f"Retrying ({retry_count + 1}/{MAX_RETRIES}): {data.get('title')}",
                                       proposal_id=proposal_id)
                     return data
             except Exception:
@@ -173,17 +224,62 @@ class ProposalManager:
         return None
 
     def mark_failed(self, proposal: dict, error: str, filepath=None):
-        """Mark a proposal as failed and track its title."""
+        """Mark a proposal as failed and track its title.
+
+        Note: retry_count is NOT incremented here — it is only incremented
+        when the user explicitly retries via retry(). This prevents the count
+        from inflating on the first execution attempt.
+        """
         proposal["status"] = "failed"
-        proposal["retry_count"] = proposal.get("retry_count", 0) + 1
         proposal["error"] = error
         self._failed_titles.add(proposal.get("title", ""))
         if filepath:
             filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
 
+    def cleanup_stale(self) -> dict:
+        """Archive old denied/completed proposals and remove exhausted failed ones.
+
+        Returns a summary of what was cleaned up.
+        """
+        if not PROPOSALS_DIR.exists():
+            return {"archived": 0, "deleted": 0}
+
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        now = time.time()
+        archived = 0
+        deleted = 0
+
+        for f in list(PROPOSALS_DIR.glob("*.json")):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                age_hours = (now - data.get("created_at", now)) / 3600
+                status = data.get("status", "")
+
+                # Archive completed/denied proposals older than 24h
+                if status in ("completed", "denied") and age_hours > 24:
+                    dest = ARCHIVE_DIR / f.name
+                    shutil.move(str(f), str(dest))
+                    archived += 1
+
+                # Delete exhausted failed proposals (max retries hit) older than 48h
+                elif status == "failed" and age_hours > 48:
+                    retry_count = data.get("retry_count", 0)
+                    if retry_count >= MAX_RETRIES:
+                        dest = ARCHIVE_DIR / f.name
+                        shutil.move(str(f), str(dest))
+                        deleted += 1
+
+            except Exception:
+                continue
+
+        if archived or deleted:
+            logger.info(f"🧹 Proposal cleanup: archived {archived}, removed {deleted} exhausted")
+
+        return {"archived": archived, "deleted": deleted}
+
     def get_anti_repeat_titles(self) -> list[str]:
         """Get titles to include in anti-repeat prompt (recent + failed)."""
-        recent = [p.get("title", "") for p in self.list_proposals()][-5:]
+        recent = [p.get("title", "") for p in self.list_proposals()][-10:]
         return list(set(recent) | self._failed_titles)
 
     def _update_status(self, proposal_id: str, new_status: str) -> Optional[dict]:

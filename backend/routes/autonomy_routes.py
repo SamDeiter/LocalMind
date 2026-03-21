@@ -193,10 +193,10 @@ async def deny_autonomy_proposal(proposal_id: str):
     return {"ok": True, "proposal": result}
 
 
-@router.post("/proposals/{proposal_id}/retry")
+@router.post("/autonomy/proposals/{proposal_id}/retry")
 async def retry_proposal(proposal_id: str):
     """Reset a failed proposal to approved status for re-execution."""
     updated = _engine.retry_proposal(proposal_id)
     if updated:
         return {"ok": True, "proposal": updated}
-    return {"ok": False, "message": "Proposal not found"}
+    return {"ok": False, "message": "Proposal not found or max retries reached"}

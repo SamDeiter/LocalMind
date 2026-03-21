@@ -146,13 +146,13 @@ export async function loadProposals() {
  */
 export async function retryProposal(id) {
   try {
-    const r = await fetch(`${API}/api/proposals/${id}/retry`, { method: "POST" });
+    const r = await fetch(`${API}/api/autonomy/proposals/${id}/retry`, { method: "POST" });
     const data = await r.json();
     if (data.ok) {
       showToast("🔄 Proposal queued for retry", "info");
       loadProposals();
     } else {
-      showToast("❌ Failed to retry: " + (data.message || "Unknown error"), "error");
+      showToast("❌ " + (data.message || "Unknown error"), "error");
     }
   } catch {
     showToast("❌ Connection error", "error");

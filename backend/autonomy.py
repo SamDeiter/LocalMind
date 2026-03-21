@@ -267,6 +267,8 @@ class AutonomyEngine:
                     pass
 
                 if self.enabled and not self.is_user_active():
+                    # Clean up stale proposals before reflecting
+                    self.proposals.cleanup_stale()
                     self._emit_activity("reflecting", "Step 1/2: Analyzing project structure...")
                     await self._run_reflection()
                     self._emit_activity("idle", "Waiting for next reflection cycle")
@@ -309,7 +311,7 @@ class AutonomyEngine:
                 cat = p.get("category", "unknown")
                 category_counts[cat] = category_counts.get(cat, 0) + 1
 
-            focus_categories = ["performance", "feature", "ux", "security", "code_quality"]
+            focus_categories = ["performance", "feature", "ux", "security", "code_quality", "bugfix"]
             category_weights = [(cat, category_counts.get(cat, 0)) for cat in focus_categories]
             category_weights.sort(key=lambda x: x[1])
             focus_category = category_weights[0][0]
@@ -319,30 +321,33 @@ class AutonomyEngine:
             anti_repeat = ""
             if all_blocked:
                 anti_repeat = (
-                    "\nALREADY PROPOSED OR FAILED (do NOT repeat or rephrase these):\n"
-                    + "\n".join(f"  - {t}" for t in all_blocked)
-                    + "\nDo NOT propose variations of the above topics.\n"
+                    "\nALREADY PROPOSED (do NOT repeat, rephrase, or create variations):\n"
+                    + "\n".join(f"  ❌ {t}" for t in list(all_blocked)[:20])
+                    + "\n\nIMPORTANT: If your idea is similar to ANY of the above, STOP and think of something completely different.\n"
                 )
 
             # Suppress over-represented categories
             suppress = ""
-            dominant_cat = max(category_counts, key=category_counts.get) if category_counts else None
-            if dominant_cat and category_counts.get(dominant_cat, 0) > len(existing_proposals) * 0.4:
-                suppress = f"\nDo NOT propose anything in the \"{dominant_cat}\" category — we already have too many.\n"
+            if category_counts:
+                dominant_cat = max(category_counts, key=category_counts.get)
+                if category_counts.get(dominant_cat, 0) > max(3, len(existing_proposals) * 0.3):
+                    suppress = f"\nBLOCKED CATEGORY: Do NOT propose anything about \"{dominant_cat}\" — it is overrepresented.\n"
 
             async with httpx.AsyncClient(timeout=120.0) as client:
                 prompt = (
-                    "You are LocalMind, reviewing your OWN codebase to find improvements.\n\n"
+                    "You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                     "HERE ARE THE ACTUAL FILES IN THIS PROJECT:\n"
                     f"{file_list}\n\n"
-                    f"FOCUS AREA: Look specifically for \"{focus_category}\" improvements.\n"
+                    f"REQUIRED CATEGORY: Your proposal MUST be in the \"{focus_category}\" category.\n"
                     f"{anti_repeat}"
                     f"{suppress}"
-                    "RULES:\n"
-                    "- Only suggest changes to files listed above\n"
-                    "- Be specific — reference real file names\n"
-                    "- DO NOT invent files like 'auth.py' or 'database.py' that don't exist\n"
-                    "- Think creatively — suggest something NOVEL, not just error handling\n\n"
+                    "RULES (follow ALL of them):\n"
+                    "1. ONLY suggest changes to files listed above — do NOT invent files.\n"
+                    "2. Be SPECIFIC — describe the exact code change (e.g. 'add gzip compression to /api/documents response').\n"
+                    "3. Your title must describe the SPECIFIC change, NOT a vague topic like 'Improve Error Handling'.\n"
+                    "4. BANNED TOPICS: 'error handling', 'exception handling', 'try/catch improvements' — these are EXHAUSTED.\n"
+                    "5. Think about: caching, response times, UI animations, keyboard shortcuts, accessibility, "
+                    "API rate limiting, request batching, lazy loading, code splitting, logging levels, config validation.\n\n"
                     "Output a JSON object with keys: title, category "
                     "(performance/feature/bugfix/ux/security/code_quality), "
                     "description, files_affected (list of real filenames from above), "
@@ -373,20 +378,28 @@ class AutonomyEngine:
                             json_text = json_text.strip()
 
                         proposal = json.loads(json_text)
-                        saved = self.proposals.save(
-                            proposal,
-                            mode=self.mode,
-                            auto_approve_risks=self.AUTO_APPROVE_RISKS,
-                            log_fn=self._log,
-                            emit_activity=self._emit_activity,
-                        )
-                        if saved:
-                            self.status["reflection"]["proposals_logged"] += 1
-                            self._log("reflection_done", {"proposal": saved.get("title", "?")})
-                            self._emit_activity("proposal_created", f"New proposal: {saved.get('title', '?')}",
-                                                proposal_id=saved.get("id", ""),
-                                                category=saved.get("category", ""))
-                            logger.info(f"💡 Auto-reflection logged: {saved.get('title', '?')}")
+
+                        # Extra filter: reject proposals with banned keywords in title
+                        title_lower = proposal.get("title", "").lower()
+                        banned_phrases = ["error handling", "exception handling", "try/catch", "try-catch"]
+                        if any(phrase in title_lower for phrase in banned_phrases):
+                            logger.info(f"Rejected banned-topic proposal: {proposal.get('title', '?')}")
+                            self._emit_activity("info", f"Rejected banned topic: {proposal.get('title', '?')}")
+                        else:
+                            saved = self.proposals.save(
+                                proposal,
+                                mode=self.mode,
+                                auto_approve_risks=self.AUTO_APPROVE_RISKS,
+                                log_fn=self._log,
+                                emit_activity=self._emit_activity,
+                            )
+                            if saved:
+                                self.status["reflection"]["proposals_logged"] += 1
+                                self._log("reflection_done", {"proposal": saved.get("title", "?")})
+                                self._emit_activity("proposal_created", f"New proposal: {saved.get('title', '?')}",
+                                                    proposal_id=saved.get("id", ""),
+                                                    category=saved.get("category", ""))
+                                logger.info(f"💡 Auto-reflection logged: {saved.get('title', '?')}")
 
                     except (json.JSONDecodeError, IndexError):
                         self._log("reflection_parse_failed", {"response": response_text[:200]})

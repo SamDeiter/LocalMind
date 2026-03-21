@@ -6,7 +6,7 @@
 
 import { API } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
-import { loadProposals, retryProposal } from "./proposals_ui.js";
+import { loadProposals } from "./proposals_ui.js";
 
 // ── Autonomy Status ─────────────────────────────────────────────
 export async function pollAutonomy() {
@@ -429,16 +429,21 @@ export async function triggerExecution() {
 // retryProposal is imported from proposals_ui.js
 
 // Make globally available for onclick handlers
-window.retryProposal = retryProposal;
+window.retryProposal = (id) => {
+    fetch(`${API}/api/autonomy/proposals/${id}/retry`, { method: "POST" })
+        .then(r => r.json())
+        .then(d => { if(d.ok) { showToast("🔄 Retrying", "info"); loadProposals(); } else { showToast(`❌ ${d.message || "Retry failed"}`, "error"); } })
+        .catch(() => showToast("❌ Connection error", "error"));
+};
 window.triggerReflection = triggerReflection;
 window.triggerExecution = triggerExecution;
 window.approveProposal = (id) => {
-    fetch(`${API}/api/proposals/${id}/approve`, { method: "POST" })
+    fetch(`${API}/api/autonomy/proposals/${id}/approve`, { method: "POST" })
         .then(r => r.json())
         .then(d => { if(d.ok) { showToast("✅ Approved", "info"); loadProposals(); } });
 };
 window.denyProposal = (id) => {
-    fetch(`${API}/api/proposals/${id}/deny`, { method: "POST" })
+    fetch(`${API}/api/autonomy/proposals/${id}/deny`, { method: "POST" })
         .then(r => r.json())
         .then(d => { if(d.ok) { showToast("❌ Denied", "info"); loadProposals(); } });
 };
