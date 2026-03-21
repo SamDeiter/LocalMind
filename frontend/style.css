@@ -403,6 +403,12 @@ body {
   border-radius: 3px;
 }
 
+/* Dashboard fills container edge-to-edge */
+.messages-container:has(.welcome-screen) {
+  padding: 0;
+  overflow: hidden;
+}
+
 /* ── Welcome Screen (Dashboard Mode) ───────────────────────────── */
 .welcome-screen {
   display: flex;
@@ -2738,6 +2744,8 @@ h1, h2, h3 {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  width: 100%;
+  min-height: 0;
 }
 
 /* ── Left Column ───────────────────────────────────────────────── */
@@ -2747,10 +2755,12 @@ h1, h2, h3 {
   padding: 24px 28px;
   overflow-y: auto;
   gap: 20px;
+  justify-content: center;
 }
 
 .dash-hero {
   text-align: center;
+  padding-top: 8px;
 }
 .dash-hero h1 {
   font-family: var(--font-headline);
@@ -2779,7 +2789,7 @@ h1, h2, h3 {
   background: var(--surface-container);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 20px;
 }
 .neural-topology::before {
   content: '';
@@ -2966,37 +2976,3 @@ h1, h2, h3 {
   }
 }
 
-/* ── Dashboard fills messages container edge-to-edge ─────────── */
-.messages-container:has(.welcome-screen) {
-  padding: 0;
-  overflow: hidden;
-}
-
-/* Ensure dash-grid fills full width and height */
-.dash-grid {
-  width: 100%;
-  min-height: 0;
-}
-
-/* Neural topology label styling */
-.neural-topology {
-  padding: 20px;
-}
-
-/* Feature grid inside dash-left - fill width */
-.dash-left .feature-grid {
-  max-width: none;
-}
-
-/* Ensure dash-hero text is centered */
-.dash-hero {
-  padding-top: 8px;
-  text-align: center;
-}
-
-/* Brain timeline max height in right column */
-.dash-right .brain-timeline {
-  flex: 1;
-  overflow-y: auto;
-  max-height: none;
-}
