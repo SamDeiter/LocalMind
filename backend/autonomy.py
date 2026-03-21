@@ -145,6 +145,11 @@ class AutonomyEngine:
         except Exception as exc:
             logger.warning(f"Failed to write autonomy log: {exc}")
 
+    def trigger_reflection(self):
+        """Manually trigger the reflection cycle."""
+        self._manual_reflection_event.set()
+        logger.info("💡 Manual reflection event set")
+
     def trigger_execution(self):
         """Manually trigger the execution cycle."""
         self._manual_execution_event.set()
