@@ -2722,3 +2722,255 @@ h1, h2, h3 {
   background: rgba(175, 162, 255, 0.2);
   color: var(--accent);
 }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   Dashboard Grid Layout (UIIdea Redesign)
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Override welcome-screen for dashboard mode */
+.welcome-screen {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  padding: 0 !important;
+  animation: none !important;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Left Column ───────────────────────────────────────────────── */
+.dash-left {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 28px;
+  overflow-y: auto;
+  gap: 20px;
+}
+
+.dash-hero {
+  text-align: center;
+}
+.dash-hero h1 {
+  font-family: var(--font-headline);
+  font-size: 32px;
+  font-weight: 700;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.dash-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Neural Topology (bigger, data-connected) */
+.neural-topology {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  position: relative;
+  background: var(--surface-container);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.neural-topology::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(116, 89, 247, 0.06) 0%, transparent 70%);
+  border-radius: var(--radius);
+  pointer-events: none;
+}
+.neural-svg {
+  width: 100%;
+  height: auto;
+}
+
+/* ── System Metrics Row ──────────────────────────────────────── */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.metric-card {
+  background: var(--surface-container);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.metric-label {
+  font-family: var(--font-headline);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.metric-value {
+  font-family: var(--font-headline);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.metric-bar-track {
+  height: 4px;
+  background: var(--surface-container-highest);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.metric-bar-fill.cpu {
+  background: linear-gradient(90deg, #7459f7, #afa2ff);
+}
+.metric-bar-fill.ram {
+  background: linear-gradient(90deg, #00deec, #00eefc);
+}
+.metric-bar-fill.vram {
+  background: linear-gradient(90deg, #fc0078, #ff6b98);
+}
+
+/* ── Feature Grid (updated) ──────────────────────────────────── */
+.welcome-screen .feature-grid {
+  max-width: 100%;
+}
+
+/* ── Right Column ──────────────────────────────────────────────── */
+.dash-right {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.dash-right .brain-dashboard {
+  margin-top: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+}
+.dash-right .brain-header {
+  background: var(--surface-container);
+}
+
+/* ── Thought Stream ──────────────────────────────────────────── */
+.thought-stream {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.thought-stream-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.thought-stream-title {
+  font-family: var(--font-headline);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+.thought-stream-live {
+  font-family: var(--font-headline);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #00eefc;
+  padding: 2px 8px;
+  background: rgba(0, 238, 252, 0.1);
+  border: 1px solid rgba(0, 238, 252, 0.2);
+  border-radius: 4px;
+  animation: node-pulse 2s ease-in-out infinite;
+}
+.thought-stream .brain-timeline {
+  flex: 1;
+  overflow-y: auto;
+  max-height: none;
+}
+
+/* ── Status Bar ──────────────────────────────────────────────── */
+.status-bar {
+  height: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  font-family: var(--font);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.status-bar-left,
+.status-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  display: inline-block;
+  margin-right: 4px;
+  transition: background 0.3s;
+}
+.status-dot.connected {
+  background: #00eefc;
+}
+.status-divider {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+}
+
+/* ── Responsive: Stack on mobile ─────────────────────────────── */
+@media (max-width: 900px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .dash-right {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 400px;
+  }
+  .metrics-row {
+    grid-template-columns: 1fr;
+  }
+}
