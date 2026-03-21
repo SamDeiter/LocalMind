@@ -49,7 +49,14 @@ def revert_file(relative_path: str):
 
 
 async def run_tests() -> tuple[bool, str]:
-    """Run pytest and return (success, output)."""
+    """Run pytest and return (success, output).
+    
+    Waits 3s before running to let any server file-watcher reload complete,
+    preventing import collisions that cause false 0-passed results.
+    """
+    import asyncio
+    await asyncio.sleep(3)  # Let WatchFiles settle after file edits
+
     try:
         result = subprocess.run(
             ["python", "-m", "pytest", "tests/", "-q", "--tb=short"],

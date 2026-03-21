@@ -225,6 +225,15 @@ def main():
     if reload_enabled:
         uvicorn_kwargs["reload_dirs"] = ["backend", "frontend"]
         uvicorn_kwargs["reload_includes"] = ["*.py", "*.html", "*.js", "*.css"]
+        # Exclude files the autonomy engine edits to prevent reload loops:
+        # The engine edits backend/tools/*.py, runs tests, and needs the server
+        # to stay alive during that cycle. Also exclude binary DB files.
+        uvicorn_kwargs["reload_excludes"] = [
+            "backend/tools/*",
+            "backend/memory_db/*",
+            "*.bak",
+            "__pycache__/*",
+        ]
 
     # Remove None values
     uvicorn_kwargs = {k: v for k, v in uvicorn_kwargs.items() if v is not None}

@@ -573,11 +573,12 @@ class AutonomyEngine:
                 return True
 
             else:
-                # Tests failed — revert
+                # Tests failed — revert only the edited files (not entire repo)
                 for target_file in edits_applied:
                     revert_file(target_file)
 
-                git_run(["checkout", "--", "."])
+                # Clean up the feature branch (don't use 'git checkout -- .'  
+                # which would try to reset locked ChromaDB/binary files)
                 git_run(["checkout", "main"])
                 git_run(["branch", "-D", branch_name])
 
