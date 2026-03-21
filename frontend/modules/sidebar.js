@@ -19,7 +19,6 @@ export {
     setAutonomyMode,
     triggerReflection,
     triggerExecution,
-    startHwPolling as _startHwPollingFromAutonomy,
 } from "./autonomy_ui.js";
 
 export {
