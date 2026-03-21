@@ -722,7 +722,9 @@ class AutonomyEngine:
                 self._git_run(["checkout", "main"])
                 self._git_run(["branch", "-D", branch_name])
                 proposal["status"] = "failed"
+                proposal["retry_count"] = proposal.get("retry_count", 0) + 1
                 proposal["error"] = "AI could not generate valid edits"
+                self._failed_titles.add(proposal.get("title", ""))
                 filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
                 self._log("proposal_execution_failed", {
                     "id": proposal["id"], "error": "no edits applied"
@@ -979,14 +981,15 @@ class AutonomyEngine:
                     f"FILE: {relative_path}\n"
                     f"```\n{file_preview}\n```\n\n"
                     f"Output a JSON object with exactly these keys:\n"
-                    f'  "search": "the exact lines from the file to find (copy them exactly)"\n'
+                    f'  "search": "EXACT consecutive lines copied from the file above"\n'
                     f'  "replace": "the replacement lines with your improvement"\n'
                     f'  "explanation": "one sentence explaining the change"\n\n'
-                    f"RULES:\n"
-                    f"1. The \"search\" value MUST be an exact copy of consecutive lines from the file.\n"
-                    f"2. Keep the change SMALL — only the minimum lines needed.\n"
+                    f"CRITICAL RULES:\n"
+                    f"1. COPY-PASTE the search lines EXACTLY from the file — every space, quote, and character must match.\n"
+                    f"2. Keep the change to 3-10 lines maximum. Do NOT rewrite large blocks.\n"
                     f"3. Output ONLY the JSON object, no markdown fences, no extra text.\n"
-                    f'4. If you cannot make a useful change, output: {{"search": "", "replace": "", "explanation": "no change needed"}}\n'
+                    f"4. The search text MUST appear verbatim in the file above. If it does not, the edit will FAIL.\n"
+                    f'5. If you cannot make a useful change, output: {{"search": "", "replace": "", "explanation": "no change needed"}}\n'
                 )
 
                 resp = await client.post(
@@ -1083,6 +1086,40 @@ class AutonomyEngine:
                     new_content = sep.join(new_lines)
                     matched = True
                     logger.info(f"Matched via whitespace-stripped lines for {relative_path}")
+
+            # Layer 4: Fuzzy line-by-line matching (handles AI paraphrasing)
+            if not matched:
+                try:
+                    import difflib
+                    search_lines = search_text.replace("\r\n", "\n").strip().split("\n")
+                    file_lines = original_content.replace("\r\n", "\n").split("\n")
+                    
+                    # Slide a window over the file looking for the best match
+                    best_ratio = 0
+                    best_start = -1
+                    window = len(search_lines)
+                    
+                    for i in range(len(file_lines) - window + 1):
+                        candidate = file_lines[i:i + window]
+                        ratio = difflib.SequenceMatcher(
+                            None, 
+                            "\n".join(search_lines), 
+                            "\n".join(candidate)
+                        ).ratio()
+                        if ratio > best_ratio:
+                            best_ratio = ratio
+                            best_start = i
+                    
+                    if best_ratio >= 0.85 and best_start >= 0:
+                        # High confidence fuzzy match — apply replacement
+                        replace_lines = replace_text.replace("\r\n", "\n").split("\n")
+                        new_file_lines = file_lines[:best_start] + replace_lines + file_lines[best_start + window:]
+                        sep = "\r\n" if "\r\n" in original_content else "\n"
+                        new_content = sep.join(new_file_lines)
+                        matched = True
+                        logger.info(f"Matched via fuzzy matching ({best_ratio:.0%}) for {relative_path}")
+                except Exception as fuzzy_exc:
+                    logger.warning(f"Fuzzy match failed: {fuzzy_exc}")
 
             if not matched:
                 logger.warning(
