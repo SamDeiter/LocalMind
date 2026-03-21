@@ -2110,13 +2110,7 @@ body {
   margin-bottom: 4px;
 }
 
-.brain-stat-value {
-  display: block;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.8);
-  font-family: 'JetBrains Mono', monospace;
-}
+/* brain-stat-value: consolidated into dashboard section below */
 
 .brain-timeline {
   max-height: 280px;
@@ -2659,10 +2653,15 @@ h1, h2, h3 {
   color: var(--text-muted);
 }
 .brain-stat-value {
+  display: block;
   font-family: var(--font-headline);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 /* Brain Timeline events */
@@ -2868,6 +2867,11 @@ h1, h2, h3 {
   border-left: 1px solid var(--border);
   background: var(--bg-secondary);
   overflow: hidden;
+  max-width: 380px;
+}
+.dash-right * {
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .dash-right .brain-dashboard {
   margin-top: 0;
