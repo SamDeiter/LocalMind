@@ -112,7 +112,6 @@ from backend.gemini_client import is_available as gemini_is_available
 from backend.autonomy import AutonomyEngine, PROPOSALS_DIR
 autonomy_engine = AutonomyEngine(
     ollama_url="http://localhost:11434",
-    default_model="qwen2.5-coder:7b",
 )
 
 # ── Constants ─────────────────────────────────────────────────────────

@@ -9,6 +9,8 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 
 from backend.autonomy import AutonomyEngine
+from backend.code_editor import edit_single_file
+from backend.git_ops import revert_file
 
 
 @pytest.fixture
@@ -16,7 +18,6 @@ def engine():
     """Create an AutonomyEngine that won't actually call Ollama."""
     eng = AutonomyEngine(
         ollama_url="http://localhost:11434",
-        default_model="test-model:7b",
     )
     eng.enabled = False  # Don't start background loops
     eng.status["enabled"] = False  # Keep status dict in sync
@@ -28,7 +29,8 @@ def proposals_dir(tmp_path):
     """Redirect the PROPOSALS_DIR to a temp directory."""
     d = tmp_path / "proposals"
     d.mkdir()
-    with patch("backend.autonomy.PROPOSALS_DIR", d):
+    with patch("backend.proposals.PROPOSALS_DIR", d), \
+             patch("backend.autonomy.PROPOSALS_DIR", d):
         yield d
 
 
@@ -171,8 +173,8 @@ class TestExecutionSafety:
         engine.approve_proposal("abc12345")
 
         # Mock out the actual editing and testing
-        with patch.object(engine, "_identify_target_files", new_callable=AsyncMock, return_value=[]), \
-             patch.object(engine, "_git_run", return_value=""):
+        with patch("backend.autonomy.identify_target_files", new_callable=AsyncMock, return_value=[]), \
+             patch("backend.autonomy.git_run", return_value=""):
             await engine._execute_next_proposal()
 
         # With no target files identified, it should fail
@@ -184,14 +186,14 @@ class TestExecutionSafety:
     @pytest.mark.asyncio
     async def test_revert_file(self, engine, tmp_path):
         """_revert_file restores from .bak backup."""
-        with patch("backend.autonomy.PROJECT_ROOT", tmp_path):
+        with patch("backend.git_ops.PROJECT_ROOT", tmp_path):
             # Create original and backup
             target = tmp_path / "test.py"
             target.write_text("original content", encoding="utf-8")
             backup = tmp_path / "test.py.bak"
             backup.write_text("backup content", encoding="utf-8")
 
-            engine._revert_file("test.py")
+            revert_file("test.py")
 
             assert target.read_text(encoding="utf-8") == "backup content"
             assert not backup.exists()
@@ -220,6 +222,7 @@ class TestAutonomyAPI:
 
         with _patch("backend.server.DB_PATH", seeded_db), \
              _patch("backend.server.get_db", _get_test_db), \
+             _patch("backend.proposals.PROPOSALS_DIR", proposals_dir), \
              _patch("backend.autonomy.PROPOSALS_DIR", proposals_dir):
             from backend.server import app
             from starlette.testclient import TestClient
@@ -276,30 +279,32 @@ class TestAutonomyAPI:
 class TestProposalDedup:
     def test_dedup_rejects_similar_title(self, engine, proposals_dir, sample_proposal):
         """A proposal with a near-identical title is flagged as duplicate."""
-        assert engine._is_duplicate_proposal("Add retry logic to Ollama calls") is True
+        assert engine.proposals.is_duplicate("Add retry logic to Ollama calls") is True
 
     def test_dedup_allows_different_title(self, engine, proposals_dir, sample_proposal):
         """A clearly different proposal is NOT flagged as duplicate."""
-        assert engine._is_duplicate_proposal("Refactor CSS grid layout") is False
+        assert engine.proposals.is_duplicate("Refactor CSS grid layout") is False
 
 
 class TestFileValidation:
     @pytest.mark.asyncio
     async def test_edit_rejects_nonexistent_file(self, engine, tmp_path):
         """_edit_single_file returns False for a file that doesn't exist."""
-        with patch("backend.autonomy.PROJECT_ROOT", tmp_path):
-            result = await engine._edit_single_file(
-                "nonexistent.py", {"title": "test", "description": "test", "id": "x"}
+        with patch("backend.code_editor.PROJECT_ROOT", tmp_path):
+            result = await edit_single_file(
+                "nonexistent.py", {"title": "test", "description": "test", "id": "x"},
+                "http://localhost:11434", "test-model:7b"
             )
             assert result is False
 
     @pytest.mark.asyncio
     async def test_edit_rejects_blocked_file(self, engine, tmp_path):
         """_edit_single_file returns False for blocked files like autonomy.py."""
-        with patch("backend.autonomy.PROJECT_ROOT", tmp_path):
+        with patch("backend.code_editor.PROJECT_ROOT", tmp_path):
             (tmp_path / "autonomy.py").write_text("x = 1", encoding="utf-8")
-            result = await engine._edit_single_file(
-                "autonomy.py", {"title": "test", "description": "test", "id": "x"}
+            result = await edit_single_file(
+                "autonomy.py", {"title": "test", "description": "test", "id": "x"},
+                "http://localhost:11434", "test-model:7b"
             )
             assert result is False
 
