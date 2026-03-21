@@ -320,110 +320,150 @@
         <div class="messages-container" id="messagesContainer">
           <!-- Welcome screen shown when no conversation is active -->
           <div class="welcome-screen" id="welcomeScreen">
-            <!-- Neural Topology SVG (from UIIdea) -->
-            <div class="neural-topology">
-              <svg class="neural-svg" viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="lineGrad" x1="50" y1="40" x2="350" y2="160" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#7459f7" />
-                    <stop offset="1" stop-color="#00eefc" />
-                  </linearGradient>
-                </defs>
-                <!-- Connection lines -->
-                <path class="neural-path-animate" d="M80 50 L200 100 M200 100 L320 60 M200 100 L140 170 M200 100 L280 160 M80 50 L130 80" stroke="url(#lineGrad)" stroke-width="0.5" />
-                <path d="M320 60 L280 160 M140 170 L280 160" stroke="rgba(175, 162, 255, 0.15)" stroke-width="0.5" />
-                <!-- Central node (pulsing) -->
-                <circle class="neural-node-pulse" cx="200" cy="100" r="8" fill="#afa2ff" />
-                <circle cx="200" cy="100" r="16" stroke="#afa2ff" stroke-opacity="0.2" stroke-width="1" />
-                <!-- Peripheral nodes -->
-                <circle cx="80" cy="50" r="4" fill="#00eefc" />
-                <circle cx="320" cy="60" r="4" fill="#00eefc" />
-                <circle cx="140" cy="170" r="4" fill="#ff6b98" />
-                <circle cx="280" cy="160" r="4" fill="#00eefc" />
-                <circle cx="130" cy="80" r="3" fill="#afa2ff" />
-              </svg>
+            <!-- Dashboard Grid -->
+            <div class="dash-grid">
+
+              <!-- Left Column: Neural Topology + Metrics -->
+              <div class="dash-left">
+                <div class="dash-hero">
+                  <h1>LocalMind</h1>
+                  <p>Private AI · Local Inference · Full Autonomy</p>
+                </div>
+
+                <!-- Neural Topology SVG (live data nodes) -->
+                <div class="neural-topology" id="neuralTopology">
+                  <svg class="neural-svg" viewBox="0 0 520 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <linearGradient id="lineGrad" x1="50" y1="40" x2="470" y2="220" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#7459f7"/><stop offset="1" stop-color="#00eefc"/>
+                      </linearGradient>
+                      <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    </defs>
+                    <!-- Connection lines -->
+                    <path class="neural-path-animate" d="M100 70 L260 130" stroke="url(#lineGrad)" stroke-width="1" opacity="0.6"/>
+                    <path class="neural-path-animate" d="M420 70 L260 130" stroke="url(#lineGrad)" stroke-width="1" opacity="0.6" style="animation-delay:0.5s"/>
+                    <path class="neural-path-animate" d="M100 210 L260 130" stroke="url(#lineGrad)" stroke-width="1" opacity="0.6" style="animation-delay:1s"/>
+                    <path class="neural-path-animate" d="M420 210 L260 130" stroke="url(#lineGrad)" stroke-width="1" opacity="0.6" style="animation-delay:1.5s"/>
+                    <path d="M100 70 L100 210" stroke="rgba(175,162,255,0.08)" stroke-width="0.5"/>
+                    <path d="M420 70 L420 210" stroke="rgba(175,162,255,0.08)" stroke-width="0.5"/>
+                    <path d="M100 70 L420 70" stroke="rgba(175,162,255,0.05)" stroke-width="0.5"/>
+                    <path d="M100 210 L420 210" stroke="rgba(175,162,255,0.05)" stroke-width="0.5"/>
+                    <!-- Central Node: AI Brain -->
+                    <circle class="neural-node-pulse" cx="260" cy="130" r="14" fill="#afa2ff" filter="url(#glow)"/>
+                    <circle cx="260" cy="130" r="24" stroke="#afa2ff" stroke-opacity="0.15" stroke-width="1"/>
+                    <text x="260" y="134" text-anchor="middle" fill="white" font-size="12" font-family="Space Grotesk">AI</text>
+                    <!-- Top-Left: CPU -->
+                    <circle id="nodeCpu" cx="100" cy="70" r="8" fill="#00eefc"/>
+                    <text x="100" y="52" text-anchor="middle" fill="#aaabb2" font-size="9" font-family="Manrope">CPU</text>
+                    <text id="nodeCpuVal" x="100" y="95" text-anchor="middle" fill="#ededf5" font-size="11" font-family="Space Grotesk" font-weight="600">--%</text>
+                    <!-- Top-Right: GPU/VRAM -->
+                    <circle id="nodeGpu" cx="420" cy="70" r="8" fill="#00eefc"/>
+                    <text x="420" y="52" text-anchor="middle" fill="#aaabb2" font-size="9" font-family="Manrope">VRAM</text>
+                    <text id="nodeGpuVal" x="420" y="95" text-anchor="middle" fill="#ededf5" font-size="11" font-family="Space Grotesk" font-weight="600">--GB</text>
+                    <!-- Bottom-Left: Memory Bank -->
+                    <circle id="nodeMemory" cx="100" cy="210" r="8" fill="#ff6b98"/>
+                    <text x="100" y="237" text-anchor="middle" fill="#aaabb2" font-size="9" font-family="Manrope">MEMORY</text>
+                    <text id="nodeMemVal" x="100" y="195" text-anchor="middle" fill="#ededf5" font-size="11" font-family="Space Grotesk" font-weight="600">0</text>
+                    <!-- Bottom-Right: RAM -->
+                    <circle id="nodeRam" cx="420" cy="210" r="8" fill="#00eefc"/>
+                    <text x="420" y="237" text-anchor="middle" fill="#aaabb2" font-size="9" font-family="Manrope">RAM</text>
+                    <text id="nodeRamVal" x="420" y="195" text-anchor="middle" fill="#ededf5" font-size="11" font-family="Space Grotesk" font-weight="600">--GB</text>
+                  </svg>
+                </div>
+
+                <!-- System Metrics Cards -->
+                <div class="metrics-row" id="metricsRow">
+                  <div class="metric-card">
+                    <div class="metric-header"><span class="metric-label">CPU</span><span class="metric-value" id="metricCpu">--%</span></div>
+                    <div class="metric-bar-track"><div class="metric-bar-fill cpu" id="metricCpuBar" style="width:0%"></div></div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="metric-header"><span class="metric-label">RAM</span><span class="metric-value" id="metricRam">-- / --</span></div>
+                    <div class="metric-bar-track"><div class="metric-bar-fill ram" id="metricRamBar" style="width:0%"></div></div>
+                  </div>
+                  <div class="metric-card">
+                    <div class="metric-header"><span class="metric-label">VRAM</span><span class="metric-value" id="metricVram">-- / --</span></div>
+                    <div class="metric-bar-track"><div class="metric-bar-fill vram" id="metricVramBar" style="width:0%"></div></div>
+                  </div>
+                </div>
+
+                <!-- Quick Action Cards -->
+                <div class="feature-grid">
+                  <div class="feature-card" data-prompt="Search the web for the latest AI news">
+                    <span class="feature-icon">🔍</span><span>Web Search</span>
+                  </div>
+                  <div class="feature-card" data-prompt="Take a screenshot and tell me what you see">
+                    <span class="feature-icon">📸</span><span>Screenshot</span>
+                  </div>
+                  <div class="feature-card" data-prompt="What do you remember about me?">
+                    <span class="feature-icon">🧠</span><span>Memory</span>
+                  </div>
+                  <div class="feature-card" data-prompt="Write a Python script that prints the Fibonacci sequence">
+                    <span class="feature-icon">💻</span><span>Code</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Thought Stream + Brain Status -->
+              <div class="dash-right">
+                <div class="brain-dashboard" id="brainDashboard">
+                  <div class="brain-header">
+                    <span class="brain-pulse" id="brainPulse"></span>
+                    <span class="brain-title">AI Brain Activity</span>
+                    <div id="brainLoadingBanner" class="brain-loading-banner">
+                      <span class="brain-loading-spinner"></span>
+                      <span>Loading model…</span>
+                    </div>
+                    <div class="brain-header-actions">
+                      <button id="brainReflectBtn" class="btn-brain-action" title="Trigger AI reflection">Reflect</button>
+                      <button id="brainExecuteBtn" class="btn-brain-action accent-purple" title="Execute approved proposals">Execute</button>
+                      <span class="brain-mode" id="brainMode" title="Current autonomy mode">🛡️ Supervised</span>
+                    </div>
+                  </div>
+                  <div class="brain-stats" id="brainStats">
+                    <div class="brain-stat"><span class="brain-stat-label">Uptime</span><span class="brain-stat-value" id="brainUptime">0m</span></div>
+                    <div class="brain-stat"><span class="brain-stat-label">Ideas</span><span class="brain-stat-value" id="brainIdeas">0</span></div>
+                    <div class="brain-stat"><span class="brain-stat-label">Applied</span><span class="brain-stat-value" id="brainApplied">0</span></div>
+                    <div class="brain-stat"><span class="brain-stat-label">Status</span><span class="brain-stat-value" id="brainStatus">Idle</span></div>
+                  </div>
+                  <div id="brainLiveProgress" class="brain-live-progress" style="display:none;">
+                    <div class="brain-live-header">
+                      <span class="brain-focus-label">Current Focus</span>
+                      <span id="brainModelInfo" class="brain-model-info">ollama: llama3</span>
+                    </div>
+                    <div id="brainCurrentTask" class="brain-current-task">Analyzing...</div>
+                    <div id="brainTaskDescription" class="brain-task-description"></div>
+                    <div class="brain-progress-container"><div id="brainProgressBar" class="brain-progress-bar"></div></div>
+                  </div>
+                </div>
+
+                <!-- Thought Stream -->
+                <div class="thought-stream">
+                  <div class="thought-stream-header">
+                    <span class="thought-stream-title">Thought Stream</span>
+                    <span class="thought-stream-live">LIVE</span>
+                  </div>
+                  <div class="brain-timeline" id="brainTimeline">
+                    <div class="brain-event brain-event-idle">
+                      <span class="brain-event-icon">💤</span>
+                      <span class="brain-event-text">Engine warming up...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <h1>LocalMind</h1>
-            <p>Your private AI assistant. Everything runs locally.</p>
-            <div class="feature-grid">
-              <div
-                class="feature-card"
-                data-prompt="Search the web for the latest AI news"
-              >
-                <span class="feature-icon">🔍</span><span>Web Search</span>
-              </div>
-              <div
-                class="feature-card"
-                data-prompt="Take a screenshot and tell me what you see"
-              >
-                <span class="feature-icon">📸</span><span>Screenshot</span>
-              </div>
-              <div
-                class="feature-card"
-                data-prompt="What do you remember about me?"
-              >
-                <span class="feature-icon">🧠</span><span>Memory</span>
-              </div>
-              <div
-                class="feature-card"
-                data-prompt="Write a Python script that prints the Fibonacci sequence"
-              >
-                <span class="feature-icon">💻</span><span>Code</span>
-              </div>
-            </div>
 
-            <!-- Live AI Brain Activity Dashboard -->
-            <div class="brain-dashboard" id="brainDashboard">
-              <div class="brain-header">
-                <span class="brain-pulse" id="brainPulse"></span>
-                <span class="brain-title">AI Brain Activity</span>
-                <div id="brainLoadingBanner" class="brain-loading-banner">
-                  <span class="brain-loading-spinner"></span>
-                  <span>Loading model into GPU memory…</span>
-                </div>
-                <div class="brain-header-actions">
-                  <button id="brainReflectBtn" class="btn-brain-action" title="Manually trigger AI reflection cycle (Reflection -> Proposal -> Execution)">Reflect Now</button>
-                  <button id="brainExecuteBtn" class="btn-brain-action accent-purple" title="Manually trigger immediate execution of approved proposals">Run Tasks</button>
-                  <span class="brain-mode" id="brainMode" title="Current autonomy mode">🛡️ Supervised</span>
-                </div>
+            <!-- Status Bar -->
+            <div class="status-bar" id="statusBar">
+              <div class="status-bar-left">
+                <span><span class="status-dot" id="statusDot"></span> <span id="statusConnection">Connecting...</span></span>
+                <span class="status-divider"></span>
+                <span id="statusModel">No model</span>
               </div>
-              <div class="brain-stats" id="brainStats">
-                <div class="brain-stat">
-                  <span class="brain-stat-label">Uptime</span>
-                  <span class="brain-stat-value" id="brainUptime">0m</span>
-                </div>
-                <div class="brain-stat">
-                  <span class="brain-stat-label">Ideas</span>
-                  <span class="brain-stat-value" id="brainIdeas">0</span>
-                </div>
-                <div class="brain-stat">
-                  <span class="brain-stat-label">Applied</span>
-                  <span class="brain-stat-value" id="brainApplied">0</span>
-                </div>
-                <div class="brain-stat">
-                  <span class="brain-stat-label">Status</span>
-                  <span class="brain-stat-value" id="brainStatus">Idle</span>
-                </div>
-              </div>
-
-              <!-- New Live Progress Section -->
-              <div id="brainLiveProgress" class="brain-live-progress" style="display: none;">
-                <div class="brain-live-header">
-                   <span class="brain-focus-label">Current Focus</span>
-                   <span id="brainModelInfo" class="brain-model-info">ollama: llama3</span>
-                </div>
-                <div id="brainCurrentTask" class="brain-current-task">Analyzing codebase for improvements...</div>
-                <div id="brainTaskDescription" class="brain-task-description"></div>
-                <div class="brain-progress-container">
-                   <div id="brainProgressBar" class="brain-progress-bar"></div>
-                </div>
-              </div>
-
-              <div class="brain-timeline" id="brainTimeline">
-                <div class="brain-event brain-event-idle">
-                  <span class="brain-event-icon">💤</span>
-                  <span class="brain-event-text">Engine warming up...</span>
-                </div>
+              <div class="status-bar-right">
+                <span id="statusVersion">v0.0.0</span>
+                <span class="status-divider"></span>
+                <span id="statusEngine">Engine: Idle</span>
               </div>
             </div>
           </div>
