@@ -403,14 +403,16 @@ body {
   border-radius: 3px;
 }
 
-/* ── Welcome Screen ────────────────────────────────────────────── */
+/* ── Welcome Screen (Dashboard Mode) ───────────────────────────── */
 .welcome-screen {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   height: 100%;
-  text-align: center;
+  text-align: left;
+  padding: 0;
+  overflow: hidden;
   animation: fadeIn 0.5s ease-out;
 }
 @keyframes fadeIn {
@@ -423,11 +425,7 @@ body {
     transform: translateY(0);
   }
 }
-.welcome-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  animation: float 4s ease-in-out infinite;
-}
+/* .welcome-icon removed — replaced by neural topology SVG */
 @keyframes float {
   0%,
   100% {
@@ -438,24 +436,27 @@ body {
   }
 }
 .welcome-screen h1 {
-  font-size: 36px;
+  font-family: var(--font-headline);
+  font-size: 32px;
   font-weight: 700;
   background: var(--accent-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin-bottom: 8px;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
 }
 .welcome-screen p {
-  color: var(--text-secondary);
-  font-size: 16px;
-  margin-bottom: 32px;
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0;
 }
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  max-width: 420px;
+  gap: 10px;
   width: 100%;
 }
 .feature-card {
@@ -2728,17 +2729,7 @@ h1, h2, h3 {
    Dashboard Grid Layout (UIIdea Redesign)
    ══════════════════════════════════════════════════════════════════ */
 
-/* Override welcome-screen for dashboard mode */
-.welcome-screen {
-  display: flex !important;
-  flex-direction: column !important;
-  height: 100% !important;
-  align-items: stretch !important;
-  justify-content: flex-start !important;
-  text-align: left !important;
-  padding: 0 !important;
-  animation: none !important;
-}
+/* (merged into main welcome-screen rule above) */
 
 .dash-grid {
   display: grid;
@@ -2973,4 +2964,39 @@ h1, h2, h3 {
   .metrics-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Dashboard fills messages container edge-to-edge ─────────── */
+.messages-container:has(.welcome-screen) {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Ensure dash-grid fills full width and height */
+.dash-grid {
+  width: 100%;
+  min-height: 0;
+}
+
+/* Neural topology label styling */
+.neural-topology {
+  padding: 20px;
+}
+
+/* Feature grid inside dash-left - fill width */
+.dash-left .feature-grid {
+  max-width: none;
+}
+
+/* Ensure dash-hero text is centered */
+.dash-hero {
+  padding-top: 8px;
+  text-align: center;
+}
+
+/* Brain timeline max height in right column */
+.dash-right .brain-timeline {
+  flex: 1;
+  overflow-y: auto;
+  max-height: none;
 }
