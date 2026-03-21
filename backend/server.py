@@ -321,7 +321,7 @@ def _configure_routers():
     Each router uses dependency injection rather than direct imports
     to avoid circular dependencies between modules.
     """
-    from backend.routes import chat, conversations, memory, documents
+    from backend.routes import chat, conversations, memory, documents, autonomy_routes
 
     # Chat router needs everything — DB, tools, model routing, prompts
     chat.configure(
@@ -352,6 +352,14 @@ def _configure_routers():
         )
     else:
         documents.configure(rag_available=False)
+
+    # Autonomy routes need engine + proposals dir + optional RAG
+    autonomy_routes.configure(
+        engine=autonomy_engine,
+        proposals_dir=PROPOSALS_DIR,
+        rag_available=RAG_AVAILABLE,
+        list_indexed_documents_fn=list_indexed_documents if RAG_AVAILABLE else None,
+    )
 
 
 # ── Create FastAPI App ────────────────────────────────────────────────
@@ -390,6 +398,7 @@ from backend.routes.memory import router as memory_router
 from backend.routes.files import router as files_router
 from backend.routes.tools import router as tools_router
 from backend.routes.documents import router as documents_router
+from backend.routes.autonomy_routes import router as autonomy_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -397,6 +406,7 @@ app.include_router(memory_router)
 app.include_router(files_router)
 app.include_router(tools_router)
 app.include_router(documents_router)
+app.include_router(autonomy_router)
 
 
 # ── Core Endpoints (kept in server.py — they're small + foundational) ─
@@ -435,160 +445,6 @@ async def list_models():
             return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
-
-
-# ── Autonomy Endpoints ────────────────────────────────────────────────
-
-@app.get("/api/autonomy/status")
-async def autonomy_status():
-    """Get the current autonomy engine status.
-    
-    Returns loop timing, proposal counts, test results, and uptime.
-    Also includes global counts for memories, documents, and proposals.
-    """
-    status = autonomy_engine.get_status()
-    status["mode"] = autonomy_engine.mode
-    status["start_time"] = autonomy_engine._start_time
-    status["recent_events"] = autonomy_engine._recent_events[-20:]
-    
-    # Add global counts for sidebar synchronization
-    memories_count = 0
-    try:
-        from backend.tools.memory import _get_collection
-        memories_count = _get_collection().count()
-    except Exception:
-        pass
-        
-    documents_count = 0
-    try:
-        if RAG_AVAILABLE:
-            docs = list_indexed_documents()
-            documents_count = len(docs.get("documents", []))
-    except Exception:
-        pass
-        
-    proposals_count = 0
-    try:
-        if PROPOSALS_DIR.exists():
-            proposals_count = len(list(PROPOSALS_DIR.glob("*.json")))
-    except Exception:
-        pass
-        
-    status["memories_count"] = memories_count
-    status["documents_count"] = documents_count
-    status["proposals_count"] = proposals_count
-    
-    return status
-
-
-@app.post("/api/autonomy/reflect")
-async def autonomy_reflect():
-    """Manually trigger the AI reflection cycle."""
-    autonomy_engine.trigger_reflection()
-    return {"ok": True, "message": "Reflection cycle triggered"}
-
-@app.post("/api/autonomy/execute")
-async def autonomy_execute():
-    """Manually trigger the AI execution cycle."""
-    autonomy_engine.trigger_execution()
-    return {"ok": True, "message": "Execution cycle triggered"}
-
-@app.post("/api/proposals/{proposal_id}/retry")
-async def retry_proposal(proposal_id: str):
-    """Reset a failed proposal to approved status for re-execution."""
-    updated = autonomy_engine.retry_proposal(proposal_id)
-    if updated:
-        return {"ok": True, "proposal": updated}
-    return {"ok": False, "message": "Proposal not found"}
-
-
-@app.post("/api/autonomy/toggle")
-async def toggle_autonomy():
-    """Pause or resume the autonomy engine."""
-    new_state = autonomy_engine.toggle()
-    return {"enabled": new_state}
-
-
-@app.post("/api/autonomy/mode")
-async def set_autonomy_mode(request: Request):
-    """Switch between 'supervised' and 'autonomous' mode."""
-    body = await request.json()
-    mode = body.get("mode", "supervised")
-    try:
-        new_mode = autonomy_engine.set_mode(mode)
-        return {"ok": True, "mode": new_mode}
-    except ValueError as e:
-        return {"ok": False, "error": str(e)}
-
-
-@app.get("/api/autonomy/activity")
-async def autonomy_activity_stream(request: Request):
-    """SSE endpoint streaming real-time autonomy engine events.
-    
-    The frontend connects to this for the live activity feed.
-    Each event is a JSON object with action, detail, and timestamp.
-    """
-    from starlette.responses import StreamingResponse
-
-    queue = autonomy_engine.subscribe_activity()
-
-    async def event_generator():
-        try:
-            # Send current status as first event
-            status = autonomy_engine.get_status()
-            current = status.get("current_activity")
-            if current:
-                yield f"data: {json.dumps(current)}\n\n"
-            else:
-                yield f"data: {json.dumps({'action': 'idle', 'detail': 'Waiting...', 'time': time.strftime('%H:%M:%S')})}\n\n"
-
-            while True:
-                if await request.is_disconnected():
-                    break
-                try:
-                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
-                    yield f"data: {json.dumps(event)}\n\n"
-                except asyncio.TimeoutError:
-                    # Send keepalive
-                    yield f": keepalive\n\n"
-        finally:
-            autonomy_engine.unsubscribe_activity(queue)
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-
-@app.get("/api/autonomy/proposals")
-async def list_autonomy_proposals(status: str = "all"):
-    """List all autonomy proposals, optionally filtered by status.
-
-    Query params:
-        status: 'all', 'proposed', 'approved', 'in_progress', 'completed', 'failed', 'denied'
-    """
-    proposals = autonomy_engine.list_proposals(status_filter=status)
-    return {"proposals": proposals, "count": len(proposals)}
-
-
-@app.post("/api/autonomy/proposals/{proposal_id}/approve")
-async def approve_autonomy_proposal(proposal_id: str):
-    """Approve a proposal so the execution loop will pick it up."""
-    result = autonomy_engine.approve_proposal(proposal_id)
-    if result is None:
-        return {"ok": False, "error": f"Proposal not found: {proposal_id}"}
-    return {"ok": True, "proposal": result}
-
-
-@app.post("/api/autonomy/proposals/{proposal_id}/deny")
-async def deny_autonomy_proposal(proposal_id: str):
-    """Deny a proposal to prevent it from being executed."""
-    result = autonomy_engine.deny_proposal(proposal_id)
-    if result is None:
-        return {"ok": False, "error": f"Proposal not found: {proposal_id}"}
-    return {"ok": True, "proposal": result}
 
 
 @app.get("/api/version")

@@ -218,13 +218,19 @@ class TestAutonomyAPI:
             return conn
 
         from backend.routes import conversations
+        from backend.routes import autonomy_routes
         conversations.configure(_get_test_db, "You are LocalMind.")
 
         with _patch("backend.server.DB_PATH", seeded_db), \
              _patch("backend.server.get_db", _get_test_db), \
              _patch("backend.proposals.PROPOSALS_DIR", proposals_dir), \
              _patch("backend.autonomy.PROPOSALS_DIR", proposals_dir):
-            from backend.server import app
+            from backend.server import app, autonomy_engine
+            # Configure the extracted autonomy routes with the engine
+            autonomy_routes.configure(
+                engine=autonomy_engine,
+                proposals_dir=proposals_dir,
+            )
             from starlette.testclient import TestClient
             return TestClient(app)
 
