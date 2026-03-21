@@ -71,6 +71,8 @@ class AutonomyEngine:
         self._start_time: float = time.time()
         self._manual_reflection_event = asyncio.Event()
         self._manual_execution_event = asyncio.Event()
+        self._failed_titles: set[str] = set()  # Titles that failed execution (prevents re-proposal)
+        self.MAX_RETRIES = 2  # Max times a proposal can be retried before permanent blacklist
 
         # Status tracking
         self.status = {
@@ -337,14 +339,14 @@ class AutonomyEngine:
             category_weights.sort(key=lambda x: x[1])
             focus_category = category_weights[0][0]
 
-            # Build anti-repeat context from last 5 proposals
+            # Build anti-repeat context from last 5 proposals + failed titles
             anti_repeat = ""
-            if recent_titles:
-                last_5 = recent_titles[-5:]
+            all_blocked = list(set(recent_titles[-5:]) | self._failed_titles)
+            if all_blocked:
                 anti_repeat = (
-                    "\nALREADY PROPOSED (do NOT repeat these):\n"
-                    + "\n".join(f"  - {t}" for t in last_5)
-                    + "\n"
+                    "\nALREADY PROPOSED OR FAILED (do NOT repeat or rephrase these):\n"
+                    + "\n".join(f"  - {t}" for t in all_blocked)
+                    + "\nDo NOT propose variations of the above topics.\n"
                 )
 
             # Suppress over-represented categories
@@ -438,6 +440,18 @@ class AutonomyEngine:
                     return True
             except Exception:
                 continue
+        # Also check against failed titles in memory
+        for failed_title in self._failed_titles:
+            failed_words = set(failed_title.lower().split())
+            if not new_words or not failed_words:
+                continue
+            overlap = len(new_words & failed_words)
+            total = len(new_words | failed_words)
+            similarity = overlap / total if total > 0 else 0
+            if similarity > 0.50:  # Lower threshold for failed titles
+                logger.info(f"Blocked (similar to failed): \"{new_title}\" ≈ \"{failed_title}\" ({similarity:.0%})")
+                return True
+
         return False
 
     async def _save_proposal(self, proposal: dict):
@@ -513,7 +527,6 @@ class AutonomyEngine:
 
     def retry_proposal(self, proposal_id: str) -> Optional[dict]:
         """Reset a failed proposal to approved status for re-execution."""
-        # Find the proposal first to clear errors
         if not PROPOSALS_DIR.exists():
             return None
 
@@ -521,6 +534,12 @@ class AutonomyEngine:
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 if data.get("id") == proposal_id:
+                    # Check retry limit
+                    retry_count = data.get("retry_count", 0)
+                    if retry_count >= self.MAX_RETRIES:
+                        logger.warning(f"Proposal '{data.get('title')}' hit max retries ({self.MAX_RETRIES}), permanently failed")
+                        self._emit_activity("error", f"Cannot retry: '{data.get('title')}' failed {retry_count} times (max: {self.MAX_RETRIES})")
+                        return None
                     data["status"] = "approved"
                     data["error"] = None
                     data["status_changed_at"] = time.time()
