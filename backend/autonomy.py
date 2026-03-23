@@ -31,6 +31,7 @@ from backend.research_engine import (
     FailureAnalyzer, SuccessTracker, CodebaseScanner,
     PerformanceProfiler, ExternalResearcher
 )
+from backend.self_improver import SelfImprover
 
 logger = logging.getLogger("localmind.autonomy")
 
@@ -73,6 +74,7 @@ class AutonomyEngine:
         self.codebase_scanner = CodebaseScanner()
         self.performance_profiler = PerformanceProfiler()
         self.external_researcher = ExternalResearcher()
+        self.self_improver = SelfImprover(emit_activity=self._emit_activity)
 
         # Status tracking
         self.status = {
@@ -301,6 +303,14 @@ class AutonomyEngine:
     async def _run_reflection(self):
         """Ask the AI to reflect on its own codebase and log proposals."""
         try:
+            # Self-improvement: analyze performance and tune brain config
+            try:
+                changes = self.self_improver.optimize()
+                if changes:
+                    logger.info(f"🧬 Self-improvement: {len(changes)} config change(s)")
+            except Exception as si_exc:
+                logger.warning(f"Self-improvement failed: {si_exc}")
+
             # Gather actual file listing
             project_root = Path(__file__).parent.parent
             real_files = []
@@ -404,10 +414,22 @@ class AutonomyEngine:
                                         "No prior research data yet — first reflection cycle",
                                         thinking_type="research")
 
+                # Get brain config context (self-taught intelligence)
+                brain_context = ""
+                try:
+                    brain_context = self.self_improver.get_config_for_prompt()
+                except Exception:
+                    pass
+
+                # Dynamic banned topics from brain config
+                banned_list = self.self_improver.config.get("banned_patterns", [])
+                banned_str = ", ".join(f"'{b}'" for b in banned_list[:10])
+
                 prompt = (
                     "You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                     "HERE ARE THE ACTUAL FILES IN THIS PROJECT:\n"
                     f"{file_list}\n\n"
+                    f"{brain_context}"
                     f"{research_context}"
                     f"REQUIRED CATEGORY: Your proposal MUST be in the \"{focus_category}\" category.\n"
                     f"{anti_repeat}"
@@ -416,8 +438,8 @@ class AutonomyEngine:
                     "1. ONLY suggest changes to files listed above — do NOT invent files.\n"
                     "2. Be SPECIFIC — describe the exact code change (e.g. 'add gzip compression to /api/documents response').\n"
                     "3. Your title must describe the SPECIFIC change, NOT a vague topic like 'Improve Error Handling'.\n"
-                    "4. BANNED TOPICS: 'error handling', 'exception handling', 'try/catch improvements' — these are EXHAUSTED.\n"
-                    "5. Base your proposal on the CODEBASE SCAN and TRACK RECORD data above when available.\n"
+                    f"4. BANNED TOPICS: {banned_str} — these are EXHAUSTED.\n"
+                    "5. Base your proposal on the CODEBASE SCAN, TRACK RECORD, and BRAIN CONFIG data above when available.\n"
                     "6. Think about: caching, response times, UI animations, keyboard shortcuts, accessibility, "
                     "API rate limiting, request batching, lazy loading, code splitting, logging levels, config validation.\n\n"
                     "Output a JSON object with keys: title, category "
