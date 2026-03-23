@@ -32,6 +32,7 @@ from backend.research_engine import (
     PerformanceProfiler, ExternalResearcher
 )
 from backend.self_improver import SelfImprover
+from backend.meta_critic import MetaCritic
 
 logger = logging.getLogger("localmind.autonomy")
 
@@ -75,6 +76,11 @@ class AutonomyEngine:
         self.performance_profiler = PerformanceProfiler()
         self.external_researcher = ExternalResearcher()
         self.self_improver = SelfImprover(emit_activity=self._emit_activity)
+        self.meta_critic = MetaCritic(
+            ollama_url=self.ollama_url,
+            model=self.reflection_model,
+            emit_activity=self._emit_activity,
+        )
 
         # Status tracking
         self.status = {
@@ -487,27 +493,37 @@ class AutonomyEngine:
                             logger.info(f"Rejected banned-topic proposal: {proposal.get('title', '?')}")
                             self._emit_activity("info", f"Rejected banned topic: {proposal.get('title', '?')}")
                         else:
-                            saved = self.proposals.save(
-                                proposal,
-                                mode=self.mode,
-                                auto_approve_risks=self.AUTO_APPROVE_RISKS,
-                                log_fn=self._log,
-                                emit_activity=self._emit_activity,
-                            )
-                            if saved:
-                                self.status["reflection"]["proposals_logged"] += 1
-                                self._log("reflection_done", {"proposal": saved.get("title", "?")})
-                                self._emit_activity("proposal_created", f"New proposal: {saved.get('title', '?')}",
-                                                    proposal_id=saved.get("id", ""),
-                                                    category=saved.get("category", ""))
-                                # ── Thinking: broadcast the AI's reasoning ──
-                                self._emit_activity("thinking",
-                                                    f"AI proposed: '{saved.get('title', '?')}' [{saved.get('category', '?')}] — {saved.get('description', '')[:120]}",
-                                                    thinking_type="response",
-                                                    proposal_title=saved.get("title", ""),
-                                                    proposal_description=saved.get("description", ""),
-                                                    files_affected=saved.get("files_affected", []))
-                                logger.info(f"💡 Auto-reflection logged: {saved.get('title', '?')}")
+                            # ── Meta-Cognition: Critique-Backtrack-Refine ──
+                            critique = await self.meta_critic.review(proposal, file_list=real_files)
+
+                            if not critique.approved:
+                                logger.info(f"Critic rejected: {proposal.get('title', '?')} — {critique.reason}")
+                                self._emit_activity("info", f"Critic rejected: {proposal.get('title', '?')} ({critique.reason})")
+                            else:
+                                # Use refined proposal if critic improved it
+                                if critique.refinement:
+                                    proposal = critique.refinement
+
+                                saved = self.proposals.save(
+                                    proposal,
+                                    mode=self.mode,
+                                    auto_approve_risks=self.AUTO_APPROVE_RISKS,
+                                    log_fn=self._log,
+                                    emit_activity=self._emit_activity,
+                                )
+                                if saved:
+                                    self.status["reflection"]["proposals_logged"] += 1
+                                    self._log("reflection_done", {"proposal": saved.get("title", "?")})
+                                    self._emit_activity("proposal_created", f"New proposal: {saved.get('title', '?')}",
+                                                        proposal_id=saved.get("id", ""),
+                                                        category=saved.get("category", ""))
+                                    self._emit_activity("thinking",
+                                                        f"AI proposed: '{saved.get('title', '?')}' [{saved.get('category', '?')}] — {saved.get('description', '')[:120]}",
+                                                        thinking_type="response",
+                                                        proposal_title=saved.get("title", ""),
+                                                        proposal_description=saved.get("description", ""),
+                                                        files_affected=saved.get("files_affected", []))
+                                    logger.info(f"Auto-reflection logged: {saved.get('title', '?')}")
 
                     except (json.JSONDecodeError, IndexError):
                         self._log("reflection_parse_failed", {"response": response_text[:200]})
