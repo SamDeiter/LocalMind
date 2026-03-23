@@ -2881,7 +2881,24 @@ h1, h2, h3 {
   border-bottom: 1px solid var(--border);
 }
 .dash-right .brain-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
   background: var(--surface-container);
+}
+/* Title row: pulse + title fill the full width → buttons wrap below */
+.dash-right .brain-title {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 80px;
+}
+/* Actions always on their own row in the narrow panel */
+.dash-right .brain-header-actions {
+  width: 100%;
+  justify-content: flex-start;
 }
 
 /* ── Thought Stream ──────────────────────────────────────────── */
