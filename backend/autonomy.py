@@ -27,6 +27,7 @@ from backend.model_router import get_autonomy_models, get_startup_model
 from backend.proposals import ProposalManager, PROPOSALS_DIR
 from backend.code_editor import edit_single_file, identify_target_files, is_scope_achievable
 from backend.git_ops import git_run, revert_file, run_tests
+from backend.research_engine import FailureAnalyzer, SuccessTracker, CodebaseScanner
 
 logger = logging.getLogger("localmind.autonomy")
 
@@ -62,6 +63,11 @@ class AutonomyEngine:
 
         # Delegate proposal management
         self.proposals = ProposalManager()
+
+        # Research pipeline — data-driven self-improvement
+        self.failure_analyzer = FailureAnalyzer()
+        self.success_tracker = SuccessTracker()
+        self.codebase_scanner = CodebaseScanner()
 
         # Status tracking
         self.status = {
@@ -334,10 +340,28 @@ class AutonomyEngine:
                     suppress = f"\nBLOCKED CATEGORY: Do NOT propose anything about \"{dominant_cat}\" — it is overrepresented.\n"
 
             async with httpx.AsyncClient(timeout=120.0) as client:
+                # ── Research Pipeline: inject evidence into prompt ──
+                lessons_block = self.failure_analyzer.get_lessons_for_prompt()
+                stats_block = self.success_tracker.get_stats_for_prompt()
+                try:
+                    scan_block = self.codebase_scanner.get_findings_for_prompt()
+                except Exception as scan_exc:
+                    logger.warning(f"Codebase scan failed: {scan_exc}")
+                    scan_block = ""
+
+                research_context = ""
+                if lessons_block:
+                    research_context += lessons_block + "\n"
+                if stats_block:
+                    research_context += stats_block + "\n"
+                if scan_block:
+                    research_context += scan_block + "\n"
+
                 prompt = (
                     "You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                     "HERE ARE THE ACTUAL FILES IN THIS PROJECT:\n"
                     f"{file_list}\n\n"
+                    f"{research_context}"
                     f"REQUIRED CATEGORY: Your proposal MUST be in the \"{focus_category}\" category.\n"
                     f"{anti_repeat}"
                     f"{suppress}"
@@ -346,7 +370,8 @@ class AutonomyEngine:
                     "2. Be SPECIFIC — describe the exact code change (e.g. 'add gzip compression to /api/documents response').\n"
                     "3. Your title must describe the SPECIFIC change, NOT a vague topic like 'Improve Error Handling'.\n"
                     "4. BANNED TOPICS: 'error handling', 'exception handling', 'try/catch improvements' — these are EXHAUSTED.\n"
-                    "5. Think about: caching, response times, UI animations, keyboard shortcuts, accessibility, "
+                    "5. Base your proposal on the CODEBASE SCAN and TRACK RECORD data above when available.\n"
+                    "6. Think about: caching, response times, UI animations, keyboard shortcuts, accessibility, "
                     "API rate limiting, request batching, lazy loading, code splitting, logging levels, config validation.\n\n"
                     "Output a JSON object with keys: title, category "
                     "(performance/feature/bugfix/ux/security/code_quality), "
@@ -592,6 +617,10 @@ class AutonomyEngine:
                                     files=edits_applied,
                                     branch=branch_name)
                 logger.info(f"✅ Proposal executed: {proposal['title']} → branch {branch_name}")
+
+                # Research pipeline: record success
+                self.success_tracker.record_outcome(proposal, success=True)
+
                 return True
 
             else:
@@ -619,6 +648,10 @@ class AutonomyEngine:
                                     f"❌ REVERTED: {proposal['title']} (Automated tests failed - check logs for details)",
                                     proposal_id=proposal["id"])
                 logger.warning(f"⚠️ Proposal reverted: {proposal['title']} (tests failed)")
+
+                # Research pipeline: analyze failure and record outcome
+                self.failure_analyzer.analyze_failure(proposal, test_output or "")
+                self.success_tracker.record_outcome(proposal, success=False)
 
         except Exception as exc:
             proposal["status"] = "failed"

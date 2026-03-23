@@ -17,9 +17,15 @@ from backend.model_router import route_model, MODELS
 # ── Route Model ──────────────────────────────────────────────────
 
 class TestRouteModel:
-    def test_simple_task_uses_local_light(self):
-        """Low complexity (0-4) should use the lightweight local model."""
+    def test_trivial_task_uses_local_micro(self):
+        """Very low complexity (0-2) should use the micro model."""
         result = route_model(complexity_score=2)
+        assert result["name"] == MODELS["local_micro"]["name"]
+        assert result["provider"] == "ollama"
+
+    def test_simple_task_uses_local_light(self):
+        """Low complexity (3-4) should use the lightweight local model."""
+        result = route_model(complexity_score=3)
         assert result["name"] == MODELS["local_light"]["name"]
         assert result["provider"] == "ollama"
 
@@ -86,11 +92,12 @@ class TestRouteModel:
 
 class TestModels:
     def test_all_tiers_defined(self):
-        """Should have local_light, local_heavy, cloud_flash, cloud_pro."""
-        expected = {"local_light", "local_heavy", "cloud_flash", "cloud_pro"}
+        """Should have local_micro, local_light, local_heavy, cloud_flash, cloud_pro."""
+        expected = {"local_micro", "local_light", "local_heavy", "cloud_flash", "cloud_pro"}
         assert set(MODELS.keys()) == expected
 
     def test_local_models_are_ollama(self):
+        assert MODELS["local_micro"]["provider"] == "ollama"
         assert MODELS["local_light"]["provider"] == "ollama"
         assert MODELS["local_heavy"]["provider"] == "ollama"
 
