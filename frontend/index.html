@@ -36,7 +36,7 @@
     <!-- Monaco Editor -->
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <!-- Our styles -->
-    <link rel="stylesheet" href="style.css?v=4" />
+    <link rel="stylesheet" href="style.css?v=5" />
   </head>
   <body>
     <div class="app-container">
@@ -330,7 +330,7 @@
                   <p>Private AI · Local Inference · Full Autonomy</p>
                 </div>
 
-                <!-- Neural Topology SVG (live data nodes) -->
+                <!-- Neural Topology SVG (placeholder for future knowledge graph) -->
                 <div class="neural-topology" id="neuralTopology">
                   <svg class="neural-svg" viewBox="0 0 520 260" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <defs>
@@ -374,7 +374,7 @@
                 <!-- System Metrics Cards -->
               </div>
 
-              <!-- Right Column: Thought Stream + Brain Status -->
+              <!-- Right Column: Brain Status (compact) -->
               <div class="dash-right">
                 <div class="brain-dashboard" id="brainDashboard">
                   <div class="brain-header">
@@ -406,18 +406,20 @@
                     <div class="brain-progress-container"><div id="brainProgressBar" class="brain-progress-bar"></div></div>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <!-- Thought Stream -->
-                <div class="thought-stream">
-                  <div class="thought-stream-header">
-                    <span class="thought-stream-title">Thought Stream</span>
-                    <span class="thought-stream-live">LIVE</span>
-                  </div>
-                  <div class="brain-timeline" id="brainTimeline">
-                    <div class="brain-event brain-event-idle">
-                      <span class="brain-event-icon">💤</span>
-                      <span class="brain-event-text">Engine warming up...</span>
-                    </div>
+            <!-- Thought Stream (full width, below the grid) -->
+            <div class="dash-bottom">
+              <div class="thought-stream">
+                <div class="thought-stream-header">
+                  <span class="thought-stream-title">Thought Stream</span>
+                  <span class="thought-stream-live">LIVE</span>
+                </div>
+                <div class="brain-timeline" id="brainTimeline">
+                  <div class="brain-event brain-event-idle">
+                    <span class="brain-event-icon">💤</span>
+                    <span class="brain-event-text">Engine warming up...</span>
                   </div>
                 </div>
               </div>

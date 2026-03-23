@@ -2740,11 +2740,8 @@ h1, h2, h3 {
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 0;
-  flex: 1;
   min-height: 0;
-  overflow: hidden;
   width: 100%;
-  min-height: 0;
 }
 
 /* ── Left Column ───────────────────────────────────────────────── */
@@ -2901,7 +2898,15 @@ h1, h2, h3 {
   justify-content: flex-start;
 }
 
-/* ── Thought Stream ──────────────────────────────────────────── */
+/* ── Thought Stream (now full-width in dash-bottom) ─────────── */
+.dash-bottom {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
 .thought-stream {
   flex: 1;
   display: flex;
@@ -2939,6 +2944,11 @@ h1, h2, h3 {
   flex: 1;
   overflow-y: auto;
   max-height: none;
+  padding: 4px 0;
+}
+/* Full-width timeline events get a wider, more readable layout */
+.dash-bottom .brain-event {
+  padding: 8px 16px;
 }
 
 /* ── Status Bar ──────────────────────────────────────────────── */
