@@ -482,7 +482,7 @@ class AutonomyEngine:
 
                         # Extra filter: reject proposals with banned keywords in title
                         title_lower = proposal.get("title", "").lower()
-                        banned_phrases = ["error handling", "exception handling", "try/catch", "try-catch"]
+                        banned_phrases = self.self_improver.config.get("banned_patterns", [])
                         if any(phrase in title_lower for phrase in banned_phrases):
                             logger.info(f"Rejected banned-topic proposal: {proposal.get('title', '?')}")
                             self._emit_activity("info", f"Rejected banned topic: {proposal.get('title', '?')}")

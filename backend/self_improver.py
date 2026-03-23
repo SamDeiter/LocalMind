@@ -25,7 +25,18 @@ DEFAULT_CONFIG = {
     "last_updated_reason": None,
     "learned_rules": [],
     "banned_patterns": [
-        "error handling", "exception handling", "try/catch", "try-catch"
+        "error handling", "exception handling", "try/catch", "try-catch",
+        "improve error", "ssl encryption", "ssl/tls", "tls encryption",
+        "https redirection", "https redirect", "secure sockets",
+        "implement ssl", "implement tls", "implement https",
+        "multi-factor authentication", "mfa", "two-factor",
+        "input validation", "validate user input", "secure user input",
+        "sanitize input", "code quality improvement", "improve code quality",
+        "refactor for readability", "add type hints", "add docstrings",
+        "improve logging", "add logging", "logging improvements",
+        "implement rate limiting", "api rate limit",
+        "image recognition", "visual content analysis",
+        "asynchronous task handling", "implement async",
     ],
     "category_weights": {
         "performance": 1.0, "feature": 1.0, "ux": 1.0,
