@@ -27,7 +27,10 @@ from backend.model_router import get_autonomy_models, get_startup_model
 from backend.proposals import ProposalManager, PROPOSALS_DIR
 from backend.code_editor import edit_single_file, identify_target_files, is_scope_achievable
 from backend.git_ops import git_run, revert_file, run_tests
-from backend.research_engine import FailureAnalyzer, SuccessTracker, CodebaseScanner
+from backend.research_engine import (
+    FailureAnalyzer, SuccessTracker, CodebaseScanner,
+    PerformanceProfiler, ExternalResearcher
+)
 
 logger = logging.getLogger("localmind.autonomy")
 
@@ -68,6 +71,8 @@ class AutonomyEngine:
         self.failure_analyzer = FailureAnalyzer()
         self.success_tracker = SuccessTracker()
         self.codebase_scanner = CodebaseScanner()
+        self.performance_profiler = PerformanceProfiler()
+        self.external_researcher = ExternalResearcher()
 
         # Status tracking
         self.status = {
@@ -348,6 +353,18 @@ class AutonomyEngine:
                 except Exception as scan_exc:
                     logger.warning(f"Codebase scan failed: {scan_exc}")
                     scan_block = ""
+                    
+                try:
+                    perf_block = self.performance_profiler.get_findings_for_prompt()
+                except Exception as perf_exc:
+                    logger.warning(f"Performance profiling failed: {perf_exc}")
+                    perf_block = ""
+                    
+                try:
+                    ext_block = await self.external_researcher.get_findings_for_prompt(focus_category)
+                except Exception as ext_exc:
+                    logger.warning(f"External research failed: {ext_exc}")
+                    ext_block = ""
 
                 research_context = ""
                 if lessons_block:
@@ -356,6 +373,10 @@ class AutonomyEngine:
                     research_context += stats_block + "\n"
                 if scan_block:
                     research_context += scan_block + "\n"
+                if perf_block:
+                    research_context += perf_block + "\n"
+                if ext_block:
+                    research_context += ext_block + "\n"
 
                 prompt = (
                     "You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"

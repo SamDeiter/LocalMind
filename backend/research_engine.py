@@ -12,10 +12,14 @@ Modules:
 import ast
 import json
 import logging
+import os
 import re
 import time
 from pathlib import Path
 from typing import Optional
+import httpx
+import psutil
+
 
 logger = logging.getLogger("localmind.research")
 
@@ -416,4 +420,141 @@ class CodebaseScanner:
                 lines.append(f"    🔍 {smell['file']}: {smell['detail']} [{smell['severity']}]")
 
         lines.append("  USE THESE FINDINGS to generate specific, evidence-based proposals.")
+        return "\n".join(lines) + "\n"
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  4. Performance Profiler
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class PerformanceProfiler:
+    """Monitors memory usage and parses logs for slow operations."""
+    
+    def __init__(self):
+        self.findings = []
+        
+    def scan_performance(self) -> list[str]:
+        """Gather memory info and find slow logs."""
+        msgs = []
+        
+        # 1. Memory usage of current process
+        try:
+            process = psutil.Process(os.getpid())
+            mem_mb = process.memory_info().rss / (1024 * 1024)
+            if mem_mb > 500:
+                msgs.append(f"⚠️ High Memory Usage: Current process is using {mem_mb:.1f} MB RAM. Consider caching strategies or garbage collection.")
+            else:
+                msgs.append(f"🟢 Memory Usage: Healthy ({mem_mb:.1f} MB).")
+        except Exception as e:
+            logger.warning(f"Memory profiling failed: {e}")
+            
+        # 2. Database size (if relevant)
+        db_path = WORKSPACE / "db" / "localmind.db"
+        if db_path.exists():
+            db_mb = db_path.stat().st_size / (1024 * 1024)
+            if db_mb > 100:
+                msgs.append(f"⚠️ Large Database: SQLite DB has grown to {db_mb:.1f} MB. Consider adding indexing or vacuuming.")
+                
+        # 3. Log parsing for slow operations (naive heuristic)
+        log_file = WORKSPACE / "logs" / "server.log"
+        if log_file.exists():
+            try:
+                # Read last 1000 lines efficiently
+                with open(log_file, "rb") as f:
+                    f.seek(0, 2)
+                    size = f.tell()
+                    chunk_size = min(size, 64 * 1024)
+                    f.seek(size - chunk_size)
+                    tail = f.read().decode("utf-8", errors="ignore").splitlines()
+                
+                slow_count = sum(1 for line in tail[-1000:] if "took" in line and any(str(i)+"ms" in line for i in range(500, 9999)))
+                if slow_count > 5:
+                    msgs.append(f"⚠️ Slow Operations: Found {slow_count} requests taking >500ms in recent logs. Focus strictly on performance optimization.")
+            except Exception:
+                pass
+                
+        self.findings = msgs
+        return msgs
+
+    def get_findings_for_prompt(self) -> str:
+        """Format performance findings for reflection prompt."""
+        self.scan_performance()
+        if not self.findings:
+            return ""
+            
+        lines = ["SYSTEM PERFORMANCE PROFILE:"]
+        for msg in self.findings:
+            lines.append(f"  {msg}")
+        return "\n".join(lines) + "\n"
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  5. External Researcher
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class ExternalResearcher:
+    """Uses Wikipedia as a zero-dependency external knowledge base for architecture best practices."""
+    
+    def __init__(self):
+        self.cache = {}
+        
+    async def get_best_practices(self, topic: str) -> str:
+        """Search Wikipedia for software engineering concepts."""
+        if topic in self.cache:
+            return self.cache[topic]
+            
+        # Map our internal categories to Wikipedia search terms
+        search_terms = {
+            "performance": "Software performance caching optimization",
+            "security": "Application security OWASP",
+            "ux": "User experience interface design",
+            "code_quality": "Software design pattern clean code",
+            "feature": "Software feature toggle architecture",
+            "bugfix": "Software bug tracking testing"
+        }
+        
+        query = search_terms.get(topic, f"software engineering {topic}")
+        
+        url = "https://en.wikipedia.org/w/api.php"
+        params = {
+            "action": "query",
+            "list": "search",
+            "srsearch": query,
+            "utf8": "",
+            "format": "json",
+            "srlimit": 2
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, params=params)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    results = data.get("query", {}).get("search", [])
+                    if results:
+                        # Clean HTML tags from Wikipedia snippets
+                        cleanr = re.compile('<.*?>')
+                        snippets = []
+                        for res in results:
+                            raw = res.get("snippet", "")
+                            clean_text = re.sub(cleanr, '', raw)
+                            snippets.append(f"- {res.get('title')}: {clean_text}")
+                            
+                        result = "\n".join(snippets)
+                        self.cache[topic] = result
+                        return result
+        except Exception as e:
+            logger.warning(f"External research failed: {e}")
+            
+        return ""
+        
+    async def get_findings_for_prompt(self, focus_category: str) -> str:
+        """Get best practices for the current focus category."""
+        insights = await self.get_best_practices(focus_category)
+        if not insights:
+            return ""
+            
+        lines = [f"EXTERNAL BEST PRACTICES FOR '{focus_category.upper()}':"]
+        lines.append(insights)
+        lines.append("  (Apply these industry standards to your proposed changes.)")
         return "\n".join(lines) + "\n"
