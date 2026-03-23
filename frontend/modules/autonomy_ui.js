@@ -141,6 +141,7 @@ const MAX_ACTIVITY_ITEMS = 15;
 
 const ACTION_ICONS = {
   idle: "💤",
+  thinking: "🧠",
   reflecting: "🔍",
   proposal_created: "💡",
   auto_approved: "🤖",
@@ -302,23 +303,36 @@ function updateBrainDashboard(event) {
   if (!timeline) return;
   const icon = ACTION_ICONS[event.action] || "📋";
   const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+  const isThinking = event.action === "thinking";
   const timeStr = event.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const evEl = document.createElement("div");
-  evEl.className = `brain-event ${isActive ? "brain-event-active" : ""}`;
+  evEl.className = `brain-event ${isActive ? "brain-event-active" : ""} ${isThinking ? "brain-event-thinking" : ""}`;
   
   // Build detailed event text
   let eventText = escapeHtml(event.detail || event.action);
-  if (event.task_description && isActive) {
+  if (event.task_description && isActive && !isThinking) {
     const shortDesc = event.task_description.length > 80 
       ? event.task_description.substring(0, 80) + "..." 
       : event.task_description;
     eventText += `<br><span class="brain-event-desc">${escapeHtml(shortDesc)}</span>`;
   }
+
+  // Thinking events: show expandable research summary
+  let thinkingDetail = "";
+  if (isThinking && event.research_summary) {
+    const truncated = event.research_summary.length > 300
+      ? event.research_summary.substring(0, 300) + "..."
+      : event.research_summary;
+    thinkingDetail = `<div class="brain-thinking-detail">${escapeHtml(truncated)}</div>`;
+  }
+  if (isThinking && event.files_affected && event.files_affected.length > 0) {
+    thinkingDetail += `<div class="brain-thinking-files">Files: ${event.files_affected.map(f => escapeHtml(f)).join(", ")}</div>`;
+  }
   
   evEl.innerHTML = `
     <span class="brain-event-icon">${icon}</span>
-    <span class="brain-event-text">${eventText}</span>
+    <span class="brain-event-text">${eventText}${thinkingDetail}</span>
     <span class="brain-event-time">${timeStr}</span>
   `;
 

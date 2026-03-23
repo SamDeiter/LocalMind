@@ -378,6 +378,32 @@ class AutonomyEngine:
                 if ext_block:
                     research_context += ext_block + "\n"
 
+                # ── Thinking: broadcast what research found ──
+                research_parts = []
+                if lessons_block:
+                    lesson_count = lessons_block.count("\u26a0\ufe0f")
+                    research_parts.append(f"{lesson_count} lessons from past failures")
+                if stats_block:
+                    research_parts.append("execution track record loaded")
+                if scan_block:
+                    complexity_count = scan_block.count("\ud83d\udcd0")
+                    smell_count = scan_block.count("\ud83d\udd0d")
+                    research_parts.append(f"{complexity_count} complex functions, {smell_count} code smells")
+                if perf_block:
+                    research_parts.append("performance metrics collected")
+                if ext_block:
+                    research_parts.append(f"best practices for '{focus_category}'")
+
+                if research_parts:
+                    self._emit_activity("thinking",
+                                        f"Research gathered: {', '.join(research_parts)}",
+                                        thinking_type="research",
+                                        research_summary=research_context[:500])
+                else:
+                    self._emit_activity("thinking",
+                                        "No prior research data yet — first reflection cycle",
+                                        thinking_type="research")
+
                 prompt = (
                     "You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                     "HERE ARE THE ACTUAL FILES IN THIS PROJECT:\n"
@@ -400,6 +426,13 @@ class AutonomyEngine:
                     "effort (small/medium/large), priority (low/medium/high/critical).\n"
                     "Only output the JSON, nothing else."
                 )
+
+                # ── Thinking: broadcast what the AI is being asked ──
+                self._emit_activity("thinking",
+                                    f"Asking {self.reflection_model}: 'Generate a {focus_category} proposal from {len(real_files)} files'",
+                                    thinking_type="prompt",
+                                    focus_category=focus_category,
+                                    files_scanned=len(real_files))
 
                 resp = await client.post(
                     f"{self.ollama_url}/api/generate",
@@ -445,6 +478,13 @@ class AutonomyEngine:
                                 self._emit_activity("proposal_created", f"New proposal: {saved.get('title', '?')}",
                                                     proposal_id=saved.get("id", ""),
                                                     category=saved.get("category", ""))
+                                # ── Thinking: broadcast the AI's reasoning ──
+                                self._emit_activity("thinking",
+                                                    f"AI proposed: '{saved.get('title', '?')}' [{saved.get('category', '?')}] — {saved.get('description', '')[:120]}",
+                                                    thinking_type="response",
+                                                    proposal_title=saved.get("title", ""),
+                                                    proposal_description=saved.get("description", ""),
+                                                    files_affected=saved.get("files_affected", []))
                                 logger.info(f"💡 Auto-reflection logged: {saved.get('title', '?')}")
 
                     except (json.JSONDecodeError, IndexError):
@@ -561,6 +601,13 @@ class AutonomyEngine:
                 self.status["execution"]["last_run"] = time.time()
                 self._emit_activity("error", "Failed: Could not determine target files")
                 return False
+
+            # ── Thinking: broadcast file targeting ──
+            self._emit_activity("thinking",
+                                f"Targeting {len(files_affected)} file(s): {', '.join(files_affected[:3])}",
+                                thinking_type="targeting",
+                                files_affected=files_affected,
+                                proposal_title=proposal.get("title", ""))
 
             # Step 2: Create git safety branch
             branch_name = f"self-improve/{proposal['id']}-{proposal['category']}"

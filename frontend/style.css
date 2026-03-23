@@ -2950,6 +2950,40 @@ h1, h2, h3 {
 .dash-bottom .brain-event {
   padding: 8px 16px;
 }
+/* Thinking events: distinctive visual card */
+.brain-event-thinking {
+  border-left: 3px solid #00eefc;
+  background: rgba(0, 238, 252, 0.04);
+  margin: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.3s ease;
+}
+.brain-event-thinking:hover {
+  background: rgba(0, 238, 252, 0.08);
+}
+.brain-event-thinking .brain-event-icon {
+  font-size: 14px;
+}
+.brain-thinking-detail {
+  margin-top: 6px;
+  padding: 6px 8px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.brain-thinking-files {
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 10px;
+  color: #a78bfa;
+}
 
 /* ── Status Bar ──────────────────────────────────────────────── */
 .status-bar {
