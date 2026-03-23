@@ -5,7 +5,7 @@ Handles search-and-replace editing with 4-layer matching:
   Layer 1: Exact match
   Layer 2: Line-ending normalization (CRLF → LF)
   Layer 3: Trailing whitespace strip
-  Layer 4: Fuzzy matching via difflib (85% threshold)
+  Layer 4: Fuzzy matching via difflib (80% threshold)
 
 Extracted from autonomy.py to keep files lean and editable.
 """
@@ -27,6 +27,38 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BLOCKED_DIRS = {"venv", ".git", "node_modules", "__pycache__", "memory_db"}
 BLOCKED_NAMES = {".env", ".env.local", ".env.production", "autonomy.py", "server.py", "run.py"}
 BLOCKED_EXTS = {".key", ".pem", ".secret", ".p12", ".pfx"}
+
+# Proposals containing these keywords are too abstract for a 7B model to implement
+SCOPE_TOO_BROAD = [
+    "ssl", "tls", "oauth", "encryption", "authentication flow",
+    "database migration", "microservices", "docker", "kubernetes",
+    "ci/cd", "pipeline", "infrastructure", "deployment",
+    "multi-language", "internationalization", "i18n",
+    "redesign", "rewrite", "overhaul", "architecture",
+]
+
+
+def is_scope_achievable(proposal: dict) -> bool:
+    """Check if a proposal is small enough for a 7B model to implement.
+
+    Filters out proposals that are too abstract or require infrastructure
+    changes that a small search-and-replace edit can't accomplish.
+    """
+    title = proposal.get("title", "").lower()
+    desc = proposal.get("description", "").lower()
+    combined = title + " " + desc
+
+    for keyword in SCOPE_TOO_BROAD:
+        if keyword in combined:
+            logger.info(f"Scope too broad for 7B model: '{proposal.get('title')}' (matched: '{keyword}')")
+            return False
+
+    # Reject if effort is "large" — 7B model can't handle large changes
+    if proposal.get("effort", "").lower() == "large":
+        logger.info(f"Effort too large for auto-edit: '{proposal.get('title')}'")
+        return False
+
+    return True
 
 
 def is_protected_file(relative_path: str) -> bool:
@@ -89,10 +121,11 @@ async def identify_target_files(
                 f"DETAILS: {proposal['description']}\n\n"
                 f"AVAILABLE FILES (pick ONLY from this list):\n{numbered}\n\n"
                 f"RULES:\n"
-                f"1. Pick 1-3 files that are MOST relevant to this proposal.\n"
+                f"1. Pick 1-2 files that are MOST relevant to this proposal.\n"
                 f"2. Output a JSON array of file paths, e.g. [\"backend/agent.py\"]\n"
                 f"3. ONLY pick files from the list above. DO NOT invent files.\n"
-                f"4. Output ONLY the JSON array, nothing else.\n"
+                f"4. Do NOT pick server.py, autonomy.py, or run.py — they are protected.\n"
+                f"5. Output ONLY the JSON array, nothing else.\n"
             )
 
             resp = await client.post(
@@ -138,6 +171,14 @@ async def identify_target_files(
             validated = []
             for candidate in candidates:
                 candidate = candidate.strip().strip("/")
+
+                # Pre-filter: skip blocked files before validation
+                if candidate.split("/")[-1] in BLOCKED_NAMES:
+                    logger.info(f"Skipping blocked file from targeting: {candidate}")
+                    if emit_activity:
+                        emit_activity("info", f"Skipped protected file: {candidate}")
+                    continue
+
                 if candidate in files_set:
                     validated.append(candidate)
                 else:
@@ -151,7 +192,7 @@ async def identify_target_files(
                         if emit_activity:
                             emit_activity("info", f"Ignored hallucinated path: {candidate}")
 
-            return validated[:3]
+            return validated[:2]
 
     except Exception as exc:
         logger.warning(f"Failed to identify target files: {exc}")
@@ -186,27 +227,33 @@ async def edit_single_file(
     try:
         original_content = target.read_text(encoding="utf-8", errors="replace")
 
-        file_preview = original_content[:6000]
-        if len(original_content) > 6000:
-            file_preview += f"\n\n# ... ({len(original_content) - 6000} more chars truncated)"
+        # Add line numbers so the model can anchor search text
+        lines = original_content.split("\n")
+        numbered_lines = []
+        for i, line in enumerate(lines[:200], 1):  # Cap at 200 lines
+            numbered_lines.append(f"{i:>4}| {line}")
+        file_preview = "\n".join(numbered_lines)
+        if len(lines) > 200:
+            file_preview += f"\n     ... ({len(lines) - 200} more lines)"
 
         async with httpx.AsyncClient(timeout=180.0) as client:
             prompt = (
-                f"You are a precise code editor. Make a SMALL, TARGETED fix.\n\n"
+                f"You are a code editor. Make ONE small, precise change.\n\n"
                 f"TASK: {proposal['title']}\n"
                 f"DETAILS: {proposal['description']}\n\n"
-                f"FILE: {relative_path}\n"
+                f"FILE: {relative_path} (line numbers shown for reference only)\n"
                 f"```\n{file_preview}\n```\n\n"
-                f"Output a JSON object with exactly these keys:\n"
-                f'  "search": "EXACT consecutive lines copied from the file above"\n'
-                f'  "replace": "the replacement lines with your improvement"\n'
-                f'  "explanation": "one sentence explaining the change"\n\n'
-                f"CRITICAL RULES:\n"
-                f"1. COPY-PASTE the search lines EXACTLY from the file — every space, quote, and character must match.\n"
-                f"2. Keep the change to 3-10 lines maximum. Do NOT rewrite large blocks.\n"
-                f"3. Output ONLY the JSON object, no markdown fences, no extra text.\n"
-                f"4. The search text MUST appear verbatim in the file above. If it does not, the edit will FAIL.\n"
-                f'5. If you cannot make a useful change, output: {{"search": "", "replace": "", "explanation": "no change needed"}}\n'
+                f"Output a JSON object with these keys:\n"
+                f'  "search": "EXACT consecutive lines from the file (WITHOUT line numbers)"\n'
+                f'  "replace": "your improved version of those same lines"\n'
+                f'  "explanation": "one sentence about what changed"\n\n'
+                f"RULES:\n"
+                f"1. Copy the search lines EXACTLY from the file — every space and character must match.\n"
+                f"2. Do NOT include line numbers (like '  42|') in your search/replace text.\n"
+                f"3. Keep edits to 3-8 lines. Small and targeted.\n"
+                f"4. Only output the JSON object. No markdown fences.\n"
+                f"5. The search text MUST appear verbatim in the file or the edit will FAIL.\n"
+                f'6. If you cannot find a useful change, output: {{"search": "", "replace": "", "explanation": "no change needed"}}\n'
             )
 
             resp = await client.post(
@@ -228,34 +275,17 @@ async def edit_single_file(
             raw_response = resp.json().get("response", "").strip()
 
         # Parse the search/replace JSON
-        try:
-            json_text = raw_response
-            if "```" in json_text:
-                json_text = json_text.split("```")[1]
-                if json_text.startswith("json"):
-                    json_text = json_text[4:]
-                json_text = json_text.strip()
-
-            diff = json.loads(json_text)
-        except (json.JSONDecodeError, IndexError):
-            match = re.search(r'\{[^{}]*"search"[^{}]*\}', raw_response, re.DOTALL)
-            if match:
-                try:
-                    diff = json.loads(match.group(0))
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not parse edit response for {relative_path}")
-                    if emit_activity:
-                        emit_activity("error", f"Edit failed: could not parse AI response for {relative_path}")
-                    return False
-            else:
-                logger.warning(f"No JSON found in edit response for {relative_path}")
-                if emit_activity:
-                    emit_activity("error", f"Edit failed: no valid JSON in AI response for {relative_path}")
-                return False
+        diff = _parse_diff_response(raw_response, relative_path, emit_activity)
+        if diff is None:
+            return False
 
         search_text = diff.get("search", "")
         replace_text = diff.get("replace", "")
         explanation = diff.get("explanation", "")
+
+        # Strip any line number prefixes the model may have included
+        search_text = _strip_line_numbers(search_text)
+        replace_text = _strip_line_numbers(replace_text)
 
         if not search_text or not replace_text or search_text == replace_text:
             logger.info(f"AI returned no-op for {relative_path}: {explanation}")
@@ -264,75 +294,9 @@ async def edit_single_file(
             return False
 
         # ── Multi-layer search matching ──
-        matched = False
-        new_content = ""
+        new_content = _apply_search_replace(original_content, search_text, replace_text, relative_path)
 
-        # Layer 1: Exact match
-        if search_text in original_content:
-            new_content = original_content.replace(search_text, replace_text, 1)
-            matched = True
-
-        # Layer 2: Normalize line endings
-        if not matched:
-            norm_search = search_text.replace("\r\n", "\n").replace("\r", "\n")
-            norm_content = original_content.replace("\r\n", "\n")
-            if norm_search in norm_content:
-                new_content = original_content.replace("\r\n", "\n")
-                new_content = new_content.replace(norm_search, replace_text.replace("\r\n", "\n"), 1)
-                if "\r\n" in original_content:
-                    new_content = new_content.replace("\n", "\r\n")
-                matched = True
-                logger.info(f"Matched via line-ending normalization for {relative_path}")
-
-        # Layer 3: Strip trailing whitespace per line
-        if not matched:
-            stripped_search = "\n".join(l.rstrip() for l in search_text.replace("\r\n", "\n").split("\n"))
-            stripped_content = "\n".join(l.rstrip() for l in original_content.replace("\r\n", "\n").split("\n"))
-            if stripped_search in stripped_content:
-                idx = stripped_content.index(stripped_search)
-                orig_lines = original_content.replace("\r\n", "\n").split("\n")
-                stripped_lines = stripped_search.split("\n")
-                start_line = stripped_content[:idx].count("\n")
-                n_lines = len(stripped_lines)
-                replace_lines = replace_text.replace("\r\n", "\n").split("\n")
-                new_lines = orig_lines[:start_line] + replace_lines + orig_lines[start_line + n_lines:]
-                sep = "\r\n" if "\r\n" in original_content else "\n"
-                new_content = sep.join(new_lines)
-                matched = True
-                logger.info(f"Matched via whitespace-stripped lines for {relative_path}")
-
-        # Layer 4: Fuzzy line-by-line matching
-        if not matched:
-            try:
-                search_lines = search_text.replace("\r\n", "\n").strip().split("\n")
-                file_lines = original_content.replace("\r\n", "\n").split("\n")
-
-                best_ratio = 0
-                best_start = -1
-                window = len(search_lines)
-
-                for i in range(len(file_lines) - window + 1):
-                    candidate = file_lines[i:i + window]
-                    ratio = difflib.SequenceMatcher(
-                        None,
-                        "\n".join(search_lines),
-                        "\n".join(candidate)
-                    ).ratio()
-                    if ratio > best_ratio:
-                        best_ratio = ratio
-                        best_start = i
-
-                if best_ratio >= 0.85 and best_start >= 0:
-                    replace_lines = replace_text.replace("\r\n", "\n").split("\n")
-                    new_file_lines = file_lines[:best_start] + replace_lines + file_lines[best_start + window:]
-                    sep = "\r\n" if "\r\n" in original_content else "\n"
-                    new_content = sep.join(new_file_lines)
-                    matched = True
-                    logger.info(f"Matched via fuzzy matching ({best_ratio:.0%}) for {relative_path}")
-            except Exception as fuzzy_exc:
-                logger.warning(f"Fuzzy match failed: {fuzzy_exc}")
-
-        if not matched:
+        if new_content is None:
             logger.warning(
                 f"Search text not found in {relative_path}. "
                 f"Search (first 150 chars): {repr(search_text[:150])}"
@@ -374,3 +338,106 @@ async def edit_single_file(
     except Exception as exc:
         logger.error(f"Failed to edit {relative_path}: {exc}")
         return False
+
+
+def _strip_line_numbers(text: str) -> str:
+    """Remove line number prefixes like '  42| ' that the model may include."""
+    lines = text.split("\n")
+    stripped = []
+    for line in lines:
+        # Match patterns like "  42| code" or "42| code"
+        m = re.match(r'^\s*\d+\|\s?', line)
+        if m:
+            stripped.append(line[m.end():])
+        else:
+            stripped.append(line)
+    return "\n".join(stripped)
+
+
+def _parse_diff_response(raw_response: str, relative_path: str, emit_activity=None) -> dict | None:
+    """Parse the AI's JSON response, with fallback regex extraction."""
+    try:
+        json_text = raw_response
+        if "```" in json_text:
+            json_text = json_text.split("```")[1]
+            if json_text.startswith("json"):
+                json_text = json_text[4:]
+            json_text = json_text.strip()
+
+        return json.loads(json_text)
+    except (json.JSONDecodeError, IndexError):
+        match = re.search(r'\{[^{}]*"search"[^{}]*\}', raw_response, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                pass
+
+        logger.warning(f"Could not parse edit response for {relative_path}")
+        if emit_activity:
+            emit_activity("error", f"Edit failed: could not parse AI response for {relative_path}")
+        return None
+
+
+def _apply_search_replace(original_content: str, search_text: str, replace_text: str, relative_path: str) -> str | None:
+    """Apply search-and-replace with 4-layer matching. Returns new content or None."""
+
+    # Layer 1: Exact match
+    if search_text in original_content:
+        return original_content.replace(search_text, replace_text, 1)
+
+    # Layer 2: Normalize line endings
+    norm_search = search_text.replace("\r\n", "\n").replace("\r", "\n")
+    norm_content = original_content.replace("\r\n", "\n")
+    if norm_search in norm_content:
+        new_content = norm_content.replace(norm_search, replace_text.replace("\r\n", "\n"), 1)
+        if "\r\n" in original_content:
+            new_content = new_content.replace("\n", "\r\n")
+        logger.info(f"Matched via line-ending normalization for {relative_path}")
+        return new_content
+
+    # Layer 3: Strip trailing whitespace per line
+    stripped_search = "\n".join(l.rstrip() for l in norm_search.split("\n"))
+    stripped_content = "\n".join(l.rstrip() for l in norm_content.split("\n"))
+    if stripped_search in stripped_content:
+        idx = stripped_content.index(stripped_search)
+        orig_lines = norm_content.split("\n")
+        stripped_lines = stripped_search.split("\n")
+        start_line = stripped_content[:idx].count("\n")
+        n_lines = len(stripped_lines)
+        replace_lines = replace_text.replace("\r\n", "\n").split("\n")
+        new_lines = orig_lines[:start_line] + replace_lines + orig_lines[start_line + n_lines:]
+        sep = "\r\n" if "\r\n" in original_content else "\n"
+        logger.info(f"Matched via whitespace-stripped lines for {relative_path}")
+        return sep.join(new_lines)
+
+    # Layer 4: Fuzzy line-by-line matching (lowered to 80%)
+    try:
+        search_lines = norm_search.strip().split("\n")
+        file_lines = norm_content.split("\n")
+
+        best_ratio = 0
+        best_start = -1
+        window = len(search_lines)
+
+        for i in range(len(file_lines) - window + 1):
+            candidate = file_lines[i:i + window]
+            ratio = difflib.SequenceMatcher(
+                None,
+                "\n".join(search_lines),
+                "\n".join(candidate)
+            ).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+                best_start = i
+
+        if best_ratio >= 0.80 and best_start >= 0:
+            replace_lines = replace_text.replace("\r\n", "\n").split("\n")
+            new_file_lines = file_lines[:best_start] + replace_lines + file_lines[best_start + window:]
+            sep = "\r\n" if "\r\n" in original_content else "\n"
+            logger.info(f"Matched via fuzzy matching ({best_ratio:.0%}) for {relative_path}")
+            return sep.join(new_file_lines)
+    except Exception as fuzzy_exc:
+        logger.warning(f"Fuzzy match failed: {fuzzy_exc}")
+
+    return None

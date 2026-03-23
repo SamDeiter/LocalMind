@@ -25,7 +25,7 @@ import httpx
 
 from backend.model_router import get_autonomy_models, get_startup_model
 from backend.proposals import ProposalManager, PROPOSALS_DIR
-from backend.code_editor import edit_single_file, identify_target_files
+from backend.code_editor import edit_single_file, identify_target_files, is_scope_achievable
 from backend.git_ops import git_run, revert_file, run_tests
 
 logger = logging.getLogger("localmind.autonomy")
@@ -46,7 +46,7 @@ class AutonomyEngine:
         self.ollama_url = ollama_url
         models = get_autonomy_models()
         self.reflection_model = models.get("reflection", "qwen2.5-coder:7b")
-        self.editing_model = models.get("editing", "qwen2.5-coder:7b")
+        self.editing_model = models.get("editing", "qwen2.5-coder:32b")
         self.default_model = self.reflection_model
         self.startup_model = get_startup_model()
 
@@ -481,6 +481,15 @@ class AutonomyEngine:
         proposal = proposals[0]
 
         filepath = PROPOSALS_DIR / f"{proposal['id']}_{proposal['category']}.json"
+
+        # Scope guard: skip proposals too broad for the model
+        if not is_scope_achievable(proposal):
+            self._emit_activity("info", f"Skipped (too broad): {proposal['title']}")
+            proposal["status"] = "skipped"
+            proposal["error"] = "Proposal scope too broad for automated editing"
+            filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+            self.status["execution"]["last_run"] = time.time()
+            return False
 
         try:
             self._emit_activity("executing",
