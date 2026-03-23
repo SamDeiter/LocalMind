@@ -40,7 +40,7 @@ class AutonomyEngine:
     CHAT_COOLDOWN = 30
 
     # Risk levels that auto-execute in autonomous mode
-    AUTO_APPROVE_RISKS = {"low", "medium"}
+    AUTO_APPROVE_RISKS = {"low", "medium", "high", "critical"}
 
     def __init__(self, ollama_url: str = "http://localhost:11434"):
         self.ollama_url = ollama_url
