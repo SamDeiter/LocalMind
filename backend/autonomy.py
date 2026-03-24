@@ -49,6 +49,8 @@ class AutonomyEngine:
     CIRCUIT_BREAKER_COOLDOWN = 1800 # 30 minutes cooldown
     BACKOFF_BASE = 180              # 3 min base execution interval
     BACKOFF_MAX = 1800              # 30 min max backoff
+    REFLECTION_FUTILITY_MAX = 5    # Consecutive rejected reflections before long sleep
+    REFLECTION_BACKOFF_MAX = 1800  # 30 min max reflection backoff
 
     # Risk levels that auto-execute in autonomous mode
     AUTO_APPROVE_RISKS = {"low", "medium", "high", "critical"}
@@ -75,6 +77,10 @@ class AutonomyEngine:
         self._consecutive_failures: int = 0
         self._circuit_open_until: float = 0.0  # timestamp when cooldown ends
         self._current_backoff: int = self.BACKOFF_BASE
+
+        # Reflection futility tracking
+        self._reflection_rejections: int = 0
+        self._reflection_backoff: int = 300  # starts at 5 min (normal)
 
         # Delegate proposal management
         self.proposals = ProposalManager()
@@ -284,12 +290,15 @@ class AutonomyEngine:
     # ── Self-Reflection Loop ─────────────────────────────────────
 
     async def _reflection_loop(self):
-        """Every 5min: review codebase and log proposals."""
+        """Every 5min (with futility backoff): review codebase and log proposals."""
         await asyncio.sleep(60)
         while True:
             try:
                 try:
-                    await asyncio.wait_for(self._manual_reflection_event.wait(), timeout=300)
+                    await asyncio.wait_for(
+                        self._manual_reflection_event.wait(),
+                        timeout=self._reflection_backoff,
+                    )
                     self._manual_reflection_event.clear()
                     logger.info("⚡ Executing manual reflection")
                 except asyncio.TimeoutError:
@@ -305,8 +314,33 @@ class AutonomyEngine:
                         # Clean up stale proposals before reflecting
                         self.proposals.cleanup_stale()
                         self._emit_activity("reflecting", "Step 1/2: Analyzing project structure...")
-                        await self._run_reflection()
-                        self._emit_activity("idle", "Waiting for next reflection cycle")
+                        proposal_saved = await self._run_reflection()
+
+                        if proposal_saved:
+                            # Success — reset futility counter
+                            self._reflection_rejections = 0
+                            self._reflection_backoff = 300
+                            self._emit_activity("idle", "Waiting for next reflection cycle")
+                        else:
+                            # Futility — proposal was rejected/duplicate/banned
+                            self._reflection_rejections += 1
+                            if self._reflection_rejections >= self.REFLECTION_FUTILITY_MAX:
+                                self._reflection_backoff = min(
+                                    self._reflection_backoff * 2,
+                                    self.REFLECTION_BACKOFF_MAX,
+                                )
+                                wait_min = self._reflection_backoff // 60
+                                self._emit_activity(
+                                    "idle",
+                                    f"Out of new ideas — {self._reflection_rejections} rejections in a row. "
+                                    f"Sleeping {wait_min} min before next attempt.",
+                                )
+                                logger.info(
+                                    f"Reflection futility: {self._reflection_rejections} rejections, "
+                                    f"backoff now {self._reflection_backoff}s"
+                                )
+                            else:
+                                self._emit_activity("idle", "Waiting for next reflection cycle")
                 else:
                     if self.is_user_active():
                         logger.debug("Reflection skipped — user is active")
@@ -322,8 +356,11 @@ class AutonomyEngine:
                 self._emit_activity("error", f"Reflection failed: {exc}")
                 await asyncio.sleep(60)
 
-    async def _run_reflection(self):
-        """Ask the AI to reflect on its own codebase and log proposals."""
+    async def _run_reflection(self) -> bool:
+        """Ask the AI to reflect on its own codebase and log proposals.
+
+        Returns True if a proposal was successfully saved, False otherwise.
+        """
         try:
             # Self-improvement: analyze performance and tune brain config
             try:
@@ -556,15 +593,18 @@ class AutonomyEngine:
                                                         proposal_description=saved.get("description", ""),
                                                         files_affected=saved.get("files_affected", []))
                                     logger.info(f"Auto-reflection logged: {saved.get('title', '?')}")
+                                    return True
 
                     except (json.JSONDecodeError, IndexError):
                         self._log("reflection_parse_failed", {"response": response_text[:200]})
 
                 self.status["reflection"]["last_run"] = time.time()
+                return False
 
         except Exception as exc:
             logger.warning(f"Reflection failed: {exc}")
             self.status["reflection"]["last_run"] = time.time()
+            return False
 
     # ── Proposal API Wrappers ────────────────────────────────────
 
@@ -627,6 +667,8 @@ class AutonomyEngine:
                             break
                     if executed_count > 0:
                         logger.info(f"Executed {executed_count} proposal(s) this cycle")
+                    else:
+                        self._emit_activity("idle", "No approved proposals to execute")
                 else:
                     if self.is_user_active():
                         logger.debug("Execution skipped -- user is active")
