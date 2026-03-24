@@ -53,8 +53,6 @@ class FailureAnalyzer:
     """Classifies proposal failures and stores lessons learned."""
 
     def __init__(self):
-        self.lessons = []
-        self._load()
         self.lessons: list[dict] = []
         self._load()
 

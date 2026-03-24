@@ -85,6 +85,10 @@ class AutonomyEngine:
         self._reflection_rejections: int = 0
         self._reflection_backoff: int = 300  # starts at 5 min (normal)
 
+        # Auto-research: periodically mine arXiv for proposals
+        self.auto_research_enabled: bool = True
+        self._auto_research_interval: int = 1800  # 30 min
+
         # Delegate proposal management
         self.proposals = ProposalManager()
 
@@ -215,6 +219,7 @@ class AutonomyEngine:
             asyncio.create_task(self._reflection_loop(), name="reflection"),
             asyncio.create_task(self._execution_loop(), name="execution"),
             asyncio.create_task(self._digest_loop(), name="digest"),
+            asyncio.create_task(self._auto_research_loop(), name="auto_research"),
         ]
 
     async def stop(self):
@@ -382,6 +387,80 @@ class AutonomyEngine:
                 logger.error(f"Reflection loop error: {exc}")
                 self._emit_activity("error", f"Reflection failed: {exc}")
                 await asyncio.sleep(60)
+
+    # ── Auto-Research Loop ────────────────────────────────────────
+
+    _AUTO_RESEARCH_QUERIES = {
+        "performance": "software performance optimization techniques",
+        "code_quality": "code refactoring best practices",
+        "security": "software security vulnerability detection",
+        "feature": "AI code generation agents",
+        "ux": "developer experience user interface design",
+    }
+
+    async def _auto_research_loop(self):
+        """Every 30min: search arXiv for papers and generate proposals."""
+        import random
+        await asyncio.sleep(300)  # Wait 5 min after startup
+
+        while True:
+            try:
+                await asyncio.sleep(self._auto_research_interval)
+
+                if not self.enabled or not self.auto_research_enabled:
+                    continue
+                if self.is_user_active():
+                    continue
+
+                # Pick a random category to research
+                category = random.choice(list(self._AUTO_RESEARCH_QUERIES.keys()))
+                query = self._AUTO_RESEARCH_QUERIES[category]
+
+                self._emit_activity("researching", f"Auto-research: searching arXiv for '{query}'")
+                logger.info(f"📚 Auto-research: querying arXiv for '{query}'")
+
+                try:
+                    from backend.research_engine import AcademicResearcher
+                    researcher = AcademicResearcher()
+                    papers = await researcher.search_arxiv(query, max_results=3)
+                except Exception as e:
+                    logger.warning(f"Auto-research arXiv search failed: {e}")
+                    self._emit_activity("idle", f"Auto-research failed: {e}")
+                    continue
+
+                if not papers:
+                    self._emit_activity("idle", "Auto-research: no papers found")
+                    continue
+
+                # Pick the top paper and generate a proposal
+                paper = papers[0]
+                self._emit_activity(
+                    "researching",
+                    f"Generating proposal from: {paper.get('title', '?')[:60]}...",
+                )
+
+                try:
+                    from backend.routes.research_routes import generate_paper_proposal
+                    result = await generate_paper_proposal(
+                        title=paper.get("title", ""),
+                        abstract=paper.get("abstract", ""),
+                        url=paper.get("url", ""),
+                    )
+                    if result.get("proposal"):
+                        title = result["proposal"].get("title", "?")
+                        self._emit_activity("idle", f"📄 Auto-research proposal: {title}")
+                        logger.info(f"📄 Auto-research generated proposal: {title}")
+                    else:
+                        self._emit_activity("idle", f"Auto-research: {result.get('error', 'no proposal')}")
+                except Exception as e:
+                    logger.warning(f"Auto-research proposal generation failed: {e}")
+                    self._emit_activity("idle", f"Auto-research proposal failed: {e}")
+
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                logger.error(f"Auto-research loop error: {exc}")
+                await asyncio.sleep(120)
 
     def _sample_code_snippets(self, real_files: list[str], count: int = 3) -> str:
         """Read project files weighted by TODO count + git recency.

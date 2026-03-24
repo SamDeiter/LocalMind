@@ -81,6 +81,7 @@ export async function loadProposals() {
           <span class="proposal-priority" style="color:${priorityColors[p.priority] || "#ffc107"}">${escapeHtml(p.priority || "medium")}</span>
           ${confidenceBadge(p.confidence)}
           <span class="proposal-status-badge">${statusIcons[p.status] || "❓"} ${escapeHtml(p.status || "proposed")}</span>
+          ${p.source === "arxiv" ? '<span class="badge-arxiv" title="Generated from ArXiv paper">📄 ArXiv</span>' : ""}
         </div>
         <div class="proposal-title">${escapeHtml(p.title || "Untitled")}</div>
         <div class="proposal-desc">${escapeHtml(p.description || "").substring(0, 150)}${(p.description || "").length > 150 ? "…" : ""}</div>
