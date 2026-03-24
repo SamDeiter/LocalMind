@@ -44,6 +44,11 @@ class AutonomyEngine:
     """Background scheduler for autonomous LocalMind operations."""
 
     CHAT_COOLDOWN = 30
+    MAX_ACTIVE_PROPOSALS = 10       # Don't reflect if this many are queued
+    CIRCUIT_BREAKER_THRESHOLD = 3   # Consecutive failures before cooldown
+    CIRCUIT_BREAKER_COOLDOWN = 1800 # 30 minutes cooldown
+    BACKOFF_BASE = 180              # 3 min base execution interval
+    BACKOFF_MAX = 1800              # 30 min max backoff
 
     # Risk levels that auto-execute in autonomous mode
     AUTO_APPROVE_RISKS = {"low", "medium", "high", "critical"}
@@ -65,6 +70,11 @@ class AutonomyEngine:
         self._start_time: float = time.time()
         self._manual_reflection_event = asyncio.Event()
         self._manual_execution_event = asyncio.Event()
+
+        # Circuit breaker + backoff state
+        self._consecutive_failures: int = 0
+        self._circuit_open_until: float = 0.0  # timestamp when cooldown ends
+        self._current_backoff: int = self.BACKOFF_BASE
 
         # Delegate proposal management
         self.proposals = ProposalManager()
@@ -286,11 +296,17 @@ class AutonomyEngine:
                     pass
 
                 if self.enabled and not self.is_user_active():
-                    # Clean up stale proposals before reflecting
-                    self.proposals.cleanup_stale()
-                    self._emit_activity("reflecting", "Step 1/2: Analyzing project structure...")
-                    await self._run_reflection()
-                    self._emit_activity("idle", "Waiting for next reflection cycle")
+                    # Proposal cap: skip reflection if too many are queued
+                    active_count = self.proposals.count_active()
+                    if active_count >= self.MAX_ACTIVE_PROPOSALS:
+                        logger.info(f"Reflection skipped — {active_count} active proposals (cap: {self.MAX_ACTIVE_PROPOSALS})")
+                        self._emit_activity("idle", f"Skipping reflection: {active_count} active proposals (cap: {self.MAX_ACTIVE_PROPOSALS})")
+                    else:
+                        # Clean up stale proposals before reflecting
+                        self.proposals.cleanup_stale()
+                        self._emit_activity("reflecting", "Step 1/2: Analyzing project structure...")
+                        await self._run_reflection()
+                        self._emit_activity("idle", "Waiting for next reflection cycle")
                 else:
                     if self.is_user_active():
                         logger.debug("Reflection skipped — user is active")
@@ -573,18 +589,32 @@ class AutonomyEngine:
     # ── Execution Loop ───────────────────────────────────────────
 
     async def _execution_loop(self):
-        """Every 3 min: pick an approved proposal and execute it."""
+        """Every 3 min (with backoff): pick an approved proposal and execute it."""
         await asyncio.sleep(10)
         while True:
             try:
                 try:
-                    await asyncio.wait_for(self._manual_execution_event.wait(), timeout=180)
+                    await asyncio.wait_for(
+                        self._manual_execution_event.wait(),
+                        timeout=self._current_backoff,
+                    )
                     self._manual_execution_event.clear()
                     logger.info("⚡ Executing manual task run")
                 except asyncio.TimeoutError:
                     pass
 
                 if self.enabled and not self.is_user_active():
+                    # Circuit breaker check
+                    if self._circuit_open_until > time.time():
+                        remaining = int(self._circuit_open_until - time.time())
+                        self._emit_activity(
+                            "cooldown",
+                            f"Circuit breaker active — cooling down for {remaining}s "
+                            f"after {self.CIRCUIT_BREAKER_THRESHOLD} consecutive failures",
+                        )
+                        logger.info(f"Circuit breaker: {remaining}s remaining")
+                        continue
+
                     self._emit_activity("checking", "Looking for approved proposals to execute...")
                     executed_count = 0
                     while True:
@@ -743,6 +773,10 @@ class AutonomyEngine:
                 # Research pipeline: record success
                 self.success_tracker.record_outcome(proposal, success=True)
 
+                # Reset circuit breaker + backoff on success
+                self._consecutive_failures = 0
+                self._current_backoff = self.BACKOFF_BASE
+
                 return True
 
             else:
@@ -775,6 +809,26 @@ class AutonomyEngine:
                 self.failure_analyzer.analyze_failure(proposal, test_output or "")
                 self.success_tracker.record_outcome(proposal, success=False)
 
+                # Progressive backoff + circuit breaker
+                self._consecutive_failures += 1
+                self._current_backoff = min(
+                    self._current_backoff * 2, self.BACKOFF_MAX
+                )
+                logger.info(
+                    f"Backoff increased to {self._current_backoff}s "
+                    f"(consecutive failures: {self._consecutive_failures})"
+                )
+                if self._consecutive_failures >= self.CIRCUIT_BREAKER_THRESHOLD:
+                    self._circuit_open_until = time.time() + self.CIRCUIT_BREAKER_COOLDOWN
+                    self._emit_activity(
+                        "cooldown",
+                        f"🛑 Circuit breaker tripped after {self._consecutive_failures} "
+                        f"consecutive failures — cooling down for {self.CIRCUIT_BREAKER_COOLDOWN // 60} min",
+                    )
+                    logger.warning(
+                        f"Circuit breaker tripped: {self._consecutive_failures} consecutive failures"
+                    )
+
         except Exception as exc:
             proposal["status"] = "failed"
             proposal["error"] = str(exc)
@@ -790,6 +844,19 @@ class AutonomyEngine:
                 "error": str(exc),
             })
             logger.error(f"❌ Proposal execution failed: {exc}")
+
+            # Progressive backoff + circuit breaker for exceptions too
+            self._consecutive_failures += 1
+            self._current_backoff = min(
+                self._current_backoff * 2, self.BACKOFF_MAX
+            )
+            if self._consecutive_failures >= self.CIRCUIT_BREAKER_THRESHOLD:
+                self._circuit_open_until = time.time() + self.CIRCUIT_BREAKER_COOLDOWN
+                self._emit_activity(
+                    "cooldown",
+                    f"🛑 Circuit breaker tripped after {self._consecutive_failures} "
+                    f"consecutive failures — cooling down for {self.CIRCUIT_BREAKER_COOLDOWN // 60} min",
+                )
 
         self.status["execution"]["last_run"] = time.time()
 

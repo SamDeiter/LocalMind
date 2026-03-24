@@ -285,6 +285,20 @@ class ProposalManager:
         if filepath:
             filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
 
+    def count_active(self) -> int:
+        """Count proposals that are proposed or approved (i.e. still actionable)."""
+        if not PROPOSALS_DIR.exists():
+            return 0
+        count = 0
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if data.get("status") in ("proposed", "approved"):
+                    count += 1
+            except Exception:
+                continue
+        return count
+
     def cleanup_stale(self) -> dict:
         """Archive old denied/completed proposals and remove exhausted failed ones.
 
@@ -310,7 +324,13 @@ class ProposalManager:
                     shutil.move(str(f), str(dest))
                     archived += 1
 
-                # Delete exhausted failed proposals (max retries hit) older than 48h
+                # Archive failed proposals that were never retried after 12h
+                elif status == "failed" and age_hours > 12 and data.get("retry_count", 0) == 0:
+                    dest = ARCHIVE_DIR / f.name
+                    shutil.move(str(f), str(dest))
+                    deleted += 1
+
+                # Archive exhausted failed proposals (max retries hit) older than 48h
                 elif status == "failed" and age_hours > 48:
                     retry_count = data.get("retry_count", 0)
                     if retry_count >= MAX_RETRIES:

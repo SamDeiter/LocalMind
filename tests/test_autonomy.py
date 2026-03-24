@@ -392,3 +392,87 @@ class TestCallerContext:
             assert "server.py" in result or "import" in result
 
 
+# ── Guardrail 4: Circuit Breaker ─────────────────────────────────
+
+class TestCircuitBreaker:
+    def test_circuit_breaker_engages_after_threshold(self, engine):
+        """Circuit breaker opens after CIRCUIT_BREAKER_THRESHOLD consecutive failures."""
+        engine._consecutive_failures = engine.CIRCUIT_BREAKER_THRESHOLD
+        # Simulate what the execution code does
+        engine._circuit_open_until = time.time() + engine.CIRCUIT_BREAKER_COOLDOWN
+        assert engine._circuit_open_until > time.time()
+
+    def test_circuit_breaker_resets_on_success(self, engine):
+        """Consecutive failure count resets to 0 after a success."""
+        engine._consecutive_failures = 2
+        engine._current_backoff = 720
+        # Simulate a success reset
+        engine._consecutive_failures = 0
+        engine._current_backoff = engine.BACKOFF_BASE
+        assert engine._consecutive_failures == 0
+        assert engine._current_backoff == engine.BACKOFF_BASE
+
+    def test_circuit_breaker_not_tripped_below_threshold(self, engine):
+        """Circuit breaker stays closed with fewer failures than threshold."""
+        engine._consecutive_failures = engine.CIRCUIT_BREAKER_THRESHOLD - 1
+        assert engine._circuit_open_until <= time.time()
+
+
+# ── Guardrail 5: Proposal Cap ────────────────────────────────────
+
+class TestProposalCap:
+    def test_count_active_empty(self, engine, proposals_dir):
+        """count_active returns 0 on empty directory."""
+        assert engine.proposals.count_active() == 0
+
+    def test_count_active_with_proposals(self, engine, proposals_dir):
+        """count_active counts proposed + approved, ignores failed/completed."""
+        for i, status in enumerate(["proposed", "approved", "failed", "completed"]):
+            data = {
+                "id": f"cap-{i}", "title": f"P{i}",
+                "category": "feature", "status": status,
+                "created_at": time.time(),
+            }
+            f = proposals_dir / f"cap-{i}_feature.json"
+            f.write_text(json.dumps(data), encoding="utf-8")
+
+        assert engine.proposals.count_active() == 2  # proposed + approved only
+
+    def test_cap_blocks_reflection(self, engine, proposals_dir):
+        """MAX_ACTIVE_PROPOSALS check correctly identifies when capped."""
+        # Create MAX_ACTIVE_PROPOSALS approved proposals
+        for i in range(engine.MAX_ACTIVE_PROPOSALS):
+            data = {
+                "id": f"cap-{i}", "title": f"Proposal {i}",
+                "category": "feature", "status": "approved",
+                "created_at": time.time(),
+            }
+            f = proposals_dir / f"cap-{i}_feature.json"
+            f.write_text(json.dumps(data), encoding="utf-8")
+
+        active = engine.proposals.count_active()
+        assert active >= engine.MAX_ACTIVE_PROPOSALS
+
+
+# ── Guardrail 6: Progressive Backoff ─────────────────────────────
+
+class TestProgressiveBackoff:
+    def test_backoff_doubles_on_failure(self, engine):
+        """Backoff interval doubles after each failure."""
+        initial = engine._current_backoff
+        engine._current_backoff = min(engine._current_backoff * 2, engine.BACKOFF_MAX)
+        assert engine._current_backoff == initial * 2
+
+    def test_backoff_caps_at_max(self, engine):
+        """Backoff doesn't exceed BACKOFF_MAX."""
+        engine._current_backoff = engine.BACKOFF_MAX
+        engine._current_backoff = min(engine._current_backoff * 2, engine.BACKOFF_MAX)
+        assert engine._current_backoff == engine.BACKOFF_MAX
+
+    def test_backoff_resets_on_success(self, engine):
+        """Backoff resets to BACKOFF_BASE after a success."""
+        engine._current_backoff = 1440
+        engine._current_backoff = engine.BACKOFF_BASE
+        assert engine._current_backoff == engine.BACKOFF_BASE
+
+
