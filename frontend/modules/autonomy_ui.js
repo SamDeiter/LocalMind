@@ -620,6 +620,17 @@ export function initDashboardPanels() {
   if (exportBtn) {
     exportBtn.addEventListener("click", exportDigest);
   }
+
+  // Wire Reflect + Execute buttons
+  const reflectBtn = document.getElementById("brainReflectBtn");
+  if (reflectBtn) {
+    reflectBtn.addEventListener("click", triggerReflection);
+  }
+  const executeBtn = document.getElementById("brainExecuteBtn");
+  if (executeBtn) {
+    executeBtn.addEventListener("click", triggerExecution);
+  }
+
   // Initial load
   loadPriorities();
   loadDigest();
