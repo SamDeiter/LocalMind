@@ -43,3 +43,4 @@ models/
 
 # Generated API docs (regenerate with: python scripts/generate_docs.py)
 docs/api/
+backend/memory_db/
