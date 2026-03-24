@@ -526,7 +526,10 @@ class ExternalResearcher:
         }
         
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(
+                timeout=10.0,
+                headers={"User-Agent": "LocalMind/1.0 (https://github.com/SamDeiter/LocalMind)"}
+            ) as client:
                 resp = await client.get(url, params=params)
                 if resp.status_code == 200:
                     data = resp.json()
