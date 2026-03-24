@@ -19,6 +19,7 @@ export {
     setAutonomyMode,
     triggerReflection,
     triggerExecution,
+    initDashboardPanels,
 } from "./autonomy_ui.js";
 
 export {

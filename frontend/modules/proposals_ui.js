@@ -54,6 +54,14 @@ export async function loadProposals() {
       code_quality: "🧹",
     };
 
+    // Confidence badge helper
+    const confidenceBadge = (score) => {
+      if (score === undefined || score === null) return "";
+      const color = score >= 70 ? "#4caf50" : score >= 40 ? "#ffc107" : "#f44336";
+      const icon = score >= 70 ? "🟢" : score >= 40 ? "🟡" : "🔴";
+      return `<span class="confidence-badge" style="color:${color}" title="Confidence: ${score}/100">${icon} ${score}</span>`;
+    };
+
     listEl.innerHTML = proposals
       .map(
         (p) => `
@@ -61,6 +69,7 @@ export async function loadProposals() {
         <div class="proposal-header">
           <span class="proposal-type">${categoryIcons[p.category] || "📋"} ${escapeHtml(p.category || "improvement")}</span>
           <span class="proposal-priority" style="color:${priorityColors[p.priority] || "#ffc107"}">${escapeHtml(p.priority || "medium")}</span>
+          ${confidenceBadge(p.confidence)}
           <span class="proposal-status-badge">${statusIcons[p.status] || "❓"} ${escapeHtml(p.status || "proposed")}</span>
         </div>
         <div class="proposal-title">${escapeHtml(p.title || "Untitled")}</div>
@@ -76,7 +85,10 @@ export async function loadProposals() {
         }
         ${
           p.status === "completed"
-            ? `<div class="proposal-result">${escapeHtml(p.execution_result || "")}</div>`
+            ? `<div class="proposal-result">${escapeHtml(p.execution_result || "")}</div>
+               <div class="proposal-actions">
+                 <button class="rollback-btn" data-id="${escapeHtml(p.id)}" title="Revert this change">↩️ Rollback</button>
+               </div>`
             : ""
         }
         ${
@@ -133,6 +145,33 @@ export async function loadProposals() {
           console.error("[LocalMind] Proposal deny error:", err);
           btn.disabled = false;
           btn.textContent = "❌ Deny";
+        }
+      });
+    });
+
+    // Wire rollback buttons
+    listEl.querySelectorAll(".rollback-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Revert this change? This will undo the merge on main.")) return;
+        btn.disabled = true;
+        btn.textContent = "⏳ Reverting...";
+        try {
+          const r = await fetch(`${API}/api/autonomy/proposals/${btn.dataset.id}/rollback`, {
+            method: "POST",
+          });
+          const d = await r.json();
+          if (d.ok) {
+            showToast("↩️ Change reverted successfully", "info");
+            await loadProposals();
+          } else {
+            showToast(`❌ ${d.error || "Rollback failed"}`, "error");
+            btn.disabled = false;
+            btn.textContent = "↩️ Rollback";
+          }
+        } catch (err) {
+          console.error("[LocalMind] Rollback error:", err);
+          btn.disabled = false;
+          btn.textContent = "↩️ Rollback";
         }
       });
     });

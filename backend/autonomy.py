@@ -18,6 +18,7 @@ Modules:
 import asyncio
 import json
 import logging
+import subprocess
 import time
 from pathlib import Path
 
@@ -205,6 +206,7 @@ class AutonomyEngine:
             asyncio.create_task(self._health_loop(), name="health"),
             asyncio.create_task(self._reflection_loop(), name="reflection"),
             asyncio.create_task(self._execution_loop(), name="execution"),
+            asyncio.create_task(self._digest_loop(), name="digest"),
         ]
 
     async def stop(self):
@@ -360,10 +362,10 @@ class AutonomyEngine:
                 await asyncio.sleep(60)
 
     def _sample_code_snippets(self, real_files: list[str], count: int = 3) -> str:
-        """Read a few random project files and return numbered previews.
+        """Read project files weighted by TODO count + git recency.
 
-        Gives the reflection AI actual code to analyze instead of just
-        file names, dramatically improving proposal specificity.
+        Smart sampling: files with TODOs or recent git changes are
+        3x more likely to be selected, producing higher-value proposals.
         """
         import random
         project_root = Path(__file__).parent.parent
@@ -372,7 +374,42 @@ class AutonomyEngine:
         if not candidates:
             return ""
 
-        sampled = random.sample(candidates, min(count, len(candidates)))
+        # Build weights: files with TODOs or recent git activity get 3x weight
+        weights = []
+        try:
+            from backend.todo_harvester import harvest_todos
+            todo_files = {t["file"] for t in harvest_todos(str(project_root))}
+        except Exception:
+            todo_files = set()
+
+        try:
+            result = subprocess.run(
+                ["git", "log", "--diff-filter=M", "-5", "--name-only", "--format="],
+                capture_output=True, text=True, cwd=str(project_root), timeout=5
+            )
+            recent_files = {l.strip() for l in result.stdout.splitlines() if l.strip()}
+        except Exception:
+            recent_files = set()
+
+        for f in candidates:
+            w = 1
+            if f in todo_files:
+                w += 2
+            if f in recent_files:
+                w += 2
+            weights.append(w)
+
+        sampled = []
+        pop = list(candidates)
+        w_pop = list(weights)
+        for _ in range(min(count, len(pop))):
+            if not pop:
+                break
+            chosen = random.choices(pop, weights=w_pop, k=1)[0]
+            idx = pop.index(chosen)
+            sampled.append(pop.pop(idx))
+            w_pop.pop(idx)
+
         snippets = []
         for filepath in sampled:
             try:
@@ -684,6 +721,30 @@ class AutonomyEngine:
 
     # ── Execution Loop ───────────────────────────────────────────
 
+    # ── Digest Auto-Schedule ──────────────────────────────────────
+    async def _digest_loop(self):
+        """Every 6 hours: generate a daily digest summary."""
+        await asyncio.sleep(60)  # Let things warm up first
+        while True:
+            try:
+                if self.enabled:
+                    try:
+                        from backend.digest import generate_digest
+                        digest = generate_digest()
+                        if digest:
+                            self._emit_activity("completed", f"📊 Daily digest generated")
+                            logger.info("📊 Daily digest generated")
+                    except Exception as exc:
+                        logger.warning(f"Digest generation failed: {exc}")
+                await asyncio.sleep(6 * 3600)  # 6 hours
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                logger.error(f"Digest loop error: {exc}")
+                await asyncio.sleep(3600)  # Retry in 1h
+
+    # ── Execution Loop ───────────────────────────────────────────
+
     async def _execution_loop(self):
         """Every 3 min (with backoff): pick an approved proposal and execute it."""
         await asyncio.sleep(10)
@@ -738,15 +799,29 @@ class AutonomyEngine:
                 await asyncio.sleep(60)
 
     async def _execute_next_proposal(self):
-        """Find the highest-priority approved proposal and execute it."""
+        """Find the highest-priority approved proposal and execute it.
+
+        Prerequisite-aware: skips proposals whose 'follows' prerequisite
+        hasn't completed yet. After success, auto-approves chained successors.
+        """
         proposals = self.proposals.list_proposals("approved")
         if not proposals:
             return False
 
-        # Sort by priority
+        # Sort by priority, then filter by prerequisite readiness
         priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         proposals.sort(key=lambda p: priority_order.get(p.get("priority", "medium"), 2))
-        proposal = proposals[0]
+
+        # Prerequisite check: skip proposals with unmet dependencies
+        proposal = None
+        for p in proposals:
+            if self.proposals.is_prerequisite_met(p):
+                proposal = p
+                break
+            else:
+                logger.debug(f"Skipping {p['id']}: prerequisite {p.get('follows')} not met")
+        if proposal is None:
+            return False
 
         filepath = PROPOSALS_DIR / f"{proposal['id']}_{proposal['category']}.json"
 

@@ -151,6 +151,7 @@ const ACTION_ICONS = {
   writing: "✍️",
   testing: "🧪",
   completed: "✅",
+  merged: "🔀",
   reverted: "⚠️",
   error: "❌",
   mode_changed: "🔄",
@@ -171,6 +172,8 @@ export function connectActivityFeed() {
       // Show toast notifications for key events
       if (event.action === "completed") {
         showToast(`✨ ${event.detail}`, "info");
+      } else if (event.action === "merged") {
+        showToast(`🔀 ${event.detail}`, "info");
       } else if (event.action === "error" || event.action === "reverted") {
         showToast(`${ACTION_ICONS[event.action] || "⚠️"} ${event.detail}`, "error");
       }
@@ -461,3 +464,104 @@ window.denyProposal = (id) => {
         .then(r => r.json())
         .then(d => { if(d.ok) { showToast("❌ Denied", "info"); loadProposals(); } });
 };
+
+// ── Priority Queue ──────────────────────────────────────────────
+export async function loadPriorities() {
+  try {
+    const r = await fetch(`${API}/api/autonomy/priorities`);
+    const d = await r.json();
+    const listEl = document.getElementById("priorityList");
+    if (!listEl) return;
+    const priorities = d.priorities || [];
+    if (priorities.length === 0) {
+      listEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:4px 0;">No priorities set — AI will self-direct.</div>';
+      return;
+    }
+    listEl.innerHTML = priorities.map(p => `
+      <div class="priority-item" data-id="${p.id}">
+        <span class="priority-text">⭐ ${escapeHtml(p.description)}</span>
+        <span class="priority-badge ${p.priority || 'medium'}">${p.priority || 'medium'}</span>
+        <button class="priority-remove" data-id="${p.id}" title="Remove">✕</button>
+      </div>
+    `).join("");
+    listEl.querySelectorAll(".priority-remove").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await fetch(`${API}/api/autonomy/priorities/${btn.dataset.id}`, { method: "DELETE" });
+        loadPriorities();
+      });
+    });
+  } catch { /* server not ready */ }
+}
+
+export async function addPriority(description) {
+  if (!description.trim()) return;
+  try {
+    await fetch(`${API}/api/autonomy/priorities`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description, priority: "medium" }),
+    });
+    showToast("⭐ Priority added", "info");
+    loadPriorities();
+  } catch {
+    showToast("❌ Failed to add priority", "error");
+  }
+}
+
+// ── Daily Digest ────────────────────────────────────────────────
+export async function loadDigest() {
+  const el = document.getElementById("brainDigest");
+  if (!el) return;
+  try {
+    const r = await fetch(`${API}/api/autonomy/digest`);
+    const d = await r.json();
+    if (d.content) {
+      el.textContent = d.content;
+    } else if (d.summary) {
+      el.textContent = `${d.summary}\n\n✅ Completed: ${d.completed || 0}  ❌ Failed: ${d.failed || 0}  📋 Pending: ${d.pending || 0}`;
+    } else {
+      el.textContent = "No digest available yet. The engine will generate one after running for a while.";
+    }
+  } catch {
+    el.textContent = "Digest unavailable — server not ready.";
+  }
+}
+
+// ── Success Rate ────────────────────────────────────────────────
+export async function updateSuccessRate() {
+  const el = document.getElementById("brainSuccessRate");
+  if (!el) return;
+  try {
+    const r = await fetch(`${API}/api/autonomy/proposals`);
+    const d = await r.json();
+    const proposals = d.proposals || [];
+    const completed = proposals.filter(p => p.status === "completed").length;
+    const failed = proposals.filter(p => p.status === "failed").length;
+    const total = completed + failed;
+    if (total > 0) {
+      const rate = Math.round((completed / total) * 100);
+      el.textContent = `${rate}%`;
+      el.style.color = rate >= 70 ? "#4caf50" : rate >= 40 ? "#ffc107" : "#f44336";
+    } else {
+      el.textContent = "—";
+    }
+  } catch { /* ignore */ }
+}
+
+// ── Wire Priority + Digest Buttons ──────────────────────────────
+export function initDashboardPanels() {
+  const addBtn = document.getElementById("addPriorityBtn");
+  const input = document.getElementById("priorityInput");
+  if (addBtn && input) {
+    addBtn.addEventListener("click", () => { addPriority(input.value); input.value = ""; });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { addPriority(input.value); input.value = ""; } });
+  }
+  const digestBtn = document.getElementById("refreshDigestBtn");
+  if (digestBtn) {
+    digestBtn.addEventListener("click", loadDigest);
+  }
+  // Initial load
+  loadPriorities();
+  loadDigest();
+  updateSuccessRate();
+}
