@@ -114,6 +114,14 @@ autonomy_engine = AutonomyEngine(
     ollama_url="http://localhost:11434",
 )
 
+# ── Meta-Cognitive Controller ───────────────────────────────────────
+# Intent parsing, uncertainty gating, self-checking, and revision on every chat turn
+from backend.metacognition.controller import MetaCognitiveController
+metacog_controller = MetaCognitiveController(
+    ollama_url="http://localhost:11434",
+    emit_activity=lambda *a, **kw: logger.debug(f"metacog: {a} {kw}"),
+)
+
 # ── Constants ─────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434"
 DB_PATH = Path(__file__).parent / "conversations.db"
@@ -334,6 +342,7 @@ def _configure_routers():
         gemini_is_available_func=gemini_is_available,
         learning_enabled_func=lambda: learning_enabled,
         autonomy_engine=autonomy_engine,
+        metacog_controller=metacog_controller,
     )
 
     # Conversations router needs DB access and the default prompt

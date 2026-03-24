@@ -55,6 +55,7 @@ _route_model_hybrid = None
 _gemini_is_available = None
 _learning_enabled_fn = None  # Function to check learning state
 _autonomy_engine = None  # AutonomyEngine reference for chat cooldown
+_metacog_controller = None  # MetaCognitiveController instance
 
 # ── Task-Specific System Prompts ──────────────────────────────────────
 # Different prompts optimize the AI's behavior for different tasks.
@@ -106,6 +107,7 @@ def configure(
     gemini_is_available_func,
     learning_enabled_func,
     autonomy_engine=None,
+    metacog_controller=None,
 ):
     """Called by server.py to inject all dependencies.
     
@@ -114,7 +116,7 @@ def configure(
     """
     global _get_db, _registry, _OLLAMA_BASE_URL, _DEFAULT_SYSTEM_PROMPT
     global _estimate_task_complexity, _route_model_hybrid, _gemini_is_available
-    global _learning_enabled_fn, _autonomy_engine
+    global _learning_enabled_fn, _autonomy_engine, _metacog_controller
     _get_db = get_db_func
     _registry = registry
     _OLLAMA_BASE_URL = ollama_base_url
@@ -124,6 +126,7 @@ def configure(
     _gemini_is_available = gemini_is_available_func
     _learning_enabled_fn = learning_enabled_func
     _autonomy_engine = autonomy_engine
+    _metacog_controller = metacog_controller
 
 
 # ── Helper: Auto-Save Heuristic ──────────────────────────────────────
@@ -352,6 +355,69 @@ async def chat(request: Request):
     db.commit()
     db.close()
 
+    # ── Step 5b: Meta-Cognitive Pre-Process ─────────────────────────────
+    # Parse intent, score uncertainty, and decide action BEFORE the LLM.
+    # This may short-circuit the pipeline (ASK/ABSTAIN) or enrich context.
+    metacog_decision = None
+    if _metacog_controller:
+        try:
+            metacog_decision = await _metacog_controller.pre_process(
+                user_input=message,
+                conversation_id=conversation_id,
+            )
+            logger.info(
+                f"METACOG: action={metacog_decision.action.value}, "
+                f"confidence={metacog_decision.confidence:.2f}, "
+                f"reason={metacog_decision.reason}"
+            )
+
+            # If the controller says ASK or ABSTAIN, short-circuit the response
+            from backend.metacognition.models.actions import Action
+            if metacog_decision.action == Action.ASK:
+                async def metacog_ask_stream():
+                    yield f"data: {json.dumps({'token': metacog_decision.clarification_question, 'conversation_id': conversation_id})}\n\n"
+                    # Save the clarification as assistant message
+                    db_ask = _get_db()
+                    db_ask.execute(
+                        "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+                        (conversation_id, "assistant", metacog_decision.clarification_question, time.time()),
+                    )
+                    db_ask.commit()
+                    db_ask.close()
+                    yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id, 'metacog': metacog_decision.to_dict()})}\n\n"
+                return StreamingResponse(metacog_ask_stream(), media_type="text/event-stream")
+
+            elif metacog_decision.action == Action.ABSTAIN:
+                async def metacog_abstain_stream():
+                    yield f"data: {json.dumps({'token': metacog_decision.abstain_explanation, 'conversation_id': conversation_id})}\n\n"
+                    db_abs = _get_db()
+                    db_abs.execute(
+                        "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+                        (conversation_id, "assistant", metacog_decision.abstain_explanation, time.time()),
+                    )
+                    db_abs.commit()
+                    db_abs.close()
+                    yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id, 'metacog': metacog_decision.to_dict()})}\n\n"
+                return StreamingResponse(metacog_abstain_stream(), media_type="text/event-stream")
+
+            # For other actions (ANSWER, TOOL_USE, VERIFY, etc.), continue normally
+            # but inject intent context into the system prompt
+            if _metacog_controller.session and _metacog_controller.session.active_intent:
+                intent = _metacog_controller.session.active_intent
+                intent_context = f"\n\n[META-COGNITIVE CONTEXT]\n"
+                intent_context += f"User's actual goal: {intent.inferred_goal}\n"
+                if intent.constraints:
+                    intent_context += f"Constraints: {', '.join(intent.constraints)}\n"
+                if intent.forbidden_actions:
+                    intent_context += f"Do NOT: {', '.join(intent.forbidden_actions)}\n"
+                if intent.preferred_output_style:
+                    intent_context += f"Style: {intent.preferred_output_style}\n"
+                intent_context += f"[/META-COGNITIVE CONTEXT]"
+                ollama_messages[0]["content"] += intent_context
+
+        except Exception as e:
+            logger.warning(f"Meta-cognitive pre-process failed (non-fatal): {e}")
+
     # ── Step 6: Auto-Save Personal Facts (DEFERRED) ───────────────────
     # Moved to AFTER streaming so the user gets their response immediately.
     # The heuristic runs in the background after the SSE stream ends.
@@ -575,6 +641,31 @@ async def chat(request: Request):
                 logger.error(traceback.format_exc())
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 break
+
+        # ── Meta-Cognitive Post-Process ─────────────────────────────────
+        # Self-check and optionally revise the full response before saving.
+        if full_response and _metacog_controller:
+            try:
+                post_result = await _metacog_controller.post_process(
+                    draft=full_response,
+                    conversation_id=conversation_id,
+                )
+                if post_result.content != full_response:
+                    logger.info(
+                        f"METACOG POST: revised (rev={post_result.revision_count}, "
+                        f"caveats={len(post_result.caveats)})"
+                    )
+                    # Stream the revision delta to the frontend
+                    if post_result.caveats:
+                        caveat_text = post_result.content[len(full_response):]
+                        if caveat_text:
+                            yield f"data: {json.dumps({'token': caveat_text, 'conversation_id': conversation_id})}\n\n"
+                    full_response = post_result.content
+
+                # Emit metacog metadata
+                yield f"data: {json.dumps({'metacog': post_result.to_dict()})}\n\n"
+            except Exception as e:
+                logger.warning(f"Meta-cognitive post-process failed (non-fatal): {e}")
 
         # ── Save Assistant Response to DB ─────────────────────────────
         if full_response:
