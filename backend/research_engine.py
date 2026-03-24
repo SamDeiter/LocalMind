@@ -662,7 +662,7 @@ class AcademicResearcher:
         """
         import feedparser
 
-        url = "http://export.arxiv.org/api/query"
+        url = "https://export.arxiv.org/api/query"
         params = {
             "search_query": f"all:{query}",
             "start": 0,
@@ -674,6 +674,7 @@ class AcademicResearcher:
         try:
             async with httpx.AsyncClient(
                 timeout=15.0,
+                follow_redirects=True,
                 headers={"User-Agent": "LocalMind/1.0 (academic-research)"},
             ) as client:
                 resp = await client.get(url, params=params)
