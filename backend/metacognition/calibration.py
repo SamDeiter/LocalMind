@@ -110,3 +110,146 @@ class CalibrationTracker:
                 sum(e.revision_count for e in completed) / len(completed), 2
             ) if completed else 0,
         }
+
+    # ── Self-Tuning Feedback Loop ────────────────────────────────────
+
+    def log_action_outcome(
+        self,
+        action: str,
+        uncertainty_score: float,
+        was_helpful: bool,
+        task_type: str = "",
+    ) -> None:
+        """Log whether a metacog action was actually helpful.
+
+        Called after the turn completes:
+        - ASK actions: was the follow-up meaningful (user answered) vs annoying (user ignored)?
+        - ANSWER actions: did the response need revision?
+        - ABSTAIN actions: did the user rephrase (appropriate) or get frustrated?
+        """
+        try:
+            record = {
+                "type": "action_outcome",
+                "action": action,
+                "uncertainty_score": round(uncertainty_score, 3),
+                "was_helpful": was_helpful,
+                "task_type": task_type,
+                "timestamp": __import__("time").time(),
+            }
+            with open(self.path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record) + "\n")
+        except OSError as e:
+            logger.warning(f"Failed to log action outcome: {e}")
+
+    def auto_adjust_thresholds(self, min_samples: int = 20) -> dict:
+        """Compute recommended threshold adjustments from logged outcomes.
+
+        Reads the JSONL log and detects:
+        1. ASK actions that were unhelpful → raise the ASK threshold (ask less)
+        2. ANSWER actions that needed revision → lower the ASK threshold (ask more)
+        3. ABSTAIN actions that frustrated users → raise the ABSTAIN threshold
+
+        Returns a dict of recommended thresholds (only if ≥ min_samples).
+        The controller can apply these to its UncertaintyGate.
+
+        This is the feedback loop that makes the system self-tuning.
+        """
+        entries = []
+        if not self.path.exists():
+            return {"status": "no_data"}
+
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            record = json.loads(line)
+                            if record.get("type") == "action_outcome":
+                                entries.append(record)
+                        except json.JSONDecodeError:
+                            continue
+        except OSError:
+            return {"status": "read_error"}
+
+        if len(entries) < min_samples:
+            return {
+                "status": "insufficient_data",
+                "samples": len(entries),
+                "needed": min_samples,
+            }
+
+        # Analyze ASK outcomes
+        ask_entries = [e for e in entries if e["action"] == "ask"]
+        ask_helpful_rate = (
+            sum(1 for e in ask_entries if e["was_helpful"]) / len(ask_entries)
+            if ask_entries else 0.5
+        )
+
+        # Analyze ANSWER outcomes (those that needed revision)
+        answer_entries = [e for e in entries if e["action"] == "answer"]
+        answer_success_rate = (
+            sum(1 for e in answer_entries if e["was_helpful"]) / len(answer_entries)
+            if answer_entries else 0.5
+        )
+
+        # Analyze ABSTAIN outcomes
+        abstain_entries = [e for e in entries if e["action"] == "abstain"]
+        abstain_helpful_rate = (
+            sum(1 for e in abstain_entries if e["was_helpful"]) / len(abstain_entries)
+            if abstain_entries else 0.5
+        )
+
+        # Current defaults from UncertaintyScore
+        current_ask = 0.6
+        current_abstain = 0.85
+
+        # Adjust ASK threshold
+        # If ASK actions are rarely helpful → raise threshold (be less trigger-happy)
+        # If ANSWER actions often need revision → lower threshold (ask more often)
+        recommended_ask = current_ask
+        if ask_helpful_rate < 0.4:
+            # More than 60% of ASK actions were annoying → raise threshold
+            recommended_ask = min(0.85, current_ask + 0.1)
+            logger.info(
+                f"SELF-TUNE: ASK helpful rate {ask_helpful_rate:.0%} is low "
+                f"→ raising ASK threshold from {current_ask} to {recommended_ask}"
+            )
+        elif answer_success_rate < 0.5 and ask_helpful_rate > 0.7:
+            # Answers often fail + ASK is usually helpful → lower threshold
+            recommended_ask = max(0.3, current_ask - 0.1)
+            logger.info(
+                f"SELF-TUNE: Answer success {answer_success_rate:.0%} low, "
+                f"ASK helpful {ask_helpful_rate:.0%} → lowering ASK to {recommended_ask}"
+            )
+
+        # Adjust ABSTAIN threshold
+        recommended_abstain = current_abstain
+        if abstain_helpful_rate < 0.3:
+            # Abstaining too aggressively → raise threshold
+            recommended_abstain = min(0.95, current_abstain + 0.05)
+            logger.info(
+                f"SELF-TUNE: ABSTAIN helpful rate {abstain_helpful_rate:.0%} low "
+                f"→ raising ABSTAIN threshold to {recommended_abstain}"
+            )
+
+        return {
+            "status": "computed",
+            "samples": len(entries),
+            "ask": {
+                "current": current_ask,
+                "recommended": round(recommended_ask, 2),
+                "helpful_rate": round(ask_helpful_rate, 3),
+                "sample_count": len(ask_entries),
+            },
+            "abstain": {
+                "current": current_abstain,
+                "recommended": round(recommended_abstain, 2),
+                "helpful_rate": round(abstain_helpful_rate, 3),
+                "sample_count": len(abstain_entries),
+            },
+            "answer": {
+                "success_rate": round(answer_success_rate, 3),
+                "sample_count": len(answer_entries),
+            },
+        }

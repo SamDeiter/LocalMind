@@ -358,8 +358,18 @@ async def chat(request: Request):
     # ── Step 5b: Meta-Cognitive Pre-Process ─────────────────────────────
     # Parse intent, score uncertainty, and decide action BEFORE the LLM.
     # This may short-circuit the pipeline (ASK/ABSTAIN) or enrich context.
+    #
+    # IMPORTANT: Skip metacog for simple/casual messages (score <= 4).
+    # Simple greetings like "how is it going" get incorrectly flagged as
+    # ambiguous, causing the ASK action to fire repeatedly. Only medium+
+    # complexity tasks benefit from intent parsing and uncertainty gating.
     metacog_decision = None
-    if _metacog_controller:
+    _msg_complexity = task_estimate["score"] if task_estimate else 3
+    _metacog_eligible = (
+        _metacog_controller
+        and _msg_complexity >= 5  # Medium+ complexity only
+    )
+    if _metacog_eligible:
         try:
             metacog_decision = await _metacog_controller.pre_process(
                 user_input=message,
@@ -644,7 +654,8 @@ async def chat(request: Request):
 
         # ── Meta-Cognitive Post-Process ─────────────────────────────────
         # Self-check and optionally revise the full response before saving.
-        if full_response and _metacog_controller:
+        # Uses same complexity bypass as pre-process — skip for simple messages.
+        if full_response and _metacog_eligible:
             try:
                 post_result = await _metacog_controller.post_process(
                     draft=full_response,
