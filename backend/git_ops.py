@@ -89,3 +89,44 @@ async def run_tests() -> tuple[bool, str]:
     except Exception as exc:
         logger.warning(f"Auto-test failed: {exc}")
         return False, str(exc)
+
+
+def count_tests() -> int:
+    """Quickly count total tests without running them.
+    
+    Uses --collect-only for speed. Returns 0 on error.
+    """
+    try:
+        result = subprocess.run(
+            ["python", "-m", "pytest", "tests/", "--collect-only", "-q"],
+            capture_output=True, text=True, timeout=30,
+            cwd=str(PROJECT_ROOT),
+        )
+        # Output ends with "X tests collected"
+        for line in result.stdout.splitlines():
+            m = re.search(r"(\d+)\s+test", line)
+            if m:
+                return int(m.group(1))
+    except Exception:
+        pass
+    return 0
+
+
+def get_merge_commit(branch_name: str) -> str | None:
+    """Find the merge commit SHA for a branch merge."""
+    output = git_run(["log", "--oneline", "--merges", "-20"])
+    for line in output.splitlines():
+        if branch_name in line or "autonomy" in line.lower():
+            sha = line.split()[0] if line else None
+            return sha
+    return None
+
+
+def revert_merge(merge_sha: str) -> bool:
+    """Revert a merge commit on main."""
+    result = git_run(["revert", "--no-commit", "-m", "1", merge_sha])
+    if result is not None:
+        git_run(["commit", "-m", f"Revert autonomy merge {merge_sha}"])
+        logger.info(f"↩️ Reverted merge: {merge_sha}")
+        return True
+    return False

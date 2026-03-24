@@ -200,3 +200,84 @@ async def retry_proposal(proposal_id: str):
     if updated:
         return {"ok": True, "proposal": updated}
     return {"ok": False, "message": "Proposal not found or max retries reached"}
+
+
+# ── Priority Queue ───────────────────────────────────────────────
+
+@router.get("/autonomy/priorities")
+async def list_priorities():
+    """List all user-defined priorities."""
+    return {"priorities": _engine.priority_queue.list_all()}
+
+
+@router.post("/autonomy/priorities")
+async def add_priority(request: Request):
+    """Add a user priority to steer the autonomy engine."""
+    body = await request.json()
+    description = body.get("description", "").strip()
+    priority = body.get("priority", "high")
+    if not description:
+        return {"ok": False, "error": "Description is required"}
+    item = _engine.priority_queue.add(description, priority)
+    return {"ok": True, "priority": item}
+
+
+@router.delete("/autonomy/priorities/{priority_id}")
+async def remove_priority(priority_id: str):
+    """Remove a priority."""
+    removed = _engine.priority_queue.remove(priority_id)
+    return {"ok": removed}
+
+
+# ── Daily Digest ─────────────────────────────────────────────────
+
+@router.get("/autonomy/digest")
+async def get_digest():
+    """Get the latest daily digest."""
+    from backend.digest import get_latest_digest
+    return {"digest": get_latest_digest()}
+
+
+@router.get("/autonomy/digest/{date}")
+async def get_digest_by_date(date: str):
+    """Get a digest for a specific date (YYYY-MM-DD)."""
+    from backend.digest import get_digest_by_date
+    result = get_digest_by_date(date)
+    if result:
+        return {"digest": result}
+    return {"ok": False, "error": "No digest for that date"}
+
+
+# ── Rollback ─────────────────────────────────────────────────────
+
+@router.post("/autonomy/proposals/{proposal_id}/rollback")
+async def rollback_proposal(proposal_id: str):
+    """Revert a completed proposal's merge."""
+    from backend.git_ops import get_merge_commit, revert_merge
+    from backend.proposals import PROPOSALS_DIR
+    import json
+
+    # Find the proposal
+    for f in PROPOSALS_DIR.glob("*.json"):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            if data.get("id") == proposal_id:
+                branch = data.get("branch")
+                if not branch:
+                    return {"ok": False, "error": "No branch info on this proposal"}
+
+                merge_sha = get_merge_commit(branch)
+                if not merge_sha:
+                    return {"ok": False, "error": "Could not find merge commit"}
+
+                success = revert_merge(merge_sha)
+                if success:
+                    data["status"] = "rolled_back"
+                    data["rolled_back_at"] = __import__("time").time()
+                    f.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    return {"ok": True, "reverted_sha": merge_sha}
+                return {"ok": False, "error": "Git revert failed"}
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    return {"ok": False, "error": "Proposal not found"}

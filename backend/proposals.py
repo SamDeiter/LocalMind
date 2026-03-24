@@ -177,6 +177,7 @@ class ProposalManager:
             "created_at": time.time(),
             "created_at_human": time.strftime("%Y-%m-%d %H:%M:%S"),
             "retry_count": 0,
+            "follows": proposal.get("follows"),  # Optional prerequisite ID
         }
 
         # Normalize files_affected to list
@@ -198,6 +199,9 @@ class ProposalManager:
             return None
         full_proposal["files_affected"] = valid_files
 
+        # Confidence scoring (Upgrade 9)
+        full_proposal["confidence"] = self._calculate_confidence(full_proposal)
+
         filepath = PROPOSALS_DIR / f"{full_proposal['id']}_{full_proposal['category']}.json"
 
         # In autonomous mode, auto-approve low/medium risk proposals
@@ -212,12 +216,71 @@ class ProposalManager:
                 })
             if emit_activity:
                 emit_activity("auto_approved",
-                              f"Auto-approved: {full_proposal['title']} (risk: {risk})",
+                              f"Auto-approved: {full_proposal['title']} (risk: {risk}, confidence: {full_proposal['confidence']})",
                               proposal_id=full_proposal["id"])
             logger.info(f"🤖 Auto-approved proposal: {full_proposal['title']} (risk: {risk})")
 
         filepath.write_text(json.dumps(full_proposal, indent=2), encoding="utf-8")
         return full_proposal
+
+    def _calculate_confidence(self, proposal: dict) -> int:
+        """Calculate a 0-100 confidence score for a proposal.
+
+        Scoring:
+          - Category success rate (0-40 pts)
+          - File familiarity: has engine successfully edited these files? (0-30 pts)
+          - Effort level: small=30, medium=20, large=5 (0-30 pts)
+        """
+        score = 0
+
+        # Category success (from completed vs failed counts)
+        category = proposal.get("category", "unknown")
+        completed = failed = 0
+        for d in (PROPOSALS_DIR, PROPOSALS_DIR / "archive"):
+            if not d.exists():
+                continue
+            for f in d.glob("*.json"):
+                try:
+                    data = json.loads(f.read_text(encoding="utf-8"))
+                    if data.get("category") == category:
+                        if data.get("status") == "completed":
+                            completed += 1
+                        elif data.get("status") == "failed":
+                            failed += 1
+                except (json.JSONDecodeError, OSError):
+                    continue
+
+        total = completed + failed
+        if total > 0:
+            score += int((completed / total) * 40)
+        else:
+            score += 20  # Unknown category = neutral
+
+        # File familiarity
+        target_files = set(proposal.get("files_affected", []))
+        if target_files:
+            familiar = 0
+            for d in (PROPOSALS_DIR, PROPOSALS_DIR / "archive"):
+                if not d.exists():
+                    continue
+                for f in d.glob("*.json"):
+                    try:
+                        data = json.loads(f.read_text(encoding="utf-8"))
+                        if data.get("status") == "completed":
+                            edited = set(data.get("files_edited", []))
+                            if edited & target_files:
+                                familiar += 1
+                    except (json.JSONDecodeError, OSError):
+                        continue
+            score += min(30, familiar * 10)
+        else:
+            score += 15  # No files = neutral
+
+        # Effort
+        effort_scores = {"small": 30, "medium": 20, "large": 5}
+        score += effort_scores.get(proposal.get("effort", "medium"), 10)
+
+        return min(100, max(0, score))
 
     def list_proposals(self, status_filter: str = "all") -> list[dict]:
         """List all proposals, optionally filtered by status."""
@@ -298,6 +361,36 @@ class ProposalManager:
             except Exception:
                 continue
         return count
+
+    def is_prerequisite_met(self, proposal: dict) -> bool:
+        """Check if a proposal's prerequisite (follows) is completed."""
+        follows_id = proposal.get("follows")
+        if not follows_id:
+            return True  # No prerequisite
+
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if data.get("id") == follows_id:
+                    return data.get("status") == "completed"
+            except (json.JSONDecodeError, OSError):
+                continue
+        return False  # Prerequisite not found = not met
+
+    def get_chained_proposals(self, completed_id: str) -> list[tuple[dict, Path]]:
+        """Find proposals that depend on a just-completed proposal."""
+        chained = []
+        if not PROPOSALS_DIR.exists():
+            return chained
+
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if data.get("follows") == completed_id and data.get("status") == "proposed":
+                    chained.append((data, f))
+            except (json.JSONDecodeError, OSError):
+                continue
+        return chained
 
     def cleanup_stale(self) -> dict:
         """Archive old denied/completed proposals and remove exhausted failed ones.

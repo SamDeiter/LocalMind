@@ -33,6 +33,8 @@ from backend.research_engine import (
 )
 from backend.self_improver import SelfImprover
 from backend.meta_critic import MetaCritic
+from backend.priority_queue import PriorityQueue
+from backend.todo_harvester import get_todos_for_prompt
 
 logger = logging.getLogger("localmind.autonomy")
 
@@ -97,6 +99,7 @@ class AutonomyEngine:
             model=self.reflection_model,
             emit_activity=self._emit_activity,
         )
+        self.priority_queue = PriorityQueue()
 
         # Status tracking
         self.status = {
@@ -356,6 +359,47 @@ class AutonomyEngine:
                 self._emit_activity("error", f"Reflection failed: {exc}")
                 await asyncio.sleep(60)
 
+    def _sample_code_snippets(self, real_files: list[str], count: int = 3) -> str:
+        """Read a few random project files and return numbered previews.
+
+        Gives the reflection AI actual code to analyze instead of just
+        file names, dramatically improving proposal specificity.
+        """
+        import random
+        project_root = Path(__file__).parent.parent
+        code_exts = {".py", ".js", ".html", ".css"}
+        candidates = [f for f in real_files if Path(f).suffix in code_exts]
+        if not candidates:
+            return ""
+
+        sampled = random.sample(candidates, min(count, len(candidates)))
+        snippets = []
+        for filepath in sampled:
+            try:
+                full_path = project_root / filepath
+                content = full_path.read_text(encoding="utf-8", errors="replace")
+                lines = content.split("\n")
+                if len(lines) > 150:  # Skip very large files
+                    continue
+                numbered = []
+                for i, line in enumerate(lines[:100], 1):
+                    numbered.append(f"{i:>4}| {line}")
+                preview = "\n".join(numbered)
+                if len(lines) > 100:
+                    preview += f"\n     ... ({len(lines) - 100} more lines)"
+                snippets.append(f"### {filepath} ({len(lines)} lines)\n```\n{preview}\n```")
+            except (OSError, UnicodeDecodeError):
+                continue
+
+        if not snippets:
+            return ""
+
+        return (
+            "\nCODE SAMPLES (read these carefully, propose changes based on what you see):\n"
+            + "\n\n".join(snippets)
+            + "\n"
+        )
+
     async def _run_reflection(self) -> bool:
         """Ask the AI to reflect on its own codebase and log proposals.
 
@@ -381,6 +425,12 @@ class AutonomyEngine:
                         real_files.append(str(rel).replace("\\", "/"))
 
             file_list = "\n".join(f"  - {f}" for f in sorted(real_files)[:60])
+
+            # Code-aware reflection: sample actual code
+            code_snippets = self._sample_code_snippets(real_files)
+
+            # TODO harvester: find actionable items from code comments
+            todo_context = get_todos_for_prompt()
 
             self._emit_activity("reflecting", f"Step 2/2: Generating proposals with {self.reflection_model}...")
 
@@ -496,6 +546,9 @@ class AutonomyEngine:
                 except Exception:
                     pass
 
+                # User priority injection
+                priority_context = self.priority_queue.get_prompt_injection()
+
                 # Dynamic banned topics from brain config
                 banned_list = self.self_improver.config.get("banned_patterns", [])
                 banned_str = ", ".join(f"'{b}'" for b in banned_list[:10])
@@ -504,8 +557,11 @@ class AutonomyEngine:
                     "You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                     "HERE ARE THE ACTUAL FILES IN THIS PROJECT:\n"
                     f"{file_list}\n\n"
+                    f"{code_snippets}"
+                    f"{todo_context}"
                     f"{brain_context}"
                     f"{research_context}"
+                    f"{priority_context}"
                     f"REQUIRED CATEGORY: Your proposal MUST be in the \"{focus_category}\" category.\n"
                     f"{anti_repeat}"
                     f"{suppress}"
@@ -514,9 +570,9 @@ class AutonomyEngine:
                     "2. Be SPECIFIC — describe the exact code change (e.g. 'add gzip compression to /api/documents response').\n"
                     "3. Your title must describe the SPECIFIC change, NOT a vague topic like 'Improve Error Handling'.\n"
                     f"4. BANNED TOPICS: {banned_str} — these are EXHAUSTED.\n"
-                    "5. Base your proposal on the CODEBASE SCAN, TRACK RECORD, and BRAIN CONFIG data above when available.\n"
-                    "6. Think about: caching, response times, UI animations, keyboard shortcuts, accessibility, "
-                    "API rate limiting, request batching, lazy loading, code splitting, logging levels, config validation.\n\n"
+                    "5. Base your proposal on the CODE SAMPLES and CODEBASE SCAN data above when available.\n"
+                    "6. Look for: missing error handling, TODOs/FIXMEs, dead code, slow patterns, "
+                    "missing input validation, hardcoded values, duplicate logic.\n\n"
                     "Output a JSON object with keys: title, category "
                     "(performance/feature/bugfix/ux/security/code_quality), "
                     "description, files_affected (list of real filenames from above), "
@@ -537,7 +593,7 @@ class AutonomyEngine:
                         "model": self.reflection_model,
                         "prompt": prompt,
                         "stream": False,
-                        "options": {"num_predict": 400, "num_ctx": 4096},
+                        "options": {"num_predict": 400, "num_ctx": 8192},
                     },
                 )
 
@@ -789,6 +845,15 @@ class AutonomyEngine:
                 )
                 git_run(["add", "-A"])
                 git_run(["commit", "-m", commit_msg])
+
+                # Auto-merge to main so improvements actually land
+                merge_result = git_run(["checkout", "main"])
+                if merge_result is not None:
+                    git_run(["merge", branch_name, "--no-ff", "-m",
+                             f"Merge autonomy: {proposal['title']}"])
+                    git_run(["branch", "-d", branch_name])
+                    self._emit_activity("merged", f"Merged to main: {proposal['title']}")
+                    logger.info(f"🔀 Auto-merged {branch_name} → main")
 
                 proposal["status"] = "completed"
                 proposal["execution_result"] = f"✅ Applied to {len(edits_applied)} file(s), tests passed"
