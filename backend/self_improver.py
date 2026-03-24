@@ -43,6 +43,7 @@ DEFAULT_CONFIG = {
         "security": 1.0, "code_quality": 1.0, "bugfix": 1.0,
     },
     "confidence_threshold": 0.5,
+    "min_category_success_rate": 0.25,
     "prompt_hints": [],
     "preferred_file_targets": [],
     "avoided_file_targets": [],
@@ -373,6 +374,35 @@ class SelfImprover:
         self.config["avoided_file_targets"] = list(avoided)
         self.config["preferred_file_targets"] = list(preferred)
         return changes
+
+    # ── Category Gating ───────────────────────────────────────────
+
+    def get_blocked_categories(self) -> list[str]:
+        """Return categories that should be skipped due to low success rate.
+
+        A category is blocked if it has 3+ attempts and a success rate
+        below min_category_success_rate from brain_config.json.
+        """
+        threshold = self.config.get("min_category_success_rate", 0.25)
+        stats = self._load_stats()
+        by_category = stats.get("by_category", {})
+
+        blocked = []
+        for cat, data in by_category.items():
+            if not isinstance(data, dict):
+                continue
+            success = data.get("success", 0)
+            failed = data.get("failed", 0)
+            total = success + failed
+            if total >= 3:
+                rate = success / total
+                if rate < threshold:
+                    blocked.append(cat)
+                    logger.info(
+                        f"Category '{cat}' blocked: {rate:.0%} success "
+                        f"({success}/{total}), threshold: {threshold:.0%}"
+                    )
+        return blocked
 
     # ── Prompt Injection ──────────────────────────────────────────
 

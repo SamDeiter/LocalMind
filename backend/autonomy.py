@@ -339,6 +339,22 @@ class AutonomyEngine:
                 category_counts[cat] = category_counts.get(cat, 0) + 1
 
             focus_categories = ["performance", "feature", "ux", "security", "code_quality", "bugfix"]
+
+            # Guardrail 2: Skip categories with low success rate
+            blocked_cats = self.self_improver.get_blocked_categories()
+            if blocked_cats:
+                available = [c for c in focus_categories if c not in blocked_cats]
+                if available:
+                    logger.info(f"🚫 Blocked categories (low success): {blocked_cats}")
+                    self._emit_activity(
+                        "thinking",
+                        f"Skipping low-success categories: {', '.join(blocked_cats)}",
+                        thinking_type="category_gate",
+                    )
+                    focus_categories = available
+                else:
+                    logger.warning("All categories blocked — using full list as fallback")
+
             category_weights = [(cat, category_counts.get(cat, 0)) for cat in focus_categories]
             category_weights.sort(key=lambda x: x[1])
             focus_category = category_weights[0][0]

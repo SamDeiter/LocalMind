@@ -18,8 +18,44 @@ logger = logging.getLogger("localmind.autonomy.proposals")
 
 PROPOSALS_DIR = Path.home() / "LocalMind_Workspace" / "proposals"
 ARCHIVE_DIR = Path.home() / "LocalMind_Workspace" / "proposals_archive"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 MAX_RETRIES = 5  # Max times a proposal can be retried before permanent blacklist
+
+# Directories to skip when validating file existence
+_SKIP_DIRS = {"venv", "node_modules", "__pycache__", ".git", "memory_db", "browser_recordings"}
+
+
+def validate_files_exist(files_affected: list[str]) -> list[str]:
+    """Validate that proposed files actually exist in the project.
+
+    Returns the subset of files that exist on disk.
+    Filters out hallucinated paths the AI invented.
+    """
+    if not files_affected:
+        return []
+
+    valid = []
+    for rel_path in files_affected:
+        # Reject paths traversing into blocked dirs
+        parts = Path(rel_path).parts
+        if any(part in _SKIP_DIRS for part in parts):
+            logger.info(f"Rejected file in blocked dir: {rel_path}")
+            continue
+
+        target = (PROJECT_ROOT / rel_path).resolve()
+
+        # Security: ensure path doesn't escape project root
+        if not str(target).startswith(str(PROJECT_ROOT)):
+            logger.warning(f"Rejected path escaping project: {rel_path}")
+            continue
+
+        if target.exists() and target.is_file():
+            valid.append(rel_path)
+        else:
+            logger.info(f"Rejected hallucinated file: {rel_path}")
+
+    return valid
 
 # Synonym groups for dedup normalization
 _SYNONYM_GROUPS = [
@@ -148,6 +184,19 @@ class ProposalManager:
             full_proposal["files_affected"] = [
                 f.strip() for f in full_proposal["files_affected"].split(",") if f.strip()
             ]
+
+        # Guardrail 1: Validate files exist on disk — reject hallucinated paths
+        original_files = full_proposal["files_affected"]
+        valid_files = validate_files_exist(original_files)
+        if original_files and not valid_files:
+            rejected = [f for f in original_files if f not in valid_files]
+            logger.info(f"Rejected proposal (all files hallucinated): '{title}' — {rejected}")
+            if log_fn:
+                log_fn("proposal_rejected_bad_files", {"title": title, "hallucinated": rejected})
+            if emit_activity:
+                emit_activity("info", f"Rejected (invalid files): {title} — {rejected}")
+            return None
+        full_proposal["files_affected"] = valid_files
 
         filepath = PROPOSALS_DIR / f"{full_proposal['id']}_{full_proposal['category']}.json"
 

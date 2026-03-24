@@ -61,6 +61,53 @@ def is_scope_achievable(proposal: dict) -> bool:
     return True
 
 
+def _find_callers(relative_path: str) -> str:
+    """Find files that import/reference the target file.
+
+    Returns a compact caller context string showing which files
+    depend on this module, so the editing model knows not to
+    break function signatures.
+    """
+    target_name = Path(relative_path).stem  # e.g. 'documents' from 'backend/routes/documents.py'
+    callers = []
+    skip_dirs = {"venv", "__pycache__", ".git", "node_modules", "memory_db", ".bak"}
+
+    for ext in ("*.py", "*.js"):
+        for p in PROJECT_ROOT.rglob(ext):
+            rel = p.relative_to(PROJECT_ROOT)
+            if any(skip in rel.parts for skip in skip_dirs):
+                continue
+            if str(rel).replace("\\", "/") == relative_path:
+                continue  # Skip self
+
+            try:
+                content = p.read_text(encoding="utf-8", errors="replace")
+                # Look for import lines referencing this module
+                relevant_lines = []
+                for i, line in enumerate(content.split("\n"), 1):
+                    line_stripped = line.strip()
+                    if target_name in line_stripped and (
+                        line_stripped.startswith("import ") or
+                        line_stripped.startswith("from ") or
+                        "require(" in line_stripped or
+                        f"{target_name}." in line_stripped
+                    ):
+                        relevant_lines.append(f"  L{i}: {line_stripped[:100]}")
+
+                if relevant_lines:
+                    callers.append(f"  {str(rel).replace(chr(92), '/')}:\n" + "\n".join(relevant_lines[:3]))
+            except (OSError, UnicodeDecodeError):
+                continue
+
+    if not callers:
+        return ""
+
+    header = f"FILES THAT IMPORT/USE '{target_name}':\n"
+    # Cap context to avoid bloating the prompt
+    context = "\n".join(callers[:5])
+    return header + context + "\n"
+
+
 def is_protected_file(relative_path: str) -> bool:
     """Check if a file is protected from editing."""
     target = (PROJECT_ROOT / relative_path).resolve()
@@ -254,7 +301,13 @@ async def edit_single_file(
                 f"4. Only output the JSON object. No markdown fences.\n"
                 f"5. The search text MUST appear verbatim in the file or the edit will FAIL.\n"
                 f'6. If you cannot find a useful change, output: {{"search": "", "replace": "", "explanation": "no change needed"}}\n'
+                f"7. Do NOT change function signatures (name, parameters, return type) unless you are 100%% sure no other file calls this function.\n"
             )
+
+            # Guardrail 3: Inject caller context so the model sees dependencies
+            caller_context = _find_callers(relative_path)
+            if caller_context:
+                prompt += f"\n{caller_context}\n"
 
             resp = await client.post(
                 f"{ollama_url}/api/generate",

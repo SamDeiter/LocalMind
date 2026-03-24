@@ -314,3 +314,81 @@ class TestFileValidation:
             )
             assert result is False
 
+
+# ── Guardrail 1: File Existence Validation ───────────────────────
+
+class TestFileExistenceValidation:
+    def test_proposal_rejects_nonexistent_files(self, engine, proposals_dir):
+        """Proposals with all-hallucinated files are rejected at save time."""
+        proposal = {
+            "title": "Optimize Database Queries",
+            "category": "performance",
+            "description": "Speed up SQL lookups",
+            "files_affected": ["database.py", "models.py"],  # These don't exist
+            "effort": "small",
+            "priority": "medium",
+        }
+        result = engine.proposals.save(proposal, mode="autonomous", auto_approve_risks={"medium", "low"})
+        assert result is None  # Should be rejected
+
+    def test_proposal_accepts_real_files(self, engine, proposals_dir):
+        """Proposals with real project files are accepted."""
+        proposal = {
+            "title": "Add docstrings to proposal manager",
+            "category": "code_quality",
+            "description": "Improve documentation",
+            "files_affected": ["backend/proposals.py"],  # This file exists
+            "effort": "small",
+            "priority": "low",
+        }
+        result = engine.proposals.save(proposal, mode="autonomous", auto_approve_risks={"medium", "low"})
+        assert result is not None
+        assert result["title"] == "Add docstrings to proposal manager"
+
+
+# ── Guardrail 2: Category Success-Rate Gate ──────────────────────
+
+class TestCategoryGate:
+    def test_blocked_categories_below_threshold(self):
+        """Categories with success rate below threshold are blocked."""
+        from backend.self_improver import SelfImprover
+        improver = SelfImprover()
+        # Write fake stats with security at 17% success
+        stats = {
+            "by_category": {
+                "security": {"success": 1, "failed": 5},
+                "feature": {"success": 5, "failed": 0},
+                "performance": {"success": 1, "failed": 5},
+            },
+            "total": {"success": 7, "failed": 10},
+        }
+        with patch.object(improver, "_load_stats", return_value=stats):
+            blocked = improver.get_blocked_categories()
+            assert "security" in blocked
+            assert "performance" in blocked
+            assert "feature" not in blocked
+
+
+# ── Guardrail 3: Caller Context Injection ────────────────────────
+
+class TestCallerContext:
+    def test_find_callers_detects_imports(self, tmp_path):
+        """_find_callers finds files that import the target module."""
+        from backend.code_editor import _find_callers
+
+        # Create a target file
+        backend_dir = tmp_path / "backend"
+        backend_dir.mkdir()
+        (backend_dir / "documents.py").write_text("def get_doc(): pass", encoding="utf-8")
+
+        # Create a file that imports it
+        (backend_dir / "server.py").write_text(
+            "from backend.documents import get_doc\nget_doc()", encoding="utf-8"
+        )
+
+        with patch("backend.code_editor.PROJECT_ROOT", tmp_path):
+            result = _find_callers("backend/documents.py")
+            assert "documents" in result
+            assert "server.py" in result or "import" in result
+
+
