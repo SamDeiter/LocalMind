@@ -3440,4 +3440,82 @@ h1, h2, h3 {
 .arxiv-loading {
   animation: node-pulse 1.5s ease-in-out infinite;
 }
+/* ── Card Actions Row ─────────────────────────────────────── */
+.arxiv-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+/* ── Save-to-Context Button ───────────────────────────────── */
+.arxiv-context-btn {
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.25s ease;
+}
+.arxiv-context-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(175, 162, 255, 0.06);
+}
+.arxiv-context-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.arxiv-context-btn.applied {
+  border-color: var(--success, #4caf50);
+  color: var(--success, #4caf50);
+  background: rgba(76, 175, 80, 0.08);
+}
+/* ── ArXiv Badge on Proposals ─────────────────────────────── */
+.badge-arxiv {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(175, 162, 255, 0.15);
+  color: var(--accent);
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+/* ── Pagination ───────────────────────────────────────────── */
+.arxiv-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 0 4px;
+}
+.arxiv-page-btn {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font);
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.arxiv-page-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.arxiv-page-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.arxiv-page-info {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
 

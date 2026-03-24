@@ -2,17 +2,16 @@
 backend/routes/research_routes.py — ArXiv Research Search + Apply API
 ======================================================================
 Exposes the existing AcademicResearcher.search_arxiv() as a user-facing
-API endpoint so the frontend dashboard can search for academic papers.
+API endpoint. Also provides an "apply paper" endpoint that generates
+code-improvement proposals from papers and saves them to the pipeline.
 
-Also provides an "apply paper" endpoint that takes a paper's details,
-asks the LLM to generate a concrete code-improvement proposal, and
-saves it into the ProposalManager pipeline.
+The generate_paper_proposal() function is shared by both the endpoint
+and the autonomy engine's auto-research loop.
 """
 
 import json
 import logging
 import random
-import subprocess
 from pathlib import Path
 
 import httpx
@@ -56,28 +55,30 @@ def _get_proposals():
 async def search_arxiv(
     q: str = Query(..., min_length=2, description="Search query"),
     max: int = Query(5, ge=1, le=20, description="Max results"),
+    page: int = Query(0, ge=0, description="Page number (0-indexed)"),
 ):
     """Search arXiv for academic papers matching the query.
 
     Returns a list of papers with title, authors, abstract, URL, and
-    publication date. Uses the arXiv Atom API under the hood.
+    publication date. Supports pagination via the `page` parameter.
     """
     researcher = _get_researcher()
     try:
-        papers = await researcher.search_arxiv(q, max_results=max)
-        return {"papers": papers, "count": len(papers), "query": q}
+        papers = await researcher.search_arxiv(
+            q, max_results=max, start=page * max,
+        )
+        return {
+            "papers": papers,
+            "count": len(papers),
+            "query": q,
+            "page": page,
+        }
     except Exception as e:
         logger.warning(f"arXiv search failed for '{q}': {e}")
         return {"papers": [], "count": 0, "query": q, "error": str(e)}
 
 
-# ── Apply-Paper Endpoint ────────────────────────────────────────────
-
-
-class ApplyPaperRequest(BaseModel):
-    title: str
-    abstract: str
-    url: str = ""
+# ── Shared Proposal Generation ──────────────────────────────────────
 
 
 def _sample_codebase(count: int = 3) -> str:
@@ -134,13 +135,18 @@ def _get_file_list() -> str:
     return "\n".join(f"  - {f}" for f in sorted(files)[:50])
 
 
-@router.post("/research/apply-paper")
-async def apply_paper(req: ApplyPaperRequest):
-    """Generate a code-improvement proposal from an arXiv paper.
+async def generate_paper_proposal(
+    title: str,
+    abstract: str,
+    url: str = "",
+) -> dict:
+    """Shared logic: Generate a code improvement proposal from a paper.
 
-    Takes the paper's title and abstract, samples codebase files,
-    and asks the LLM to generate a concrete, actionable proposal.
-    The proposal is saved into the ProposalManager pipeline.
+    Used by both the POST endpoint and the auto-research loop.
+
+    Returns:
+        {"proposal": <dict>, "error": None} on success
+        {"proposal": None, "error": "<message>"} on failure
     """
     from backend.model_router import get_autonomy_models
 
@@ -153,9 +159,9 @@ async def apply_paper(req: ApplyPaperRequest):
     prompt = (
         "You are LocalMind, an AI assistant. A user found this academic paper and wants you to\n"
         "propose a CONCRETE code improvement inspired by the paper's technique.\n\n"
-        f"PAPER TITLE: {req.title}\n"
-        f"PAPER ABSTRACT: {req.abstract[:600]}\n"
-        f"PAPER URL: {req.url}\n\n"
+        f"PAPER TITLE: {title}\n"
+        f"PAPER ABSTRACT: {abstract[:600]}\n"
+        f"PAPER URL: {url}\n\n"
         f"PROJECT FILES:\n{file_list}\n\n"
         f"{code_samples}\n"
         "YOUR TASK:\n"
@@ -165,7 +171,7 @@ async def apply_paper(req: ApplyPaperRequest):
         "RULES:\n"
         "- ONLY reference files from the list above.\n"
         "- Be SPECIFIC — name exact functions, classes, or logic to change.\n"
-        f"- Reference the paper: '{req.title}'\n"
+        f"- Reference the paper: '{title}'\n"
         "- The title must describe the SPECIFIC change, not just the paper topic.\n\n"
         "Output a JSON object with keys: title, category "
         "(performance/feature/bugfix/ux/security/code_quality), "
@@ -202,10 +208,10 @@ async def apply_paper(req: ApplyPaperRequest):
 
             proposal = json.loads(json_text)
 
-            # Tag it as research-sourced
+            # Tag as research-sourced
             proposal["source"] = "arxiv"
-            proposal["source_paper"] = req.title
-            proposal["source_url"] = req.url
+            proposal["source_paper"] = title
+            proposal["source_url"] = url
 
             # Save via ProposalManager
             pm = _get_proposals()
@@ -229,3 +235,23 @@ async def apply_paper(req: ApplyPaperRequest):
     except Exception as e:
         logger.error(f"apply-paper failed: {e}")
         return {"error": str(e), "proposal": None}
+
+
+# ── Apply-Paper Endpoint ────────────────────────────────────────────
+
+
+class ApplyPaperRequest(BaseModel):
+    title: str
+    abstract: str
+    url: str = ""
+
+
+@router.post("/research/apply-paper")
+async def apply_paper(req: ApplyPaperRequest):
+    """Generate a code-improvement proposal from an arXiv paper.
+
+    Takes the paper's title and abstract, samples codebase files,
+    and asks the LLM to generate a concrete, actionable proposal.
+    The proposal is saved into the ProposalManager pipeline.
+    """
+    return await generate_paper_proposal(req.title, req.abstract, req.url)
