@@ -3303,3 +3303,105 @@ h1, h2, h3 {
     overflow-y: auto;
 }
 
+/* ── ArXiv Research Panel ────────────────────────────────────── */
+.arxiv-search-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.arxiv-search-bar input {
+  flex: 1;
+  background: var(--surface-container-highest);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: var(--font);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.arxiv-search-bar input:focus {
+  border-color: var(--accent);
+}
+.arxiv-search-bar input::placeholder {
+  color: var(--text-muted);
+}
+.arxiv-results {
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.arxiv-card {
+  display: block;
+  background: var(--surface-container);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.arxiv-card:hover {
+  border-color: var(--accent);
+  background: rgba(175, 162, 255, 0.06);
+  box-shadow: 0 2px 12px rgba(175, 162, 255, 0.1);
+  transform: translateY(-1px);
+}
+.arxiv-card-title {
+  font-family: var(--font-headline);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+.arxiv-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.arxiv-card-authors {
+  font-size: 11px;
+  color: var(--accent);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arxiv-card-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.arxiv-card-abstract {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.arxiv-card-link {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+.arxiv-empty,
+.arxiv-loading {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 8px;
+}
+.arxiv-loading {
+  animation: node-pulse 1.5s ease-in-out infinite;
+}
+

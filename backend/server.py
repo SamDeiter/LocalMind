@@ -408,6 +408,7 @@ from backend.routes.files import router as files_router
 from backend.routes.tools import router as tools_router
 from backend.routes.documents import router as documents_router
 from backend.routes.autonomy_routes import router as autonomy_router
+from backend.routes.research_routes import router as research_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -416,6 +417,7 @@ app.include_router(files_router)
 app.include_router(tools_router)
 app.include_router(documents_router)
 app.include_router(autonomy_router)
+app.include_router(research_router)
 
 
 # ── Core Endpoints (kept in server.py — they're small + foundational) ─
