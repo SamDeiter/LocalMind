@@ -212,9 +212,6 @@ def _make_text_tool_parser(known_tool_names: set):
 
 @router.post("/chat")
 async def chat(request: Request):
-    message = await parse_message(request)
-    response = await generate_response(message)
-    return handle_response(response)
     """Main chat endpoint — the heart of LocalMind.
     
     Flow:
