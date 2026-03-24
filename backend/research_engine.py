@@ -1,3 +1,4 @@
+import asyncio
 """
 research_engine.py — Self-Improvement Research Pipeline
 ========================================================
@@ -561,3 +562,381 @@ class ExternalResearcher:
         lines.append(insights)
         lines.append("  (Apply these industry standards to your proposed changes.)")
         return "\n".join(lines) + "\n"
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  6. Academic Research Scraper
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ACADEMIC_CACHE_FILE = WORKSPACE / "academic_cache.json"
+ACADEMIC_CACHE_TTL = 6 * 3600  # 6 hours
+
+
+class AcademicResearcher:
+    """Searches academic sources (arxiv, Google Scholar, ResearchGate, Sci-Hub)
+    for papers with techniques the autonomy engine can implement.
+    
+    Pipeline:
+      1. Map focus category → academic search terms
+      2. Query all 4 sources in parallel
+      3. Deduplicate by title similarity
+      4. Format top results as implementable-technique summaries
+      5. Feed into reflection prompt → AI generates concrete proposals
+    """
+
+    # Map LocalMind categories to academic search queries
+    CATEGORY_QUERIES = {
+        "performance": [
+            "software performance optimization caching",
+            "latency reduction web application",
+            "memory efficient data structures",
+        ],
+        "security": [
+            "application security vulnerability detection",
+            "automated code security analysis",
+            "injection prevention web application",
+        ],
+        "feature": [
+            "AI code assistant autonomous agent",
+            "large language model tool use",
+            "self-improving AI system",
+        ],
+        "code_quality": [
+            "automated code refactoring techniques",
+            "static analysis software quality",
+            "technical debt detection automated",
+        ],
+        "ux": [
+            "user interface design AI assistant",
+            "human computer interaction code editor",
+            "developer experience tooling",
+        ],
+        "bugfix": [
+            "automated bug detection repair",
+            "fault localization software",
+            "program repair technique",
+        ],
+    }
+
+    def __init__(self):
+        self.cache: dict = {}
+        self._load_cache()
+
+    def _load_cache(self):
+        """Load cached results from disk."""
+        if ACADEMIC_CACHE_FILE.exists():
+            try:
+                data = json.loads(ACADEMIC_CACHE_FILE.read_text(encoding="utf-8"))
+                # Prune expired entries
+                now = time.time()
+                self.cache = {
+                    k: v for k, v in data.items()
+                    if now - v.get("timestamp", 0) < ACADEMIC_CACHE_TTL
+                }
+            except Exception:
+                self.cache = {}
+
+    def _save_cache(self):
+        """Persist cache to disk."""
+        WORKSPACE.mkdir(parents=True, exist_ok=True)
+        try:
+            ACADEMIC_CACHE_FILE.write_text(
+                json.dumps(self.cache, indent=2), encoding="utf-8"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save academic cache: {e}")
+
+    def _get_queries(self, category: str) -> list[str]:
+        """Get search queries for a category."""
+        return self.CATEGORY_QUERIES.get(
+            category,
+            [f"software engineering {category}", f"AI {category} automation"],
+        )
+
+    # ── Source 1: arxiv (free REST API) ─────────────────────
+
+    async def search_arxiv(self, query: str, max_results: int = 5) -> list[dict]:
+        """Search arxiv.org via their free Atom API.
+        
+        Returns list of {title, authors, abstract, url, published}.
+        """
+        import feedparser
+
+        url = "http://export.arxiv.org/api/query"
+        params = {
+            "search_query": f"all:{query}",
+            "start": 0,
+            "max_results": max_results,
+            "sortBy": "relevance",
+            "sortOrder": "descending",
+        }
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=15.0,
+                headers={"User-Agent": "LocalMind/1.0 (academic-research)"},
+            ) as client:
+                resp = await client.get(url, params=params)
+                if resp.status_code != 200:
+                    return []
+
+                feed = feedparser.parse(resp.text)
+                results = []
+                for entry in feed.entries[:max_results]:
+                    results.append({
+                        "title": entry.get("title", "").replace("\n", " ").strip(),
+                        "authors": ", ".join(
+                            a.get("name", "") for a in entry.get("authors", [])
+                        )[:100],
+                        "abstract": entry.get("summary", "")[:400].strip(),
+                        "url": entry.get("link", ""),
+                        "published": entry.get("published", ""),
+                        "source": "arxiv",
+                    })
+                return results
+        except Exception as e:
+            logger.warning(f"arxiv search failed: {e}")
+            return []
+
+    # ── Source 2: Google Scholar (HTML scrape with caution) ──
+
+    async def search_scholar(self, query: str, max_results: int = 3) -> list[dict]:
+        """Search Google Scholar via HTML scraping.
+        
+        Rate-limited and cached aggressively to avoid blocks.
+        Returns list of {title, snippet, url, source}.
+        """
+        url = "https://scholar.google.com/scholar"
+        params = {"q": query, "hl": "en", "num": max_results}
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=15.0,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                    "Accept-Language": "en-US,en;q=0.9",
+                },
+                follow_redirects=True,
+            ) as client:
+                resp = await client.get(url, params=params)
+                if resp.status_code != 200:
+                    logger.warning(f"Scholar returned {resp.status_code}")
+                    return []
+
+                html = resp.text
+                results = []
+
+                # Parse result blocks (gs_ri class contains each result)
+                title_pattern = re.compile(
+                    r'<h3[^>]*class="gs_rt"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
+                    re.DOTALL,
+                )
+                snippet_pattern = re.compile(
+                    r'<div[^>]*class="gs_rs"[^>]*>(.*?)</div>', re.DOTALL
+                )
+
+                titles = title_pattern.findall(html)
+                snippets = snippet_pattern.findall(html)
+
+                for i, (href, raw_title) in enumerate(titles[:max_results]):
+                    clean_title = re.sub(r"<[^>]+>", "", raw_title).strip()
+                    snippet = ""
+                    if i < len(snippets):
+                        snippet = re.sub(r"<[^>]+>", "", snippets[i]).strip()[:300]
+
+                    if clean_title:
+                        results.append({
+                            "title": clean_title,
+                            "abstract": snippet,
+                            "url": href,
+                            "source": "google_scholar",
+                        })
+
+                return results
+
+        except Exception as e:
+            logger.warning(f"Scholar search failed: {e}")
+            return []
+
+    # ── Source 3: ResearchGate (public search) ──────────────
+
+    async def search_researchgate(self, query: str, max_results: int = 3) -> list[dict]:
+        """Search ResearchGate for public research papers.
+        
+        Returns list of {title, abstract, url, source}.
+        """
+        url = "https://www.researchgate.net/search/publication"
+        params = {"q": query}
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=15.0,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                },
+                follow_redirects=True,
+            ) as client:
+                resp = await client.get(url, params=params)
+                if resp.status_code != 200:
+                    return []
+
+                html = resp.text
+                results = []
+
+                # Parse publication titles and links
+                pub_pattern = re.compile(
+                    r'<a[^>]*class="[^"]*nova-[^"]*"[^>]*href="(/publication/[^"]*)"[^>]*>(.*?)</a>',
+                    re.DOTALL,
+                )
+
+                matches = pub_pattern.findall(html)
+                for href, raw_title in matches[:max_results]:
+                    clean_title = re.sub(r"<[^>]+>", "", raw_title).strip()
+                    if clean_title and len(clean_title) > 10:
+                        results.append({
+                            "title": clean_title,
+                            "abstract": "",
+                            "url": f"https://www.researchgate.net{href}",
+                            "source": "researchgate",
+                        })
+
+                return results
+
+        except Exception as e:
+            logger.warning(f"ResearchGate search failed: {e}")
+            return []
+
+    # ── Source 4: Sci-Hub (DOI → URL constructor only) ──────
+
+    def construct_scihub_url(self, doi: str) -> str:
+        """Construct a Sci-Hub URL for a given DOI.
+        
+        NOTE: This only constructs the URL for reference.
+        It does NOT auto-download any content.
+        """
+        if doi:
+            return f"https://sci-hub.pub/{doi}"
+        return ""
+
+    # ── Aggregator: search all sources ──────────────────────
+
+    async def search_all(self, category: str, max_per_source: int = 3) -> list[dict]:
+        """Search all academic sources for a category.
+        
+        Uses caching to avoid repeated API calls.
+        Returns a deduplicated list of papers.
+        """
+        cache_key = f"{category}_{int(time.time() // ACADEMIC_CACHE_TTL)}"
+        if cache_key in self.cache:
+            cached = self.cache[cache_key]
+            if time.time() - cached.get("timestamp", 0) < ACADEMIC_CACHE_TTL:
+                logger.info(f"Academic cache hit for '{category}'")
+                return cached.get("results", [])
+
+        queries = self._get_queries(category)
+        all_results = []
+
+        for query in queries[:2]:  # Max 2 queries per cycle to be respectful
+            # Run sources with staggered delays to avoid rate limits
+            try:
+                arxiv_results = await self.search_arxiv(query, max_per_source)
+                all_results.extend(arxiv_results)
+            except Exception as e:
+                logger.warning(f"arxiv batch failed: {e}")
+
+            await asyncio.sleep(1)  # Polite delay between sources
+
+            try:
+                scholar_results = await self.search_scholar(query, max_per_source)
+                all_results.extend(scholar_results)
+            except Exception as e:
+                logger.warning(f"Scholar batch failed: {e}")
+
+            await asyncio.sleep(1)
+
+            try:
+                rg_results = await self.search_researchgate(query, max_per_source)
+                all_results.extend(rg_results)
+            except Exception as e:
+                logger.warning(f"ResearchGate batch failed: {e}")
+
+        # Deduplicate by title similarity (case-insensitive substring match)
+        deduped = []
+        seen_titles = set()
+        for paper in all_results:
+            title_key = paper["title"].lower()[:60]
+            if title_key not in seen_titles:
+                seen_titles.add(title_key)
+                deduped.append(paper)
+
+        # Cache results
+        self.cache[cache_key] = {
+            "timestamp": time.time(),
+            "results": deduped[:10],  # Keep top 10
+        }
+        self._save_cache()
+
+        logger.info(
+            f"Academic research: found {len(deduped)} papers for '{category}' "
+            f"(arxiv: {sum(1 for r in all_results if r.get('source') == 'arxiv')}, "
+            f"scholar: {sum(1 for r in all_results if r.get('source') == 'google_scholar')}, "
+            f"researchgate: {sum(1 for r in all_results if r.get('source') == 'researchgate')})"
+        )
+
+        return deduped[:10]
+
+    # ── Prompt Formatter ────────────────────────────────────
+
+    async def get_findings_for_prompt(self, category: str, max_papers: int = 5) -> str:
+        """Format academic findings as an implementable-techniques prompt block.
+        
+        This is the key output: it tells the AI to extract concrete techniques
+        from these papers and generate proposals to implement them.
+        """
+        papers = await self.search_all(category, max_per_source=3)
+
+        if not papers:
+            return ""
+
+        lines = [
+            f"ACADEMIC RESEARCH — IMPLEMENTABLE TECHNIQUES FOR '{category.upper()}':",
+            "The following papers describe techniques you can IMPLEMENT in this codebase.",
+            "Read each one and extract a SPECIFIC, ACTIONABLE technique to propose.\n",
+        ]
+
+        for i, paper in enumerate(papers[:max_papers], 1):
+            title = paper.get("title", "Unknown")
+            abstract = paper.get("abstract", "No abstract available")[:250]
+            source = paper.get("source", "unknown")
+            url = paper.get("url", "")
+
+            lines.append(f"  📄 Paper {i} [{source}]: {title}")
+            if abstract:
+                lines.append(f"     Summary: {abstract}")
+            if url:
+                lines.append(f"     Link: {url}")
+
+            # Add Sci-Hub link if we can extract a DOI
+            doi_match = re.search(r"(10\.\d{4,}/[^\s]+)", url)
+            if doi_match:
+                scihub_url = self.construct_scihub_url(doi_match.group(1))
+                lines.append(f"     Full text: {scihub_url}")
+            lines.append("")
+
+        lines.append(
+            "INSTRUCTIONS: Pick ONE technique from the papers above and propose a "
+            "CONCRETE implementation for THIS codebase. Your proposal must include "
+            "specific files to modify and describe the exact code changes needed. "
+            "Reference the paper title in your proposal description."
+        )
+
+        return "\n".join(lines) + "\n"
+
