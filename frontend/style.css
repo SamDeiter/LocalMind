@@ -3337,21 +3337,25 @@ h1, h2, h3 {
   overflow-y: auto;
 }
 .arxiv-card {
-  display: block;
+  display: flex;
+  flex-direction: column;
   background: var(--surface-container);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
-  text-decoration: none;
   color: inherit;
   transition: all 0.2s ease;
-  cursor: pointer;
 }
 .arxiv-card:hover {
   border-color: var(--accent);
   background: rgba(175, 162, 255, 0.06);
   box-shadow: 0 2px 12px rgba(175, 162, 255, 0.1);
   transform: translateY(-1px);
+}
+.arxiv-card-link-area {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 .arxiv-card-title {
   font-family: var(--font-headline);
@@ -3393,6 +3397,38 @@ h1, h2, h3 {
   font-weight: 600;
   color: var(--accent);
   letter-spacing: 0.02em;
+}
+/* ── Apply-to-Codebase Button ─────────────────────────────────── */
+.arxiv-apply-btn {
+  margin-top: 8px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-xs);
+  background: linear-gradient(135deg, rgba(175, 162, 255, 0.12), rgba(175, 162, 255, 0.04));
+  color: var(--accent);
+  transition: all 0.25s ease;
+  align-self: flex-start;
+}
+.arxiv-apply-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(175, 162, 255, 0.25), rgba(175, 162, 255, 0.1));
+  box-shadow: 0 0 12px rgba(175, 162, 255, 0.2);
+  transform: translateY(-1px);
+}
+.arxiv-apply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.arxiv-apply-btn.applying {
+  animation: node-pulse 1.5s ease-in-out infinite;
+}
+.arxiv-apply-btn.applied {
+  border-color: var(--success, #4caf50);
+  color: var(--success, #4caf50);
+  background: rgba(76, 175, 80, 0.08);
 }
 .arxiv-empty,
 .arxiv-loading {
