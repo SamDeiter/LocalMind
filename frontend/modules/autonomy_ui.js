@@ -172,10 +172,17 @@ export function connectActivityFeed() {
       // Show toast notifications for key events
       if (event.action === "completed") {
         showToast(`✨ ${event.detail}`, "info");
+        updateSuccessRate();
+        // Refresh proposals list in background
+        import("./proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
       } else if (event.action === "merged") {
         showToast(`🔀 ${event.detail}`, "info");
+      } else if (event.action === "auto_approved") {
+        showToast(`🔗 ${event.detail}`, "info");
+        import("./proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
       } else if (event.action === "error" || event.action === "reverted") {
         showToast(`${ACTION_ICONS[event.action] || "⚠️"} ${event.detail}`, "error");
+        updateSuccessRate();
       }
     } catch (err) {
       console.error("Failed to parse SSE event:", err);
@@ -548,6 +555,55 @@ export async function updateSuccessRate() {
   } catch { /* ignore */ }
 }
 
+// ── Category Stats Chart ────────────────────────────────────────
+async function loadCategoryStats() {
+  const el = document.getElementById("categoryChart");
+  if (!el) return;
+  try {
+    const resp = await fetch("/autonomy/category-stats");
+    const { categories } = await resp.json();
+    if (!categories || Object.keys(categories).length === 0) {
+      el.textContent = "No data yet";
+      return;
+    }
+    el.innerHTML = Object.entries(categories)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([cat, s]) => {
+        const cls = s.success_rate >= 70 ? "good" : s.success_rate >= 40 ? "mid" : "bad";
+        return `<div class="cat-row">
+          <span class="cat-label">${cat}</span>
+          <div class="cat-bar-track">
+            <div class="cat-bar-fill ${cls}" style="width:${s.success_rate}%"></div>
+          </div>
+          <span class="cat-stat">${s.completed}/${s.total}</span>
+        </div>`;
+      }).join("");
+  } catch { el.textContent = "Error loading stats"; }
+}
+
+// ── Export Digest as Markdown ────────────────────────────────────
+async function exportDigest() {
+  try {
+    const resp = await fetch("/autonomy/digest");
+    const data = await resp.json();
+    const today = new Date().toISOString().split("T")[0];
+    let md = `# LocalMind Daily Digest — ${today}\n\n`;
+    if (data.digest) {
+      md += typeof data.digest === "string" ? data.digest : JSON.stringify(data.digest, null, 2);
+    } else {
+      md += "No digest data available.\n";
+    }
+    // Trigger download
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `localmind-digest-${today}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) { console.error("Export failed:", e); }
+}
+
 // ── Wire Priority + Digest Buttons ──────────────────────────────
 export function initDashboardPanels() {
   const addBtn = document.getElementById("addPriorityBtn");
@@ -560,8 +616,13 @@ export function initDashboardPanels() {
   if (digestBtn) {
     digestBtn.addEventListener("click", loadDigest);
   }
+  const exportBtn = document.getElementById("exportDigestBtn");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", exportDigest);
+  }
   // Initial load
   loadPriorities();
   loadDigest();
   updateSuccessRate();
+  loadCategoryStats();
 }

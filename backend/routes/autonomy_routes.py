@@ -281,3 +281,38 @@ async def rollback_proposal(proposal_id: str):
             continue
 
     return {"ok": False, "error": "Proposal not found"}
+
+
+@router.get("/autonomy/category-stats")
+async def category_stats():
+    """Return per-category success/fail/total counts for dashboard charts."""
+    from backend.proposals import PROPOSALS_DIR
+    import json
+    from collections import defaultdict
+
+    stats = defaultdict(lambda: {"completed": 0, "failed": 0, "total": 0, "denied": 0})
+
+    if PROPOSALS_DIR.exists():
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                cat = data.get("category", "other")
+                status = data.get("status", "unknown")
+                stats[cat]["total"] += 1
+                if status == "completed":
+                    stats[cat]["completed"] += 1
+                elif status == "failed":
+                    stats[cat]["failed"] += 1
+                elif status == "denied":
+                    stats[cat]["denied"] += 1
+            except (json.JSONDecodeError, OSError):
+                continue
+
+    # Calculate success rates
+    result = {}
+    for cat, counts in stats.items():
+        decided = counts["completed"] + counts["failed"]
+        rate = round((counts["completed"] / decided) * 100) if decided > 0 else 0
+        result[cat] = {**counts, "success_rate": rate}
+
+    return {"categories": result}

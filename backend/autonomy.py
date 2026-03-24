@@ -169,6 +169,14 @@ class AutonomyEngine:
         logger.info(f"🤖 Autonomy mode: {mode}")
         return mode
 
+    def _get_success_rate(self) -> int:
+        """Calculate the live success rate (0-100) from completed/failed proposals."""
+        proposals = self.proposals.list_proposals("all")
+        completed = sum(1 for p in proposals if p.get("status") == "completed")
+        failed = sum(1 for p in proposals if p.get("status") == "failed")
+        total = completed + failed
+        return round((completed / total) * 100) if total > 0 else 50  # default 50% when no data
+
     def _log(self, event: str, data: dict = None):
         """Append a structured log entry to autonomy_log.jsonl."""
         try:
@@ -324,8 +332,22 @@ class AutonomyEngine:
                         if proposal_saved:
                             # Success — reset futility counter
                             self._reflection_rejections = 0
-                            self._reflection_backoff = 300
-                            self._emit_activity("idle", "Waiting for next reflection cycle")
+
+                            # Adaptive scheduling: faster when succeeding, slower when struggling
+                            success_rate = self._get_success_rate()
+                            if success_rate >= 70:
+                                self._reflection_backoff = 180   # 3 min — engine is hot
+                                self._current_backoff = max(120, self._current_backoff // 2)
+                            elif success_rate >= 40:
+                                self._reflection_backoff = 300   # 5 min — normal
+                                self._current_backoff = self.BACKOFF_BASE
+                            else:
+                                self._reflection_backoff = 600   # 10 min — cool down
+                                self._current_backoff = min(self._current_backoff * 2, self.BACKOFF_MAX)
+
+                            self._emit_activity("idle",
+                                f"Waiting for next cycle (success rate: {success_rate}%, "
+                                f"reflect: {self._reflection_backoff // 60}m, execute: {self._current_backoff // 60}m)")
                         else:
                             # Futility — proposal was rejected/duplicate/banned
                             self._reflection_rejections += 1
@@ -958,6 +980,17 @@ class AutonomyEngine:
                 # Reset circuit breaker + backoff on success
                 self._consecutive_failures = 0
                 self._current_backoff = self.BACKOFF_BASE
+
+                # Auto-approve chained proposals that depend on this one
+                chained = self.proposals.get_chained_proposals(proposal["id"])
+                for chained_proposal, chained_path in chained:
+                    chained_proposal["status"] = "approved"
+                    chained_proposal["auto_approved_reason"] = f"Predecessor {proposal['id']} completed"
+                    chained_path.write_text(json.dumps(chained_proposal, indent=2), encoding="utf-8")
+                    self._emit_activity("auto_approved",
+                                        f"🔗 Auto-approved chained: {chained_proposal['title']}",
+                                        proposal_id=chained_proposal["id"])
+                    logger.info(f"🔗 Auto-approved chained proposal: {chained_proposal['title']}")
 
                 return True
 

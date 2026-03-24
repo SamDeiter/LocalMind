@@ -62,6 +62,16 @@ export async function loadProposals() {
       return `<span class="confidence-badge" style="color:${color}" title="Confidence: ${score}/100">${icon} ${score}</span>`;
     };
 
+    // Timeline helper for relative time
+    const timeAgo = (ts) => {
+      if (!ts) return null;
+      const diff = Math.floor((Date.now() / 1000) - ts);
+      if (diff < 60) return `${diff}s ago`;
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return `${Math.floor(diff / 86400)}d ago`;
+    };
+
     listEl.innerHTML = proposals
       .map(
         (p) => `
@@ -74,6 +84,11 @@ export async function loadProposals() {
         </div>
         <div class="proposal-title">${escapeHtml(p.title || "Untitled")}</div>
         <div class="proposal-desc">${escapeHtml(p.description || "").substring(0, 150)}${(p.description || "").length > 150 ? "…" : ""}</div>
+        <div class="proposal-timeline">
+          <span class="tl-step">📝 ${timeAgo(p.created_at) || "—"}</span>
+          ${p.status_changed_at ? `<span class="tl-arrow">→</span><span class="tl-step">✅ ${timeAgo(p.status_changed_at)}</span>` : ""}
+          ${p.execution_finished_at ? `<span class="tl-arrow">→</span><span class="tl-step">🏁 ${timeAgo(p.execution_finished_at)}</span>` : ""}
+        </div>
         ${
           p.status === "proposed"
             ? `

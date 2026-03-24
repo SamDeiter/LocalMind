@@ -202,6 +202,22 @@ class ProposalManager:
         # Confidence scoring (Upgrade 9)
         full_proposal["confidence"] = self._calculate_confidence(full_proposal)
 
+        # Confidence gating: auto-deny low-confidence proposals
+        CONFIDENCE_THRESHOLD = 30
+        if full_proposal["confidence"] < CONFIDENCE_THRESHOLD:
+            full_proposal["status"] = "denied"
+            full_proposal["auto_denied_reason"] = (
+                f"Confidence {full_proposal['confidence']} below threshold {CONFIDENCE_THRESHOLD}"
+            )
+            filepath = PROPOSALS_DIR / f"{full_proposal['id']}_{full_proposal['category']}.json"
+            filepath.write_text(json.dumps(full_proposal, indent=2), encoding="utf-8")
+            logger.info(f"🚫 Auto-denied (low confidence {full_proposal['confidence']}): {title}")
+            if emit_activity:
+                emit_activity("info",
+                              f"🚫 Auto-denied (confidence {full_proposal['confidence']}): {title}",
+                              proposal_id=full_proposal["id"])
+            return full_proposal
+
         filepath = PROPOSALS_DIR / f"{full_proposal['id']}_{full_proposal['category']}.json"
 
         # In autonomous mode, auto-approve low/medium risk proposals
