@@ -1,0 +1,118 @@
+"""
+Tool Router — Decides what action to take based on intent and uncertainty.
+
+Priority order:
+  1. Missing critical info → ASK (one question)
+  2. Need external state → TOOL_USE
+  3. Factual + uncertain → VERIFY
+  4. References past context → READ_MEMORY
+  5. Too uncertain → ABSTAIN
+  6. Default → ANSWER
+"""
+
+import logging
+
+from backend.metacognition.models.intent import IntentState
+from backend.metacognition.models.actions import Action, ActionDecision, UncertaintyScore
+
+logger = logging.getLogger("metacognition.tool_router")
+
+
+class ToolRouter:
+    """Routes user requests to the appropriate action."""
+
+    def route(
+        self,
+        intent: IntentState,
+        uncertainty: UncertaintyScore,
+    ) -> ActionDecision:
+        """
+        Decide which action to take. Returns ActionDecision with reason.
+
+        Priority order matters. Higher priority actions are checked first.
+        """
+
+        # Priority 1: Missing critical information → ask ONE question
+        if uncertainty.missing_critical_info and uncertainty.questions:
+            return ActionDecision(
+                action=Action.ASK,
+                reason="Missing critical information",
+                confidence=0.8,
+                clarification_question=uncertainty.questions[0],
+            )
+
+        # Priority 2: Needs external state → use a tool
+        if uncertainty.needs_tool or intent.needs_tool:
+            tool_name = self._pick_tool(intent)
+            return ActionDecision(
+                action=Action.TOOL_USE,
+                reason="Requires external data or file access",
+                confidence=0.7,
+                tool_name=tool_name,
+            )
+
+        # Priority 3: Factual domain + uncertain → verify first
+        if uncertainty.needs_verification and uncertainty.score > 0.4:
+            return ActionDecision(
+                action=Action.VERIFY,
+                reason="Factual claim needs verification before answering",
+                confidence=0.6,
+            )
+
+        # Priority 4: References past context → check memory
+        if intent.references_past_context:
+            return ActionDecision(
+                action=Action.READ_MEMORY,
+                reason="User references prior context",
+                confidence=0.7,
+            )
+
+        # Priority 5: Too uncertain → abstain
+        if uncertainty.should_abstain():
+            return ActionDecision(
+                action=Action.ABSTAIN,
+                reason=uncertainty.top_concern or "Confidence too low to answer reliably",
+                confidence=1.0 - uncertainty.score,
+                abstain_explanation=self._build_abstain_message(uncertainty),
+            )
+
+        # Priority 6: Should ask (uncertainty above threshold but not critical)
+        if uncertainty.should_ask() and uncertainty.questions:
+            return ActionDecision(
+                action=Action.ASK,
+                reason=uncertainty.top_concern or "Request needs clarification",
+                confidence=0.5,
+                clarification_question=uncertainty.questions[0],
+            )
+
+        # Default: answer directly
+        confidence = max(0.0, 1.0 - uncertainty.score)
+        return ActionDecision(
+            action=Action.ANSWER,
+            reason="Request is clear enough to answer directly",
+            confidence=confidence,
+        )
+
+    def _pick_tool(self, intent: IntentState) -> str:
+        """Heuristic tool selection based on domain and request."""
+        lower = intent.explicit_request.lower()
+
+        if any(w in lower for w in ["file", "read", "open", "contents"]):
+            return "read_file"
+        if any(w in lower for w in ["search", "find", "grep", "look for"]):
+            return "search_files"
+        if any(w in lower for w in ["run", "execute", "test", "python"]):
+            return "run_command"
+        if any(w in lower for w in ["list", "directory", "folder"]):
+            return "list_directory"
+
+        return "general_tool"
+
+    def _build_abstain_message(self, uncertainty: UncertaintyScore) -> str:
+        """Build a helpful abstain message."""
+        msg = "I don't have enough confidence to answer this reliably."
+        if uncertainty.top_concern:
+            msg += f" Main concern: {uncertainty.top_concern}."
+        if uncertainty.questions:
+            msg += f" It might help if you could clarify: {uncertainty.questions[0]}"
+        return msg
