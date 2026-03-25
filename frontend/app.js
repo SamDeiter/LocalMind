@@ -15,7 +15,7 @@ async function init() {
   checkHealth();
   loadModels();
   loadConversations();
-  lazyLoadDocuments();
+  setTimeout(loadDocuments, 500);
   loadMemories();
   populateVoices();
   initSpeechRecognition();
