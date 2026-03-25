@@ -48,6 +48,40 @@ def _get_proposals():
     return _proposals
 
 
+async def _generate_layman_pitch(title: str, abstract: str) -> str:
+    """Generate a 1-2 sentence layman's summary of a research paper."""
+    from backend.model_router import get_autonomy_models
+    import httpx
+    models = get_autonomy_models()
+    model = models.get("fast", "qwen2.5-coder:7b")
+
+    prompt = (
+        "You are an expert Chief Technology Officer. Explain the following research paper topic\n"
+        "to a non-technical CEO in exactly one or two punchy, professional sentences.\n"
+        "Focus on WHY it matters for a software platform.\n\n"
+        f"TITLE: {title}\n"
+        f"ABSTRACT: {abstract[:500]}\n\n"
+        "Output ONLY the pitch, no preamble."
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"http://localhost:11434/api/generate",
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"num_predict": 100, "num_ctx": 4096},
+                },
+            )
+            if resp.status_code == 200:
+                return resp.json().get("response", "").strip()
+    except Exception:
+        pass
+    return "Intelligence synthesis pending... Review abstract for technical details."
+
+
 # ── Search Endpoint ──────────────────────────────────────────────────
 
 
@@ -67,6 +101,18 @@ async def search_arxiv(
         papers = await researcher.search_arxiv(
             q, max_results=max, start=page * max,
         )
+        
+        # Generate pitch for the top 3 papers if it's the first page
+        if page == 0:
+            import asyncio
+            # Limit parallelism to 3
+            pitches = await asyncio.gather(*[
+                _generate_layman_pitch(p["title"], p["abstract"]) 
+                for p in papers[:3]
+            ])
+            for i, pitch in enumerate(pitches):
+                papers[i]["pitch"] = pitch
+        
         return {
             "papers": papers,
             "count": len(papers),

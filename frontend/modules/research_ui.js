@@ -63,31 +63,67 @@ export async function searchArxiv(query, page = 0) {
       .map((p, idx) => {
         const title = escapeHtml(p.title || "Untitled");
         const authors = escapeHtml(
-          (p.authors || "Unknown authors").substring(0, 80),
+          (p.authors || "Unknown authors").substring(0, 60),
         );
+        const pitch = p.pitch ? escapeHtml(p.pitch) : null;
         const abstract = escapeHtml(
-          (p.abstract || "No abstract available").substring(0, 160),
+          (p.abstract || "No abstract available").substring(0, 140),
         );
         const url = p.url || "#";
         const published = p.published
           ? new Date(p.published).toLocaleDateString()
           : "";
 
-        return `
-        <div class="bg-surface-container-high/40 border border-outline-variant/20 rounded-xl p-4 space-y-3 hover:border-primary/30 transition-all group/card" data-idx="${idx}">
-          <a href="${url}" target="_blank" class="block space-y-2">
-            <h4 class="text-[11px] font-bold text-on-background leading-tight group-hover/card:text-primary transition-colors">${title}</h4>
-            <div class="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-outline/60">
-              <span class="truncate max-w-[150px]">${authors}</span>
-              ${published ? `<span class="w-1 h-1 rounded-full bg-outline-variant/40"></span><span>${published}</span>` : ""}
+        // If we have a pitch, we use the "Executive Insight" style (Decision Support Module)
+        if (pitch) {
+          return `
+          <div class="insight-card p-6 rounded-xl border border-outline-variant/10 shadow-2xl space-y-4" data-idx="${idx}">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-accent-purple text-2xl">psychology</span>
+              <h4 class="text-xs font-bold uppercase tracking-[0.2em] text-accent-purple">Executive Insight</h4>
             </div>
-            <p class="text-[10px] text-on-surface-variant leading-relaxed line-clamp-2 opacity-70">${abstract}…</p>
-          </a>
-          <div class="flex gap-2 pt-1 border-t border-outline-variant/10">
+            <div class="space-y-3">
+               <h3 class="text-sm font-bold text-white leading-snug">${title}</h3>
+               <p class="text-[11px] text-white/90 font-medium italic leading-relaxed bg-white/5 p-3 rounded-lg border-l-2 border-accent-purple">
+                 "${pitch}"
+               </p>
+               <div class="flex items-center gap-2 text-[9px] uppercase tracking-widest text-outline/60 px-1">
+                 <span>${authors}</span>
+                 <span class="w-1 h-1 rounded-full bg-outline-variant/40"></span>
+                 <span>${published}</span>
+               </div>
+            </div>
+            <div class="flex gap-2 pt-2">
+              <button class="arxiv-apply-btn flex-1 py-2 bg-accent-purple/20 border border-accent-purple/30 rounded text-[10px] font-bold uppercase tracking-widest text-accent-purple hover:bg-accent-purple/30 transition-all" data-idx="${idx}">
+                Apply Strategy
+              </button>
+              <a href="${url}" target="_blank" class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded text-[10px] font-bold uppercase tracking-widest text-outline hover:text-white transition-all flex items-center justify-center">
+                Review Source
+              </a>
+            </div>
+          </div>`;
+        }
+
+        // Standard paper card (AI Process Card style)
+        return `
+        <div class="insight-card p-5 rounded-xl border border-outline-variant/10 space-y-3 hover:border-primary/40 transition-all group/card" data-idx="${idx}">
+          <div class="flex justify-between items-start">
+             <div class="space-y-1">
+                <h4 class="text-[11px] font-bold text-white group-hover/card:text-primary transition-colors line-clamp-2">${title}</h4>
+                <div class="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-outline/60">
+                  <span class="truncate max-w-[120px]">${authors}</span>
+                </div>
+             </div>
+             <div class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[8px] font-bold text-primary uppercase tracking-widest">
+                Source
+             </div>
+          </div>
+          <p class="text-[10px] text-on-surface-variant leading-relaxed line-clamp-2 opacity-60">${abstract}…</p>
+          <div class="flex gap-2 pt-1">
             <button class="arxiv-apply-btn flex-1 py-1.5 bg-primary/10 border border-primary/20 rounded text-[9px] font-bold uppercase tracking-widest text-primary hover:bg-primary/20 transition-all" data-idx="${idx}">
-              Apply
+              Synthesize
             </button>
-            <button class="arxiv-context-btn px-2 py-1.5 bg-surface-container-highest border border-outline-variant/30 rounded text-[9px] font-bold uppercase tracking-widest text-outline hover:text-on-surface transition-all" data-idx="${idx}">
+            <button class="arxiv-context-btn px-3 py-1.5 bg-surface-container-highest border border-outline-variant/30 rounded text-[9px] font-bold uppercase tracking-widest text-outline hover:text-on-surface transition-all" data-idx="${idx}">
               Save
             </button>
           </div>

@@ -68,6 +68,7 @@ export const homeBtn = document.getElementById("homeBtn");
 export const modeSupervisedBtn = document.getElementById("modeSupervisedBtn");
 export const modeAutonomousBtn = document.getElementById("modeAutonomousBtn");
 export const chatScreen = document.getElementById("chatScreen");
+export const overviewBtn = document.getElementById("overviewBtn");
 
 // ── Smart Scroll ────────────────────────────────────────────────
 let _userScrolledUp = false;

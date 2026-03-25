@@ -90,7 +90,7 @@ def index_document(filename: str, content: str) -> dict:
     }
 
 
-def query_documents(query: str, n_results: int = 5, use_nlp: bool = False) -> dict:
+def query_documents(query: str, n_results: int = 5) -> dict:
     """Search indexed documents for relevant chunks."""
     if _collection.count() == 0:
         return {"success": True, "results": [], "message": "No documents indexed yet."}
