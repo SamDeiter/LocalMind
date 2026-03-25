@@ -3736,3 +3736,176 @@ font-size: 13px;
 #systemPromptBtn {
   display: none;
 }
+
+/* ── Hero section hidden (dashboard-first layout) ──────────── */
+
+.dash-hero,
+.neural-topology {
+  display: none !important;
+}
+
+/* ── Task Pipeline Widget ──────────────────────────────────── */
+
+.task-pipeline {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.task-pipeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-pipeline-title {
+  font-family: var(--font-headline);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.task-pipeline-count {
+  font-family: var(--font-headline);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(175, 162, 255, 0.12);
+  padding: 1px 8px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.task-pipeline-body {
+  overflow-y: auto;
+  max-height: 280px;
+  padding: 4px 0;
+}
+
+.task-pipeline-empty {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Pipeline status groups */
+
+.pipeline-group {
+  margin-bottom: 2px;
+}
+
+.pipeline-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.pipeline-group-icon {
+  font-size: 12px;
+}
+
+.pipeline-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.pipeline-group-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Individual pipeline items */
+
+.pipeline-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px 6px 26px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: background 0.15s;
+}
+
+.pipeline-item:hover {
+  background: var(--bg-hover);
+}
+
+.pipeline-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.pipeline-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.pipeline-cat {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(175, 162, 255, 0.08);
+  color: var(--accent);
+}
+
+/* Status-specific left borders */
+
+.pipeline-item-processing {
+  border-left: 3px solid #00eefc;
+  background: rgba(0, 238, 252, 0.04);
+}
+
+.pipeline-item-failed {
+  border-left: 3px solid #f44336;
+  background: rgba(244, 67, 54, 0.04);
+}
+
+.pipeline-item-done {
+  opacity: 0.6;
+}
+
+.pipeline-retry {
+  padding: 2px 6px;
+  font-size: 14px;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-radius: 4px;
+  color: #f44336;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pipeline-retry:hover {
+  background: rgba(244, 67, 54, 0.2);
+}
+
+.pipeline-more {
+  padding: 4px 14px 4px 26px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}

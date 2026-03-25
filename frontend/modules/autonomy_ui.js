@@ -640,4 +640,126 @@ export function initDashboardPanels() {
   loadDigest();
   updateSuccessRate();
   loadCategoryStats();
+  renderTaskPipeline();
+}
+
+// ── Task Pipeline Widget ────────────────────────────────────────
+let _pipelineTimer = null;
+
+export async function renderTaskPipeline() {
+  const body = document.getElementById("taskPipelineBody");
+  const countEl = document.getElementById("taskPipelineCount");
+  if (!body) return;
+
+  try {
+    const r = await fetch(`${API}/api/autonomy/proposals`);
+    const d = await r.json();
+    const proposals = d.proposals || [];
+
+    if (proposals.length === 0) {
+      body.innerHTML = '<div class="task-pipeline-empty">No tasks yet — engine will generate proposals soon.</div>';
+      if (countEl) countEl.textContent = "0";
+      return;
+    }
+
+    // Group by status
+    const groups = {
+      in_progress: [],
+      approved: [],
+      proposed: [],
+      failed: [],
+      completed: [],
+      denied: [],
+    };
+
+    for (const p of proposals) {
+      const s = p.status || "proposed";
+      if (groups[s]) groups[s].push(p);
+    }
+
+    const activeCount = groups.in_progress.length + groups.approved.length + groups.proposed.length;
+    if (countEl) countEl.textContent = activeCount;
+
+    const statusConfig = {
+      in_progress: { icon: "🔧", label: "Processing", cls: "processing", color: "#00eefc" },
+      approved:    { icon: "⏳", label: "Queued",     cls: "queued",     color: "#ffc107" },
+      proposed:    { icon: "📋", label: "Pending",    cls: "pending",    color: "#aaabb2" },
+      failed:      { icon: "❌", label: "Failed",     cls: "failed",     color: "#f44336" },
+      completed:   { icon: "✅", label: "Done",       cls: "done",       color: "#4caf50" },
+    };
+
+    let html = "";
+
+    // Render each group
+    for (const [status, config] of Object.entries(statusConfig)) {
+      const items = groups[status] || [];
+      if (items.length === 0) continue;
+
+      // For completed, only show last 3 collapsed
+      const displayItems = status === "completed" ? items.slice(-3) : items;
+      const isCollapsed = status === "completed" || status === "denied";
+
+      html += `<div class="pipeline-group pipeline-${config.cls}">`;
+      html += `<div class="pipeline-group-header" style="border-left: 3px solid ${config.color}">`;
+      html += `<span class="pipeline-group-icon">${config.icon}</span>`;
+      html += `<span class="pipeline-group-label">${config.label}</span>`;
+      html += `<span class="pipeline-group-count">${items.length}</span>`;
+      html += `</div>`;
+
+      for (const p of displayItems) {
+        const title = escapeHtml(p.title || p.category || "Untitled");
+        const cat = p.category ? `<span class="pipeline-cat">${escapeHtml(p.category)}</span>` : "";
+        const timeAgo = p.created_at ? formatTimeAgo(p.created_at) : "";
+        const retryBtn = status === "failed"
+          ? `<button class="pipeline-retry" data-id="${escapeHtml(p.id)}" title="Retry">↻</button>`
+          : "";
+
+        html += `<div class="pipeline-item pipeline-item-${config.cls}">`;
+        html += `<span class="pipeline-item-title">${title}</span>`;
+        html += `<span class="pipeline-item-meta">${cat}${timeAgo ? ` · ${timeAgo}` : ""}${retryBtn}</span>`;
+        html += `</div>`;
+      }
+
+      if (status === "completed" && items.length > 3) {
+        html += `<div class="pipeline-more">+${items.length - 3} more completed</div>`;
+      }
+
+      html += `</div>`;
+    }
+
+    body.innerHTML = html;
+
+    // Wire retry buttons
+    body.querySelectorAll(".pipeline-retry").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        try {
+          const r = await fetch(`${API}/api/autonomy/proposals/${id}/retry`, { method: "POST" });
+          const d = await r.json();
+          if (d.ok) {
+            showToast("🔄 Retrying", "info");
+            renderTaskPipeline();
+          } else {
+            showToast(`❌ ${d.message || "Retry failed"}`, "error");
+          }
+        } catch { showToast("❌ Retry failed", "error"); }
+      });
+    });
+
+  } catch {
+    body.innerHTML = '<div class="task-pipeline-empty">Could not load tasks.</div>';
+  }
+
+  // Auto-refresh every 8 seconds
+  clearTimeout(_pipelineTimer);
+  _pipelineTimer = setTimeout(renderTaskPipeline, 8000);
+}
+
+function formatTimeAgo(ts) {
+  const diff = Math.floor(Date.now() / 1000 - ts);
+  if (diff < 60) return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
 }
