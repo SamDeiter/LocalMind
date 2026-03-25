@@ -373,6 +373,19 @@
 
 </main>
 </div>
+<!-- Hidden compatibility layers -->
+<div class="hidden" aria-hidden="true">
+    <textarea id="systemPromptText"></textarea>
+    <div id="systemPromptEditor"></div>
+    <button id="systemPromptBtn"></button>
+    <button id="saveSystemPrompt"></button>
+    <select id="modelSelect">
+        <option value="auto">Auto</option>
+        <option value="fast">Fast</option>
+        <option value="deep">Deep</option>
+    </select>
+</div>
+
 <script src="modules/dashboard.js"></script>
 <script type="module" src="app.js"></script>
 </body></html>
