@@ -33,10 +33,10 @@ MODELS = {
         "description": "Fast local model for simple tasks",
     },
     "local_heavy": {
-        "name": "jacotext-java",
+        "name": "qwen2.5-coder:32b",
         "provider": "ollama",
         "privacy": "fully_private",
-        "description": "Powerful local model for generating Java code snippets",
+        "description": "Powerful local model for robust code generation and editing",
     },
     "cloud_flash": {
         "name": "gemini-2.0-flash",
