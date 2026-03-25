@@ -117,7 +117,7 @@ export async function uploadDocuments(files) {
 
 export async function loadDocuments() {
   try {
-    const r = await fetch(`${API}/api/documents`);
+    const r = await fetch(`${API}/api/documents/`);
     const d = await r.json();
     const list = document.getElementById("documentList");
     const count = document.getElementById("docCount");

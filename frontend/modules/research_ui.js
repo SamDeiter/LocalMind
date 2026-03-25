@@ -251,14 +251,19 @@ export function initGlobalSearch() {
   if (!input) return;
 
   input.addEventListener("input", (e) => {
-    const q = e.target.value.toLowerCase().trim();
-    if (!q) {
-      // Clear or reset view if empty
-      return;
-    }
+    const q = e.target.value.trim();
+    if (!q || q.length < 3) return;
     
-    // Performance: debounced search would be better, but simple is fine for now
+    // Wire to arXiv search as requested ("paper feature" search)
     console.log("Obsidian Global Search Pulse:", q);
+    searchArxiv(q);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        const q = input.value.trim();
+        if (q) searchArxiv(q);
+    }
   });
 }
 
