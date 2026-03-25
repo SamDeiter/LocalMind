@@ -196,7 +196,7 @@ def _make_text_tool_parser(known_tool_names: set):
             r'\{\s*"name"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})\s*\}',
             re.DOTALL,
         )
-        for match in pattern.finditer(text):
+        for match in re.finditer(pattern, text):
             name = match.group(1)
             if name in known_tool_names:
                 try:

@@ -26,7 +26,9 @@ import { loadConversations } from "./conversations.js";
 import { toggleMic, openCamera, closeCamera, captureFrame, clearCapturedImage } from "./media.js";
 import { uploadDocuments, toggleMemoryList } from "./sidebar.js";
 import { toggleProposalList } from "./proposals_ui.js";
-import { toggleActivityFeed, setAutonomyMode, triggerReflection, triggerExecution } from "./autonomy_ui.js";
+import { welcomeScreen, chatScreen } from "./state.js";
+import { toggleActivityFeed, setAutonomyMode, triggerReflection, triggerExecution, executeDirective } from "./autonomy_ui.js";
+import { toggleEditorPanel } from "./editor.js";
 
 export function bindEvents() {
   // Sidebar
@@ -40,6 +42,8 @@ export function bindEvents() {
 
   // Home button (logo) — go back to welcome/brain dashboard
   $("#homeBtn")?.addEventListener("click", () => {
+    if (welcomeScreen) welcomeScreen.style.display = "flex";
+    if (chatScreen) chatScreen.style.display = "none";
     state.currentConvId = null;
     state.messages = [];
     clearMessages();
@@ -139,6 +143,14 @@ export function bindEvents() {
   // Autonomy mode buttons
   $("#modeSupervisedBtn")?.addEventListener("click", () => setAutonomyMode("supervised"));
   $("#modeAutonomousBtn")?.addEventListener("click", () => setAutonomyMode("autonomous"));
+
+  // Obsidian Specific Hooks
+  $("#addPriorityBtn")?.addEventListener("click", executeDirective);
+  $("#editorToggle")?.addEventListener("click", toggleEditorPanel);
+  $("#newChatBtn")?.addEventListener("click", () => {
+     if (welcomeScreen) welcomeScreen.style.display = "none";
+     if (chatScreen) chatScreen.style.display = "flex";
+  });
 
   // Stop button
   $("#stopBtn")?.addEventListener("click", () => {
