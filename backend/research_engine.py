@@ -972,3 +972,113 @@ class AcademicResearcher:
 
         return "\n".join(lines) + "\n"
 
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  6. Web Researcher (MCP Browser-powered)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Search queries mapped to categories for web research
+_WEB_RESEARCH_QUERIES: dict[str, list[str]] = {
+    "performance":   ["python performance optimization best practices 2025",
+                      "fastapi performance tuning production"],
+    "security":      ["python web application security checklist",
+                      "OWASP top 10 python mitigation"],
+    "code_quality":  ["python code quality tools linting refactoring",
+                      "clean code python patterns dataclasses"],
+    "testing":       ["python pytest best practices coverage",
+                      "integration testing python FastAPI"],
+    "feature":       ["modern AI assistant features 2025",
+                      "developer tools productivity features"],
+    "documentation": ["python project documentation best practices",
+                      "API documentation automated generation"],
+    "error_handling":["python error handling patterns resilience",
+                      "circuit breaker retry pattern python"],
+}
+
+WEB_RESEARCH_CACHE_TTL = 1800  # 30 min cache
+
+
+class WebResearcher:
+    """Internet-powered research using the MCP browser tool.
+
+    Searches the web for best practices, real-world solutions, and
+    up-to-date techniques, then formats findings for the reflection prompt.
+    """
+
+    def __init__(self):
+        self.cache: dict[str, dict] = {}
+
+    async def research_category(self, category: str) -> list[dict]:
+        """Search the web for best practices related to a category.
+
+        Returns list of {title, url, content, source}.
+        """
+        cache_key = f"web_{category}_{int(time.time() // WEB_RESEARCH_CACHE_TTL)}"
+        if cache_key in self.cache:
+            cached = self.cache[cache_key]
+            if time.time() - cached.get("timestamp", 0) < WEB_RESEARCH_CACHE_TTL:
+                logger.info(f"Web research cache hit for '{category}'")
+                return cached.get("results", [])
+
+        queries = _WEB_RESEARCH_QUERIES.get(category, [f"python {category} best practices 2025"])
+        all_results = []
+
+        try:
+            from backend.tools.mcp_browser import web_research
+            for query in queries[:1]:  # Max 1 query per cycle to be polite
+                result = await web_research(query)
+                if result.get("success"):
+                    # Extract individual results from the combined output
+                    all_results.append({
+                        "query": query,
+                        "content": result.get("result", ""),
+                        "source": "web_research",
+                        "results_fetched": result.get("results_fetched", 0),
+                    })
+        except ImportError:
+            logger.warning("MCPBrowserTool not available for web research")
+        except Exception as e:
+            logger.warning(f"Web research failed for '{category}': {e}")
+
+        # Cache results
+        self.cache[cache_key] = {
+            "timestamp": time.time(),
+            "results": all_results,
+        }
+
+        logger.info(f"Web research: found {len(all_results)} result sets for '{category}'")
+        return all_results
+
+    async def get_findings_for_prompt(self, category: str) -> str:
+        """Format web research findings as a prompt block for reflection.
+
+        Returns formatted string ready for injection into LLM prompt.
+        """
+        results = await self.research_category(category)
+
+        if not results:
+            return ""
+
+        lines = [
+            f"WEB RESEARCH — REAL-WORLD PRACTICES FOR '{category.upper()}':",
+            "The following are current best practices found from web research.",
+            "Extract SPECIFIC, ACTIONABLE improvements to propose.\n",
+        ]
+
+        for result in results:
+            content = result.get("content", "")
+            # Truncate each result to keep prompt reasonable
+            if len(content) > 3000:
+                content = content[:3000] + "\n[... truncated]"
+            lines.append(content)
+            lines.append("")
+
+        lines.append(
+            "INSTRUCTIONS: Identify ONE concrete improvement from the research above "
+            "that can be applied to THIS codebase. Your proposal must include "
+            "specific files to modify and describe the exact code changes needed."
+        )
+
+        return "\n".join(lines) + "\n"
+
+

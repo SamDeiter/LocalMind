@@ -122,6 +122,21 @@ async def set_autonomy_mode(request: Request):
         return {"ok": False, "error": str(e)}
 
 
+@router.post("/autonomy/reset")
+async def reset_engine():
+    """Full engine reset: archive stale proposals, retry failed, reset state.
+
+    Archives all denied/skipped/completed proposals, retries all failed ones,
+    resets circuit breaker/backoff/futility counters, and switches to autonomous mode.
+    """
+    try:
+        summary = _engine.reset_engine()
+        return {"ok": True, **summary}
+    except Exception as e:
+        logger.exception("Engine reset failed")
+        return {"ok": False, "error": str(e)}
+
+
 # ── Activity Stream (SSE) ────────────────────────────────────────────
 
 @router.get("/autonomy/activity")

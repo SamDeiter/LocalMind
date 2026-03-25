@@ -30,7 +30,7 @@ from backend.code_editor import edit_single_file, identify_target_files, is_scop
 from backend.git_ops import git_run, revert_file, run_tests
 from backend.research_engine import (
     FailureAnalyzer, SuccessTracker, CodebaseScanner,
-    PerformanceProfiler, ExternalResearcher
+    PerformanceProfiler, ExternalResearcher, WebResearcher
 )
 from backend.self_improver import SelfImprover
 from backend.meta_critic import MetaCritic
@@ -98,6 +98,7 @@ class AutonomyEngine:
         self.codebase_scanner = CodebaseScanner()
         self.performance_profiler = PerformanceProfiler()
         self.external_researcher = ExternalResearcher()
+        self.web_researcher = WebResearcher()
         self.self_improver = SelfImprover(emit_activity=self._emit_activity)
         self.meta_critic = MetaCritic(
             ollama_url=self.ollama_url,
@@ -172,6 +173,56 @@ class AutonomyEngine:
         self._emit_activity("mode_changed", f"Switched to {mode} mode")
         logger.info(f"🤖 Autonomy mode: {mode}")
         return mode
+
+    def reset_engine(self) -> dict:
+        """Full engine reset: archive stale proposals, reset state, retry failed.
+
+        Returns a summary of what was done.
+        """
+        self._emit_activity("engine_reset", "🔄 Full engine reset initiated")
+
+        # 1. Archive all terminal proposals (denied/skipped/completed)
+        archive_result = self.proposals.archive_terminal()
+
+        # 2. Retry all currently-failed proposals
+        retried = self.proposals.retry_all_failed(emit_activity=self._emit_activity)
+
+        # 3. Clear anti-repeat title cache
+        cleared_titles = self.proposals.clear_failed_titles()
+
+        # 4. Reset circuit breaker
+        self._consecutive_failures = 0
+        self._circuit_open_until = 0.0
+
+        # 5. Reset backoff to base
+        self._current_backoff = self.BACKOFF_BASE
+
+        # 6. Reset reflection futility counters
+        self._reflection_rejections = 0
+        self._reflection_backoff = 300
+
+        # 7. Switch to autonomous mode
+        self.set_mode("autonomous")
+
+        summary = {
+            "archived": archive_result.get("archived", 0),
+            "archive_detail": archive_result.get("statuses", {}),
+            "retried": len(retried),
+            "retried_titles": [p.get("title", "?") for p in retried],
+            "cleared_failed_titles": cleared_titles,
+            "circuit_breaker_reset": True,
+            "backoff_reset": True,
+            "mode": "autonomous",
+        }
+
+        self._log("engine_reset", summary)
+        self._emit_activity(
+            "engine_reset_complete",
+            f"✅ Reset complete: {archive_result.get('archived', 0)} archived, "
+            f"{len(retried)} retried, mode=autonomous",
+        )
+        logger.info(f"🔄 Engine reset complete: {summary}")
+        return summary
 
     def _get_success_rate(self) -> int:
         """Calculate the live success rate (0-100) from completed/failed proposals."""
@@ -639,6 +690,13 @@ class AutonomyEngine:
                     logger.warning(f"External research failed: {ext_exc}")
                     ext_block = ""
 
+                # Web research: fetch real-world best practices via MCP browser
+                try:
+                    web_block = await self.web_researcher.get_findings_for_prompt(focus_category)
+                except Exception as web_exc:
+                    logger.warning(f"Web research failed: {web_exc}")
+                    web_block = ""
+
                 research_context = ""
                 if lessons_block:
                     research_context += lessons_block + "\n"
@@ -650,6 +708,8 @@ class AutonomyEngine:
                     research_context += perf_block + "\n"
                 if ext_block:
                     research_context += ext_block + "\n"
+                if web_block:
+                    research_context += web_block + "\n"
 
                 # ── Thinking: broadcast what research found ──
                 research_parts = []
@@ -666,6 +726,8 @@ class AutonomyEngine:
                     research_parts.append("performance metrics collected")
                 if ext_block:
                     research_parts.append(f"best practices for '{focus_category}'")
+                if web_block:
+                    research_parts.append(f"web research for '{focus_category}'")
 
                 if research_parts:
                     self._emit_activity("thinking",
@@ -933,7 +995,7 @@ class AutonomyEngine:
             proposal["error"] = "Proposal scope too broad for automated editing"
             filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
             self.status["execution"]["last_run"] = time.time()
-            return False
+            return True
 
         try:
             exec_start_time = time.time()
@@ -962,7 +1024,7 @@ class AutonomyEngine:
                 self._log("proposal_execution_failed", {"id": proposal["id"], "error": "no target files"})
                 self.status["execution"]["last_run"] = time.time()
                 self._emit_activity("error", "Failed: Could not determine target files")
-                return False
+                return True
 
             # ── Thinking: broadcast file targeting ──
             self._emit_activity("thinking",
@@ -1005,7 +1067,7 @@ class AutonomyEngine:
                 self._log("proposal_execution_failed", {"id": proposal["id"], "error": "no edits applied"})
                 self.status["execution"]["last_run"] = time.time()
                 self._emit_activity("error", f"Failed: AI could not generate valid edits for {proposal['title']}")
-                return False
+                return True
 
             # Step 4: Run tests
             self._emit_activity("testing", f"Running tests to verify: {proposal['title']}",
@@ -1164,6 +1226,7 @@ class AutonomyEngine:
                 )
 
         self.status["execution"]["last_run"] = time.time()
+        return True
 
     def get_status(self) -> dict:
         """Return the full autonomy status for the API."""

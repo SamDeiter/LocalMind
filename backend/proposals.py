@@ -408,6 +408,75 @@ class ProposalManager:
                 continue
         return chained
 
+    def archive_terminal(self) -> dict:
+        """Archive ALL terminal-state proposals (denied/skipped/completed) immediately.
+
+        Unlike cleanup_stale which waits 24h, this moves everything now.
+        Used by the reset endpoint to give the reflection loop a clean slate.
+
+        Returns a summary: {archived: int, statuses: dict}.
+        """
+        if not PROPOSALS_DIR.exists():
+            return {"archived": 0, "statuses": {}}
+
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        archived = 0
+        statuses: dict[str, int] = {}
+
+        for f in list(PROPOSALS_DIR.glob("*.json")):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                status = data.get("status", "")
+                if status in ("denied", "skipped", "completed"):
+                    dest = ARCHIVE_DIR / f.name
+                    shutil.move(str(f), str(dest))
+                    archived += 1
+                    statuses[status] = statuses.get(status, 0) + 1
+            except Exception:
+                continue
+
+        if archived:
+            logger.info(f"📦 Archived {archived} terminal proposals: {statuses}")
+        return {"archived": archived, "statuses": statuses}
+
+    def clear_failed_titles(self):
+        """Clear the in-memory failed title cache so new proposals aren't blocked."""
+        count = len(self._failed_titles)
+        self._failed_titles.clear()
+        logger.info(f"🧹 Cleared {count} failed titles from anti-repeat cache")
+        return count
+
+    def retry_all_failed(self, emit_activity=None) -> list[dict]:
+        """Reset ALL failed proposals to approved status for re-execution.
+
+        Returns list of retried proposals.
+        """
+        retried = []
+        if not PROPOSALS_DIR.exists():
+            return retried
+
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if data.get("status") == "failed":
+                    data["status"] = "approved"
+                    data["error"] = None
+                    data["retry_count"] = data.get("retry_count", 0) + 1
+                    data["status_changed_at"] = time.time()
+                    data["status_changed_at_human"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                    f.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    retried.append(data)
+                    if emit_activity:
+                        emit_activity("proposal_retried",
+                                      f"Retrying: {data.get('title')}",
+                                      proposal_id=data.get("id"))
+            except Exception:
+                continue
+
+        if retried:
+            logger.info(f"🔄 Retried {len(retried)} failed proposals")
+        return retried
+
     def cleanup_stale(self) -> dict:
         """Archive old denied/completed proposals and remove exhausted failed ones.
 
