@@ -3020,38 +3020,19 @@ from { stroke-dashoffset: 100; }
   to { stroke-dashoffset: 0; }
 }
 
-.neural-node-pulse {
-animation: node-pulse 2s ease-in-out infinite;
-}
+
 
 .neural-float {
 animation: node-float 2.5s ease-in-out infinite;
 }
 
-.neural-path-animate {
-stroke-dasharray: 4 4;
-  animation: path-draw 3s linear infinite;
-}
+
 
 /* ── Neural Topology (Welcome Screen) ────────────────────────── */
 
-.neural-topology {
-  width: 100%;
-  max-width: 400px;
-  margin-bottom: 16px;
-  position: relative;
-  margin: 0 auto;
-  background: var(--surface-container);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px;
-}
 
-.neural-svg {
-  width: 100%;
-  height: auto;
-  max-height: 80px;
-}
+
+
 
 .neural-topology::before {
   content: '';
@@ -3174,10 +3155,7 @@ display: flex;
   justify-content: center;
 }
 
-.dash-hero {
-text-align: center;
-  padding-top: 0; margin-bottom: 0;
-}
+
 
 .dash-hero h1 {
 font-family: var(--font-headline);
@@ -3737,12 +3715,6 @@ font-size: 13px;
   display: none;
 }
 
-/* ── Hero section hidden (dashboard-first layout) ──────────── */
-
-.dash-hero,
-.neural-topology {
-  display: none !important;
-}
 
 /* ── Task Pipeline Widget ──────────────────────────────────── */
 
