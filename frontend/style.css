@@ -3713,3 +3713,20 @@ font-size: 13px;
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
+
+/* ── Hidden Controls (voice/settings — unused, declutter top bar) ── */
+
+#voiceToggle,
+#voiceSelect,
+#systemPromptBtn {
+  display: none;
+}
+
+
+/* -- Hidden Controls (voice/settings - unused, declutter top bar) -- */
+
+#voiceToggle,
+#voiceSelect,
+#systemPromptBtn {
+  display: none;
+}
