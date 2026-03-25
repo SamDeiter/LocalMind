@@ -154,7 +154,7 @@ class ProposeActionTool(BaseTool):
             "reason": reason,
             "risk_level": risk_level.lower(),
             "estimated_cost": estimated_cost,
-            "alternatives": alternatives,
+            "alternatives": alternatives.split(', '),
             "decision": "pending",
             "requested_at": time.time(),
         }
