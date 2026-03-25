@@ -43,7 +43,7 @@ class ToolRouter:
 
         # Priority 2: Needs external state → use a tool
         if (uncertainty.needs_tool or intent.needs_tool) and not intent.is_verified:
-            tool_name = self._pick_tool(intent)
+            tool_name = self._adaptive_pick_tool(intent)
             return ActionDecision(
                 action=Action.TOOL_USE,
                 reason="Requires external data or file access",
