@@ -54,7 +54,7 @@ class TestResolveApproval:
 
         # Find and approve the pending request
         pending = get_pending_requests()
-        assert pending, 'No pending requests found.'
+        assert len(pending) >= 1
         request_id = pending[-1]["request_id"]
         assert resolve_approval(request_id, True) is True
 
