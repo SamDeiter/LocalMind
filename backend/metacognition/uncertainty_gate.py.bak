@@ -121,7 +121,10 @@ class UncertaintyGate:
         # Compute final score (capped at 1.0)
         if score_components:
             # Use max component + dampened sum of others
-            final = max(score_components) + sum(s * 0.3 for s in score_components[1:])
+            score_components.sort(reverse=True)
+            final = score_components[0]
+            for s in score_components[1:]:
+                final += s * 0.3  # Diminishing returns for additional signals
             uncertainty.score = min(1.0, final)
         else:
             uncertainty.score = 0.1  # Baseline low uncertainty
