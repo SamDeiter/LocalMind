@@ -466,6 +466,7 @@ background: var(--border);
 .messages-container:has(.welcome-screen) {
 padding: 0;
   overflow: hidden;
+  overflow-y: auto;
 }
 
 /* ── Welcome Screen (Dashboard Mode) ───────────────────────────── */
@@ -816,7 +817,7 @@ animation-delay: 0.4s;
 /* ── Input Area ────────────────────────────────────────────────── */
 
 .input-area {
-padding: 12px 24px 20px;
+padding: 6px 16px 8px;
   background: var(--bg-primary);
 }
 
@@ -856,7 +857,7 @@ display: flex;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--input-radius);
-  padding: 10px 16px;
+  padding: 6px 12px;
   transition:
     border-color var(--transition),
     box-shadow var(--transition);
@@ -1298,7 +1299,7 @@ font-size: 0.8rem;
 
 .hardware-status {
 display: flex;
-  padding: 6px 16px;
+  padding: 3px 12px;
   background: rgba(15, 15, 25, 0.5);
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
@@ -2669,6 +2670,7 @@ color: var(--error);
 /* ── Digest Panel ──────────────────────────────────────────────── */
 
 .brain-digest-section {
+  overflow: hidden;
 margin-top: 12px;
   padding: 14px 16px;
   background: var(--bg-glass);
@@ -3042,13 +3044,13 @@ stroke-dasharray: 4 4;
   background: var(--surface-container);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 10px;
 }
 
 .neural-svg {
   width: 100%;
   height: auto;
-  max-height: 180px;
+  max-height: 120px;
 }
 
 .neural-topology::before {
@@ -3166,20 +3168,20 @@ display: grid;
 .dash-left {
 display: flex;
   flex-direction: column;
-  padding: 24px 28px;
+  padding: 12px 20px;
   overflow-y: auto;
-  gap: 20px;
+  gap: 10px;
   justify-content: center;
 }
 
 .dash-hero {
 text-align: center;
-  padding-top: 8px;
+  padding-top: 0;
 }
 
 .dash-hero h1 {
 font-family: var(--font-headline);
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 700;
   background: var(--accent-gradient);
   -webkit-background-clip: text;
@@ -3322,6 +3324,7 @@ flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  gap: 2px;
   border-top: 1px solid var(--border);
   background: var(--bg-secondary);
 }
@@ -3366,7 +3369,7 @@ font-family: var(--font-headline);
 .thought-stream .brain-timeline {
 flex: 1;
   overflow-y: auto;
-  max-height: none;
+  max-height: 160px;
   padding: 4px 0;
 }
 
