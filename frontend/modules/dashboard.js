@@ -56,6 +56,8 @@ async function updateDashboardMetrics() {
 
 /** Update status bar with connection + engine info */
 async function updateStatusBar() {
+  const dot = document.getElementById("brainPulse");
+  const connEl = document.getElementById("brainStatus");
   try {
     // Check autonomy status
     const r = await fetch(`${DASH_API}/api/autonomy/status`);
@@ -65,7 +67,7 @@ async function updateStatusBar() {
       if (connEl) connEl.textContent = s.status ? `ACTIVE: ${s.status}` : "ONLINE";
     } else {
       if (dot) dot.style.backgroundColor = "#ff6b98";
-      if (connEl) connEl.textContent = "Offline";
+      if (connEl) connEl.textContent = "Degraded";
     }
 
     // Version

@@ -212,9 +212,24 @@ export function connectActivityFeed() {
   }
 }
 
-function addActivityItem(_event) {
+function addActivityItem(event) {
   // Divert items to the Task Pipeline (Action Stream) instead of sidebar feed
   renderTaskPipeline();
+
+  // Feed into the AI Thinking panel
+  const feed = document.getElementById("aiThinkingFeed");
+  if (!feed) return;
+  const icon = ACTION_ICONS[event.action] || "📡";
+  const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const line = document.createElement("p");
+  line.innerHTML = `<span class="text-outline/40">${ts}</span>  ${icon} <span class="text-on-surface-variant">${escapeHtml(event.detail || event.action || "...")}</span>`;
+  // Remove placeholder
+  const placeholder = feed.querySelector(".italic");
+  if (placeholder) placeholder.remove();
+  feed.appendChild(line);
+  // Keep max 20 lines
+  while (feed.children.length > 20) feed.removeChild(feed.firstChild);
+  feed.scrollTop = feed.scrollHeight;
 }
 
 function updateActivityBar(_event) {
@@ -656,16 +671,21 @@ export async function renderTaskPipeline() {
       // For completed, only show last 3 collapsed
       const displayItems = status === "completed" ? items.slice(-3) : items;
 
+      const isCollapsible = status === "completed" || status === "denied" || status === "failed";
+      const defaultClosed = status === "completed" || status === "denied";
       html += `<div class="pipeline-group pipeline-${config.cls} mb-6">`;
-      html += `<div class="flex items-center justify-between mb-3 px-1">`;
+      html += `<div class="flex items-center justify-between mb-3 px-1 ${isCollapsible ? 'cursor-pointer select-none hover:opacity-80' : ''}" ${isCollapsible ? `onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron-icon').classList.toggle('rotate-90')"` : ''}>`;
       html += `  <div class="flex items-center gap-2">`;
       html += `    <span class="text-sm">${config.icon}</span>`;
       html += `    <span class="text-[10px] font-bold uppercase tracking-[0.2em]" style="color: ${config.color}">${config.label}</span>`;
+      if (isCollapsible) {
+        html += `    <span class="material-symbols-outlined text-xs text-outline/40 chevron-icon transition-transform ${defaultClosed ? '' : 'rotate-90'}" style="font-size:14px">chevron_right</span>`;
+      }
       html += `  </div>`;
       html += `  <span class="text-[9px] font-bold bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-outline">${items.length}</span>`;
       html += `</div>`;
 
-      html += `<div class="space-y-2">`;
+      html += `<div class="space-y-2 ${defaultClosed ? 'hidden' : ''}">`;
       for (const p of displayItems) {
         const title = escapeHtml(p.title || p.category || "Untitled");
         const cat = p.category ? `<span class="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">${escapeHtml(p.category)}</span>` : "";
@@ -690,6 +710,19 @@ export async function renderTaskPipeline() {
         html += `    <span class="w-1 h-1 rounded-full bg-outline-variant/30"></span>`;
         html += `    ${timeAgo}`;
         html += `  </div>`;
+
+        // Performance metrics row
+        const dur = p.execution_duration;
+        const tok = p.total_tokens;
+        const model = p.model_used;
+        if (dur || tok || model) {
+          html += `  <div class="flex items-center gap-3 mt-2 pt-2 border-t border-outline-variant/10">`;
+          if (dur != null) html += `    <span class="text-[9px] text-outline/60 font-mono">⏱ ${dur}s</span>`;
+          if (tok) html += `    <span class="text-[9px] text-outline/60 font-mono">🎟 ${tok > 999 ? (tok / 1000).toFixed(1) + 'k' : tok} tkns</span>`;
+          if (model) html += `    <span class="text-[9px] text-primary/50 font-mono">${escapeHtml(model)}</span>`;
+          html += `  </div>`;
+        }
+
         html += `</div>`;
       }
       html += `</div>`;

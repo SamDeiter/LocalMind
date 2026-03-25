@@ -294,41 +294,35 @@
 <div class="flex-1 p-8 overflow-y-auto custom-scrollbar" id="mainScrollArea">
     <!-- Welcome / Dashboard View -->
     <div id="welcomeScreen" class="flex flex-col">
-        <div class="mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-            <div>
-            <h2 class="font-headline text-3xl font-light tracking-tight text-on-background">Executive Oversight</h2>
-            <p class="text-on-surface-variant text-sm mt-1">Monitoring concurrent AI reasoning streams across global infrastructure.</p>
-            </div>
-            <div class="flex gap-4">
-            <button id="brainReflectBtn" class="px-4 py-2 bg-surface-container-high border border-outline-variant/30 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-surface-bright transition-colors">
-            <span class="material-symbols-outlined text-sm">psychology</span> Reflect
-                            </button>
-            <button id="brainExecuteBtn" class="px-4 py-2 bg-primary text-on-primary border border-primary/20 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/10">
-            <span class="material-symbols-outlined text-sm">bolt</span> Execute Approved
-                            </button>
+        <!-- Compact Header Row -->
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="font-headline text-xl font-light tracking-tight text-on-background">Executive Oversight</h2>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant/20 text-[10px] font-bold text-outline uppercase tracking-widest">
+                    <span>⏱ <span id="brainUptime">0m</span></span>
+                    <span class="text-outline-variant/30">│</span>
+                    <span>Tasks: <span id="brainApplied" class="text-primary">0</span></span>
+                </div>
+                <button id="brainReflectBtn" class="px-3 py-1.5 bg-surface-container-high border border-outline-variant/30 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-surface-bright transition-colors">
+                    <span class="material-symbols-outlined text-sm">psychology</span> Reflect
+                </button>
+                <button id="brainExecuteBtn" class="px-3 py-1.5 bg-primary text-on-primary border border-primary/20 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/10">
+                    <span class="material-symbols-outlined text-sm">bolt</span> Execute
+                </button>
             </div>
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="brainDashboard">
-            <!-- Dynamic Proposal Cards will go here (repuposed grid) -->
-            <div class="glass-panel console-border rounded-xl p-5 flex flex-col group hover:border-primary/40 transition-all duration-300">
-                <div class="flex justify-between items-start mb-4">
-                <div>
-                <span class="text-[10px] font-bold text-primary uppercase tracking-[0.2em] mb-1 block">System Core</span>
-                <h4 class="text-sm font-semibold text-on-background">Engine Health</h4>
-                </div>
-                <div class="bg-secondary/10 px-2 py-1 rounded text-[10px] font-bold text-secondary uppercase tracking-tighter">Ready</div>
-                </div>
-                <div class="space-y-4 flex-1">
-                    <div class="flex justify-between text-[10px] font-medium text-outline">
-                        <span class="uppercase tracking-widest">Uptime</span>
-                        <span id="brainUptime">0m</span>
-                    </div>
-                    <div class="flex justify-between text-[10px] font-medium text-outline">
-                        <span class="uppercase tracking-widest">Tasks Executed</span>
-                        <span id="brainApplied">0</span>
-                    </div>
-                </div>
+
+        <!-- AI Thinking Feed -->
+        <div class="mb-4 glass-panel console-border rounded-lg p-3 relative overflow-hidden" id="aiThinkingPanel">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                <span class="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Engine Activity</span>
+            </div>
+            <div id="aiThinkingFeed" class="space-y-1 max-h-[80px] overflow-y-auto custom-scrollbar text-[11px] text-on-surface-variant/80 font-mono leading-relaxed">
+                <p class="opacity-40 italic">Awaiting engine activity...</p>
             </div>
         </div>
 

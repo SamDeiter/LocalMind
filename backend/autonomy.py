@@ -936,6 +936,9 @@ class AutonomyEngine:
             return False
 
         try:
+            exec_start_time = time.time()
+            exec_total_tokens = 0
+
             self._emit_activity("executing",
                                 f"Starting: {proposal['title']}",
                                 proposal_id=proposal["id"],
@@ -945,9 +948,10 @@ class AutonomyEngine:
             })
 
             # Step 1: Identify target files
-            files_affected = await identify_target_files(
+            files_affected, targeting_tokens = await identify_target_files(
                 proposal, self.ollama_url, self.editing_model, self._emit_activity
             )
+            exec_total_tokens += targeting_tokens
 
             if not files_affected:
                 self.proposals.mark_failed(
@@ -981,11 +985,12 @@ class AutonomyEngine:
                                     file=target_file,
                                     task_description=proposal.get("description", ""),
                                     proposal_title=proposal.get("title", ""))
-                success = await edit_single_file(
+                success, edit_tokens = await edit_single_file(
                     target_file, proposal,
                     self.ollama_url, self.editing_model,
                     log_fn=self._log, emit_activity=self._emit_activity
                 )
+                exec_total_tokens += edit_tokens
                 if success:
                     edits_applied.append(target_file)
 
@@ -1034,6 +1039,9 @@ class AutonomyEngine:
                 proposal["status"] = "completed"
                 proposal["execution_result"] = f"✅ Applied to {len(edits_applied)} file(s), tests passed"
                 proposal["execution_finished_at"] = time.time()
+                proposal["execution_duration"] = round(time.time() - exec_start_time, 1)
+                proposal["total_tokens"] = exec_total_tokens
+                proposal["model_used"] = self.editing_model
                 proposal["files_edited"] = edits_applied
                 proposal["branch"] = branch_name
                 filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
@@ -1084,6 +1092,9 @@ class AutonomyEngine:
                 git_run(["branch", "-D", branch_name])
 
                 short_error = test_output[:200] if test_output else "Unknown test failure"
+                proposal["execution_duration"] = round(time.time() - exec_start_time, 1)
+                proposal["total_tokens"] = exec_total_tokens
+                proposal["model_used"] = self.editing_model
                 self.proposals.mark_failed(
                     proposal,
                     f"Tests failed after applying edits:\n{short_error}",
