@@ -79,7 +79,6 @@ async def list_documents():
     what knowledge the AI has access to via RAG.
     """
     if not _RAG_AVAILABLE:
-        logger.warning("RAG not available, returning empty document list")
         return {"documents": []}
     return _list_indexed_documents()
 
