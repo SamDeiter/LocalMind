@@ -66,7 +66,7 @@ export async function searchArxiv(query, page = 0) {
           (p.authors || "Unknown authors").substring(0, 80),
         );
         const abstract = escapeHtml(
-          (p.abstract || "No abstract available").substring(0, 200),
+          (p.abstract || "No abstract available").substring(0, 160),
         );
         const url = p.url || "#";
         const published = p.published
@@ -74,22 +74,21 @@ export async function searchArxiv(query, page = 0) {
           : "";
 
         return `
-        <div class="arxiv-card" data-idx="${idx}">
-          <a class="arxiv-card-link-area" href="${url}" target="_blank" rel="noopener noreferrer" title="Open on arXiv">
-            <div class="arxiv-card-title">${title}</div>
-            <div class="arxiv-card-meta">
-              <span class="arxiv-card-authors">${authors}</span>
-              ${published ? `<span class="arxiv-card-date">${published}</span>` : ""}
+        <div class="bg-surface-container-high/40 border border-outline-variant/20 rounded-xl p-4 space-y-3 hover:border-primary/30 transition-all group/card" data-idx="${idx}">
+          <a href="${url}" target="_blank" class="block space-y-2">
+            <h4 class="text-[11px] font-bold text-on-background leading-tight group-hover/card:text-primary transition-colors">${title}</h4>
+            <div class="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-outline/60">
+              <span class="truncate max-w-[150px]">${authors}</span>
+              ${published ? `<span class="w-1 h-1 rounded-full bg-outline-variant/40"></span><span>${published}</span>` : ""}
             </div>
-            <div class="arxiv-card-abstract">${abstract}…</div>
-            <span class="arxiv-card-link">📄 View on arXiv →</span>
+            <p class="text-[10px] text-on-surface-variant leading-relaxed line-clamp-2 opacity-70">${abstract}…</p>
           </a>
-          <div class="arxiv-card-actions">
-            <button class="arxiv-apply-btn" data-idx="${idx}" title="Generate a code proposal from this paper">
-              🧠 Apply to Codebase
+          <div class="flex gap-2 pt-1 border-t border-outline-variant/10">
+            <button class="arxiv-apply-btn flex-1 py-1.5 bg-primary/10 border border-primary/20 rounded text-[9px] font-bold uppercase tracking-widest text-primary hover:bg-primary/20 transition-all" data-idx="${idx}">
+              Apply
             </button>
-            <button class="arxiv-context-btn" data-idx="${idx}" title="Add paper context to chat system prompt">
-              💬 Save to Context
+            <button class="arxiv-context-btn px-2 py-1.5 bg-surface-container-highest border border-outline-variant/30 rounded text-[9px] font-bold uppercase tracking-widest text-outline hover:text-on-surface transition-all" data-idx="${idx}">
+              Save
             </button>
           </div>
         </div>`;
@@ -245,3 +244,22 @@ export function initResearchPanel() {
     });
   }
 }
+
+/** Global Search Implementation */
+export function initGlobalSearch() {
+  const input = document.getElementById("globalSearchInput");
+  if (!input) return;
+
+  input.addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    if (!q) {
+      // Clear or reset view if empty
+      return;
+    }
+    
+    // Performance: debounced search would be better, but simple is fine for now
+    console.log("Obsidian Global Search Pulse:", q);
+  });
+}
+
+

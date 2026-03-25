@@ -154,26 +154,14 @@ _AUTO_SAVE_PATTERNS = [
 
 
 async def _auto_save_facts(message: str):
-    """Detect and save personal facts from user messages.
-    
-    This is a safety net for coding-focused models (like qwen2.5-coder)
-    that don't reliably call save_memory on their own. It uses simple
-    regex patterns to detect names, ages, jobs, and preferences.
-    
-    This runs BEFORE the model sees the message, so memories are saved
-    even if the model doesn't choose to call save_memory itself.
-    """
+    """Detect and save personal facts from user messages."""
+    if not (_registry.get_tool("save_memory") and _learning_enabled_fn()):
+        return
     try:
-        save_tool = _registry.get_tool("save_memory")
-        if not save_tool or not _learning_enabled_fn():
-            return
-
         for pattern, category, template in _AUTO_SAVE_PATTERNS:
-            match = pattern.search(message)
-            if match:
-                groups = match.groups()
-                content = template.format(*groups)
-                await save_tool.execute(content=content, category=category)
+            if match := pattern.search(message):
+                content = template.format(*match.groups())
+                await _registry.get_tool("save_memory").execute(content=content, category=category)
                 logger.info(f"AUTO-SAVED memory: [{category}] {content}")
     except Exception as e:
         logger.warning(f"Auto-save heuristic failed (non-fatal): {e}")

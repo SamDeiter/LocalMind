@@ -60,6 +60,14 @@ export const micBtn = $("#micBtn");
 export const editorPanel = document.getElementById("editorPanel");
 export const panelDivider = document.getElementById("panelDivider");
 export const editorToggle = document.getElementById("editorToggle");
+export const priorityInput = document.getElementById("priorityInput");
+export const addPriorityBtn = document.getElementById("addPriorityBtn");
+export const insightContent = document.getElementById("insightContent");
+export const brainDigest = document.getElementById("brainDigest");
+export const homeBtn = document.getElementById("homeBtn");
+export const modeSupervisedBtn = document.getElementById("modeSupervisedBtn");
+export const modeAutonomousBtn = document.getElementById("modeAutonomousBtn");
+export const chatScreen = document.getElementById("chatScreen");
 
 // ── Smart Scroll ────────────────────────────────────────────────
 let _userScrolledUp = false;

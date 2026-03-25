@@ -9,7 +9,7 @@ import { populateVoices, initSpeechRecognition } from "./modules/media.js";
 import { startHwPolling, loadMemories, loadDocuments, loadVersion, loadProposals, connectActivityFeed, initDashboardPanels } from "./modules/sidebar.js";
 import { toggleEditorPanel, initEditorEnhancements } from "./modules/editor.js";
 import { bindEvents } from "./modules/events.js";
-import { initResearchPanel } from "./modules/research_ui.js";
+import { initResearchPanel, initGlobalSearch } from "./modules/research_ui.js";
 
 async function init() {
   checkHealth();
@@ -27,8 +27,10 @@ async function init() {
   initEditorEnhancements();
   initDashboardPanels();
   initResearchPanel();
+  initGlobalSearch();
 
   // Restore editor panel if it was open
+
   if (localStorage.getItem("localmind_editor") === "on") {
     setTimeout(toggleEditorPanel, 500);
   }

@@ -4,9 +4,10 @@
  * Extracted from sidebar.js for maintainability.
  */
 
-import { API } from "./state.js";
+import { API, priorityInput, chatScreen, welcomeScreen, insightContent, brainDigest } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 import { loadProposals } from "./proposals_ui.js";
+import { sendMessage } from "./chat.js";
 
 // ── Autonomy Status ─────────────────────────────────────────────
 export async function pollAutonomy() {
@@ -98,7 +99,7 @@ export async function pollAutonomy() {
     // On first poll, populate brain timeline from recent events
     if (d.recent_events && d.recent_events.length > 0 && !window._brainCaughtUp) {
       window._brainCaughtUp = true;
-      const timeline = document.getElementById("brainTimeline");
+      const timeline = document.getElementById("taskPipelineBody");
       if (timeline) {
         timeline.innerHTML = "";
         // Show newest first (reverse)
@@ -211,31 +212,12 @@ export function connectActivityFeed() {
   }
 }
 
-function addActivityItem(event) {
-  const feed = document.getElementById("activityFeed");
-  if (!feed) return;
-
-  const icon = ACTION_ICONS[event.action] || "📋";
-  const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
-
-  const item = document.createElement("div");
-  item.className = `activity-item ${isActive ? "activity-active" : "activity-idle"}`;
-  item.innerHTML = `
-    <span class="activity-icon">${icon}</span>
-    <span class="activity-text">${escapeHtml(event.detail || event.action)}</span>
-    <span class="activity-time">${event.time || ""}</span>
-  `;
-
-  // Prepend (newest first)
-  feed.prepend(item);
-
-  // Trim old items
-  while (feed.children.length > MAX_ACTIVITY_ITEMS) {
-    feed.removeChild(feed.lastChild);
-  }
+function addActivityItem(_event) {
+  // Divert items to the Task Pipeline (Action Stream) instead of sidebar feed
+  renderTaskPipeline();
 }
 
-function updateActivityBar(event) {
+function updateActivityBar(_event) {
   const activityEl = document.getElementById("autonomyActivity");
   if (activityEl) {
     const icon = ACTION_ICONS[event.action] || "";
@@ -249,7 +231,7 @@ let brainProposalCount = 0;
 let brainExecutedCount = 0;
 
 function updateBrainDashboard(event) {
-  const timeline = document.getElementById("brainTimeline");
+  const timeline = document.getElementById("taskPipelineBody");
   const statusEl = document.getElementById("brainStatus");
 
   // Update status text
@@ -313,53 +295,9 @@ function updateBrainDashboard(event) {
     }
   }
 
-  // Add event to brain timeline
+  // Add event to action stream
   if (!timeline) return;
-  const icon = ACTION_ICONS[event.action] || "📋";
-  const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
-  const isThinking = event.action === "thinking";
-  const timeStr = event.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  const evEl = document.createElement("div");
-  evEl.className = `brain-event ${isActive ? "brain-event-active" : ""} ${isThinking ? "brain-event-thinking" : ""}`;
-  
-  // Build detailed event text
-  let eventText = escapeHtml(event.detail || event.action);
-  if (event.task_description && isActive && !isThinking) {
-    const shortDesc = event.task_description.length > 80 
-      ? event.task_description.substring(0, 80) + "..." 
-      : event.task_description;
-    eventText += `<br><span class="brain-event-desc">${escapeHtml(shortDesc)}</span>`;
-  }
-
-  // Thinking events: show expandable research summary
-  let thinkingDetail = "";
-  if (isThinking && event.research_summary) {
-    const truncated = event.research_summary.length > 300
-      ? event.research_summary.substring(0, 300) + "..."
-      : event.research_summary;
-    thinkingDetail = `<div class="brain-thinking-detail">${escapeHtml(truncated)}</div>`;
-  }
-  if (isThinking && event.files_affected && event.files_affected.length > 0) {
-    thinkingDetail += `<div class="brain-thinking-files">Files: ${event.files_affected.map(f => escapeHtml(f)).join(", ")}</div>`;
-  }
-  
-  evEl.innerHTML = `
-    <span class="brain-event-icon">${icon}</span>
-    <span class="brain-event-text">${eventText}${thinkingDetail}</span>
-    <span class="brain-event-time">${timeStr}</span>
-  `;
-
-  // Prepend newest first — remove placeholder if present
-  if (timeline.children.length === 1 && timeline.firstChild.textContent.includes("warming up")) {
-    timeline.innerHTML = "";
-  }
-  timeline.prepend(evEl);
-
-  // Keep max 20 events
-  while (timeline.children.length > 20) {
-    timeline.removeChild(timeline.lastChild);
-  }
+  renderTaskPipeline();
 }
 
 function updateBrainUptime() {
@@ -697,7 +635,6 @@ export async function renderTaskPipeline() {
 
       // For completed, only show last 3 collapsed
       const displayItems = status === "completed" ? items.slice(-3) : items;
-      const isCollapsed = status === "completed" || status === "denied";
 
       html += `<div class="pipeline-group pipeline-${config.cls}">`;
       html += `<div class="pipeline-group-header" style="border-left: 3px solid ${config.color}">`;
@@ -763,3 +700,54 @@ function formatTimeAgo(ts) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
   return `${Math.floor(diff / 86400)}d`;
 }
+
+/** Execute a global high-priority directive */
+export function executeDirective() {
+  if (!priorityInput) return;
+  const text = priorityInput.value.trim();
+  if (!text) return;
+
+  // Switch to chat view
+  if (welcomeScreen) welcomeScreen.style.display = "none";
+  if (chatScreen) chatScreen.style.display = "flex";
+
+  // Set as current message and send
+  const msgInput = document.getElementById("messageInput");
+  if (msgInput) {
+    msgInput.value = text;
+    sendMessage();
+    priorityInput.value = ""; // Clear directive
+  }
+}
+
+/** Update the Architect's Insight panel with AI meta-commentary */
+export function updateArchitectInsight(text, digest = null) {
+  if (insightContent) {
+    insightContent.textContent = text || "Standing by for reasoning vectors...";
+    insightContent.classList.toggle("italic", !text);
+  }
+  if (brainDigest) {
+    if (digest) {
+      brainDigest.innerHTML = escapeHtml(digest);
+      brainDigest.classList.remove("hidden");
+    } else {
+      brainDigest.classList.add("hidden");
+    }
+  }
+}
+
+// Wire insight panel buttons
+document.addEventListener("DOMContentLoaded", () => {
+  const analyzeBtn = document.querySelector("#architectInsight button:first-of-type");
+  const dismissBtn = document.querySelector("#architectInsight button:last-of-type");
+  
+  analyzeBtn?.addEventListener("click", () => {
+    // Force a reflection or deeper analysis
+    triggerReflection();
+  });
+  
+  dismissBtn?.addEventListener("click", () => {
+    updateArchitectInsight(null, null);
+  });
+});
+

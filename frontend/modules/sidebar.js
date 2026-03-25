@@ -32,48 +32,8 @@ export {
 let hwInterval = null;
 
 export async function pollHardware() {
-  try {
-    const r = await fetch(`${API}/api/hardware`);
-    const d = await r.json();
-
-    const cpuBar = document.getElementById("cpuBar");
-    const cpuVal = document.getElementById("cpuVal");
-    if (cpuBar && d.system) {
-      cpuBar.style.width = `${d.system.cpu_percent}%`;
-      cpuVal.textContent = `${Math.round(d.system.cpu_percent)}%`;
-      cpuBar.className = `hw-fill ${d.system.cpu_percent > 80 ? "hw-fill-red" : d.system.cpu_percent > 50 ? "hw-fill-yellow" : "hw-fill-green"}`;
-    }
-
-    const ramBar = document.getElementById("ramBar");
-    const ramVal = document.getElementById("ramVal");
-    if (ramBar && d.system) {
-      ramBar.style.width = `${d.system.ram_percent}%`;
-      ramVal.textContent = `${d.system.ram_used_gb}/${d.system.ram_total_gb} GB`;
-      ramBar.className = `hw-fill ${d.system.ram_percent > 85 ? "hw-fill-red" : d.system.ram_percent > 60 ? "hw-fill-yellow" : "hw-fill-green"}`;
-    }
-
-    const vramBar = document.getElementById("vramBar");
-    const vramVal = document.getElementById("vramVal");
-    const modelLabel = document.getElementById("modelLabel");
-    if (vramBar && d.models && d.models.length > 0) {
-      const m = d.models[0];
-      const pct = m.size_gb > 0 ? Math.round((m.vram_gb / m.size_gb) * 100) : 0;
-      vramBar.style.width = `${pct}%`;
-      vramVal.textContent = `${m.vram_gb} GB VRAM`;
-      modelLabel.textContent = m.name.split(":")[0];
-      vramBar.className = "hw-fill hw-fill-purple";
-    } else {
-      if (vramBar) vramBar.style.width = "0%";
-      if (vramVal) vramVal.textContent = "Warming up...";
-      if (modelLabel) modelLabel.textContent = "Model";
-      if (vramBar) vramBar.className = "hw-fill hw-fill-dim";
-    }
-
-    // Also poll autonomy status
-    await pollAutonomy();
-  } catch {
-    /* ignore */
-  }
+  // hardware polling consolidated to dashboard.js to reduce fetch overhead
+  await pollAutonomy();
 }
 
 export function startHwPolling() {
