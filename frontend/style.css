@@ -3037,7 +3037,7 @@ stroke-dasharray: 4 4;
 
 .neural-topology {
   width: 100%;
-  max-width: 560px;
+  max-width: 400px;
   margin-bottom: 16px;
   position: relative;
   margin: 0 auto;
@@ -3050,7 +3050,7 @@ stroke-dasharray: 4 4;
 .neural-svg {
   width: 100%;
   height: auto;
-  max-height: 120px;
+  max-height: 80px;
 }
 
 .neural-topology::before {
@@ -3176,12 +3176,12 @@ display: flex;
 
 .dash-hero {
 text-align: center;
-  padding-top: 0;
+  padding-top: 0; margin-bottom: 0;
 }
 
 .dash-hero h1 {
 font-family: var(--font-headline);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   background: var(--accent-gradient);
   -webkit-background-clip: text;
