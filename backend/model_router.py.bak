@@ -42,7 +42,7 @@ MODELS = {
         "name": "gemini-2.0-flash",
         "provider": "gemini",
         "privacy": "cloud",
-        "description": "Google Gemini Flash — fast cloud model (free tier)",
+        "description": "Google Gemini Flash — fast cloud model with game complexity simulation (free tier)",
     },
     "cloud_pro": {
         "name": "gemini-2.5-pro",

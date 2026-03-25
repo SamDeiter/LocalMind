@@ -656,29 +656,46 @@ export async function renderTaskPipeline() {
       // For completed, only show last 3 collapsed
       const displayItems = status === "completed" ? items.slice(-3) : items;
 
-      html += `<div class="pipeline-group pipeline-${config.cls}">`;
-      html += `<div class="pipeline-group-header" style="border-left: 3px solid ${config.color}">`;
-      html += `<span class="pipeline-group-icon">${config.icon}</span>`;
-      html += `<span class="pipeline-group-label">${config.label}</span>`;
-      html += `<span class="pipeline-group-count">${items.length}</span>`;
+      html += `<div class="pipeline-group pipeline-${config.cls} mb-6">`;
+      html += `<div class="flex items-center justify-between mb-3 px-1">`;
+      html += `  <div class="flex items-center gap-2">`;
+      html += `    <span class="text-sm">${config.icon}</span>`;
+      html += `    <span class="text-[10px] font-bold uppercase tracking-[0.2em]" style="color: ${config.color}">${config.label}</span>`;
+      html += `  </div>`;
+      html += `  <span class="text-[9px] font-bold bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-outline">${items.length}</span>`;
       html += `</div>`;
 
+      html += `<div class="space-y-2">`;
       for (const p of displayItems) {
         const title = escapeHtml(p.title || p.category || "Untitled");
-        const cat = p.category ? `<span class="pipeline-cat">${escapeHtml(p.category)}</span>` : "";
-        const timeAgo = p.created_at ? formatTimeAgo(p.created_at) : "";
+        const cat = p.category ? `<span class="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">${escapeHtml(p.category)}</span>` : "";
+        const timeAgo = p.created_at ? `<span class="text-[9px] text-outline/60 font-medium">${formatTimeAgo(p.created_at)}</span>` : "";
         const retryBtn = status === "failed"
-          ? `<button class="pipeline-retry" data-id="${escapeHtml(p.id)}" title="Retry">↻</button>`
+          ? `<button class="pipeline-retry p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Retry"><span class="material-symbols-outlined text-xs">refresh</span></button>`
+          : "";
+        const dismissBtn = status === "failed"
+          ? `<button class="pipeline-dismiss p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Dismiss"><span class="material-symbols-outlined text-xs">close</span></button>`
           : "";
 
-        html += `<div class="pipeline-item pipeline-item-${config.cls}">`;
-        html += `<span class="pipeline-item-title">${title}</span>`;
-        html += `<span class="pipeline-item-meta">${cat}${timeAgo ? ` · ${timeAgo}` : ""}${retryBtn}</span>`;
+        html += `<div class="group flex flex-col gap-1 p-3 rounded-lg bg-surface-container-low/40 border border-outline-variant/10 hover:border-primary/30 transition-all">`;
+        html += `  <div class="flex justify-between items-start gap-2">`;
+        html += `    <span class="text-[11px] font-medium text-on-surface leading-snug">${title}</span>`;
+        html += `    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">`;
+        html += `      ${retryBtn}`;
+        html += `      ${dismissBtn}`;
+        html += `    </div>`;
+        html += `  </div>`;
+        html += `  <div class="flex items-center gap-2 mt-1">`;
+        html += `    ${cat}`;
+        html += `    <span class="w-1 h-1 rounded-full bg-outline-variant/30"></span>`;
+        html += `    ${timeAgo}`;
+        html += `  </div>`;
         html += `</div>`;
       }
+      html += `</div>`;
 
       if (status === "completed" && items.length > 3) {
-        html += `<div class="pipeline-more">+${items.length - 3} more completed</div>`;
+        html += `<div class="mt-2 text-[10px] text-center font-bold uppercase tracking-widest text-outline/40 py-2 border border-dashed border-outline-variant/20 rounded-lg hover:text-outline/60 cursor-pointer transition-colors">+${items.length - 3} more records archived</div>`;
       }
 
       html += `</div>`;
@@ -731,13 +748,9 @@ export function executeDirective() {
   if (welcomeScreen) welcomeScreen.style.display = "none";
   if (chatScreen) chatScreen.style.display = "flex";
 
-  // Set as current message and send
-  const msgInput = document.getElementById("messageInput");
-  if (msgInput) {
-    msgInput.value = text;
-    sendMessage();
-    priorityInput.value = ""; // Clear directive
-  }
+  // Use the unified sendMessage logic
+  sendMessage();
+  // Note: priorityInput is cleared by sendMessage() or manually if needed
 }
 
 /** Update the Architect's Insight panel with AI meta-commentary */
@@ -768,6 +781,29 @@ document.addEventListener("DOMContentLoaded", () => {
   
   dismissBtn?.addEventListener("click", () => {
     updateArchitectInsight(null, null);
+  });
+
+  // Task Pipeline delegation
+  const taskPipelineBody = document.getElementById("taskPipelineBody");
+  taskPipelineBody?.addEventListener("click", (e) => {
+    const retryBtn = e.target.closest(".pipeline-retry");
+    if (retryBtn) {
+      const id = retryBtn.dataset.id;
+      window.dispatchEvent(new CustomEvent("task-retry", { detail: { id } }));
+    }
+    
+    const dismissBtn = e.target.closest(".pipeline-dismiss");
+    if (dismissBtn) {
+      const id = dismissBtn.dataset.id;
+      // Dispatch event for specialized handling (e.g., removing from list)
+      window.dispatchEvent(new CustomEvent("task-dismiss", { detail: { id } }));
+      // Locally remove the closest pipeline item for instant feedback
+      const item = e.target.closest(".group");
+      if (item) {
+        item.style.opacity = "0";
+        setTimeout(() => item.remove(), 300);
+      }
+    }
   });
 });
 

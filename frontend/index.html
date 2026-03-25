@@ -168,16 +168,21 @@
 <div class="relative group">
 <div class="absolute -inset-0.5 bg-primary/20 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
 <div class="relative bg-surface-container rounded-lg border border-outline-variant/40 flex flex-col">
-<textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline/40 resize-none min-h-[100px]" placeholder="Enter new global directive..."></textarea>
-<div class="flex items-center justify-between p-2 border-t border-outline-variant/10">
-<div class="flex gap-1">
-<button class="p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-white/5"><span class="material-symbols-outlined text-sm">public</span></button>
-<button class="p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-white/5"><span class="material-symbols-outlined text-sm">attach_file</span></button>
-</div>
-<button id="addPriorityBtn" class="bg-primary text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all">
-                        Execute
-                    </button>
-</div>
+    <div id="sidebarImagePreview" class="hidden p-2 bg-white/5 border-b border-outline-variant/10 relative">
+        <img id="sidebarPreviewImg" class="max-h-24 rounded border border-white/5 mx-auto" alt="Preview" />
+        <button id="sidebarRemoveImageBtn" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]">✕</button>
+    </div>
+    <textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline/40 resize-none min-h-[100px] custom-scrollbar" placeholder="Command LocalMind..."></textarea>
+    <div class="flex items-center justify-between p-2 border-t border-outline-variant/10">
+        <div class="flex gap-0.5">
+            <button id="sidebarUploadBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-white/5" title="Attach File"><span class="material-symbols-outlined text-sm">attach_file</span></button>
+            <button id="sidebarCameraBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-white/5" title="Camera"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
+            <button class="p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-white/5" title="Search Web"><span class="material-symbols-outlined text-sm">public</span></button>
+        </div>
+        <button id="addPriorityBtn" class="bg-primary text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all">
+            Execute
+        </button>
+    </div>
 </div>
 </div>
 </div>
@@ -390,28 +395,6 @@
     <div id="chatScreen" class="hidden flex flex-col h-full">
         <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pb-32">
             <!-- Messages populated by JS -->
-        </div>
-    </div>
-</div>
-
-<!-- Input Area (Fixed Bottom) -->
-<div class="absolute bottom-0 left-0 w-full p-8 pointer-events-none">
-    <div class="max-w-4xl mx-auto w-full pointer-events-auto">
-        <div class="glass-panel border border-white/10 rounded-2xl p-4 shadow-2xl">
-            <div id="imagePreview" class="hidden mb-4 p-2 bg-white/5 rounded-lg relative">
-                <img id="previewImg" class="max-h-32 rounded border border-white/10" alt="Image Preview" />
-                <button id="removeImageBtn" class="absolute top-1 right-1 bg-black/50 p-1 rounded-full text-white text-xs">✕</button>
-            </div>
-            <div class="flex items-end gap-3">
-                <div class="flex gap-1">
-                    <button id="uploadBtn" class="p-2 text-outline hover:text-primary"><span class="material-symbols-outlined">attach_file</span></button>
-                    <button id="cameraBtn" class="p-2 text-outline hover:text-primary"><span class="material-symbols-outlined">camera</span></button>
-                </div>
-                <textarea id="messageInput" rows="1" class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 resize-none max-h-48" placeholder="Command LocalMind..."></textarea>
-                <div class="flex gap-2">
-                    <button id="sendBtn" class="w-10 h-10 bg-primary text-on-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20"><span class="material-symbols-outlined">send</span></button>
-                </div>
-            </div>
         </div>
     </div>
 </div>
