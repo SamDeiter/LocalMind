@@ -59,12 +59,23 @@ export function bindEvents() {
     loadConversations();
   });
 
-  // Send button + Enter
-  sendBtn?.addEventListener("click", sendMessage);
+  // Unified Sidebar Input: Sends message in Chat mode, Executes directive in Dashboard mode
+  sendBtn?.addEventListener("click", () => {
+    if (chatScreen && !chatScreen.classList.contains("hidden")) {
+      sendMessage();
+    } else {
+      executeDirective();
+    }
+  });
+
   messageInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      if (chatScreen && !chatScreen.classList.contains("hidden")) {
+        sendMessage();
+      } else {
+        executeDirective();
+      }
     }
   });
   messageInput?.addEventListener("input", autoResize);
@@ -154,12 +165,7 @@ export function bindEvents() {
   $("#modeAutonomousBtn")?.addEventListener("click", () => setAutonomyMode("autonomous"));
 
   // Obsidian Specific Hooks
-  $("#addPriorityBtn")?.addEventListener("click", executeDirective);
   $("#editorToggle")?.addEventListener("click", toggleEditorPanel);
-  $("#newChatBtn")?.addEventListener("click", () => {
-     if (welcomeScreen) welcomeScreen.style.display = "none";
-     if (chatScreen) chatScreen.style.display = "flex";
-  });
 
   // Stop button
   $("#stopBtn")?.addEventListener("click", () => {

@@ -38,10 +38,10 @@ class GenerateUITool(BaseTool):
             "properties": {
                 "description": {
                     "type": "string",
-            "description": (
-                "Natural language description of the Java code snippet to generate. "
-                "Be specific about functionality and logic."
-            ),
+                    "description": (
+                        "Natural language description of the UI to generate. "
+                        "Be specific about layout, data to display, and style."
+                    ),
                 },
                 "component_type": {
                     "type": "string",
