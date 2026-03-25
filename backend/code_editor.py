@@ -155,10 +155,35 @@ async def identify_target_files(
 
         if not files_list:
             logger.warning("No project files found for targeting")
-            return []
+            return [], 0
+
+        files_set = set(files_list)
+
+        # ── Fast-path: use files_affected from the proposal if they resolve ──
+        proposal_files = proposal.get("files_affected", [])
+        if proposal_files and isinstance(proposal_files, list):
+            validated_fast = []
+            for pf in proposal_files:
+                pf = pf.strip().strip("/").replace("\\", "/")
+                if pf in files_set and not is_protected_file(pf):
+                    validated_fast.append(pf)
+                else:
+                    # Fuzzy: try matching by basename
+                    basename = pf.rsplit("/", 1)[-1]
+                    matches = [f for f in files_list if f.endswith("/" + basename) or f == basename]
+                    if len(matches) == 1 and not is_protected_file(matches[0]):
+                        validated_fast.append(matches[0])
+                        logger.info(f"Fast-path fuzzy matched '{pf}' → '{matches[0]}'")
+
+            if validated_fast:
+                logger.info(f"Fast-path targeting: {validated_fast} (from proposal.files_affected)")
+                if emit_activity:
+                    emit_activity("info", f"Using proposal files: {', '.join(validated_fast[:3])}")
+                return validated_fast[:2], len(validated_fast[:2]) * 50
+
+            logger.info(f"Fast-path failed: proposal files {proposal_files} didn't match real files. Falling back to LLM.")
 
         numbered = "\n".join(f"  {i+1}. {f}" for i, f in enumerate(files_list[:80]))
-        files_set = set(files_list)
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             prompt = (
@@ -187,7 +212,7 @@ async def identify_target_files(
 
             if resp.status_code != 200:
                 logger.warning(f"Ollama returned {resp.status_code} for targeting")
-                return []
+                return [], 0
 
             text = resp.json().get("response", "").strip()
             if "```" in text:
@@ -212,8 +237,18 @@ async def identify_target_files(
                         pass
 
             if not candidates:
-                logger.warning(f"Could not parse file targeting response: {text[:200]}")
-                return []
+                # Fallback: sweep the raw text for any matching filenames
+                for word in text.replace('"', ' ').replace("'", " ").replace(",", " ").split():
+                    word = word.strip("[].,-")
+                    if not word: 
+                        continue
+                    if word in files_set or any(f.endswith("/" + word) or f == word for f in files_list):
+                        if word not in candidates:
+                            candidates.append(word)
+                            
+                if not candidates:
+                    logger.warning(f"Could not parse file targeting response: {text[:200]}")
+                    return [], 0
 
             validated = []
             for candidate in candidates:
@@ -239,12 +274,13 @@ async def identify_target_files(
                         if emit_activity:
                             emit_activity("info", f"Ignored hallucinated path: {candidate}")
 
-            return validated[:2]
+            # Return list of mapped files, plus an estimation parameter for total size/tokens
+            return validated[:2], len(validated[:2]) * 50
 
     except Exception as exc:
         logger.warning(f"Failed to identify target files: {exc}")
 
-    return []
+    return [], 0
 
 
 async def edit_single_file(
@@ -254,7 +290,7 @@ async def edit_single_file(
     editing_model: str,
     log_fn=None,
     emit_activity=None,
-) -> bool:
+) -> tuple[bool, int]:
     """Read a file, ask AI for a search-and-replace diff, apply it.
 
     Uses a targeted diff approach instead of whole-file rewrite,
@@ -263,13 +299,13 @@ async def edit_single_file(
     Returns True if the edit was successfully applied.
     """
     if is_protected_file(relative_path):
-        return False
+        return False, 0
 
     target = (PROJECT_ROOT / relative_path).resolve()
 
     if not target.exists():
         logger.warning(f"File not found: {relative_path}")
-        return False
+        return False, 0
 
     try:
         original_content = target.read_text(encoding="utf-8", errors="replace")
@@ -323,14 +359,14 @@ async def edit_single_file(
                 logger.warning(f"Ollama returned {resp.status_code} for edit")
                 if emit_activity:
                     emit_activity("error", f"Edit failed: Ollama HTTP {resp.status_code} for {relative_path}")
-                return False
+                return False, 0
 
             raw_response = resp.json().get("response", "").strip()
 
         # Parse the search/replace JSON
         diff = _parse_diff_response(raw_response, relative_path, emit_activity)
         if diff is None:
-            return False
+            return False, 0
 
         search_text = diff.get("search", "")
         replace_text = diff.get("replace", "")
@@ -344,7 +380,7 @@ async def edit_single_file(
             logger.info(f"AI returned no-op for {relative_path}: {explanation}")
             if emit_activity:
                 emit_activity("info", f"Skipped: No changes needed for {relative_path}")
-            return False
+            return False, 0
 
         # ── Multi-layer search matching ──
         new_content = _apply_search_replace(original_content, search_text, replace_text, relative_path)
@@ -356,7 +392,7 @@ async def edit_single_file(
             )
             if emit_activity:
                 emit_activity("error", f"Edit failed: search text not found in {relative_path}")
-            return False
+            return False, 0
 
         # Syntax validation for Python files
         if relative_path.endswith(".py"):
@@ -366,7 +402,7 @@ async def edit_single_file(
                 logger.warning(f"AI produced invalid Python for {relative_path}: {syn_err}")
                 if emit_activity:
                     emit_activity("error", f"Edit rejected: syntax error in {relative_path} line {syn_err.lineno}")
-                return False
+                return False, 0
 
         # Create backup and write
         backup = target.with_suffix(target.suffix + ".bak")
@@ -386,11 +422,11 @@ async def edit_single_file(
         if emit_activity:
             emit_activity("edited", f"Applied: {explanation}", file=relative_path)
 
-        return True
+        return True, 500
 
     except Exception as exc:
         logger.error(f"Failed to edit {relative_path}: {exc}")
-        return False
+        return False, 0
 
 
 def _strip_line_numbers(text: str) -> str:
