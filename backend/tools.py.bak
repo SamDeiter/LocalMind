@@ -39,7 +39,7 @@ def read_file(path: str, working_dir: str) -> dict:
         if not target.is_file():
             return {"success": False, "error": f"Not a file: {path}"}
 
-        content = target.read_text(encoding="utf-8", errors="strict")
+        content = target.read_text(encoding="utf-8", errors="replace")
         lines = content.split("\n")
         truncated = len(lines) > MAX_FILE_LINES
 
