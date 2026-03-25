@@ -14,56 +14,57 @@
             colors: {
               "on-tertiary-container": "#626dd7",
               "surface-container-low": "#111111",
-              "on-background": "#e5e2e1",
+              "on-background": "#FFFFFF",
               "tertiary-container": "#000125",
               "tertiary-fixed": "#e0e0ff",
               "inverse-on-surface": "#313030",
               "inverse-primary": "#494bd6",
-              "primary-container": "#010027",
-              "on-surface": "#e5e2e1",
+              "primary-container": "#1A1B22",
+              "on-surface": "#FFFFFF",
               "on-tertiary-fixed": "#000767",
-              "surface-variant": "#222222",
-              "secondary-container": "#04b4a2",
-              "primary": "#c0c1ff",
+              "surface-variant": "#1A1B22",
+              "secondary-container": "#4FD1C5",
+              "primary": "#4FD1C5", /* Accent Teal */
+              "accent-purple": "#9F7AEA",
               "outline-variant": "#2a2a2a",
-              "surface-container": "#0a0a0a",
+              "surface-container": "#1A1B22", /* Surface */
               "on-error-container": "#ffdad6",
               "primary-fixed": "#e1e0ff",
-              "outline": "#444444",
-              "surface-container-lowest": "#050505",
+              "outline": "#A0AEC0", /* Secondary Text */
+              "surface-container-lowest": "#111217", /* Background */
               "on-tertiary": "#131e8c",
-              "on-primary-container": "#6366f1",
-              "surface": "#050505",
-              "surface-container-high": "#161616",
+              "on-primary-container": "#4FD1C5",
+              "surface": "#111217",
+              "surface-container-high": "#1A1B22",
               "error": "#ffb4ab",
-              "background": "#050505",
+              "background": "#111217",
               "inverse-surface": "#e5e2e1",
               "on-secondary-fixed": "#00201c",
-              "secondary": "#4fdbc8",
+              "secondary": "#4FD1C5",
               "surface-container-highest": "#1c1c1c",
               "surface-bright": "#222222",
-              "surface-tint": "#c0c1ff",
-              "on-surface-variant": "#999999",
+              "surface-tint": "#4FD1C5",
+              "on-surface-variant": "#A0AEC0",
               "on-tertiary-fixed-variant": "#2f3aa3",
               "on-secondary-container": "#003f38",
               "on-primary-fixed-variant": "#2f2ebe",
               "error-container": "#93000a",
-              "surface-dim": "#050505",
+              "surface-dim": "#111217",
               "on-primary-fixed": "#07006c",
               "on-secondary-fixed-variant": "#005048",
-              "on-secondary": "#003731",
-              "on-primary": "#1000a9",
-              "tertiary": "#bdc2ff",
-              "secondary-fixed": "#71f8e4",
+              "on-secondary": "#111217",
+              "on-primary": "#111217",
+              "tertiary": "#9F7AEA",
+              "secondary-fixed": "#4FD1C5",
               "on-error": "#690005",
-              "tertiary-fixed-dim": "#bdc2ff",
-              "secondary-fixed-dim": "#4fdbc8",
-              "primary-fixed-dim": "#c0c1ff"
+              "tertiary-fixed-dim": "#9F7AEA",
+              "secondary-fixed-dim": "#4FD1C5",
+              "primary-fixed-dim": "#4FD1C5"
             },
             fontFamily: {
-              "headline": ["Space Grotesk"],
-              "body": ["Inter"],
-              "label": ["Inter"]
+              "headline": ["Space Grotesk", "sans-serif"],
+              "body": ["Inter", "sans-serif"],
+              "label": ["Inter", "sans-serif"]
             },
             borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
           },
@@ -75,24 +76,68 @@
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
         .glass-panel {
-            background: rgba(10, 10, 10, 0.6);
-            backdrop-filter: blur(32px);
+            background: rgba(26, 27, 34, 0.7); /* Surface with alpha */
+            backdrop-filter: blur(24px);
         }
         .console-border {
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .custom-scrollbar::-webkit-scrollbar {
-            width: 2px;
+            width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
             background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
         }
-        /* Integrate Monaco & Existing Layout */
+        /* Toast Notification Styles */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .toast {
+            background: #1A1B22;
+            border: 1px solid rgba(79, 209, 197, 0.3);
+            border-left: 4px solid #4FD1C5;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            color: #FFFFFF;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            pointer-events: auto;
+            min-width: 300px;
+        }
+        .toast.visible { transform: translateX(0); }
+        .toast-success { border-left-color: #4FD1C5; }
+        .toast-error { border-left-color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+        .toast-close { opacity: 0.5; font-size: 1.2rem; cursor: pointer; }
+        .toast-close:hover { opacity: 1; }
+
+        /* ArXiv Search UI Enhancements */
+        #arxivResults .insight-card {
+            background: #1A1B22;   /* Surface color */
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s ease;
+        }
+        #arxivResults .insight-card:hover { border-color: rgba(79, 209, 197, 0.4); }
+
         #monacoContainer { height: 100%; width: 100%; background: #000; }
-        .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+        .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; background: #111217; }
         .editor-panel { display: none; flex: 1; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.08); background: #000; }
         .main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
     </style>
@@ -106,13 +151,13 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 </head>
-<body class="bg-[#050505] text-on-background font-body selection:bg-primary/30 selection:text-primary overflow-hidden h-screen flex">
+<body class="bg-[#111217] text-on-background font-body selection:bg-primary/30 selection:text-primary overflow-hidden h-screen flex">
 <div class="app-container w-full">
-<nav class="w-20 lg:w-72 flex flex-col border-r border-outline-variant/30 bg-surface-container-lowest z-50">
+<nav class="w-20 lg:w-72 flex flex-col border-r border-outline-variant/30 bg-[#111217] z-50">
 <div class="p-6 border-b border-outline-variant/20 flex items-center gap-3">
 <span class="material-symbols-outlined text-primary text-3xl cursor-pointer" id="homeBtn">cyclone</span>
 <div class="hidden lg:block">
-<h1 class="text-sm font-bold tracking-[0.2em] uppercase leading-none">Obsidian</h1>
+<h1 class="text-sm font-bold tracking-[0.2em] uppercase leading-none font-headline">Obsidian</h1>
 <p class="text-[9px] text-outline uppercase tracking-widest mt-1">Exec Dashboard</p>
 </div>
 </div>
@@ -141,7 +186,7 @@
 <h3 class="text-[10px] font-bold uppercase tracking-widest text-outline">Navigation</h3>
 </div>
 <div class="flex flex-col gap-1 px-2 lg:px-4">
-<button class="flex items-center gap-4 p-3 rounded-lg text-primary bg-primary/5 border border-primary/10" onclick="document.getElementById('welcomeScreen').style.display='flex'; document.getElementById('chatScreen').style.display='none';">
+<button class="flex items-center gap-4 p-3 rounded-lg text-primary bg-primary/5 border border-primary/10" id="overviewBtn">
 <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">dashboard</span>
 <span class="hidden lg:block text-xs font-medium uppercase tracking-widest">Global Overview</span>
 </button>
