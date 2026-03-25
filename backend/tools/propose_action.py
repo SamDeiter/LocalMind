@@ -23,7 +23,7 @@ logger = logging.getLogger("localmind.tools.propose_action")
 # ── Pending approvals store (in-memory + file-backed) ─────────────────
 _pending: dict[str, asyncio.Event] = {}
 _decisions: dict[str, bool] = {}
-_approval_log_path = Path.home() / "LocalMind_Workspace" / ".approvals.json"
+_approval_log_path = Path.home() / "LocalMind_Workspace" / "weyl_group_approvals.json"
 
 
 def _load_approval_log() -> list[dict]:
