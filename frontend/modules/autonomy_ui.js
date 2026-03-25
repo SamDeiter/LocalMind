@@ -17,7 +17,11 @@ export async function pollAutonomy() {
     const label = document.getElementById("autonomyLabel");
     const loadingBanner = document.getElementById("brainLoadingBanner");
     const brainPulse = document.getElementById("brainPulse");
-    const modelReady = d.health_check && d.health_check.model_loaded;
+    // Model is ready if health_check says so, OR if the engine is actively working
+    const healthReady = d.health_check && d.health_check.model_loaded;
+    const engineActive = (d.ideas_generated || 0) > 0 || (d.current_task && d.current_task !== "idle");
+    const modelReady = healthReady || engineActive;
+
 
     if (indicator) {
       indicator.className = d.enabled ? "autonomy-dot autonomy-active" : "autonomy-dot autonomy-paused";

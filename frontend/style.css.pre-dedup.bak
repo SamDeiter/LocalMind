@@ -17,8 +17,8 @@
   --bg-hover: rgba(175, 162, 255, 0.08);
   --bg-active: rgba(175, 162, 255, 0.15);
   --text-primary: #ededf5;
-  --text-secondary: #aaabb2;
-  --text-muted: #6b6c73;
+  --text-secondary: #bfc0c7;
+  --text-muted: #8e8f96;
   --accent: #afa2ff;
   --accent-hover: #c4baff;
   --accent-glow: rgba(175, 162, 255, 0.25);
@@ -611,7 +611,7 @@ body {
   top: 8px;
   right: 8px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -958,7 +958,7 @@ body {
 /* Version badge in sidebar */
 .version-badge {
   padding: 8px 18px;
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.3);
   text-align: center;
@@ -1006,7 +1006,7 @@ body {
   padding: 6px 12px;
   background: rgba(0, 0, 0, 0.3);
   border-bottom: 1px solid var(--border);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .code-viewer-filename {
   font-family: "JetBrains Mono", monospace;
@@ -1022,7 +1022,7 @@ body {
   padding: 2px 8px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   transition: all 0.2s;
   flex-shrink: 0;
 }
@@ -1066,19 +1066,19 @@ body {
 .thinking-meta {
   margin-left: auto;
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
 }
 .thinking-toggle {
   color: var(--text-muted);
-  font-size: 0.7rem;
+  font-size: 0.85rem;
 }
 .thinking-body {
   padding: 8px 12px;
   border-top: 1px solid var(--border);
   color: var(--text-secondary);
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.6;
 }
 .thinking-body strong {
@@ -1107,7 +1107,7 @@ body {
   color: #afa2ff;
   border-radius: 10px;
   padding: 1px 7px;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   margin-left: auto;
 }
 .document-list {
@@ -1124,7 +1124,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 6px 16px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.6);
   transition: background 0.2s;
 }
@@ -1141,7 +1141,7 @@ body {
   white-space: nowrap;
 }
 .doc-chunks {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.3);
 }
 
@@ -1165,7 +1165,7 @@ body {
   flex: 1;
 }
 .hw-metric-label {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.35);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1202,7 +1202,7 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 .hw-metric-val {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.4);
   min-width: 60px;
   text-align: right;
@@ -1277,7 +1277,7 @@ body {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 10px;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 600;
   margin-left: 8px;
   letter-spacing: 0.02em;
@@ -1306,7 +1306,7 @@ body {
 }
 .memory-empty {
   padding: 12px 16px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.35);
   font-style: italic;
 }
@@ -1315,7 +1315,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 5px 16px;
-  font-size: 0.73rem;
+  font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.6);
   transition: background 0.2s;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
@@ -1324,7 +1324,7 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 .memory-cat {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   padding: 1px 5px;
   border-radius: 6px;
   font-weight: 600;
@@ -1359,7 +1359,7 @@ body {
   white-space: nowrap;
 }
 .memory-time {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.25);
   flex-shrink: 0;
   min-width: 70px;
@@ -1370,7 +1370,7 @@ body {
   border: none;
   color: rgba(255, 255, 255, 0.2);
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   padding: 2px 4px;
   border-radius: 3px;
   transition: all 0.15s;
@@ -1430,19 +1430,19 @@ body {
   gap: 6px;
 }
 .proposal-type {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: rgba(255, 255, 255, 0.5);
 }
 .proposal-priority {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: capitalize;
 }
 .proposal-status-badge {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.4);
   text-transform: capitalize;
   margin-left: auto;
@@ -1455,13 +1455,13 @@ body {
   line-height: 1.3;
 }
 .proposal-desc {
-  font-size: 0.73rem;
+  font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.5);
   margin-bottom: 6px;
   line-height: 1.4;
 }
 .proposal-result {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: #4ade80;
   margin-top: 4px;
   padding: 4px 8px;
@@ -1469,7 +1469,7 @@ body {
   border-radius: 4px;
 }
 .proposal-error {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: #f87171;
   margin-top: 4px;
   padding: 4px 8px;
@@ -1483,7 +1483,7 @@ body {
 }
 .proposal-actions .approval-btn {
   padding: 4px 10px;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   border-radius: 6px;
   border: 1px solid transparent;
   cursor: pointer;
@@ -1543,7 +1543,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   color: rgba(255, 255, 255, 0.5);
@@ -1605,7 +1605,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 4px 12px;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.5);
   background: #181818;
   border-top: 1px solid var(--border);
@@ -1632,7 +1632,7 @@ body {
   color: #60a5fa;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 500;
   margin-left: auto;
   white-space: nowrap;
@@ -1705,7 +1705,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 4px 12px;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   color: rgba(255, 255, 255, 0.5);
@@ -1802,7 +1802,7 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .approval-risk {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 6px;
@@ -1977,7 +1977,7 @@ body {
 
 .activity-time {
   flex-shrink: 0;
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: rgba(255,255,255,0.35);
   font-family: 'JetBrains Mono', monospace;
   white-space: nowrap;
@@ -2010,7 +2010,7 @@ body {
   border: none;
   background: transparent;
   color: rgba(255,255,255,0.45);
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
@@ -2092,7 +2092,7 @@ body {
 }
 
 .brain-mode {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   padding: 3px 10px;
   border-radius: 20px;
   background: rgba(96, 165, 250, 0.12);
@@ -2116,7 +2116,7 @@ body {
 
 .brain-stat-label {
   display: block;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: rgba(255,255,255,0.35);
@@ -2158,7 +2158,7 @@ body {
 
 .brain-event-time {
   flex-shrink: 0;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: rgba(255,255,255,0.25);
   font-family: 'JetBrains Mono', monospace;
 }
@@ -2195,7 +2195,7 @@ body {
   border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: 8px;
   color: #f59e0b;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 500;
   width: 100%;
 }
@@ -2229,14 +2229,14 @@ body {
 }
 
 .brain-focus-label {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: #60a5fa;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .brain-model-info {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.4);
   font-family: 'JetBrains Mono', monospace;
 }
@@ -2264,7 +2264,7 @@ body {
 }
 
 .brain-task-description {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.5);
   margin-bottom: 8px;
   font-style: italic;
@@ -2273,7 +2273,7 @@ body {
 }
 
 .brain-event-desc {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.35);
   font-style: italic;
   line-height: 1.3;
@@ -2316,7 +2316,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 5px 10px;
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--text-secondary);
   background: rgba(175, 162, 255, 0.06);
   border-radius: var(--radius-xs);
@@ -2326,7 +2326,7 @@ body {
   flex: 1;
 }
 .priority-item .priority-badge {
-  font-size: 10px;
+  font-size: 12px;
   padding: 1px 6px;
   border-radius: 4px;
   text-transform: uppercase;
@@ -2385,7 +2385,7 @@ body {
 
 /* ── Confidence Badge ─────────────────────────────────────────── */
 .confidence-badge {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 4px;
@@ -2395,7 +2395,7 @@ body {
 /* ── Rollback Button ──────────────────────────────────────────── */
 .rollback-btn {
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: 13px;
   font-family: var(--font);
   color: var(--text-secondary);
   background: rgba(255, 107, 152, 0.08);
@@ -2420,7 +2420,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: 13px;
 }
 .cat-label {
   width: 80px;
@@ -2449,7 +2449,7 @@ body {
 .cat-stat {
   width: 50px;
   text-align: right;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -2460,11 +2460,11 @@ body {
   align-items: center;
   gap: 4px;
   margin-top: 6px;
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 .tl-step { opacity: 0.8; }
-.tl-arrow { color: rgba(255,255,255,0.2); font-size: 9px; }
+.tl-arrow { color: rgba(255,255,255,0.2); font-size: 11px; }
 
 /* Toast Notifications */
 .toast-container {
@@ -2550,7 +2550,7 @@ body {
   border: 1px solid rgba(94, 234, 212, 0.2);
   color: #5eead4;
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: 0.2s;
   display: flex;
@@ -2570,7 +2570,7 @@ body {
   color: rgba(255, 255, 255, 0.7);
   padding: 4px 12px;
   border-radius: 99px;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -2596,7 +2596,7 @@ body {
 
 /* Brain Mode Pill */
 .brain-mode {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   font-weight: 600;
   padding: 3px 10px;
   border-radius: 99px;
@@ -2709,7 +2709,7 @@ h1, h2, h3 {
   background: var(--bg-primary);
   border-top: 1px solid var(--border);
   font-family: var(--font);
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -2801,7 +2801,7 @@ h1, h2, h3 {
 .btn-brain-action {
   padding: 5px 12px;
   font-family: var(--font-headline);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2827,7 +2827,7 @@ h1, h2, h3 {
 }
 .brain-mode {
   padding: 5px 12px;
-  font-size: 10px;
+  font-size: 12px;
   font-family: var(--font-headline);
   font-weight: 600;
   text-transform: uppercase;
@@ -2861,7 +2861,7 @@ h1, h2, h3 {
 }
 .brain-stat-label {
   font-family: var(--font-headline);
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-muted);
@@ -2908,14 +2908,14 @@ h1, h2, h3 {
 }
 .brain-event-desc {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   font-style: italic;
   margin-top: 2px;
 }
 .brain-event-time {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-muted);
   flex-shrink: 0;
 }
@@ -3034,7 +3034,7 @@ h1, h2, h3 {
 }
 .metric-label {
   font-family: var(--font-headline);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-muted);
@@ -3136,7 +3136,7 @@ h1, h2, h3 {
 }
 .thought-stream-title {
   font-family: var(--font-headline);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -3144,7 +3144,7 @@ h1, h2, h3 {
 }
 .thought-stream-live {
   font-family: var(--font-headline);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.15em;
   color: #00eefc;
@@ -3182,7 +3182,7 @@ h1, h2, h3 {
   margin-top: 6px;
   padding: 6px 8px;
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--text-muted);
   background: rgba(0, 0, 0, 0.2);
@@ -3195,7 +3195,7 @@ h1, h2, h3 {
 .brain-thinking-files {
   margin-top: 4px;
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  font-size: 10px;
+  font-size: 12px;
   color: #a78bfa;
 }
 
@@ -3210,7 +3210,7 @@ h1, h2, h3 {
   background: var(--bg-primary);
   border-top: 1px solid var(--border);
   font-family: var(--font);
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -3261,7 +3261,7 @@ h1, h2, h3 {
 }
 .sidebar-section-header {
     padding: 10px 18px;
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -3281,7 +3281,7 @@ h1, h2, h3 {
     color: var(--accent);
     border-radius: 10px;
     padding: 1px 8px;
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     font-weight: 600;
     margin-left: auto;
     letter-spacing: 0;
@@ -3373,7 +3373,7 @@ h1, h2, h3 {
   margin-bottom: 6px;
 }
 .arxiv-card-authors {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--accent);
   font-style: italic;
   overflow: hidden;
@@ -3382,18 +3382,18 @@ h1, h2, h3 {
 }
 .arxiv-card-date {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-muted);
   flex-shrink: 0;
 }
 .arxiv-card-abstract {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-secondary);
   margin-bottom: 6px;
 }
 .arxiv-card-link {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--accent);
   letter-spacing: 0.02em;
@@ -3402,7 +3402,7 @@ h1, h2, h3 {
 .arxiv-apply-btn {
   margin-top: 8px;
   padding: 6px 14px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   font-family: var(--font);
   cursor: pointer;
@@ -3449,7 +3449,7 @@ h1, h2, h3 {
 /* ── Save-to-Context Button ───────────────────────────────── */
 .arxiv-context-btn {
   padding: 6px 14px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   font-family: var(--font);
   cursor: pointer;
@@ -3476,7 +3476,7 @@ h1, h2, h3 {
 /* ── ArXiv Badge on Proposals ─────────────────────────────── */
 .badge-arxiv {
   display: inline-block;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 8px;
@@ -3494,7 +3494,7 @@ h1, h2, h3 {
   padding: 10px 0 4px;
 }
 .arxiv-page-btn {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   font-family: var(--font);
   padding: 4px 12px;
@@ -3514,7 +3514,7 @@ h1, h2, h3 {
   cursor: not-allowed;
 }
 .arxiv-page-info {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
