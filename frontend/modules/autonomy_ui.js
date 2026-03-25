@@ -325,9 +325,29 @@ export async function setAutonomyMode(mode) {
     });
     const d = await r.json();
     if (d.ok) {
-      // Update button states
-      document.getElementById("modeSupervisedBtn")?.classList.toggle("active", mode === "supervised");
-      document.getElementById("modeAutonomousBtn")?.classList.toggle("active", mode === "autonomous");
+      // Update button states with Obsidian-themed classes
+      const supervisedBtn = document.getElementById("modeSupervisedBtn");
+      const autonomousBtn = document.getElementById("modeAutonomousBtn");
+
+      if (supervisedBtn) {
+        if (mode === "supervised") {
+          supervisedBtn.classList.remove("bg-surface-container-highest", "text-on-surface-variant", "border-outline-variant/30");
+          supervisedBtn.classList.add("bg-secondary", "text-on-secondary", "border-secondary", "shadow-lg", "shadow-secondary/20");
+        } else {
+          supervisedBtn.classList.add("bg-surface-container-highest", "text-on-surface-variant", "border-outline-variant/30");
+          supervisedBtn.classList.remove("bg-secondary", "text-on-secondary", "border-secondary", "shadow-lg", "shadow-secondary/20");
+        }
+      }
+
+      if (autonomousBtn) {
+        if (mode === "autonomous") {
+          autonomousBtn.classList.remove("bg-surface-container-highest", "text-on-surface-variant", "border-outline-variant/30", "bg-primary/10", "border-primary/20", "text-primary");
+          autonomousBtn.classList.add("bg-primary", "text-on-primary", "border-primary", "shadow-lg", "shadow-primary/20");
+        } else {
+          autonomousBtn.classList.add("bg-surface-container-highest", "text-on-surface-variant", "border-outline-variant/30");
+          autonomousBtn.classList.remove("bg-primary", "text-on-primary", "border-primary", "shadow-lg", "shadow-primary/20", "bg-primary/10", "border-primary/20", "text-primary");
+        }
+      }
       console.log(`[LocalMind] Autonomy mode: ${mode}`);
     }
   } catch (e) {
