@@ -21,10 +21,10 @@ logger = logging.getLogger("localmind.model_router")
 # ── Model Definitions ──────────────────────────────────────────────────
 MODELS = {
     "local_micro": {
-        "name": "gemma3:4b",
+        "name": "llama3.3:70b",
         "provider": "ollama",
         "privacy": "fully_private",
-        "description": "Tiny local model for instant startup and simple chat",
+        "description": "Local model for startup and simple chat",
     },
     "local_light": {
         "name": "llama3.3:70b",

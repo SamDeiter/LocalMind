@@ -219,11 +219,20 @@ class AutonomyEngine:
 
     async def start(self):
         logger.info("🚀 Starting Autonomy Engine...")
-        asyncio.create_task(run_health_loop(self))
-        asyncio.create_task(run_reflection_loop(self))
-        asyncio.create_task(run_execution_loop(self))
-        asyncio.create_task(run_auto_research_loop(self))
-        asyncio.create_task(run_digest_loop(self))
+        self._tasks = [
+            asyncio.create_task(run_health_loop(self)),
+            asyncio.create_task(run_reflection_loop(self)),
+            asyncio.create_task(run_execution_loop(self)),
+            asyncio.create_task(run_auto_research_loop(self)),
+            asyncio.create_task(run_digest_loop(self)),
+        ]
+
+    async def stop(self):
+        """Gracefully cancel all background tasks."""
+        logger.info("🛑 Stopping Autonomy Engine...")
+        for task in getattr(self, "_tasks", []):
+            task.cancel()
+        self._tasks = []
 
     async def _run_reflection(self):
         return await run_reflection_cycle(self)
