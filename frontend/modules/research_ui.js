@@ -47,14 +47,14 @@ export async function searchArxiv(query, page = 0) {
     if (!resultsEl) return;
 
     if (data.error) {
-      resultsEl.innerHTML = `<div class="arxiv-empty">⚠️ ${escapeHtml(data.error)}</div>`;
+      resultsEl.innerHTML = `<div class="text-center text-[12px] text-[#787878] py-6">⚠️ ${escapeHtml(data.error)}</div>`;
       return;
     }
 
     const papers = data.papers || [];
     if (papers.length === 0) {
       resultsEl.innerHTML =
-        '<div class="arxiv-empty">No papers found. Try a different query.</div>';
+        '<div class="text-center text-[12px] text-[#787878] py-6">No papers found. Try a different query.</div>';
       return;
     }
 
@@ -103,10 +103,10 @@ export async function searchArxiv(query, page = 0) {
 
     // Pagination controls
     html += `
-      <div class="arxiv-pagination">
-        <button class="arxiv-page-btn" id="arxivPrevPage" ${page === 0 ? "disabled" : ""}>◀ Prev</button>
-        <span class="arxiv-page-info">Page ${page + 1}</span>
-        <button class="arxiv-page-btn" id="arxivNextPage" ${papers.length < 8 ? "disabled" : ""}>Next ▶</button>
+      <div class="flex items-center justify-center gap-3 pt-4 pb-2">
+        <button class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#baafff] bg-[#383344] border border-[#4d4872] rounded hover:bg-[#464057] disabled:opacity-30 disabled:cursor-not-allowed transition-all" id="arxivPrevPage" ${page === 0 ? "disabled" : ""}>◀ Prev</button>
+        <span class="text-[11px] font-mono text-[#787878]">Page ${page + 1}</span>
+        <button class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#baafff] bg-[#383344] border border-[#4d4872] rounded hover:bg-[#464057] disabled:opacity-30 disabled:cursor-not-allowed transition-all" id="arxivNextPage" ${papers.length < 8 ? "disabled" : ""}>Next ▶</button>
       </div>`;
 
     resultsEl.innerHTML = html;
@@ -149,7 +149,7 @@ export async function searchArxiv(query, page = 0) {
     console.error("ArXiv search error:", err);
     if (resultsEl) {
       resultsEl.innerHTML =
-        '<div class="arxiv-empty">❌ Search failed — is the server running?</div>';
+        '<div class="text-center text-[12px] text-[#787878] py-6">❌ Search failed — is the server running?</div>';
     }
   } finally {
     _searching = false;

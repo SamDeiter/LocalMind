@@ -105,11 +105,14 @@ function populateInitialEvents(recentEvents) {
       const icon = ACTION_ICONS[event.action] || "📋";
       const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
       const evEl = document.createElement("div");
-      evEl.className = `brain-event ${isActive ? "brain-event-active" : ""}`;
+      const colorClass = isActive ? "bg-primary" : "bg-surface-variant";
+      evEl.className = "flex gap-3 py-1";
       evEl.innerHTML = `
-        <span class="brain-event-icon">${icon}</span>
-        <span class="brain-event-text">${escapeHtml(event.detail || event.action)}</span>
-        <span class="brain-event-time">${event.time || ""}</span>
+        <div class="w-1 self-stretch ${colorClass} rounded-full"></div>
+        <div class="flex-1 min-w-0">
+            <p class="text-[11px] text-on-surface-variant leading-snug break-words">${escapeHtml(event.detail || event.action)}</p>
+        </div>
+        <span class="text-[9px] font-mono opacity-30 shrink-0">${event.time || ""}</span>
       `;
       timeline.appendChild(evEl);
     }
@@ -122,11 +125,19 @@ function populateInitialEvents(recentEvents) {
       const icon = ACTION_ICONS[event.action] || "📋";
       const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
       const item = document.createElement("div");
-      item.className = `activity-item ${isActive ? "activity-active" : "activity-idle"}`;
+      item.className = "group flex gap-3";
+      const label = isActive ? event.action.toUpperCase() : "INFO";
+      const colorClass = isActive ? "bg-primary" : "bg-surface-variant";
+      const textColor = isActive ? "text-primary" : "text-on-surface-variant";
       item.innerHTML = `
-        <span class="activity-icon">${icon}</span>
-        <span class="activity-text">${escapeHtml(event.detail || event.action)}</span>
-        <span class="activity-time">${event.time || ""}</span>
+        <div class="w-1 self-stretch ${colorClass} rounded-full mt-1"></div>
+        <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-[10px] font-bold ${textColor} uppercase tracking-tight">${label}</span>
+                <span class="text-[9px] font-mono opacity-30">${event.time || ""}</span>
+            </div>
+            <p class="text-[11px] text-on-surface-variant leading-snug break-words">${escapeHtml(event.detail || event.action)}</p>
+        </div>
       `;
       feed.appendChild(item);
     }

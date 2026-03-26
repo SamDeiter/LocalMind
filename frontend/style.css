@@ -1,4 +1,5 @@
-/* Project Obsidian — Main Stylesheet */
+/* Project Obsidian — Root Design Tokens Only */
+/* All component styling uses Tailwind inline classes. */
 
 :root {
   --bg-primary: #050505;
@@ -8,18 +9,3 @@
   --text-muted: #999999;
   --border: rgba(255, 255, 255, 0.08);
 }
-
-.activity-item {
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background: rgba(10, 10, 10, 0.6);
-  border: 1px solid var(--border);
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-}
-.activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
-.activity-success .activity-dot { background: var(--secondary); }
-.activity-processing .activity-dot { background: var(--accent); animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }

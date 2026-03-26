@@ -4,7 +4,7 @@
  * Extracted from sidebar.js for maintainability.
  */
 
-import { API, priorityInput, chatScreen, welcomeScreen, insightContent, brainDigest } from "./state.js";
+import { API, priorityInput, chatScreen, welcomeScreen } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 import { loadProposals } from "./proposals_ui.js";
 import { sendMessage } from "./chat.js";
@@ -109,11 +109,19 @@ export async function pollAutonomy() {
           const icon = ACTION_ICONS[event.action] || "📋";
           const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
           const item = document.createElement("div");
-          item.className = `activity-item ${isActive ? "activity-active" : "activity-idle"}`;
+          item.className = "group flex gap-3";
+          const label = isActive ? event.action.toUpperCase() : "INFO";
+          const colorCls = isActive ? "bg-primary" : "bg-surface-variant";
+          const textClr = isActive ? "text-primary" : "text-on-surface-variant";
           item.innerHTML = `
-            <span class="activity-icon">${icon}</span>
-            <span class="activity-text">${escapeHtml(event.detail || event.action)}</span>
-            <span class="activity-time">${event.time || ""}</span>
+            <div class="w-1 self-stretch ${colorCls} rounded-full mt-1"></div>
+            <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-[10px] font-bold ${textClr} uppercase tracking-tight">${label}</span>
+                    <span class="text-[9px] font-mono opacity-30">${event.time || ""}</span>
+                </div>
+                <p class="text-[11px] text-on-surface-variant leading-snug break-words">${escapeHtml(event.detail || event.action)}</p>
+            </div>
           `;
           feed.appendChild(item);
         }
@@ -174,12 +182,6 @@ export function connectActivityFeed() {
         updateSuccessRate();
       }
 
-      // Update Architect Insight Panel with AI's current inner thought process
-      if (event.action === "thinking" || event.action === "reflecting" || event.action === "checking" || event.action === "writing" || event.action === "executing") {
-        updateArchitectInsight(event.detail || event.action);
-      } else if (event.action === "idle" || event.action === "completed") {
-        updateArchitectInsight("Standing by for reasoning vectors...");
-      }
     } catch (err) {
       console.error("Failed to parse SSE event:", err);
     }
@@ -331,29 +333,24 @@ export async function setAutonomyMode(mode) {
     });
     const d = await r.json();
     if (d.ok) {
-      // Update button states with Obsidian-themed classes
+      // Update button states using the .active class defined in style.css
       const supervisedBtn = document.getElementById("modeSupervisedBtn");
       const autonomousBtn = document.getElementById("modeAutonomousBtn");
 
       if (supervisedBtn) {
-        if (mode === "supervised") {
-          supervisedBtn.classList.remove("bg-surface-container-highest", "text-on-surface-variant", "border-outline-variant/30");
-          supervisedBtn.classList.add("bg-secondary", "text-on-secondary", "border-secondary", "shadow-lg", "shadow-secondary/20");
-        } else {
-          supervisedBtn.classList.add("bg-surface-container-highest", "text-on-surface-variant", "border-outline-variant/30");
-          supervisedBtn.classList.remove("bg-secondary", "text-on-secondary", "border-secondary", "shadow-lg", "shadow-secondary/20");
-        }
+        supervisedBtn.classList.toggle("active", mode === "supervised");
       }
-
       if (autonomousBtn) {
-        if (mode === "autonomous") {
-          autonomousBtn.classList.remove("bg-surface-container-highest", "text-on-surface-variant", "border-outline-variant/30", "bg-primary/10", "border-primary/20", "text-primary");
-          autonomousBtn.classList.add("bg-primary", "text-on-primary", "border-primary", "shadow-lg", "shadow-primary/20");
-        } else {
-          autonomousBtn.classList.add("bg-surface-container-highest", "text-on-surface-variant", "border-outline-variant/30");
-          autonomousBtn.classList.remove("bg-primary", "text-on-primary", "border-primary", "shadow-lg", "shadow-primary/20", "bg-primary/10", "border-primary/20", "text-primary");
-        }
+        autonomousBtn.classList.toggle("active", mode === "autonomous");
       }
+      
+      const brainMode = document.getElementById("brainMode");
+      if (brainMode) {
+        const isAuto = mode === "autonomous";
+        brainMode.textContent = isAuto ? "🤖 Autonomous" : "🛡️ Supervised";
+        brainMode.classList.toggle("autonomous", isAuto);
+      }
+      
       console.log(`[LocalMind] Autonomy mode: ${mode}`);
     }
   } catch (e) {
