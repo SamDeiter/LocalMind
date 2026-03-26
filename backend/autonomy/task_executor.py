@@ -83,6 +83,8 @@ async def _execute_with_agent(engine, proposal, mode: str) -> bool:
     system_prompt = system_prompts.get(mode, system_prompts["general"])
 
     user_prompt = f"TASK: {title}\n\nDETAILS: {description}"
+    if proposal.get("context"):
+        user_prompt += f"\n\nRESEARCH CONTEXT & ANALYSIS:\n{proposal['context']}"
     if proposal.get("files_affected"):
         user_prompt += f"\n\nRELEVANT FILES: {', '.join(proposal['files_affected'])}"
 

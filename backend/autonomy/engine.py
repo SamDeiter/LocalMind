@@ -13,7 +13,8 @@ from backend.proposals import ProposalManager
 from backend.config import OLLAMA_BASE_URL
 from backend.research import (
     FailureAnalyzer, SuccessTracker, CodebaseScanner,
-    PerformanceProfiler, ExternalResearcher, WebResearcher
+    PerformanceProfiler, ExternalResearcher, WebResearcher,
+    AcademicResearcher
 )
 from backend.self_improver import SelfImprover
 from backend.meta_critic import MetaCritic
@@ -38,12 +39,12 @@ class AutonomyEngine:
     def __init__(self, ollama_url: str = OLLAMA_BASE_URL):
         self.ollama_url = ollama_url
         models = get_autonomy_models()
-        self.reflection_model = models.get("reflection", "qwen2.5-coder:14b")
-        self.editing_model = models.get("editing", "qwen2.5-coder:14b")
+        self.reflection_model = models.get("reflection", "llama3.3:70b") # Default to 70b since user has it
+        self.editing_model = models.get("editing", "llama3.3:70b")
         self.startup_model = get_startup_model()
         self.default_model = self.reflection_model
         
-        self.mode = "supervised"
+        self.mode = "autonomous"
         self.enabled = True
         self._last_chat_time = 0.0
         self._activity_subscribers: list[asyncio.Queue] = []
@@ -52,7 +53,7 @@ class AutonomyEngine:
         
         self.status = {
             "enabled": True,
-            "mode": "supervised",
+            "mode": "autonomous",
             "started_at": self._start_time,
             "current_activity": None,
             "health_check": {"last_run": None, "ollama_ok": False, "model_loaded": False},
@@ -78,9 +79,11 @@ class AutonomyEngine:
         self.performance_profiler = PerformanceProfiler()
         self.external_researcher = ExternalResearcher()
         self.web_researcher = WebResearcher()
+        self.academic_researcher = AcademicResearcher()
 
         self._manual_execution_event = asyncio.Event()
         self._manual_reflection_event = asyncio.Event()
+        self._manual_research_event = asyncio.Event()
         
         # Circuit breaker + backoff state
         self._consecutive_failures = 0
@@ -112,7 +115,7 @@ class AutonomyEngine:
             self._activity_subscribers.remove(q)
 
     def _emit_activity(self, action: str, detail: str = "", **extra):
-        """Push a live activity event to all SSE subscribers."""
+        """Push a live activity event to all SSE subscribers and persist to file."""
         event = {
             "ts": time.time(),
             "time": time.strftime("%H:%M:%S"),
@@ -127,6 +130,9 @@ class AutonomyEngine:
         self._recent_events.append(event)
         if len(self._recent_events) > 30:
             self._recent_events = self._recent_events[-30:]
+
+        # Persist to permanent log file
+        log_event(action, {"detail": detail, **extra})
 
         for q in self._activity_subscribers:
             try:
@@ -199,6 +205,11 @@ class AutonomyEngine:
         self._manual_execution_event.set()
         logger.info("⚙️ Manual execution event set")
 
+    def trigger_research(self):
+        """Manually trigger the research cycle."""
+        self._manual_research_event.set()
+        logger.info("🔬 Manual research event set")
+
     def list_proposals(self, status_filter: str = "all") -> list[dict]:
         return self.proposals.list_proposals(status_filter)
 
@@ -270,9 +281,10 @@ class AutonomyEngine:
                         )
                 except Exception:
                     pass
-            # 1. Scan codebase for complexity hot spots and code smells
-            complexity = self.codebase_scanner.scan_complexity()
-            smells = self.codebase_scanner.scan_code_smells()
+            # 1. Scan codebase for complexity hot spots and code smells (non-blocking)
+            complexity_task = asyncio.to_thread(self.codebase_scanner.scan_complexity)
+            smells_task = asyncio.to_thread(self.codebase_scanner.scan_code_smells)
+            complexity, smells = await asyncio.gather(complexity_task, smells_task)
 
             hot_categories = set()
             if any(f.get("severity") == "high" for f in complexity):
@@ -281,12 +293,17 @@ class AutonomyEngine:
                 hot_categories.add("code_quality")
             hot_categories.add("performance")  # always useful
 
-            # 2. Gather web research for hot categories
             research_context = []
             for category in hot_categories:
+                # Get web findings
                 web_findings = await self.web_researcher.get_findings_for_prompt(category)
                 if web_findings:
                     research_context.append(web_findings)
+                
+                # Get academic findings (ArXiv)
+                academic_findings = await self.academic_researcher.get_findings_for_prompt(category)
+                if academic_findings:
+                    research_context.append(academic_findings)
 
             # 3. Get performance profile
             perf_report = self.performance_profiler.get_findings_for_prompt()
@@ -327,29 +344,41 @@ class AutonomyEngine:
                 try:
                     async with httpx.AsyncClient(timeout=60.0) as client:
                         resp = await client.post(
-                            f"{self.ollama_url}/api/generate",
+                            f"{self.ollama_url}/api/chat",
                             json={
                                 "model": self.reflection_model,
-                                "prompt": prompt,
+                                "messages": [{"role": "user", "content": prompt}],
                                 "stream": False,
+                                "options": {
+                                    "num_ctx": 16384,
+                                    "temperature": 0.1
+                                }
                             },
                         )
-                        if resp.status_code == 200:
+                        if resp.status_code != 200:
+                            logger.warning(f"Research LLM call failed with {resp.status_code}: {resp.text}")
+                        else:
                             import json as _json
-                            text = resp.json().get("response", "")
+                            text = resp.json().get("message", {}).get("content", "")
                             # Try to extract JSON array from response
                             match = re.search(r'\[.*\]', text, re.DOTALL)
                             if match:
                                 proposals = _json.loads(match.group())
                                 logged = 0
                                 for p in proposals[:2]:
-                                    self.proposals.log_proposal(
-                                        title=p.get("title", "Research finding"),
-                                        description=p.get("description", ""),
-                                        category=p.get("category", "research"),
-                                        risk=p.get("risk", "low"),
-                                        files_affected=p.get("files_affected", []),
-                                        source="auto_research",
+                                    self.proposals.save(
+                                        proposal={
+                                            "title": p.get("title", "Research finding"),
+                                            "description": p.get("description", ""),
+                                            "category": p.get("category", "research"),
+                                            "risk": p.get("risk", "low"),
+                                            "files_affected": p.get("files_affected", []),
+                                            "source": "auto_research",
+                                            "context": research_blob if 'research_blob' in locals() else ""
+                                        },
+                                        mode=self.mode,
+                                        auto_approve_risks=self.AUTO_APPROVE_RISKS,
+                                        emit_activity=self._emit_activity
                                     )
                                     logged += 1
                                 if logged:
@@ -370,13 +399,19 @@ class AutonomyEngine:
                             try:
                                 proposals = _json2.loads(match2.group())
                                 for p in proposals[:2]:
-                                    self.proposals.log_proposal(
-                                        title=p.get("title", "Research finding"),
-                                        description=p.get("description", ""),
-                                        category=p.get("category", "research"),
-                                        risk=p.get("risk", "low"),
-                                        files_affected=p.get("files_affected", []),
-                                        source="gemini_escalation",
+                                    self.proposals.save(
+                                        proposal={
+                                            "title": p.get("title", "Research finding"),
+                                            "description": p.get("description", ""),
+                                            "category": p.get("category", "research"),
+                                            "risk": p.get("risk", "low"),
+                                            "files_affected": p.get("files_affected", []),
+                                            "source": "gemini_escalation",
+                                            "context": research_blob if 'research_blob' in locals() else ""
+                                        },
+                                        mode=self.mode,
+                                        auto_approve_risks=self.AUTO_APPROVE_RISKS,
+                                        emit_activity=self._emit_activity
                                     )
                                 self.status["reflection"]["proposals_logged"] += len(proposals[:2])
                                 self._emit_activity(
@@ -391,7 +426,7 @@ class AutonomyEngine:
 
         except Exception as e:
             logger.error(f"Auto-research error: {e}")
-            self._emit_activity("research_error", f"❌ Research error: {str(e)[:100]}")
+            self._emit_activity("research_error", f"❌ Research error: {str(e)}")
 
     async def _try_gemini_escalation(self, prompt: str) -> str:
         """Optionally escalate to Gemini when local model fails. Local-first, cheap."""
@@ -409,13 +444,18 @@ class AutonomyEngine:
 
     async def _generate_interactive_proposal(self, topic: str, question: str):
         """Create a proposal that asks the user a question before proceeding."""
-        self.proposals.log_proposal(
-            title=f"❓ Input needed: {topic}",
-            description=question,
-            category="interactive",
-            risk="low",
-            files_affected=[],
-            source="auto_research",
+        self.proposals.save(
+            proposal={
+                "title": f"❓ Input needed: {topic}",
+                "description": question,
+                "category": "interactive",
+                "risk": "low",
+                "files_affected": [],
+                "source": "auto_research",
+            },
+            mode=self.mode,
+            auto_approve_risks=self.AUTO_APPROVE_RISKS,
+            emit_activity=self._emit_activity
         )
         self._emit_activity(
             "needs_input",

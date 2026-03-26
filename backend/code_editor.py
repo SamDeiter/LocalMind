@@ -201,10 +201,10 @@ async def identify_target_files(
             )
 
             resp = await client.post(
-                f"{ollama_url}/api/generate",
+                f"{ollama_url}/api/chat",
                 json={
                     "model": editing_model,
-                    "prompt": prompt,
+                    "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
                     "options": {"num_predict": 200, "num_ctx": 4096},
                 },
@@ -214,7 +214,7 @@ async def identify_target_files(
                 logger.warning(f"Ollama returned {resp.status_code} for targeting")
                 return [], 0
 
-            text = resp.json().get("response", "").strip()
+            text = resp.json().get("message", {}).get("content", "").strip()
             if "```" in text:
                 text = text.split("```")[1]
                 if text.startswith("json"):
@@ -323,8 +323,13 @@ async def edit_single_file(
             prompt = (
                 f"You are a code editor. Make ONE small, precise change.\n\n"
                 f"TASK: {proposal['title']}\n"
-                f"DETAILS: {proposal['description']}\n\n"
-                f"FILE: {relative_path} (line numbers shown for reference only)\n"
+                f"DETAILS: {proposal['description']}\n"
+            )
+            if proposal.get("context"):
+                prompt += f"\nRESEARCH CONTEXT & ANALYSIS:\n{proposal['context']}\n"
+            
+            prompt += (
+                f"\nFILE: {relative_path} (line numbers shown for reference only)\n"
                 f"```\n{file_preview}\n```\n\n"
                 f"Output a JSON object with these keys:\n"
                 f'  "search": "EXACT consecutive lines from the file (WITHOUT line numbers)"\n'
@@ -346,10 +351,10 @@ async def edit_single_file(
                 prompt += f"\n{caller_context}\n"
 
             resp = await client.post(
-                f"{ollama_url}/api/generate",
+                f"{ollama_url}/api/chat",
                 json={
                     "model": editing_model,
-                    "prompt": prompt,
+                    "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
                     "options": {"num_predict": 2000, "num_ctx": 8192},
                 },
@@ -361,7 +366,7 @@ async def edit_single_file(
                     emit_activity("error", f"Edit failed: Ollama HTTP {resp.status_code} for {relative_path}")
                 return False, 0
 
-            raw_response = resp.json().get("response", "").strip()
+            raw_response = resp.json().get("message", {}).get("content", "").strip()
 
         # Parse the search/replace JSON
         diff = _parse_diff_response(raw_response, relative_path, emit_activity)
