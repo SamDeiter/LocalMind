@@ -28,6 +28,7 @@ import { uploadDocuments, toggleMemoryList } from "./sidebar.js";
 import { toggleProposalList } from "./proposals_ui.js";
 import { toggleActivityFeed, setAutonomyMode, triggerReflection, triggerExecution, executeDirective } from "./autonomy_ui.js";
 import { toggleEditorPanel } from "./editor.js";
+import { toggleSettingsModal } from "./settings_ui.js";
 import { welcomeScreen, chatScreen, overviewBtn } from "./state.js";
 
 export function bindEvents() {
@@ -59,23 +60,15 @@ export function bindEvents() {
     loadConversations();
   });
 
-  // Unified Sidebar Input: Sends message in Chat mode, Executes directive in Dashboard mode
+  // Unified Main Input: Always use sendMessage which switches to Chat Mode
   sendBtn?.addEventListener("click", () => {
-    if (chatScreen && !chatScreen.classList.contains("hidden")) {
-      sendMessage();
-    } else {
-      executeDirective();
-    }
+    sendMessage();
   });
 
   messageInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (chatScreen && !chatScreen.classList.contains("hidden")) {
-        sendMessage();
-      } else {
-        executeDirective();
-      }
+      sendMessage();
     }
   });
   messageInput?.addEventListener("input", autoResize);
@@ -124,10 +117,7 @@ export function bindEvents() {
 
   // System prompt
   const spBtn = $("#systemPromptBtn");
-  const spEditor = $("#systemPromptEditor");
-  spBtn?.addEventListener("click", () => {
-    if (spEditor) spEditor.style.display = spEditor.style.display === "none" ? "" : "none";
-  });
+  spBtn?.addEventListener("click", () => toggleSettingsModal(true));
   $("#saveSystemPrompt")?.addEventListener("click", async () => {
     const text = $("#systemPromptText")?.value || "";
     try {
@@ -139,7 +129,6 @@ export function bindEvents() {
     } catch {
       /* ignore */
     }
-    if (spEditor) spEditor.style.display = "none";
   });
 
   // Doc upload

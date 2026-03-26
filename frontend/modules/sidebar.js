@@ -9,18 +9,17 @@
 
 import { API } from "./state.js";
 import { escapeHtml } from "./utils.js";
-import { pollAutonomy } from "./autonomy_ui.js";
+import { pollAutonomy } from "./autonomy/index.js";
 
 // Re-export from extracted modules so existing imports still work
 export {
     pollAutonomy,
     connectActivityFeed,
-    toggleActivityFeed,
-    setAutonomyMode,
+    toggleAutonomyMode,
     triggerReflection,
     triggerExecution,
-    initDashboardPanels,
-} from "./autonomy_ui.js";
+    initAutonomyUI as initDashboardPanels,
+} from "./autonomy/index.js";
 
 export {
     loadProposals,

@@ -24,6 +24,7 @@ from pathlib import Path
 
 import httpx
 
+from backend import notifications
 from backend.model_router import get_autonomy_models, get_startup_model
 from backend.proposals import ProposalManager, PROPOSALS_DIR
 from backend.code_editor import edit_single_file, identify_target_files, is_scope_achievable
@@ -36,6 +37,7 @@ from backend.self_improver import SelfImprover
 from backend.meta_critic import MetaCritic
 from backend.priority_queue import PriorityQueue
 from backend.todo_harvester import get_todos_for_prompt
+from backend.tools.manage_model import ManageModelTool
 
 logger = logging.getLogger("localmind.autonomy")
 
@@ -58,11 +60,11 @@ class AutonomyEngine:
     # Risk levels that auto-execute in autonomous mode
     AUTO_APPROVE_RISKS = {"low", "medium", "high", "critical"}
 
-    def __init__(self, ollama_url: str = "http://localhost:11434"):
+    def __init__(self, ollama_url: str = "http://127.0.0.1:11434"):
         self.ollama_url = ollama_url
         models = get_autonomy_models()
-        self.reflection_model = models.get("reflection", "qwen2.5-coder:7b")
-        self.editing_model = models.get("editing", "qwen2.5-coder:32b")
+        self.reflection_model = models.get("reflection", "qwen2.5-coder:14b")
+        self.editing_model = models.get("editing", "qwen2.5-coder:14b")
         self.default_model = self.reflection_model
         self.startup_model = get_startup_model()
 
@@ -167,8 +169,15 @@ class AutonomyEngine:
         """Switch between 'supervised' and 'autonomous' mode."""
         if mode not in ("supervised", "autonomous"):
             raise ValueError(f"Invalid mode: {mode}")
+        
         self.mode = mode
         self.status["mode"] = mode
+        
+        # Instantly wake up the engine when switching to autonomous
+        if mode == "autonomous":
+            self.trigger_reflection()
+            self.trigger_execution()
+            
         self._log("mode_changed", {"mode": mode})
         self._emit_activity("mode_changed", f"Switched to {mode} mode")
         logger.info(f"🤖 Autonomy mode: {mode}")
@@ -623,6 +632,10 @@ class AutonomyEngine:
 
             self._emit_activity("reflecting", f"Step 2/2: Generating proposals with {self.reflection_model}...")
 
+            # Phase 9: Pre-warm Ultra model if needed
+            if "70b" in self.reflection_model.lower():
+                await ManageModelTool().execute(model_name=self.reflection_model, action="load", keep_alive="30m")
+
             # Category distribution for diversity
             existing_proposals = self.proposals.list_proposals()
             category_counts = {}
@@ -988,15 +1001,6 @@ class AutonomyEngine:
 
         filepath = PROPOSALS_DIR / f"{proposal['id']}_{proposal['category']}.json"
 
-        # Scope guard: skip proposals too broad for the model
-        if not is_scope_achievable(proposal):
-            self._emit_activity("info", f"Skipped (too broad): {proposal['title']}")
-            proposal["status"] = "skipped"
-            proposal["error"] = "Proposal scope too broad for automated editing"
-            filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
-            self.status["execution"]["last_run"] = time.time()
-            return True
-
         try:
             exec_start_time = time.time()
             exec_total_tokens = 0
@@ -1009,13 +1013,25 @@ class AutonomyEngine:
                 "id": proposal["id"], "title": proposal["title"]
             })
 
-            # Step 1: Identify target files
-            files_affected, targeting_tokens = await identify_target_files(
-                proposal, self.ollama_url, self.editing_model, self._emit_activity
+            # ── Step 1: Target Identification ──
+            # Ask the editor model which file(s) are most relevant.
+            target_result = await identify_target_files(
+                proposal,
+                self.ollama_url,
+                self.editing_model,
+                emit_activity=self._emit_activity
             )
-            exec_total_tokens += targeting_tokens
+            
+            # Defensive unpacking
+            if isinstance(target_result, tuple) and len(target_result) == 2:
+                targets, est_tokens = target_result
+            else:
+                logger.warning(f"Unexpected return from identify_target_files: {target_result}")
+                targets, est_tokens = [], 0
+            
+            exec_total_tokens += est_tokens
 
-            if not files_affected:
+            if not targets:
                 self.proposals.mark_failed(
                     proposal,
                     "Could not determine which files to edit",
@@ -1028,21 +1044,21 @@ class AutonomyEngine:
 
             # ── Thinking: broadcast file targeting ──
             self._emit_activity("thinking",
-                                f"Targeting {len(files_affected)} file(s): {', '.join(files_affected[:3])}",
+                                f"Targeting {len(targets)} file(s): {', '.join(targets[:3])}",
                                 thinking_type="targeting",
-                                files_affected=files_affected,
+                                files_affected=targets,
                                 proposal_title=proposal.get("title", ""))
 
-            # Step 2: Create git safety branch
+            # ── Step 2: Create git safety branch ──
             branch_name = f"self-improve/{proposal['id']}-{proposal['category']}"
             git_run(["checkout", "-b", branch_name])
             self._log("git_branch_created", {"branch": branch_name})
             self._emit_activity("git", f"Created safety branch: {branch_name}",
                                 proposal_title=proposal.get("title", ""))
 
-            # Step 3: For each target file, read → AI → write
+            # ── Step 3: For each target file, apply edits ──
             edits_applied = []
-            for target_file in files_affected[:3]:
+            for target_file in targets[:3]:  # Max 3 files per proposal for safety
                 self._emit_activity("writing", f"Editing: {target_file}",
                                     file=target_file,
                                     task_description=proposal.get("description", ""),
@@ -1067,6 +1083,9 @@ class AutonomyEngine:
                 self._log("proposal_execution_failed", {"id": proposal["id"], "error": "no edits applied"})
                 self.status["execution"]["last_run"] = time.time()
                 self._emit_activity("error", f"Failed: AI could not generate valid edits for {proposal['title']}")
+                # Phase 9: Unload Ultra model to free resources
+                if "70b" in self.reflection_model.lower():
+                    await ManageModelTool().execute(model_name=self.reflection_model, action="unload")
                 return True
 
             # Step 4: Run tests

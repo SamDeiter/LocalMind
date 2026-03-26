@@ -8,8 +8,10 @@ via the propose_action tool first.
 """
 
 import logging
+import json
 import os
 import re
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger("localmind.gemini")
@@ -51,8 +53,13 @@ _client = None
 
 
 def _get_api_key() -> Optional[str]:
-    """Get Gemini API key from environment."""
-    return os.environ.get("GEMINI_API_KEY")
+    """Get Gemini API key from environment or local config."""
+    env_key = os.environ.get("GEMINI_API_KEY")
+    if env_key:
+        return env_key
+    
+    config = get_settings()
+    return config.get("api_key")
 
 
 def _ensure_client():
@@ -120,3 +127,21 @@ async def generate(
 def is_available() -> bool:
     """Check if Gemini is configured and available."""
     return _get_api_key() is not None
+
+# ── Settings Management ────────────────────────────────────────────────
+WORKSPACE = Path.home() / "LocalMind_Workspace"
+CLOUD_SETTINGS_FILE = WORKSPACE / "cloud_settings.json"
+
+def get_settings() -> dict:
+    """Load cloud settings from disk."""
+    if CLOUD_SETTINGS_FILE.exists():
+        try:
+            return json.loads(CLOUD_SETTINGS_FILE.read_text(encoding="utf-8"))
+        except:
+            pass
+    return {"api_key": None}
+
+def save_settings(settings: dict):
+    """Save cloud settings to disk."""
+    CLOUD_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CLOUD_SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")

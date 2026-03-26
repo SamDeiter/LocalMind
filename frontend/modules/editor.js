@@ -35,6 +35,7 @@ function initMonaco() {
       minimap: { enabled: true },
       wordWrap: "on",
       automaticLayout: true,
+      fixedOverflowWidgets: true,
       renderLineHighlight: "all",
       scrollBeyondLastLine: false,
       padding: { top: 8 },

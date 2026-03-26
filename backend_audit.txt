@@ -1,0 +1,36 @@
+--- AUDIT RESULTS ---
+Environment .env found: False
+
+GOD FUNCTIONS (Potential for modularization):
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\routes\chat.py -> chat (513 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\autonomy.py -> _run_reflection (275 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\autonomy.py -> _execute_next_proposal (271 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\routes\chat.py -> stream_response (236 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\code_editor.py -> edit_single_file (152 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\code_editor.py -> identify_target_files (146 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\agent.py -> agent_chat_streaming (123 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\agent.py -> agent_chat (114 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\metacognition\calibration.py -> auto_adjust_thresholds (111 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\metacognition\controller.py -> post_process (105 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\routes\research_routes.py -> generate_paper_proposal (99 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\metacognition\uncertainty_gate.py -> score (98 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\meta_critic.py -> review (89 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\proposals.py -> save (86 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\digest.py -> generate_digest (83 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\model_router.py -> route_model (81 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\autonomy.py -> _reflection_loop (79 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\tools\mcp_browser.py -> _web_research (79 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\server.py -> estimate_task_complexity (76 lines)
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\tools\project_context.py -> _build_tree (76 lines)
+
+FILE SIZES (Lines):
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\autonomy.py: 1256 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\research_engine.py: 1084 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\routes\chat.py: 792 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\server.py: 620 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\proposals.py: 548 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\code_editor.py: 538 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\self_improver.py: 453 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\tools.py: 405 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\tools\git_tools.py: 355 lines
+- c:\Users\Sam Deiter\Documents\GitHub\LocalMind\backend\routes\autonomy_routes.py: 333 lines

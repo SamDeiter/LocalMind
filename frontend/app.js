@@ -10,6 +10,7 @@ import { startHwPolling, loadMemories, loadDocuments, loadVersion, loadProposals
 import { toggleEditorPanel, initEditorEnhancements } from "./modules/editor.js";
 import { bindEvents } from "./modules/events.js";
 import { initResearchPanel, initGlobalSearch } from "./modules/research_ui.js";
+import { initSettingsUI } from "./modules/settings_ui.js";
 
 async function init() {
   checkHealth();
@@ -28,6 +29,7 @@ async function init() {
   initDashboardPanels();
   initResearchPanel();
   initGlobalSearch();
+  initSettingsUI();
 
   // Restore editor panel if it was open
 

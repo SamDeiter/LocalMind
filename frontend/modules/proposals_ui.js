@@ -104,6 +104,7 @@ export async function loadProposals() {
             ? `<div class="proposal-result">${escapeHtml(p.execution_result || "")}</div>
                <div class="proposal-actions">
                  <button class="rollback-btn" data-id="${escapeHtml(p.id)}" title="Revert this change">↩️ Rollback</button>
+                 <button class="approval-btn deny" data-id="${escapeHtml(p.id)}" title="Dismiss this proposal">🗑️ Dismiss</button>
                </div>`
             : ""
         }
@@ -113,6 +114,7 @@ export async function loadProposals() {
           <div class="proposal-error">${escapeHtml(p.error || "Unknown error")}</div>
           <div class="proposal-actions">
             <button class="retry-btn" data-id="${escapeHtml(p.id)}" title="Retry this proposal">🔄 Retry</button>
+            <button class="approval-btn deny" data-id="${escapeHtml(p.id)}" title="Dismiss this proposal">🗑️ Dismiss</button>
           </div>`
             : ""
         }

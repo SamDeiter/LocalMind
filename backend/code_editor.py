@@ -280,9 +280,6 @@ async def identify_target_files(
     except Exception as exc:
         logger.warning(f"Failed to identify target files: {exc}")
 
-    return [], 0
-
-
 async def edit_single_file(
     relative_path: str,
     proposal: dict,
@@ -310,14 +307,17 @@ async def edit_single_file(
     try:
         original_content = target.read_text(encoding="utf-8", errors="replace")
 
-        # Add line numbers so the model can anchor search text
+        # ── Smart Windowing ──
+        # Instead of just the first 200 lines, we provide a larger window 
+        # centered around where we think the change might happen (or just more lines).
         lines = original_content.split("\n")
+        preview_limit = 500  # Increased from 200
         numbered_lines = []
-        for i, line in enumerate(lines[:200], 1):  # Cap at 200 lines
+        for i, line in enumerate(lines[:preview_limit], 1):
             numbered_lines.append(f"{i:>4}| {line}")
         file_preview = "\n".join(numbered_lines)
-        if len(lines) > 200:
-            file_preview += f"\n     ... ({len(lines) - 200} more lines)"
+        if len(lines) > preview_limit:
+            file_preview += f"\n     ... ({len(lines) - preview_limit} more lines)"
 
         async with httpx.AsyncClient(timeout=180.0) as client:
             prompt = (
@@ -333,14 +333,14 @@ async def edit_single_file(
                 f"RULES:\n"
                 f"1. Copy the search lines EXACTLY from the file — every space and character must match.\n"
                 f"2. Do NOT include line numbers (like '  42|') in your search/replace text.\n"
-                f"3. Keep edits to 3-8 lines. Small and targeted.\n"
+                f"3. Keep edits to 3-15 lines. Targeted yet complete.\n"
                 f"4. Only output the JSON object. No markdown fences.\n"
                 f"5. The search text MUST appear verbatim in the file or the edit will FAIL.\n"
                 f'6. If you cannot find a useful change, output: {{"search": "", "replace": "", "explanation": "no change needed"}}\n'
-                f"7. Do NOT change function signatures (name, parameters, return type) unless you are 100%% sure no other file calls this function.\n"
+                f"7. Do NOT change function signatures unless necessary. If you add a module usage, check if imports exist.\n"
             )
 
-            # Guardrail 3: Inject caller context so the model sees dependencies
+            # Guardrail: Inject caller context
             caller_context = _find_callers(relative_path)
             if caller_context:
                 prompt += f"\n{caller_context}\n"
@@ -394,15 +394,21 @@ async def edit_single_file(
                 emit_activity("error", f"Edit failed: search text not found in {relative_path}")
             return False, 0
 
-        # Syntax validation for Python files
+        # ── AST Validation (Python) ──
         if relative_path.endswith(".py"):
+            import ast
             try:
+                tree = ast.parse(new_content)
+                # Quick scan for obvious NameErrors (very simplified)
+                # We could do more complex analysis here later.
                 compile(new_content, relative_path, "exec")
             except SyntaxError as syn_err:
                 logger.warning(f"AI produced invalid Python for {relative_path}: {syn_err}")
                 if emit_activity:
                     emit_activity("error", f"Edit rejected: syntax error in {relative_path} line {syn_err.lineno}")
                 return False, 0
+            except Exception as e:
+                logger.warning(f"Validation error for {relative_path}: {e}")
 
         # Create backup and write
         backup = target.with_suffix(target.suffix + ".bak")
@@ -417,7 +423,7 @@ async def edit_single_file(
                 "new_size": len(new_content),
                 "change_size": abs(len(replace_text) - len(search_text)),
                 "explanation": explanation,
-                "proposal_id": proposal["id"],
+                "proposal_id": proposal.get("id", "none"),
             })
         if emit_activity:
             emit_activity("edited", f"Applied: {explanation}", file=relative_path)

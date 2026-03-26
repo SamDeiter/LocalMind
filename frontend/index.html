@@ -1,96 +1,108 @@
 <!DOCTYPE html>
-<html class="dark" lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Obsidian | LocalMind Executive</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              "on-tertiary-container": "#626dd7",
-              "surface-container-low": "#111111",
-              "on-background": "#FFFFFF",
-              "tertiary-container": "#000125",
-              "tertiary-fixed": "#e0e0ff",
-              "inverse-on-surface": "#313030",
-              "inverse-primary": "#494bd6",
-              "primary-container": "#1A1B22",
-              "on-surface": "#FFFFFF",
-              "on-tertiary-fixed": "#000767",
-              "surface-variant": "#1A1B22",
-              "secondary-container": "#4FD1C5",
-              "primary": "#4FD1C5", /* Accent Teal */
-              "accent-purple": "#9F7AEA",
-              "outline-variant": "#2a2a2a",
-              "surface-container": "#1A1B22", /* Surface */
-              "on-error-container": "#ffdad6",
-              "primary-fixed": "#e1e0ff",
-              "outline": "#A0AEC0", /* Secondary Text */
-              "surface-container-lowest": "#111217", /* Background */
-              "on-tertiary": "#131e8c",
-              "on-primary-container": "#4FD1C5",
-              "surface": "#111217",
-              "surface-container-high": "#1A1B22",
-              "error": "#ffb4ab",
-              "background": "#111217",
-              "inverse-surface": "#e5e2e1",
-              "on-secondary-fixed": "#00201c",
-              "secondary": "#4FD1C5",
-              "surface-container-highest": "#1c1c1c",
-              "surface-bright": "#222222",
-              "surface-tint": "#4FD1C5",
-              "on-surface-variant": "#A0AEC0",
-              "on-tertiary-fixed-variant": "#2f3aa3",
-              "on-secondary-container": "#003f38",
-              "on-primary-fixed-variant": "#2f2ebe",
-              "error-container": "#93000a",
-              "surface-dim": "#111217",
-              "on-primary-fixed": "#07006c",
-              "on-secondary-fixed-variant": "#005048",
-              "on-secondary": "#111217",
-              "on-primary": "#111217",
-              "tertiary": "#9F7AEA",
-              "secondary-fixed": "#4FD1C5",
-              "on-error": "#690005",
-              "tertiary-fixed-dim": "#9F7AEA",
-              "secondary-fixed-dim": "#4FD1C5",
-              "primary-fixed-dim": "#4FD1C5"
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>LocalMind | Obsidian Command Interface</title>
+
+    <!-- Tailwind & Fonts -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="icon" type="image/png" href="icon.png" />
+    <link rel="apple-touch-icon" href="icon.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Monaco & Highlight.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" />
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-surface-variant": "#c4c7c7",
+                        "tertiary-fixed": "#e0e0ff",
+                        "outline": "#8e9192",
+                        "primary-container": "#010027",
+                        "background": "#131313",
+                        "on-tertiary-container": "#626dd7",
+                        "on-secondary-container": "#003f38",
+                        "on-background": "#e5e2e1",
+                        "surface-tint": "#c0c1ff",
+                        "on-error": "#690005",
+                        "tertiary-container": "#000125",
+                        "on-primary-container": "#6366f1",
+                        "on-tertiary-fixed-variant": "#2f3aa3",
+                        "on-secondary-fixed-variant": "#005048",
+                        "inverse-surface": "#e5e2e1",
+                        "tertiary": "#bdc2ff",
+                        "on-tertiary": "#131e8c",
+                        "on-secondary-fixed": "#00201c",
+                        "error": "#ffb4ab",
+                        "surface": "#131313",
+                        "surface-dim": "#131313",
+                        "surface-container-low": "#1c1b1b",
+                        "on-tertiary-fixed": "#000767",
+                        "surface-variant": "#353534",
+                        "surface-container-high": "#2a2a2a",
+                        "secondary-container": "#04b4a2",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "outline-variant": "#444748",
+                        "on-secondary": "#003731",
+                        "on-primary": "#1000a9",
+                        "surface-container-highest": "#353534",
+                        "primary": "#c0c1ff",
+                        "on-primary-fixed": "#07006c",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "inverse-primary": "#494bd6",
+                        "inverse-on-surface": "#313030",
+                        "primary-fixed": "#e1e0ff",
+                        "surface-bright": "#3a3939",
+                        "on-surface": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "surface-container": "#201f1f",
+                        "secondary-fixed-dim": "#4fdbc8",
+                        "secondary-fixed": "#71f8e4",
+                        "secondary": "#4fdbc8"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
             },
-            fontFamily: {
-              "headline": ["Space Grotesk", "sans-serif"],
-              "body": ["Inter", "sans-serif"],
-              "label": ["Inter", "sans-serif"]
-            },
-            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
-          },
-        },
-      }
+        }
     </script>
-<style type="text/tailwindcss">
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
+    <style type="text/tailwindcss">
         .glass-panel {
-            background: rgba(26, 27, 34, 0.7); /* Surface with alpha */
-            backdrop-filter: blur(24px);
-        }
-        .console-border {
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(53, 53, 52, 0.6);
+            backdrop-filter: blur(20px);
         }
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
+            background: #0e0e0e;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.05);
+            background: #444748;
             border-radius: 10px;
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #c0c1ff 0%, #6366f1 100%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
         }
         /* Toast Notification Styles */
         .toast-container {
@@ -104,302 +116,444 @@
             pointer-events: none;
         }
         .toast {
-            background: #1A1B22;
-            border: 1px solid rgba(79, 209, 197, 0.3);
-            border-left: 4px solid #4FD1C5;
+            background: #2a2a2a;
+            border-left: 4px solid #4fdbc8;
             padding: 1rem 1.5rem;
             border-radius: 0.5rem;
-            color: #FFFFFF;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.8rem;
+            color: #e5e2e1;
             box-shadow: 0 10px 30px rgba(0,0,0,0.4);
             display: flex;
-            align-items: center;
             justify-content: space-between;
             gap: 1.5rem;
             transform: translateX(120%);
             transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
             pointer-events: auto;
-            min-width: 300px;
         }
         .toast.visible { transform: translateX(0); }
-        .toast-success { border-left-color: #4FD1C5; }
-        .toast-error { border-left-color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
-        .toast-close { opacity: 0.5; font-size: 1.2rem; cursor: pointer; }
+        .toast-success { border-left-color: #4fdbc8; }
+        .toast-error { border-left-color: #ffb4ab; }
+        .toast-close { opacity: 0.5; cursor: pointer; }
         .toast-close:hover { opacity: 1; }
 
-        /* ArXiv Search UI Enhancements */
+        /* ArXiv Search UI */
         #arxivResults .insight-card {
-            background: #1A1B22;   /* Surface color */
+            background: #2a2a2a;
             border: 1px solid rgba(255,255,255,0.05);
             transition: all 0.3s ease;
         }
-        #arxivResults .insight-card:hover { border-color: rgba(79, 209, 197, 0.4); }
+        #arxivResults .insight-card:hover { border-color: rgba(79, 219, 200, 0.4); }
 
+        /* Editor Layout Classes */
         #monacoContainer { height: 100%; width: 100%; background: #000; }
-        .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; background: #111217; }
-        .editor-panel { display: none; flex: 1; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.08); background: #000; }
+        .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+        .editor-panel { display: none; flex: 1; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.08); background: #000; z-index: 45; }
         .main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
+        
+        .ai-step-indicator {
+            width: 24px; height: 24px; border-radius: 50%; border: 1px solid #4fdbc8;
+            display: flex; align-items: center; justify-content: center; background: rgba(79, 219, 200, 0.1);
+        }
     </style>
-    <!-- Favicon & PWA -->
-    <link rel="icon" type="image/png" href="icon.png" />
-    <link rel="apple-touch-icon" href="icon.png" />
-    <link rel="manifest" href="manifest.json" />
-    <!-- Syntax highlighting -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" />
-    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 </head>
-<body class="bg-[#111217] text-on-background font-body selection:bg-primary/30 selection:text-primary overflow-hidden h-screen flex">
+
+<body class="bg-surface-container-lowest text-on-background font-body selection:bg-primary/30 overflow-hidden h-screen flex">
 <div class="app-container w-full">
-<nav class="w-20 lg:w-72 flex flex-col border-r border-outline-variant/30 bg-[#111217] z-50">
-<div class="p-6 border-b border-outline-variant/20 flex items-center gap-3">
-<span class="material-symbols-outlined text-primary text-3xl cursor-pointer" id="homeBtn">cyclone</span>
-<div class="hidden lg:block">
-<h1 class="text-sm font-bold tracking-[0.2em] uppercase leading-none font-headline">Obsidian</h1>
-<p class="text-[9px] text-outline uppercase tracking-widest mt-1">Exec Dashboard</p>
-</div>
-</div>
-<div class="p-4 border-b border-outline-variant/20">
-<div class="hidden lg:block mb-4">
-<h3 class="text-[10px] font-bold uppercase tracking-widest text-outline">High-Priority Directive</h3>
-</div>
-<div class="relative group">
-<div class="absolute -inset-0.5 bg-primary/20 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
-<div class="relative bg-surface-container rounded-lg border border-outline-variant/40 flex flex-col">
-    <div id="sidebarImagePreview" class="hidden p-2 bg-white/5 border-b border-outline-variant/10 relative">
-        <img id="sidebarPreviewImg" class="max-h-24 rounded border border-white/5 mx-auto" alt="Preview" />
-        <button id="sidebarRemoveImageBtn" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]">✕</button>
-    </div>
-    <textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline/40 resize-none min-h-[100px] custom-scrollbar" placeholder="Command LocalMind..."></textarea>
-    <div class="flex items-center justify-between p-2 border-t border-outline-variant/10">
-        <div class="flex gap-0.5">
-            <button id="sidebarUploadBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-white/5" title="Attach File"><span class="material-symbols-outlined text-sm">attach_file</span></button>
-            <button id="sidebarCameraBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-white/5" title="Camera"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
-            <button class="p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-white/5" title="Search Web"><span class="material-symbols-outlined text-sm">public</span></button>
-        </div>
-        <button id="addPriorityBtn" class="bg-primary text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all">
-            Execute
-        </button>
-    </div>
-</div>
-</div>
-</div>
-<div class="flex-1 overflow-y-auto py-4 custom-scrollbar">
-<div class="px-4 mb-4 hidden lg:block">
-<h3 class="text-[10px] font-bold uppercase tracking-widest text-outline">Navigation</h3>
-</div>
-<div class="flex flex-col gap-1 px-2 lg:px-4">
-<button class="flex items-center gap-4 p-3 rounded-lg text-primary bg-primary/5 border border-primary/10" id="overviewBtn">
-<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">dashboard</span>
-<span class="hidden lg:block text-xs font-medium uppercase tracking-widest">Global Overview</span>
-</button>
-<button class="flex items-center gap-4 p-3 rounded-lg text-on-surface-variant hover:bg-surface-variant/30 transition-colors" id="newChatBtn">
-<span class="material-symbols-outlined text-xl">add_comment</span>
-<span class="hidden lg:block text-xs font-medium uppercase tracking-widest">New Session</span>
-</button>
-<div id="conversationList" class="mt-4 space-y-1"></div>
-</div>
-</div>
 
-<div class="p-4 border-t border-outline-variant/20">
-    <div class="flex items-center justify-between mb-4 px-2">
-        <span class="text-[10px] font-bold uppercase tracking-widest text-outline">Autonomy</span>
-        <span id="autonomyIndicator" class="w-2 h-2 rounded-full bg-secondary"></span>
-    </div>
-    <div class="flex flex-col gap-2">
-        <button id="modeSupervisedBtn" class="flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm">shield</span> Supervised
-        </button>
-        <button id="modeAutonomousBtn" class="flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest text-outline">
-            <span class="material-symbols-outlined text-sm">robot_2</span> Autonomous
-        </button>
-    </div>
-</div>
-
-<div class="p-4 border-t border-outline-variant/20 flex flex-col gap-2">
-<button class="flex items-center gap-4 p-3 text-on-surface-variant hover:text-on-surface transition-colors" id="editorToggle">
-<span class="material-symbols-outlined text-xl">code</span>
-<span class="hidden lg:block text-xs font-medium uppercase tracking-widest">Code Editor</span>
-</button>
-<button class="flex items-center gap-4 p-3 text-on-surface-variant hover:text-on-surface transition-colors">
-<span class="material-symbols-outlined text-xl">settings</span>
-<span class="hidden lg:block text-xs font-medium uppercase tracking-widest">System Config</span>
-</button>
-</div>
-</nav>
-
-<!-- EDITOR PANEL -->
-<section class="editor-panel" id="editorPanel">
-    <div class="flex items-center justify-between p-4 border-b border-white/5">
-        <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Neural IDE</span>
-        <div class="flex gap-2">
-            <button id="editorRunBtn" class="bg-primary/10 text-primary text-[9px] font-bold px-3 py-1 rounded uppercase tracking-wider border border-primary/20">Run</button>
-            <button id="editorSendToAI" class="bg-surface-variant text-on-surface text-[9px] font-bold px-3 py-1 rounded uppercase tracking-wider border border-white/10">Attach</button>
+    <!-- SideNavBar (from Stitch + LocalMind features) -->
+    <aside id="sidebar" class="w-64 flex-shrink-0 flex flex-col bg-[#131313] border-r border-[#444748]/15 z-50">
+        <div class="px-6 py-8 flex items-center justify-between">
+            <div>
+                <div class="text-xl font-bold tracking-tighter text-[#c0c1ff] font-headline">OBSIDIAN</div>
+                <div class="text-[10px] tracking-[0.2em] text-outline font-medium mt-1 uppercase">PRIME-V4</div>
+            </div>
+            <button id="sidebarToggle" class="text-outline hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">menu_open</span></button>
         </div>
-    </div>
-    <div class="flex-1 flex overflow-hidden">
-        <div id="editorFileTree" class="w-48 border-r border-white/5 p-2 overflow-y-auto custom-scrollbar">
-            <div id="editorFileList" class="space-y-0.5"></div>
-        </div>
-        <div class="flex-1 relative">
-            <div id="monacoContainer"></div>
-        </div>
-    </div>
-    <div id="editorStatus" class="p-2 border-t border-white/5 text-[9px] text-outline uppercase tracking-widest flex justify-between">
-        <span id="editorPath">No file open</span>
-        <span id="editorLang">plaintext</span>
-    </div>
-</section>
-
-<main class="flex-1 flex flex-col h-full bg-[#050505] relative overflow-hidden">
-<header class="flex justify-between items-center px-8 h-16 border-b border-outline-variant/10 bg-surface-container-lowest/50 backdrop-blur-md z-40">
-<div class="flex items-center gap-6">
-<div class="flex items-center gap-2">
-<span id="brainPulse" class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(79,219,200,0.4)]"></span>
-<span id="brainStatus" class="text-xs font-bold uppercase tracking-[0.2em]">Operations Active</span>
-</div>
-<div class="h-4 w-px bg-outline-variant/30"></div>
-<div class="hidden sm:flex items-center gap-4 text-[10px] text-outline font-bold uppercase tracking-widest">
-<span id="uptimeDisplay">Last Sync: 12:44:02 PM</span>
-<span class="text-primary/60" id="versionBadge">Node: NY-CENTRAL-01</span>
-</div>
-</div>
-<div class="flex items-center gap-4">
-<div class="flex items-center gap-4 px-4 py-1.5 bg-surface-container rounded-lg border border-outline-variant/20">
-<div class="flex items-center gap-4">
-<span class="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant">CPU: <span id="cpuVal">14%</span></span>
-<span class="text-[10px] uppercase font-bold tracking-widest text-on-surface-variant">MEM: <span id="ramVal">12.8GB</span></span>
-<span class="text-[10px] uppercase font-bold tracking-widest text-primary" id="vramVal">SYNCED</span>
-</div>
-</div>
-      <div class="flex items-center gap-3">
-        <div class="relative hidden lg:block group">
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-outline/40 group-focus-within:text-primary">
-            <span class="material-symbols-outlined text-sm">search</span>
-          </div>
-          <input id="globalSearchInput" class="bg-surface-container border border-outline-variant/20 rounded-lg py-1.5 pl-9 pr-4 text-[10px] font-bold uppercase tracking-widest focus:ring-1 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-outline/40 w-48 focus:w-64" placeholder="Execute Search..." type="text"/>
-        </div>
-        <button class="p-2 text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined">notifications</span></button>
-        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary p-px">
-          <div class="w-full h-full rounded-full bg-[#0a0a0a] flex items-center justify-center">
-            <span class="text-[10px] font-bold">SD</span>
-          </div>
-        </div>
-      </div>
-</div>
-</header>
-
-<div class="flex-1 p-8 overflow-y-auto custom-scrollbar" id="mainScrollArea">
-    <!-- Welcome / Dashboard View -->
-    <div id="welcomeScreen" class="flex flex-col">
-        <!-- Compact Header Row -->
-        <div class="mb-4 flex items-center justify-between">
-            <h2 class="font-headline text-xl font-light tracking-tight text-on-background">Executive Oversight</h2>
-            <div class="flex items-center gap-3">
-                <div class="flex items-center gap-3 px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant/20 text-[10px] font-bold text-outline uppercase tracking-widest">
-                    <span>⏱ <span id="brainUptime">0m</span></span>
-                    <span class="text-outline-variant/30">│</span>
-                    <span>Tasks: <span id="brainApplied" class="text-primary">0</span></span>
+        
+        <!-- Priority Input -->
+        <div class="px-4 mb-6 relative group">
+            <div class="absolute -inset-0.5 bg-primary/20 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
+            <div class="relative bg-surface-container-high rounded-lg border border-outline-variant/40 flex flex-col">
+                <div id="sidebarImagePreview" class="hidden p-2 bg-white/5 border-b border-outline-variant/10 relative">
+                    <img id="sidebarPreviewImg" class="max-h-24 rounded border border-white/5 mx-auto" alt="Preview"/>
+                    <button id="sidebarRemoveImageBtn" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]">✕</button>
                 </div>
-                <button id="brainReflectBtn" class="px-3 py-1.5 bg-surface-container-high border border-outline-variant/30 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-surface-bright transition-colors">
-                    <span class="material-symbols-outlined text-sm">psychology</span> Reflect
+                <!-- Clarify this is for background tasks -->
+                <textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline font-body resize-none min-h-[100px] custom-scrollbar" placeholder="Queue background task for AI..."></textarea>
+                <div id="priorityList" class="mt-4 flex flex-wrap gap-2 px-3"></div>
+                <div class="flex items-center justify-between p-2 border-t border-outline-variant/10">
+                    <div class="flex gap-0.5">
+                        <button id="sidebarUploadBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">attach_file</span></button>
+                        <button id="sidebarCameraBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
+                    </div>
+                    <button id="addPriorityBtn" class="primary-gradient text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase hover:brightness-110 active:scale-95 transition-all">Execute</button>
+                </div>
+            </div>
+        </div>
+
+        <nav class="flex-1 space-y-1 overflow-y-auto px-2 custom-scrollbar">
+            <button id="overviewBtn" class="w-full text-left text-[#c0c1ff] font-bold border-l-2 border-[#6366f1] bg-gradient-to-r from-[#6366f1]/10 to-transparent flex items-center px-4 py-3 transition-all">
+                <span class="material-symbols-outlined mr-4">terminal</span>
+                <span class="text-sm font-headline tracking-tight">Main Dashboard</span>
+            </button>
+            <button id="newChatBtn" class="w-full text-left text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b] flex items-center px-4 py-3 transition-all group rounded-r-lg">
+                <span class="material-symbols-outlined mr-4 group-hover:text-primary">add_comment</span>
+                <span class="text-sm tracking-tight">New Session</span>
+            </button>
+            <div id="conversationList" class="mt-4 space-y-1 pl-4"></div>
+        </nav>
+
+        <div class="px-4 mt-auto mb-4 space-y-4">
+            <!-- Autonomy Controls -->
+            <div class="pt-4 border-t border-outline-variant/15 space-y-2">
+                <div class="flex items-center justify-between px-2 mb-2">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-outline">Operation Mode</span>
+                    <span id="autonomyIndicator" class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                </div>
+                <button id="modeSupervisedBtn" class="w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface-variant border border-outline-variant/20 hover:text-on-surface">
+                    <span class="material-symbols-outlined text-sm">shield</span> Supervised
                 </button>
-                <button id="brainExecuteBtn" class="px-3 py-1.5 bg-primary text-on-primary border border-primary/20 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/10">
-                    <span class="material-symbols-outlined text-sm">bolt</span> Execute
+                <button id="modeAutonomousBtn" class="w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest text-outline border border-outline-variant/20 hover:text-on-surface">
+                    <span class="material-symbols-outlined text-sm">robot_2</span> Autonomous
+                </button>
+            </div>
+            
+            <div class="pt-4 border-t border-outline-variant/15 space-y-2">
+                <button id="editorToggle" class="w-full text-left text-[#8e9192] hover:text-[#e5e2e1] flex items-center px-2 py-2 transition-colors">
+                    <span class="material-symbols-outlined text-sm mr-3">code</span> Code Editor
+                </button>
+                <button id="systemPromptBtn" class="w-full text-left flex items-center text-xs text-outline hover:text-on-background px-2 py-2 transition-colors">
+                    <span class="material-symbols-outlined text-sm mr-3">settings</span> Settings
                 </button>
             </div>
         </div>
+    </aside>
 
-        <!-- AI Thinking Feed -->
-        <div class="mb-4 glass-panel console-border rounded-lg p-3 relative overflow-hidden" id="aiThinkingPanel">
-            <div class="flex items-center gap-2 mb-2">
-                <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                </span>
-                <span class="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Engine Activity</span>
-            </div>
-            <div id="aiThinkingFeed" class="space-y-1 max-h-[80px] overflow-y-auto custom-scrollbar text-[11px] text-on-surface-variant/80 font-mono leading-relaxed">
-                <p class="opacity-40 italic">Awaiting engine activity...</p>
-            </div>
-        </div>
-
-        <div class="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-2">
-                <div class="flex items-center justify-between mb-6">
-                <h3 class="font-headline text-[10px] font-bold uppercase tracking-[0.3em] text-outline">Global Action Stream</h3>
-                <div class="flex gap-4">
-                <span class="text-[10px] text-secondary font-bold uppercase tracking-widest" id="taskPipelineCount">0 Active Tasks</span>
+    <!-- Main Content Area -->
+    <div class="main-content flex-1 h-screen flex flex-col relative bg-[#131313]">
+        <!-- TopNavBar -->
+        <header class="h-16 z-40 bg-[#0e0e0e]/80 backdrop-blur-xl border-b border-[#444748]/15 shadow-sm flex items-center justify-between px-8 flex-shrink-0">
+            <div class="flex items-center gap-8">
+                <div class="flex items-center gap-2">
+                    <span id="brainPulse" class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(79,219,200,0.4)]"></span>
+                    <span id="brainStatus" class="font-headline tracking-widest text-[#e5e2e1] text-sm uppercase">Command Center</span>
                 </div>
-                </div>
-                <div class="space-y-3" id="taskPipelineBody">
-                    <!-- Dynamic task items -->
+                <div class="hidden lg:flex items-center gap-6">
+                    <span class="text-[#2dd4bf] font-medium text-xs tracking-wider font-label" id="versionBadge">Cluster-01</span>
+                    <span class="text-[#8e9192] hover:text-[#c0c1ff] transition-colors text-xs tracking-wider" id="uptimeDisplay">Sync: 00:00:00</span>
                 </div>
             </div>
-            <div class="space-y-6">
-                <h3 class="font-headline text-[10px] font-bold uppercase tracking-[0.3em] text-outline">Decision Support</h3>
-                <div id="architectInsight" class="glass-panel p-6 rounded-xl border border-outline-variant/20 shadow-2xl relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <span class="material-symbols-outlined text-6xl text-primary">lightbulb</span>
+            
+            <div class="flex items-center gap-6">
+                <!-- System Status Indicators -->
+                <div class="flex items-center gap-4 border-r border-outline-variant/20 pr-6">
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] text-outline leading-none uppercase tracking-tighter">CPU Load</span>
+                        <span class="text-xs font-mono font-bold text-secondary" id="cpuVal">--%</span>
                     </div>
-                    <div class="relative z-10">
-                    <div class="flex items-center gap-2 mb-4">
-                    <span class="material-symbols-outlined text-primary">psychology_alt</span>
-                    <h4 class="font-headline text-sm font-bold text-on-background tracking-tight">Architect's Insight</h4>
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] text-outline leading-none uppercase tracking-tighter">VRAM Free</span>
+                        <span class="text-xs font-mono font-bold text-primary" id="vramVal">SYNCED</span>
                     </div>
-                    <p id="insightContent" class="text-[12px] text-on-surface-variant leading-relaxed opacity-90 italic">
-                        Standing by for reasoning vectors...
-                    </p>
-                    <div id="brainDigest" class="hidden mt-4 p-3 bg-white/5 rounded border border-white/10 text-[10px] text-outline leading-tight"></div>
-                    <div class="mt-6 flex gap-2">
-                    <button class="flex-1 py-2 bg-primary/10 border border-primary/20 rounded text-[9px] font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary/20 transition-colors">Analyze</button>
-                    <button class="px-3 py-2 bg-surface-container-highest border border-outline-variant/30 rounded text-[9px] font-bold uppercase tracking-[0.2em] text-on-surface-variant hover:text-on-surface transition-colors">Dismiss</button>
-                    </div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] text-outline leading-none uppercase tracking-tighter">RAM</span>
+                        <span class="text-xs font-mono font-bold text-secondary" id="ramVal">--GB</span>
                     </div>
                 </div>
+                
+                <div class="flex items-center gap-4 text-[#8e9192]">
+                    <span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors">notifications_active</span>
+                </div>
+            </div>
+        </header>
 
-                <!-- RESEARCH INTELLIGENCE -->
-                <div class="glass-panel p-6 rounded-xl border border-outline-variant/20 shadow-2xl">
-                  <div class="flex items-center gap-2 mb-6">
-                    <span class="material-symbols-outlined text-secondary">history_edu</span>
-                    <h3 class="font-headline text-sm font-bold text-on-background tracking-tight">Research Intelligence</h3>
-                  </div>
-                  <div class="space-y-4">
+        <!-- Editor Panel Overlay/Split -->
+        <section class="editor-panel absolute inset-0 pt-16" id="editorPanel">
+            <!-- Full height content container inside editor panel -->
+            <div class="flex flex-col h-full bg-[#0e0e0e] border-l border-outline-variant/20">
+                <div class="flex items-center justify-between p-3 border-b border-outline-variant/20 bg-surface-container-low">
+                    <span class="text-xs font-headline tracking-widest text-[#c0c1ff]">Neural IDE</span>
                     <div class="flex gap-2">
-                      <input id="arxivSearchInput" class="flex-1 bg-surface-container-high border border-outline-variant/30 rounded-lg py-2 px-3 text-[10px] font-medium tracking-tight focus:ring-1 focus:ring-primary focus:outline-none placeholder:text-outline/30 transition-all font-body" placeholder="Search ArXiv (e.g. Agentic RAG)..." type="text"/>
-                      <button id="arxivSearchBtn" class="bg-secondary text-on-secondary text-[10px] font-bold px-3 py-2 rounded-lg uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2 shadow-lg shadow-secondary/10">
-                        <span class="material-symbols-outlined text-sm">search</span>
-                      </button>
+                        <button id="editorRunBtn" class="bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors">Run Script</button>
+                        <button id="editorSendToAI" class="bg-surface-variant hover:bg-surface-bright text-on-surface text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors border border-outline-variant/30">Attach to Context</button>
+                        <!-- Close Editor Button -->
+                        <button id="editorCloseBtn" onclick="document.getElementById('editorToggle').click()" class="text-outline hover:text-error ml-4"><span class="material-symbols-outlined">close</span></button>
                     </div>
-                    <div id="arxivResults" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                      <div class="flex flex-col items-center justify-center py-8 text-outline/30 gap-2">
-                        <span class="material-symbols-outlined text-4xl opacity-10">description</span>
-                        <p class="text-[9px] uppercase tracking-[0.2em] font-bold">Input Query to Index Papers</p>
-                      </div>
+                </div>
+                <div class="flex-1 flex overflow-hidden">
+                    <div id="editorFileTree" class="w-56 border-r border-[#444748]/15 bg-[#131313] p-2 overflow-y-auto custom-scrollbar">
+                        <div id="editorFileList" class="space-y-0.5 text-xs text-outline"></div>
                     </div>
-                  </div>
+                    <!-- Editor panel divider for resizing -->
+                    <div id="panelDivider" class="w-1 cursor-col-resize bg-outline-variant/10 hover:bg-primary/50 transition-colors z-50"></div>
+                    <div class="flex-1 relative">
+                        <div id="monacoContainer" class="absolute inset-0"></div>
+                    </div>
+                </div>
+                <div id="editorStatus" class="p-2 border-t border-outline-variant/20 bg-[#131313] text-[9px] text-outline uppercase tracking-widest flex justify-between">
+                    <span id="editorPath">No file open</span>
+                    <span id="editorLang">plaintext</span>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <!-- Chat Screen (Initially Hidden) -->
-    <div id="chatScreen" class="hidden flex flex-col h-full">
-        <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pb-32">
-            <!-- Messages populated by JS -->
+        <!-- Main Dashboard View Container -->
+        <div class="flex-1 flex h-full overflow-hidden" id="mainDashboardView">
+            
+            <!-- Primary Workspace (Middle Pane) -->
+            <section class="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-8" id="mainScrollArea">
+                <!-- Welcome Screen container -->
+                <div id="welcomeScreen" class="flex flex-col gap-6">
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-3xl font-headline font-bold text-on-background tracking-tight">System Node Alpha-9</h1>
+                            <p class="text-outline text-sm mt-1">Status: <span class="text-secondary font-medium">Operational</span> — Operations Active</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-3 px-3 py-1.5 bg-surface-container-low rounded-lg border border-outline-variant/20 text-[10px] font-bold text-outline uppercase tracking-widest">
+                                <span>⏱ <span id="brainUptime">0m</span></span>
+                                <span class="text-outline-variant/30">│</span>
+                                <span>Tasks: <span id="brainApplied" class="text-primary">0</span></span>
+                            </div>
+                            <button id="brainReflectBtn" class="px-3 py-2 bg-surface-container-high border border-outline-variant/30 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-surface-bright transition-colors">
+                                <span class="material-symbols-outlined text-sm">psychology</span> Reflect
+                            </button>
+                            <button id="brainExecuteBtn" class="px-3 py-2 primary-gradient text-on-primary rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/10 hover:brightness-110 active:scale-95 transition-all">
+                                <span class="material-symbols-outlined text-sm">bolt</span> Execute
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Reasoning & Execution Console (AI Thinking Feed) -->
+                    <div class="bg-surface-container rounded-2xl p-6 flex flex-col gap-6 relative overflow-hidden group border border-outline-variant/10 shadow-lg" id="aiThinkingPanel">
+                        <div class="absolute inset-0 opacity-5 pointer-events-none">
+                            <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,#6366f1,transparent)]"></div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between z-10">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-primary/10 rounded-lg">
+                                    <span class="material-symbols-outlined text-primary">alt_route</span>
+                                </div>
+                                <div>
+                                    <h2 class="font-headline font-bold text-lg">Reasoning & Execution</h2>
+                                    <span class="text-[10px] font-mono text-outline">Engine Activity Log</span>
+                                </div>
+                            </div>
+                            <span class="px-2 py-1 bg-surface-container-highest text-[10px] font-mono text-on-surface-variant rounded">LOCAL_MIND_V4</span>
+                        </div>
+                        
+                        <div id="aiThinkingFeed" class="flex-1 space-y-4 max-h-[250px] overflow-y-auto custom-scrollbar pr-2 z-10 font-mono text-sm">
+                            <p class="opacity-40 italic flex items-center gap-2"><div class="w-6 h-6 rounded-full border border-outline flex items-center justify-center bg-outline/10"><span class="material-symbols-outlined text-xs">hourglass_empty</span></div> Awaiting engine activity...</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-[10px] font-bold text-outline tracking-widest uppercase">Global Action Stream</h3>
+                            <span class="text-[10px] font-bold text-secondary uppercase tracking-widest" id="taskPipelineCount">0 Active Tasks</span>
+                        </div>
+                        <!-- We use a grid matching the Stitch "Active Directives" -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="taskPipelineBody">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Screen (Initially Hidden) -->
+                <div id="chatScreen" class="hidden flex flex-col h-full w-full">
+                    <div class="flex items-center justify-between mb-4 pb-2 border-b border-outline-variant/10">
+                        <h2 class="font-headline text-xl font-light tracking-tight text-on-background">Conversation Session</h2>
+                    </div>
+                    <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-6 pb-4">
+                        <!-- Messages populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Action/Command input anchor inside Main (Replaces priorities textarea if desired, but we keep sidebar priorities so we could omit or repurpose this) -->
+                <div class="mt-auto pt-4 border-t border-outline-variant/10 z-10 sticky bottom-0 bg-[#131313]">
+                    <div class="bg-surface-container-low rounded-xl border border-outline-variant/20 focus-within:border-primary/50 transition-all p-2 flex gap-2">
+                        <div class="flex flex-col gap-2 border-r border-outline-variant/20 pr-2">
+                            <button id="micBtn" class="p-2 text-outline hover:text-primary transition-colors">
+                                <span class="material-symbols-outlined">mic</span>
+                            </button>
+                            <button id="openCameraBtn" class="p-2 text-outline hover:text-primary transition-colors">
+                                <span class="material-symbols-outlined">photo_camera</span>
+                            </button>
+                        </div>
+                        <textarea id="messageInput" class="bg-transparent border-none focus:ring-0 text-sm flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[48px] py-3" placeholder="Transmit architectural directives or quick queries..." rows="1"></textarea>
+                        <div class="flex items-center gap-1 pl-2">
+                            <button id="sendBtn" class="primary-gradient p-2 rounded-lg text-on-primary hover:brightness-110 transition-all h-full self-end">
+                                <span class="material-symbols-outlined">send</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Secondary Information (Right Pane) -->
+            <section class="w-80 flex-shrink-0 bg-[#0e0e0e] border-l border-[#444748]/15 flex flex-col p-6 overflow-y-auto custom-scrollbar shadow-inner z-10">
+                
+                <!-- Decision Support / Architect Insight -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="font-headline font-bold text-sm tracking-widest uppercase text-[#e5e2e1]">Architect Insight</h2>
+                        <span class="material-symbols-outlined text-sm text-primary">lightbulb</span>
+                    </div>
+                    <div id="architectInsight" class="bg-surface-container-high p-4 rounded-xl border border-outline-variant/20 shadow-lg relative overflow-hidden group">
+                        <p id="insightContent" class="text-xs text-on-surface-variant leading-relaxed italic">
+                            Standing by for reasoning vectors...
+                        </p>
+                        <div id="brainDigest" class="hidden mt-3 p-2 bg-surface-container-lowest rounded border border-outline-variant/10 text-[10px] text-outline leading-tight font-mono"></div>
+                    </div>
+                </div>
+
+                <!-- Research Intelligence (ArXiv Search) -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="font-headline font-bold text-sm tracking-widest uppercase text-[#e5e2e1]">Research Network</h2>
+                        <span class="material-symbols-outlined text-sm text-secondary">history_edu</span>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <input id="arxivSearchInput" class="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-lg py-1.5 px-3 text-xs font-medium focus:ring-1 focus:ring-primary focus:outline-none placeholder:text-outline transition-all" placeholder="Query ArXiv..." type="text"/>
+                            <button id="arxivSearchBtn" class="bg-surface-container-high text-primary border border-outline-variant/20 text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-widest hover:bg-primary/10 transition-all flex items-center justify-center shadow-lg shadow-black/20">
+                                <span class="material-symbols-outlined text-sm">search</span>
+                            </button>
+                        </div>
+                        <div id="arxivResults" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div class="flex flex-col items-center justify-center py-6 text-outline/30 gap-2">
+                                <span class="material-symbols-outlined text-3xl opacity-20">description</span>
+                                <p class="text-[9px] uppercase tracking-widest font-bold">Input Query to Index Papers</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Logs (Replacing visual charts with the Operations Log) -->
+                <div class="flex-1 flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="font-headline font-bold text-sm tracking-widest uppercase text-[#e5e2e1]">System Logs</h2>
+                        <span class="material-symbols-outlined text-outline text-lg cursor-pointer hover:text-on-background">filter_list</span>
+                    </div>
+                    <div class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar" id="systemLogFeed">
+                        <!-- Static fake logs from design -->
+                        <div class="group flex gap-3">
+                            <div class="w-1 h-8 bg-secondary rounded-full mt-1"></div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] font-bold text-secondary uppercase tracking-tight">Success</span>
+                                </div>
+                                <p class="text-[11px] text-on-surface-variant leading-tight">Semantic index reconstruction complete.</p>
+                            </div>
+                        </div>
+                        <div class="group flex gap-3">
+                            <div class="w-1 h-8 bg-primary rounded-full mt-1"></div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] font-bold text-primary uppercase tracking-tight">Info</span>
+                                </div>
+                                <p class="text-[11px] text-on-surface-variant leading-tight">External API handshake initiated.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
         </div>
     </div>
 </div>
 
-</main>
+<!-- Settings Modal (Notifications / SMS) -->
+<div id="settingsModal" class="hidden fixed inset-0 z-[100] items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="glass-panel w-full max-w-lg rounded-2xl border border-outline-variant/30 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div class="p-6 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container-low">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary">notifications_active</span>
+                <h2 class="font-headline font-bold text-xl tracking-tight text-on-background">Notification Settings</h2>
+            </div>
+            <button id="closeSettingsBtn" class="text-outline hover:text-error transition-colors p-2 rounded-full hover:bg-white/5">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+            <!-- SMS Section -->
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-sm tracking-widest uppercase text-primary">SMS Integration (Twilio)</h3>
+                        <p class="text-[11px] text-outline mt-1">Configure your Twilio account to receive alerts.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="smsEnabled" class="sr-only peer">
+                        <div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 gap-5">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Account SID</label>
+                        <input type="text" id="twilioSid" title="Twilio Account SID" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Auth Token</label>
+                        <input type="password" id="twilioToken" title="Twilio Auth Token" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="••••••••••••••••••••••••••••••••">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Twilio Number</label>
+                            <input type="text" id="twilioPhone" title="Twilio Phone Number" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="+15550000000">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Your Phone Number</label>
+                            <input type="text" id="targetPhone" title="Target Phone Number" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="+15559998888">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Cloud Intelligence Section -->
+            <div class="pt-6 border-t border-outline-variant/15">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="font-bold text-sm tracking-widest uppercase text-primary">Cloud Intelligence (Gemini)</h3>
+                        <p class="text-[11px] text-outline mt-1">Enable complex reasoning with Google Gemini.</p>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Gemini API Key</label>
+                        <div class="relative">
+                            <input type="password" id="geminiKey" title="Gemini API Key" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="AIzaSy...">
+                            <a href="https://aistudio.google.com/apikey" target="_blank" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-primary hover:underline font-bold">Get Key</a>
+                        </div>
+                    </div>
+                    <button id="testGeminiBtn" class="w-full py-2 bg-surface-variant/50 hover:bg-surface-variant text-[10px] font-bold rounded-lg uppercase tracking-widest transition-all border border-outline-variant/20 flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-xs">analytics</span> Verify Connection
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="p-6 border-t border-outline-variant/20 bg-surface-container-low flex justify-between gap-4">
+            <button id="testSmsBtn" class="px-6 py-2.5 bg-surface-variant hover:bg-surface-bright text-on-surface text-xs font-bold rounded-xl uppercase tracking-widest transition-all border border-outline-variant/30 flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">send</span> Test Alert
+            </button>
+            <button id="saveSettingsBtn" class="px-8 py-2.5 primary-gradient text-on-primary text-xs font-bold rounded-xl uppercase tracking-widest shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">save</span> Save Config
+            </button>
+        </div>
+    </div>
 </div>
+
 <!-- Hidden compatibility layers -->
 <div class="hidden" aria-hidden="true">
     <textarea id="systemPromptText"></textarea>
     <div id="systemPromptEditor"></div>
-    <button id="systemPromptBtn"></button>
     <button id="saveSystemPrompt"></button>
     <select id="modelSelect">
         <option value="auto">Auto</option>
@@ -410,4 +564,5 @@
 
 <script src="modules/dashboard.js"></script>
 <script type="module" src="app.js"></script>
-</body></html>
+</body>
+</html>

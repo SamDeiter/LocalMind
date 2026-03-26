@@ -7,3 +7,5 @@
 - [ ] **2026-03-18T17:23:18** — Open-source Docker container that can be used by the AI for sandboxed code execution, or to contain/isolate the AI itself
 - [ ] **2026-03-18T17:28:24** — Gmail integration: AI reads user's Gmail to learn about them and personalize interactions. Must address security and privacy concerns (local-only processing, PII scrubbing, OAuth scopes, user approval flow, no cloud forwarding)
 - [ ] **2026-03-18T17:37:07** — Build number visible in the app UI, auto-incremented on each build/deploy. Wire `scripts/bump_build.py` + `version.json` into `run.py` so the build number bumps automatically every time the server starts in production mode.
+- [ ] **2026-03-25 19:22:53** — Cloud AI to act as the brain that guides local AI to prevent bad edits
+- [ ] **2026-03-25 19:23:37** — AI internet interaction to learn new skills and find new ways to make its tools more efficient

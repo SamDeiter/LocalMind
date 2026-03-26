@@ -27,16 +27,22 @@ MODELS = {
         "description": "Tiny local model for instant startup and simple chat",
     },
     "local_light": {
-        "name": "qwen2.5-coder:7b",
+        "name": "qwen2.5-coder:32b",
         "provider": "ollama",
         "privacy": "fully_private",
-        "description": "Fast local model for simple tasks",
+        "description": "Powerful local model for robust code generation (Sam's daily driver)",
     },
     "local_heavy": {
         "name": "qwen2.5-coder:32b",
         "provider": "ollama",
         "privacy": "fully_private",
         "description": "Powerful local model for robust code generation and editing",
+    },
+    "local_ultra": {
+        "name": "qwen2.5-coder:70b",
+        "provider": "ollama",
+        "privacy": "fully_private",
+        "description": "Elite local model for complex architectural reasoning (requires 256GB+ RAM)",
     },
     "cloud_flash": {
         "name": "gemini-2.0-flash",
@@ -72,15 +78,24 @@ def route_model(
     """
     # Always respect user's force_local preference
     if force_local:
-        if complexity_score >= 7:
+        if complexity_score >= 8:
+            model = MODELS["local_ultra"].copy()
+        elif complexity_score >= 6:
             model = MODELS["local_heavy"].copy()
         else:
             model = MODELS["local_light"].copy()
         model["needs_approval"] = False
-        model["route_reason"] = "User prefers local processing"
+        model["route_reason"] = "User prefers local (Ultra/Heavy tier)"
         return model
 
     # Trivial tasks → micro model (instant response)
+    if complexity_score <= 2:
+        model = MODELS["local_micro"].copy()
+        model["needs_approval"] = False
+        model["route_reason"] = "Simple chat — using micro model"
+        return model
+
+    # Simple chat — using micro model
     if complexity_score <= 2:
         model = MODELS["local_micro"].copy()
         model["needs_approval"] = False
@@ -94,46 +109,37 @@ def route_model(
         model["route_reason"] = "Simple task — handled locally"
         return model
 
-    # Medium tasks → local heavy if possible
+    # Medium tasks → local heavy
     if complexity_score <= 6:
         model = MODELS["local_heavy"].copy()
         model["needs_approval"] = False
         model["route_reason"] = "Medium complexity — using larger local model"
         return model
-
-    # Complex tasks → try cloud if available and approved
+    
+    # High complexity → local ultra (if forced/configured) or cloud
     if complexity_score <= 8:
         if gemini_available and cloud_approved:
             model = MODELS["cloud_flash"].copy()
-            model["needs_approval"] = False  # Already approved
+            model["needs_approval"] = False
             model["route_reason"] = "Complex task — using Gemini Flash (approved)"
             return model
-        elif gemini_available:
-            model = MODELS["cloud_flash"].copy()
-            model["needs_approval"] = True
-            model["route_reason"] = "Complex task — Gemini Flash recommended (needs approval)"
-            return model
         else:
-            model = MODELS["local_heavy"].copy()
+            # Fallback to the strongest local model
+            model = MODELS["local_ultra"].copy()
             model["needs_approval"] = False
-            model["route_reason"] = "Complex task — using local (Gemini not configured)"
+            model["route_reason"] = "Complex task — using local Ultra (Gemini not configured/approved)"
             return model
 
-    # Very hard tasks → Gemini Pro
+    # Very hard tasks → Ultra Local or Gemini Pro
     if gemini_available and cloud_approved:
         model = MODELS["cloud_pro"].copy()
         model["needs_approval"] = False
         model["route_reason"] = "Very complex task — using Gemini Pro (approved)"
         return model
-    elif gemini_available:
-        model = MODELS["cloud_pro"].copy()
-        model["needs_approval"] = True
-        model["route_reason"] = "Very complex task — Gemini Pro recommended (needs approval)"
-        return model
     else:
-        model = MODELS["local_heavy"].copy()
+        model = MODELS["local_ultra"].copy()
         model["needs_approval"] = False
-        model["route_reason"] = "Very complex task — using local (Gemini not configured)"
+        model["route_reason"] = "High complexity — using local Ultra"
         return model
 
 
@@ -156,13 +162,13 @@ def get_available_models() -> list[dict]:
 def get_autonomy_models() -> dict:
     """Return model names for autonomy engine tasks.
     
-    Reflection/proposals → 7B (good enough for JSON generation)
-    Code editing → 32B (needs precision for search-replace diffs)
+    Reflection/proposals → 14B or 32B (good for reasoning)
+    Code editing → 70B (Ultra precision for 256GB systems)
     """
     return {
-        "reflection": MODELS["local_light"]["name"],
-        "editing": MODELS["local_heavy"]["name"],
-        "file_targeting": MODELS["local_light"]["name"],
+        "reflection": MODELS["local_heavy"]["name"],
+        "editing": MODELS["local_ultra"]["name"],
+        "file_targeting": MODELS["local_heavy"]["name"],
     }
 
 

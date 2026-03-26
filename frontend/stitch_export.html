@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LocalMind | Obsidian Command Interface</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-surface-variant": "#c4c7c7",
+                        "tertiary-fixed": "#e0e0ff",
+                        "outline": "#8e9192",
+                        "primary-container": "#010027",
+                        "background": "#131313",
+                        "on-tertiary-container": "#626dd7",
+                        "on-secondary-container": "#003f38",
+                        "on-background": "#e5e2e1",
+                        "surface-tint": "#c0c1ff",
+                        "on-error": "#690005",
+                        "tertiary-container": "#000125",
+                        "on-primary-container": "#6366f1",
+                        "on-tertiary-fixed-variant": "#2f3aa3",
+                        "on-secondary-fixed-variant": "#005048",
+                        "inverse-surface": "#e5e2e1",
+                        "tertiary": "#bdc2ff",
+                        "on-tertiary": "#131e8c",
+                        "on-secondary-fixed": "#00201c",
+                        "error": "#ffb4ab",
+                        "surface": "#131313",
+                        "surface-dim": "#131313",
+                        "surface-container-low": "#1c1b1b",
+                        "on-tertiary-fixed": "#000767",
+                        "surface-variant": "#353534",
+                        "surface-container-high": "#2a2a2a",
+                        "secondary-container": "#04b4a2",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "tertiary-fixed-dim": "#bdc2ff",
+                        "outline-variant": "#444748",
+                        "on-secondary": "#003731",
+                        "on-primary": "#1000a9",
+                        "surface-container-highest": "#353534",
+                        "primary": "#c0c1ff",
+                        "on-primary-fixed": "#07006c",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "inverse-primary": "#494bd6",
+                        "inverse-on-surface": "#313030",
+                        "primary-fixed": "#e1e0ff",
+                        "surface-bright": "#3a3939",
+                        "on-surface": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "surface-container": "#201f1f",
+                        "secondary-fixed-dim": "#4fdbc8",
+                        "secondary-fixed": "#71f8e4",
+                        "secondary": "#4fdbc8"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(53, 53, 52, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0e0e0e;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #444748;
+            border-radius: 10px;
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #c0c1ff 0%, #6366f1 100%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-background font-body selection:bg-primary/30 overflow-hidden">
+<!-- SideNavBar (Authority Source: Shared Components JSON) -->
+<aside class="h-screen w-64 fixed left-0 top-0 overflow-y-auto bg-[#131313] border-r border-[#444748]/15 flex flex-col py-8 z-50">
+<div class="px-6 mb-10">
+<div class="text-xl font-bold tracking-tighter text-[#c0c1ff] font-headline">OBSIDIAN</div>
+<div class="text-[10px] tracking-[0.2em] text-outline font-medium mt-1 uppercase">PRIME-V4</div>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Active: Command -->
+<a class="text-[#c0c1ff] font-bold border-r-2 border-[#6366f1] bg-gradient-to-r from-[#6366f1]/10 to-transparent flex items-center px-6 py-4 transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-4" data-icon="terminal">terminal</span>
+<span class="text-sm font-headline tracking-tight">Command</span>
+</a>
+<a class="text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b] flex items-center px-6 py-4 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined mr-4 group-hover:text-primary" data-icon="psychology">psychology</span>
+<span class="text-sm">Intelligence</span>
+</a>
+<a class="text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b] flex items-center px-6 py-4 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined mr-4 group-hover:text-primary" data-icon="monitoring">monitoring</span>
+<span class="text-sm">Telemetry</span>
+</a>
+<a class="text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b] flex items-center px-6 py-4 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined mr-4 group-hover:text-primary" data-icon="settings_input_component">settings_input_component</span>
+<span class="text-sm">Operations</span>
+</a>
+<a class="text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b] flex items-center px-6 py-4 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined mr-4 group-hover:text-primary" data-icon="shield">shield</span>
+<span class="text-sm">Security</span>
+</a>
+<a class="text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b] flex items-center px-6 py-4 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined mr-4 group-hover:text-primary" data-icon="settings">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+</nav>
+<div class="px-6 mt-auto space-y-4">
+<button class="w-full py-3 px-4 primary-gradient text-on-primary font-bold rounded-md text-xs tracking-widest uppercase flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                DEPLOY NEW NODE
+            </button>
+<div class="pt-6 border-t border-outline-variant/15 space-y-3">
+<a class="flex items-center text-xs text-outline hover:text-on-background transition-colors" href="#">
+<span class="material-symbols-outlined text-sm mr-3" data-icon="menu_book">menu_book</span>
+                    Documentation
+                </a>
+<a class="flex items-center text-xs text-outline hover:text-on-background transition-colors" href="#">
+<span class="material-symbols-outlined text-sm mr-3 text-secondary" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                    System Status
+                </a>
+</div>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 left-64 h-16 z-40 bg-[#0e0e0e]/60 backdrop-blur-xl border-b border-[#444748]/15 shadow-2xl shadow-black/40 flex items-center justify-between px-8">
+<div class="flex items-center gap-8">
+<div class="text-lg font-black tracking-widest text-[#e5e2e1] font-headline uppercase">Command Center</div>
+<div class="hidden lg:flex items-center gap-6">
+<a class="text-[#2dd4bf] font-medium text-xs tracking-wider font-label" href="#">Cluster-01</a>
+<a class="text-[#8e9192] hover:text-[#c0c1ff] transition-colors text-xs tracking-wider font-label" href="#">Neural-Grid</a>
+<a class="text-[#8e9192] hover:text-[#c0c1ff] transition-colors text-xs tracking-wider font-label" href="#">Edge-Alpha</a>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<!-- System Status Indicators -->
+<div class="flex items-center gap-4 border-r border-outline-variant/20 pr-6">
+<div class="flex flex-col items-end">
+<span class="text-[10px] text-outline leading-none uppercase tracking-tighter">CPU Load</span>
+<span class="text-xs font-mono font-bold text-secondary">24.8%</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-[10px] text-outline leading-none uppercase tracking-tighter">VRAM Free</span>
+<span class="text-xs font-mono font-bold text-primary">12.4 GB</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-[10px] text-outline leading-none uppercase tracking-tighter">Latency</span>
+<span class="text-xs font-mono font-bold text-secondary">14ms</span>
+</div>
+</div>
+<div class="flex items-center gap-4 text-[#8e9192]">
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors" data-icon="notifications_active">notifications_active</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors" data-icon="sensors">sensors</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-error transition-colors" data-icon="power_settings_new">power_settings_new</span>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/30">
+<img alt="Administrator" class="w-full h-full object-cover" data-alt="Minimalist abstract avatar for an AI system administrator with cybernetic elements in high contrast dark theme" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPVZ3TWWCOJjcIsb-04RYoyZL_ZVzg5bfgHHzCAThYPNAlxNwNfoFnCrfcK2q4fuL6sSRtW5XRIoh8u23E-m54f5fB7uM512IZ70T1q9a4lfr0BitlOOyhUb9DlrfXNia08gla4NNt91elLgRP7JpOR4rylH7ZMbkp-xHf_VmRxzhBCOssZ7Ir9UhiG-eW7X4HGv6amHIqv1gOxC6-ldMl-W1qStI0YWIp0KHyRzWYEC2XS7R6sxIt9hfQM-K9QP6C7OpfhP4__aD4"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Dashboard Layout -->
+<main class="ml-64 pt-16 h-screen flex overflow-hidden">
+<!-- Primary Workspace (Middle Pane) -->
+<section class="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-8">
+<!-- Header Greeting/Context -->
+<div>
+<h1 class="text-3xl font-headline font-bold text-on-background tracking-tight">System Node Alpha-9</h1>
+<p class="text-outline text-sm mt-1">Status: <span class="text-secondary font-medium">Operational</span> — Synchronizing with local semantic memory bank.</p>
+</div>
+<!-- Active Directives -->
+<div class="grid grid-cols-3 gap-4">
+<div class="bg-surface-container-low p-4 rounded-xl border-l-2 border-secondary/40">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-bold text-secondary tracking-widest uppercase">Approved</span>
+<span class="material-symbols-outlined text-outline text-lg" data-icon="more_vert">more_vert</span>
+</div>
+<h3 class="text-sm font-semibold mb-2">Neural Map Optimization</h3>
+<div class="w-full bg-surface-container-highest h-1 rounded-full mb-2">
+<div class="bg-secondary h-full rounded-full" style="width: 72%"></div>
+</div>
+<span class="text-[10px] text-outline">72% Progress — 4 nodes remaining</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl border-l-2 border-primary/40">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-bold text-primary tracking-widest uppercase">Built</span>
+<span class="material-symbols-outlined text-outline text-lg" data-icon="more_vert">more_vert</span>
+</div>
+<h3 class="text-sm font-semibold mb-2">Query Expansion Layer</h3>
+<div class="w-full bg-surface-container-highest h-1 rounded-full mb-2">
+<div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+</div>
+<span class="text-[10px] text-outline">Deployment successful — Version 2.4.1</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl border-l-2 border-outline/20">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-bold text-outline tracking-widest uppercase">Planned</span>
+<span class="material-symbols-outlined text-outline text-lg" data-icon="more_vert">more_vert</span>
+</div>
+<h3 class="text-sm font-semibold mb-2">Multi-Modal Integration</h3>
+<div class="w-full bg-surface-container-highest h-1 rounded-full mb-2">
+<div class="bg-outline h-full rounded-full" style="width: 0%"></div>
+</div>
+<span class="text-[10px] text-outline">Awaiting hardware handshake</span>
+</div>
+</div>
+<!-- Reasoning & Execution Console -->
+<div class="flex-1 bg-surface-container rounded-2xl p-6 flex flex-col gap-6 relative overflow-hidden group">
+<!-- Background visual texture -->
+<div class="absolute inset-0 opacity-5 pointer-events-none">
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,#6366f1,transparent)]"></div>
+</div>
+<div class="flex items-center justify-between z-10">
+<div class="flex items-center gap-3">
+<div class="p-2 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary" data-icon="alt_route">alt_route</span>
+</div>
+<div>
+<h2 class="font-headline font-bold text-lg">Reasoning &amp; Execution</h2>
+<span class="text-[10px] font-mono text-outline">THREAD_ID: DX-4092-LOCAL</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-1 bg-surface-container-highest text-[10px] font-mono text-on-surface-variant rounded">VULCAN_ENGINE_V1</span>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary" data-icon="fullscreen">fullscreen</span>
+</div>
+</div>
+<div class="flex-1 space-y-6 overflow-y-auto custom-scrollbar pr-2 z-10">
+<!-- Step 1 -->
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="w-6 h-6 rounded-full border border-secondary flex items-center justify-center bg-secondary/10">
+<span class="material-symbols-outlined text-xs text-secondary" data-icon="check">check</span>
+</div>
+<div class="flex-1 w-px bg-outline-variant/30 my-2"></div>
+</div>
+<div class="flex-1 pb-4">
+<div class="text-xs font-bold text-secondary uppercase tracking-tighter mb-1">Step 1: Intent Parsing</div>
+<p class="text-sm text-on-surface leading-relaxed">System identified user intent as <span class="text-primary">"Architectural Schema Validation"</span>. Cross-referencing with local codebase in <code class="bg-surface-container-high px-1 text-primary">/src/core/models/</code>.</p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="w-6 h-6 rounded-full border border-secondary flex items-center justify-center bg-secondary/10">
+<span class="material-symbols-outlined text-xs text-secondary" data-icon="check">check</span>
+</div>
+<div class="flex-1 w-px bg-outline-variant/30 my-2"></div>
+</div>
+<div class="flex-1 pb-4">
+<div class="text-xs font-bold text-secondary uppercase tracking-tighter mb-1">Step 2: Memory Retrieval</div>
+<div class="bg-surface-container-low rounded-lg p-3 border border-outline-variant/10 mb-2">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-sm text-primary" data-icon="database">database</span>
+<span class="text-[10px] font-mono text-outline">FOUND 3 RELEVANT CONTEXT BLOCKS</span>
+</div>
+<ul class="text-xs space-y-1 text-on-surface-variant italic">
+<li>- schema_v4_patch.json (Last modified: 2h ago)</li>
+<li>- core_logic_directives.txt</li>
+<li>- local_mind_index_042</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Step 3 (Active) -->
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center animate-pulse">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+<div class="flex-1 w-px bg-outline-variant/30 my-2 border-dashed"></div>
+</div>
+<div class="flex-1 pb-4">
+<div class="text-xs font-bold text-primary uppercase tracking-tighter mb-1">Step 3: Logical Synthesis</div>
+<p class="text-sm text-on-surface leading-relaxed mb-3">Synthesizing retrieved context with current system constraints. Calculating optimal deployment path for the requested node configuration...</p>
+<div class="grid grid-cols-2 gap-2">
+<div class="h-1 bg-primary/20 rounded overflow-hidden">
+<div class="bg-primary h-full w-[85%]"></div>
+</div>
+<div class="h-1 bg-primary/20 rounded overflow-hidden">
+<div class="bg-primary h-full w-[40%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Command Input Anchor -->
+<div class="mt-auto pt-6 border-t border-outline-variant/10 z-10">
+<div class="bg-surface-container-low rounded-xl border border-outline-variant/20 focus-within:border-primary/50 transition-all p-2 flex items-center gap-2">
+<button class="p-2 text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="attach_file">attach_file</span>
+</button>
+<input class="bg-transparent border-none focus:ring-0 text-sm flex-1 placeholder:text-outline/50 font-body" placeholder="Transmit architectural directives or query node logic..." type="text"/>
+<div class="flex items-center gap-1 border-l border-outline-variant/20 pl-2">
+<button class="p-2 text-outline hover:text-secondary transition-colors group relative">
+<span class="material-symbols-outlined" data-icon="language">language</span>
+<span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface-variant text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">Web</span>
+</button>
+<button class="p-2 text-outline hover:text-secondary transition-colors group relative">
+<span class="material-symbols-outlined" data-icon="code">code</span>
+<span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface-variant text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">Code</span>
+</button>
+<button class="p-2 text-outline hover:text-secondary transition-colors group relative mr-2">
+<span class="material-symbols-outlined" data-icon="neurology">neurology</span>
+<span class="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface-variant text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">Memory</span>
+</button>
+<button class="primary-gradient p-2 rounded-lg text-on-primary">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Secondary Information (Right Pane) -->
+<section class="w-80 bg-surface border-l border-outline-variant/15 flex flex-col p-6 overflow-y-auto custom-scrollbar">
+<!-- Hardware Live Monitoring -->
+<div class="mb-10">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-headline font-bold text-sm tracking-widest uppercase">Hardware Live</h2>
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+</div>
+<div class="space-y-8">
+<!-- CPU Chart -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="text-xs text-outline font-medium">CORE LOAD</span>
+<span class="text-xs font-mono font-bold">24.8%</span>
+</div>
+<svg class="w-full h-12 text-secondary" viewbox="0 0 100 30">
+<path d="M0 25 L10 22 L20 28 L30 15 L40 18 L50 10 L60 22 L70 12 L80 18 L90 24 L100 20" fill="none" stroke="currentColor" stroke-width="1"></path>
+<path d="M0 25 L10 22 L20 28 L30 15 L40 18 L50 10 L60 22 L70 12 L80 18 L90 24 L100 20 L100 30 L0 30 Z" fill="currentColor" fill-opacity="0.1"></path>
+</svg>
+</div>
+<!-- VRAM Chart -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="text-xs text-outline font-medium">VRAM USAGE</span>
+<span class="text-xs font-mono font-bold">12.4 GB</span>
+</div>
+<svg class="w-full h-12 text-primary" viewbox="0 0 100 30">
+<path d="M0 15 L15 18 L30 12 L45 22 L60 8 L75 14 L90 10 L100 12" fill="none" stroke="currentColor" stroke-width="1"></path>
+<path d="M0 15 L15 18 L30 12 L45 22 L60 8 L75 14 L90 10 L100 12 L100 30 L0 30 Z" fill="currentColor" fill-opacity="0.1"></path>
+</svg>
+</div>
+<!-- Memory Allocation -->
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/10 text-center">
+<div class="text-[10px] text-outline mb-1 uppercase tracking-tighter">Swap</div>
+<div class="text-sm font-bold font-mono">0.2 GB</div>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/10 text-center">
+<div class="text-[10px] text-outline mb-1 uppercase tracking-tighter">IOPS</div>
+<div class="text-sm font-bold font-mono">1.2k</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Operational Log Feed -->
+<div class="flex-1 flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<h2 class="font-headline font-bold text-sm tracking-widest uppercase">System Logs</h2>
+<span class="material-symbols-outlined text-outline text-lg cursor-pointer hover:text-on-background" data-icon="filter_list">filter_list</span>
+</div>
+<div class="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+<div class="group flex gap-3">
+<div class="w-1 h-8 bg-secondary rounded-full mt-1"></div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<span class="text-[10px] font-bold text-secondary uppercase tracking-tight">Success</span>
+<span class="text-[9px] font-mono text-outline">14:22:01</span>
+</div>
+<p class="text-[11px] text-on-surface-variant leading-tight">Semantic index reconstruction complete for 12,402 vectors.</p>
+</div>
+</div>
+<div class="group flex gap-3">
+<div class="w-1 h-8 bg-primary rounded-full mt-1"></div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<span class="text-[10px] font-bold text-primary uppercase tracking-tight">Info</span>
+<span class="text-[9px] font-mono text-outline">14:18:45</span>
+</div>
+<p class="text-[11px] text-on-surface-variant leading-tight">External API handshake initiated for Web Search module.</p>
+</div>
+</div>
+<div class="group flex gap-3">
+<div class="w-1 h-8 bg-error rounded-full mt-1"></div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<span class="text-[10px] font-bold text-error uppercase tracking-tight">Warning</span>
+<span class="text-[9px] font-mono text-outline">14:05:12</span>
+</div>
+<p class="text-[11px] text-on-surface-variant leading-tight">Thermal threshold warning on Node-7 (74°C). Adjusting fans.</p>
+</div>
+</div>
+<div class="group flex gap-3">
+<div class="w-1 h-8 bg-secondary rounded-full mt-1"></div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<span class="text-[10px] font-bold text-secondary uppercase tracking-tight">Success</span>
+<span class="text-[9px] font-mono text-outline">13:58:30</span>
+</div>
+<p class="text-[11px] text-on-surface-variant leading-tight">New Logic Flow "Auto-Backup" built and deployed.</p>
+</div>
+</div>
+<div class="group flex gap-3">
+<div class="w-1 h-8 bg-primary rounded-full mt-1"></div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<span class="text-[10px] font-bold text-primary uppercase tracking-tight">Info</span>
+<span class="text-[9px] font-mono text-outline">13:42:11</span>
+</div>
+<p class="text-[11px] text-on-surface-variant leading-tight">User 'Admin' authenticated via secure neural-token.</p>
+</div>
+</div>
+</div>
+<!-- Footer Log Stat -->
+<div class="pt-4 border-t border-outline-variant/15 mt-4">
+<div class="bg-surface-container-highest/30 rounded p-2 flex items-center justify-between">
+<span class="text-[10px] text-outline font-medium">Log Density</span>
+<span class="text-[10px] font-mono text-secondary">LOW [0.2 eps]</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Command Palette (Hidden until keypress usually) -->
+<div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] glass-panel rounded-2xl border border-outline-variant/30 shadow-2xl p-6 hidden">
+<div class="flex items-center gap-4 mb-6">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-xl font-headline flex-1 placeholder:text-outline/30" placeholder="Search directives, logs, or memory..." type="text"/>
+</div>
+<div class="space-y-2">
+<div class="p-3 bg-surface-container-high rounded-xl flex items-center gap-3 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-outline" data-icon="bolt">bolt</span>
+<span class="text-sm">Optimize current neural pathways</span>
+<span class="ml-auto text-[10px] font-mono text-outline">CMD + O</span>
+</div>
+<div class="p-3 bg-surface-container-high rounded-xl flex items-center gap-3 cursor-pointer hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-outline" data-icon="save">save</span>
+<span class="text-sm">Checkpoint current workspace state</span>
+<span class="ml-auto text-[10px] font-mono text-outline">CMD + S</span>
+</div>
+</div>
+</div>
+</body></html>
