@@ -96,28 +96,12 @@ export async function pollAutonomy() {
       updateBrainUptime();
     }
 
-    // On first poll, populate brain timeline from recent events
+    // On first poll, populate the task pipeline from proposals (not raw events)
     if (d.recent_events && d.recent_events.length > 0 && !window._brainCaughtUp) {
       window._brainCaughtUp = true;
-      const timeline = document.getElementById("taskPipelineBody");
-      if (timeline) {
-        timeline.innerHTML = "";
-        // Show newest first (reverse)
-        const events = [...d.recent_events].reverse();
-        for (const event of events.slice(0, 20)) {
-          const icon = ACTION_ICONS[event.action] || "📋";
-          const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
-          const evEl = document.createElement("div");
-          evEl.className = `brain-event ${isActive ? "brain-event-active" : ""}`;
-          evEl.innerHTML = `
-            <span class="brain-event-icon">${icon}</span>
-            <span class="brain-event-text">${escapeHtml(event.detail || event.action)}</span>
-            <span class="brain-event-time">${event.time || ""}</span>
-          `;
-          timeline.appendChild(evEl);
-        }
-      }
-      // Also populate sidebar activity feed
+      // Render proper proposal cards in the action stream
+      renderTaskPipeline();
+      // Also populate sidebar activity feed with recent events
       const feed = document.getElementById("activityFeed");
       if (feed && feed.children.length <= 1) {
         const events = [...d.recent_events].reverse();
