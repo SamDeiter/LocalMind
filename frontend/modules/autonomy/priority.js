@@ -52,11 +52,14 @@ function renderPriorities(priorities) {
   if (!priorityContainer) return;
   priorityContainer.innerHTML = "";
   priorities.forEach(p => {
+    // Handle both string and object formats
+    const label = typeof p === "string" ? p : (p.description || p.id || String(p));
+    const id = typeof p === "string" ? p : (p.id || p.description || String(p));
     const tag = document.createElement("div");
     tag.className = "priority-tag";
     tag.innerHTML = `
-      <span>${escapeHtml(p)}</span>
-      <button class="remove-priority" data-val="${escapeHtml(p)}">&times;</button>
+      <span>${escapeHtml(label)}</span>
+      <button class="remove-priority" data-val="${escapeHtml(id)}">&times;</button>
     `;
     priorityContainer.appendChild(tag);
   });

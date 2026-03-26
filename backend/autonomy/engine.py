@@ -1,6 +1,8 @@
 import asyncio
 import json
 import logging
+import json
+import os
 import re
 import time
 from pathlib import Path
@@ -235,6 +237,30 @@ class AutonomyEngine:
         self._emit_activity("research_started", "🔬 Starting automated research cycle...")
 
         try:
+            # 0. Load architecture context and user priorities
+            arch_context = ""
+            arch_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "ARCHITECTURE.md")
+            if os.path.exists(arch_file):
+                try:
+                    with open(arch_file, "r", encoding="utf-8") as f:
+                        arch_context = f.read()[:2000]  # Cap at 2k chars
+                except Exception:
+                    pass
+
+            priority_context = ""
+            prio_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "priorities.json")
+            if os.path.exists(prio_file):
+                try:
+                    with open(prio_file, "r", encoding="utf-8") as f:
+                        prios = json.loads(f.read())
+                    active = [p for p in prios if p.get("status") == "active"]
+                    if active:
+                        priority_context = "USER PRIORITIES:\n" + "\n".join(
+                            f"- [{p.get('priority','medium')}] {p.get('description','')}"
+                            for p in active[:5]
+                        )
+                except Exception:
+                    pass
             # 1. Scan codebase for complexity hot spots and code smells
             complexity = self.codebase_scanner.scan_complexity()
             smells = self.codebase_scanner.scan_code_smells()
@@ -275,10 +301,13 @@ class AutonomyEngine:
                 # Use the reflection model to generate research-driven proposals
                 prompt = (
                     "You are LocalMind's research engine. Based on the following automated "
-                    "codebase analysis and web research findings, propose 1-2 specific, "
-                    "actionable improvements. Each proposal should target a real file and "
-                    "describe a concrete change.\n\n"
+                    "codebase analysis, web research findings, project architecture, and "
+                    "user priorities, propose 1-2 specific, actionable improvements. "
+                    "Each proposal should target real files and describe concrete changes "
+                    "that align with the user's priorities.\n\n"
                     f"{research_blob}\n\n"
+                    f"{('PROJECT ARCHITECTURE:\n' + arch_context + chr(10)*2) if arch_context else ''}"
+                    f"{(priority_context + chr(10)*2) if priority_context else ''}"
                     f"Codebase scanner found {len(complexity)} complex functions and "
                     f"{len(smells)} code smells.\n\n"
                     "Respond in JSON format: "
