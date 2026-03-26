@@ -74,37 +74,7 @@ export async function searchArxiv(query, page = 0) {
           ? new Date(p.published).toLocaleDateString()
           : "";
 
-        // If we have a pitch, we use the "Executive Insight" style (Decision Support Module)
-        if (pitch) {
-          return `
-          <div class="insight-card p-6 rounded-xl border border-outline-variant/10 shadow-2xl space-y-4" data-idx="${idx}">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-accent-purple text-2xl">psychology</span>
-              <h4 class="text-xs font-bold uppercase tracking-[0.2em] text-accent-purple">Executive Insight</h4>
-            </div>
-            <div class="space-y-3">
-               <h3 class="text-sm font-bold text-white leading-snug">${title}</h3>
-               <p class="text-[11px] text-white/90 font-medium italic leading-relaxed bg-white/5 p-3 rounded-lg border-l-2 border-accent-purple">
-                 "${pitch}"
-               </p>
-               <div class="flex items-center gap-2 text-[9px] uppercase tracking-widest text-outline/60 px-1">
-                 <span>${authors}</span>
-                 <span class="w-1 h-1 rounded-full bg-outline-variant/40"></span>
-                 <span>${published}</span>
-               </div>
-            </div>
-            <div class="flex gap-2 pt-2">
-              <button class="arxiv-apply-btn flex-1 py-2 bg-accent-purple/20 border border-accent-purple/30 rounded text-[10px] font-bold uppercase tracking-widest text-accent-purple hover:bg-accent-purple/30 transition-all" data-idx="${idx}">
-                Apply Strategy
-              </button>
-              <a href="${url}" target="_blank" class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded text-[10px] font-bold uppercase tracking-widest text-outline hover:text-white transition-all flex items-center justify-center">
-                Review Source
-              </a>
-            </div>
-          </div>`;
-        }
-
-        // Standard paper card (Premium Style)
+        // Unified paper card (Premium Style — matches reference image)
         return `
         <div class="insight-card p-4 rounded-xl border border-outline-variant/10 bg-[#2f2f2f] space-y-3 hover:border-primary/40 transition-all group/card" data-idx="${idx}">
           <div class="flex-col space-y-1">
