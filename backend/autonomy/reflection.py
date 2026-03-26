@@ -92,18 +92,29 @@ async def run_reflection_cycle(engine) -> bool:
                 json={"model": engine.reflection_model, "prompt": prompt, "stream": False},
             )
 
-            if resp.status_code == 200:
-                response_text = resp.json().get("response", "")
-                try:
-                    proposal = json.loads(response_text)
-                    critique = await engine.meta_critic.review(proposal, file_list=real_files)
-                    if critique.approved:
-                        if critique.refinement: proposal = critique.refinement
-                        saved = engine.proposals.save(proposal, mode=engine.mode, auto_approve_risks=engine.AUTO_APPROVE_RISKS)
-                        if saved:
-                            engine.status["reflection"]["proposals_logged"] += 1
-                            return True
-                except: pass
+            if resp.status_code != 200:
+                logger.warning(f"Ollama returned HTTP {resp.status_code} for model {engine.reflection_model}")
+                return False
+
+            response_text = resp.json().get("response", "")
+            try:
+                proposal = json.loads(response_text)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Model returned non-JSON response: {e} — first 200 chars: {response_text[:200]}")
+                return False
+
+            try:
+                critique = await engine.meta_critic.review(proposal, file_list=real_files)
+                if critique.approved:
+                    if critique.refinement: proposal = critique.refinement
+                    saved = engine.proposals.save(proposal, mode=engine.mode, auto_approve_risks=engine.AUTO_APPROVE_RISKS)
+                    if saved:
+                        engine.status["reflection"]["proposals_logged"] += 1
+                        return True
+                else:
+                    logger.info(f"MetaCritic rejected: {critique.reason}")
+            except Exception as e:
+                logger.warning(f"Meta-critic/save failed: {e}")
         return False
     except Exception as exc:
         logger.warning(f"Reflection failed: {exc}")

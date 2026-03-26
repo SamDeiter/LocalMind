@@ -27,19 +27,19 @@ MODELS = {
         "description": "Tiny local model for instant startup and simple chat",
     },
     "local_light": {
-        "name": "qwen2.5-coder:32b",
+        "name": "llama3.3:70b",
         "provider": "ollama",
         "privacy": "fully_private",
         "description": "Powerful local model for robust code generation (Sam's daily driver)",
     },
     "local_heavy": {
-        "name": "qwen2.5-coder:32b",
+        "name": "llama3.3:70b",
         "provider": "ollama",
         "privacy": "fully_private",
         "description": "Powerful local model for robust code generation and editing",
     },
     "local_ultra": {
-        "name": "qwen2.5-coder:70b",
+        "name": "llama3.3:70b",
         "provider": "ollama",
         "privacy": "fully_private",
         "description": "Elite local model for complex architectural reasoning (requires 256GB+ RAM)",
