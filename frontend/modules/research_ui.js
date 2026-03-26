@@ -178,11 +178,18 @@ async function applyPaper(paper, btnEl) {
       }),
     });
 
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => "Unknown server error");
+      showToast(`⚠️ Server error ${resp.status}: ${errText.substring(0, 120)}`, "error");
+      btnEl.textContent = "Synthesize";
+      return;
+    }
+
     const data = await resp.json();
 
     if (data.error) {
       showToast(`⚠️ ${data.error}`, "error");
-      btnEl.textContent = "🧠 Apply to Codebase";
+      btnEl.textContent = "Synthesize";
     } else if (data.proposal) {
       const proposalTitle = data.proposal.title || "Untitled";
       showToast(`✅ Proposal created: "${proposalTitle}"`, "success");
@@ -191,12 +198,13 @@ async function applyPaper(paper, btnEl) {
       return; // Don't re-enable
     } else {
       showToast("No proposal was generated — try a different paper", "error");
-      btnEl.textContent = "🧠 Apply to Codebase";
+      btnEl.textContent = "Synthesize";
     }
   } catch (err) {
     console.error("Apply paper error:", err);
-    showToast("❌ Failed to apply paper — is the server running?", "error");
-    btnEl.textContent = "🧠 Apply to Codebase";
+    const reason = err.message || "Network error";
+    showToast(`❌ Synthesis failed: ${reason}`, "error");
+    btnEl.textContent = "Synthesize";
   } finally {
     btnEl.disabled = false;
     btnEl.classList.remove("applying");
