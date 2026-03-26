@@ -104,26 +104,26 @@ export async function searchArxiv(query, page = 0) {
           </div>`;
         }
 
-        // Standard paper card (AI Process Card style)
+        // Standard paper card (Premium Style)
         return `
-        <div class="insight-card p-5 rounded-xl border border-outline-variant/10 space-y-3 hover:border-primary/40 transition-all group/card" data-idx="${idx}">
-          <div class="flex justify-between items-start">
-             <div class="space-y-1">
-                <h4 class="text-[11px] font-bold text-white group-hover/card:text-primary transition-colors line-clamp-2">${title}</h4>
-                <div class="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-outline/60">
-                  <span class="truncate max-w-[120px]">${authors}</span>
+        <div class="insight-card p-4 rounded-xl border border-outline-variant/10 bg-[#2f2f2f] space-y-3 hover:border-primary/40 transition-all group/card" data-idx="${idx}">
+          <div class="flex-col space-y-1">
+             <div class="inline">
+                <h4 class="text-[14px] font-bold text-[#fafafa] group-hover/card:text-primary transition-colors leading-snug inline">${title}</h4>
+                <div class="inline-flex items-center ml-2 px-2 py-0.5 rounded border border-[#4d4872] bg-[#333140]/50 text-[9px] font-bold text-[#baafff] uppercase tracking-widest align-middle translate-y-[-1px]">
+                   Source
                 </div>
              </div>
-             <div class="px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[8px] font-bold text-primary uppercase tracking-widest">
-                Source
+             <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#787878] truncate pt-1">
+                ${authors}
              </div>
           </div>
-          <p class="text-[10px] text-on-surface-variant leading-relaxed line-clamp-2 opacity-60">${abstract}…</p>
-          <div class="flex gap-2 pt-1">
-            <button class="arxiv-apply-btn flex-1 py-1.5 bg-primary/10 border border-primary/20 rounded text-[9px] font-bold uppercase tracking-widest text-primary hover:bg-primary/20 transition-all" data-idx="${idx}">
+          <p class="text-[11.5px] text-[#999999] leading-relaxed line-clamp-2">${abstract}…</p>
+          <div class="flex gap-2 pt-2">
+            <button class="arxiv-apply-btn flex-[7] py-2 bg-[#383344] border border-[#4d4872] rounded shadow-sm text-[10px] font-bold uppercase tracking-[0.15em] text-[#baafff] hover:bg-[#464057] transition-all" data-idx="${idx}">
               Synthesize
             </button>
-            <button class="arxiv-context-btn px-3 py-1.5 bg-surface-container-highest border border-outline-variant/30 rounded text-[9px] font-bold uppercase tracking-widest text-outline hover:text-on-surface transition-all" data-idx="${idx}">
+            <button class="arxiv-context-btn flex-[3] py-2 bg-[#363636] border border-[#444444] rounded shadow-sm text-[10px] font-bold uppercase tracking-[0.15em] text-[#999999] hover:text-white hover:bg-[#4a4a4a] transition-all" data-idx="${idx}">
               Save
             </button>
           </div>
