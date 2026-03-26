@@ -63,11 +63,11 @@ export async function searchArxiv(query, page = 0) {
       .map((p, idx) => {
         const title = escapeHtml(p.title || "Untitled");
         const authors = escapeHtml(
-          (p.authors || "Unknown authors").substring(0, 60),
+          (p.authors || "Unknown authors").substring(0, 100),
         );
         const pitch = p.pitch ? escapeHtml(p.pitch) : null;
         const abstract = escapeHtml(
-          (p.abstract || "No abstract available").substring(0, 140),
+          (p.abstract || "No abstract available").substring(0, 250),
         );
         const url = p.url || "#";
         const published = p.published
@@ -84,11 +84,11 @@ export async function searchArxiv(query, page = 0) {
                    Source
                 </div>
              </div>
-             <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#787878] truncate pt-1">
+             <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#787878] pt-1">
                 ${authors}
              </div>
           </div>
-          <p class="text-[11.5px] text-[#999999] leading-relaxed line-clamp-2">${abstract}…</p>
+          <p class="text-[11.5px] text-[#999999] leading-relaxed">${abstract}</p>
           <div class="flex gap-2 pt-2">
             <button class="arxiv-apply-btn flex-[7] py-2 bg-[#383344] border border-[#4d4872] rounded shadow-sm text-[10px] font-bold uppercase tracking-[0.15em] text-[#baafff] hover:bg-[#464057] transition-all" data-idx="${idx}">
               Synthesize
