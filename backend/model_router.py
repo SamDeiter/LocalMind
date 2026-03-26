@@ -21,28 +21,28 @@ logger = logging.getLogger("localmind.model_router")
 # ── Model Definitions ──────────────────────────────────────────────────
 MODELS = {
     "local_micro": {
-        "name": "llama3.3:70b",
+        "name": "gemma3:4b",
         "provider": "ollama",
         "privacy": "fully_private",
-        "description": "Local model for startup and simple chat",
+        "description": "Tiny local model for instant startup and simple chat",
     },
     "local_light": {
-        "name": "llama3.3:70b",
+        "name": "qwen2.5-coder:7b",
         "provider": "ollama",
         "privacy": "fully_private",
-        "description": "Powerful local model for robust code generation (Sam's daily driver)",
+        "description": "Fast local model for quick code tasks and chat",
     },
     "local_heavy": {
-        "name": "llama3.3:70b",
+        "name": "qwen2.5-coder:14b",
         "provider": "ollama",
         "privacy": "fully_private",
         "description": "Powerful local model for robust code generation and editing",
     },
     "local_ultra": {
-        "name": "llama3.3:70b",
+        "name": "qwen2.5-coder:32b",
         "provider": "ollama",
         "privacy": "fully_private",
-        "description": "Elite local model for complex architectural reasoning (requires 256GB+ RAM)",
+        "description": "Elite local model for complex architectural reasoning",
     },
     "cloud_flash": {
         "name": "gemini-2.0-flash",
