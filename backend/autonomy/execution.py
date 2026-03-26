@@ -14,8 +14,27 @@ async def execute_proposal_cycle(engine) -> bool:
     proposals = engine.proposals.list_proposals("approved")
     if not proposals: return False
 
+    # Load user priorities to boost matching proposals
     priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-    proposals.sort(key=lambda p: priority_order.get(p.get("priority", "medium"), 2))
+    user_priorities = []
+    try:
+        prio_file = Path(__file__).parent.parent.parent / "data" / "priorities.json"
+        if prio_file.exists():
+            import json as _json
+            prios = _json.loads(prio_file.read_text(encoding="utf-8"))
+            user_priorities = [p.get("description", "").lower() for p in prios if p.get("status") == "active"]
+    except Exception:
+        pass
+
+    def proposal_score(p):
+        base = priority_order.get(p.get("priority", "medium"), 2)
+        # Boost proposals that match user priorities (-1 = higher priority)
+        title_lower = p.get("title", "").lower() + " " + p.get("description", "").lower()
+        if any(kw in title_lower for kw in user_priorities if kw):
+            base -= 1
+        return base
+
+    proposals.sort(key=proposal_score)
 
     proposal = None
     for p in proposals:
@@ -25,6 +44,14 @@ async def execute_proposal_cycle(engine) -> bool:
     if not proposal: return False
 
     try:
+        # Route non-code tasks to the general task executor
+        task_type = proposal.get("task_type", "code_edit")
+        category = proposal.get("category", "")
+        if task_type != "code_edit" or category in ("research", "documentation", "data", "spreadsheet"):
+            from backend.autonomy.task_executor import _execute_with_agent
+            mode = "research" if category in ("research", "documentation") else "general"
+            return await _execute_with_agent(engine, proposal, mode)
+
         engine._emit_activity("executing", f"Starting: {proposal['title']}", proposal_id=proposal["id"])
         
         target_result = await identify_target_files(proposal, engine.ollama_url, engine.editing_model, emit_activity=engine._emit_activity)
