@@ -16,7 +16,7 @@ from typing import Optional
 
 logger = logging.getLogger("localmind.autonomy.proposals")
 
-PROPOSALS_DIR = Path.home() / "LocalMind_Workspace" / "proposals"
+from backend.config import PROPOSALS_DIR
 ARCHIVE_DIR = Path.home() / "LocalMind_Workspace" / "proposals_archive"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
