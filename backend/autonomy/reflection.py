@@ -65,7 +65,7 @@ async def run_reflection_cycle(engine) -> bool:
         if all_blocked:
             anti_repeat = "\nALREADY PROPOSED:\n" + "\n".join(f"  ❌ {t}" for t in list(all_blocked)[:20])
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=600.0) as client:
             # Gather research blocks concurrently
             lessons_task = asyncio.to_thread(engine.failure_analyzer.get_lessons_for_prompt)
             stats_task = asyncio.to_thread(engine.success_tracker.get_stats_for_prompt)
