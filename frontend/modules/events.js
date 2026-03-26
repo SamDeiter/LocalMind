@@ -26,7 +26,7 @@ import { loadConversations } from "./conversations.js";
 import { toggleMic, openCamera, closeCamera, captureFrame, clearCapturedImage } from "./media.js";
 import { uploadDocuments, toggleMemoryList } from "./sidebar.js";
 import { toggleProposalList } from "./proposals_ui.js";
-import { toggleActivityFeed, setAutonomyMode, triggerReflection, triggerExecution, executeDirective } from "./autonomy_ui.js";
+import { toggleActivityFeed, setAutonomyMode, triggerReflection, triggerExecution, executeDirective } from "./autonomy/index.js";
 import { toggleEditorPanel } from "./editor.js";
 import { toggleSettingsModal } from "./settings_ui.js";
 import { welcomeScreen, chatScreen, overviewBtn } from "./state.js";

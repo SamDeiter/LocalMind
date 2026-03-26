@@ -323,12 +323,68 @@ class AutonomyEngine:
                                     return
                 except Exception as e:
                     logger.warning(f"Research LLM call failed: {e}")
+                    # Fallback to Gemini if local model failed
+                    gemini_result = await self._try_gemini_escalation(prompt)
+                    if gemini_result:
+                        import json as _json2
+                        match2 = re.search(r'\[.*\]', gemini_result, re.DOTALL)
+                        if match2:
+                            try:
+                                proposals = _json2.loads(match2.group())
+                                for p in proposals[:2]:
+                                    self.proposals.log_proposal(
+                                        title=p.get("title", "Research finding"),
+                                        description=p.get("description", ""),
+                                        category=p.get("category", "research"),
+                                        risk=p.get("risk", "low"),
+                                        files_affected=p.get("files_affected", []),
+                                        source="gemini_escalation",
+                                    )
+                                self.status["reflection"]["proposals_logged"] += len(proposals[:2])
+                                self._emit_activity(
+                                    "research_complete",
+                                    f"☁️ Gemini fallback generated {len(proposals[:2])} proposal(s)"
+                                )
+                                return
+                            except Exception:
+                                pass
 
             self._emit_activity("research_complete", "🔬 Research cycle complete — no new findings")
 
         except Exception as e:
             logger.error(f"Auto-research error: {e}")
             self._emit_activity("research_error", f"❌ Research error: {str(e)[:100]}")
+
+    async def _try_gemini_escalation(self, prompt: str) -> str:
+        """Optionally escalate to Gemini when local model fails. Local-first, cheap."""
+        try:
+            from backend.gemini_client import is_available, generate
+            if not is_available():
+                return None
+            logger.info("Escalating to Gemini (local model failed or unavailable)")
+            self._emit_activity("gemini_escalation", "☁️ Escalating to Gemini for complex analysis...")
+            result = await generate(prompt, scrub=True)
+            return result
+        except Exception as e:
+            logger.warning(f"Gemini escalation failed: {e}")
+            return None
+
+    async def _generate_interactive_proposal(self, topic: str, question: str):
+        """Create a proposal that asks the user a question before proceeding."""
+        self.proposals.log_proposal(
+            title=f"❓ Input needed: {topic}",
+            description=question,
+            category="interactive",
+            risk="low",
+            files_affected=[],
+            source="auto_research",
+        )
+        self._emit_activity(
+            "needs_input",
+            f"❓ LocalMind needs your input: {topic}"
+        )
+        self.status["reflection"]["proposals_logged"] += 1
+
 
     def _check_health(self):
         # The health check itself is handled in run_health_loop, 

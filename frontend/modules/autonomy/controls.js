@@ -44,3 +44,29 @@ export function executeDirective() {
 
   sendMessage();
 }
+
+/** Toggle the activity feed panel visibility */
+export function toggleActivityFeed() {
+  const feed = document.getElementById("autonomyActivityFeed") || document.getElementById("activityFeed");
+  if (feed) feed.classList.toggle("open");
+}
+
+/** Set autonomy mode (supervised/autonomous) */
+export function setAutonomyMode(mode) {
+  toggleAutonomyMode(mode);
+}
+
+/** Execute a directive from the priority input */
+export function executeDirective() {
+  const { priorityInput } = window.__localmind_state || {};
+  const input = priorityInput || document.getElementById("priorityDirectiveInput");
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  
+  // Add priority and trigger reflection
+  import("./priority.js").then(m => {
+    if (m.addPriority) m.addPriority(text);
+  });
+  input.value = "";
+}
