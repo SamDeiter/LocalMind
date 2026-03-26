@@ -111,10 +111,15 @@ async def toggle_autonomy():
 
 
 @router.post("/autonomy/mode")
-async def set_autonomy_mode(request: Request):
+async def set_autonomy_mode(request: Request, mode: str = None):
     """Switch between 'supervised' and 'autonomous' mode."""
-    body = await request.json()
-    mode = body.get("mode", "supervised")
+    # Accept mode from query param OR JSON body
+    if not mode:
+        try:
+            body = await request.json()
+            mode = body.get("mode", "supervised")
+        except Exception:
+            mode = "supervised"
     try:
         new_mode = _engine.set_mode(mode)
         return {"ok": True, "mode": new_mode}

@@ -26,7 +26,7 @@ import { loadConversations } from "./conversations.js";
 import { toggleMic, openCamera, closeCamera, captureFrame, clearCapturedImage } from "./media.js";
 import { uploadDocuments, toggleMemoryList } from "./sidebar.js";
 import { toggleProposalList } from "./proposals_ui.js";
-import { toggleActivityFeed, setAutonomyMode, triggerReflection, triggerExecution, executeDirective } from "./autonomy/index.js";
+import { toggleActivityFeed } from "./autonomy/index.js";
 import { toggleEditorPanel } from "./editor.js";
 import { toggleSettingsModal } from "./settings_ui.js";
 import { welcomeScreen, chatScreen, overviewBtn } from "./state.js";
@@ -146,12 +146,8 @@ export function bindEvents() {
 
   // Activity feed toggle
   $("#activityToggle")?.addEventListener("click", toggleActivityFeed);
-  $("#brainReflectBtn")?.addEventListener("click", triggerReflection);
-  $("#brainExecuteBtn")?.addEventListener("click", triggerExecution);
 
   // Autonomy mode buttons
-  $("#modeSupervisedBtn")?.addEventListener("click", () => setAutonomyMode("supervised"));
-  $("#modeAutonomousBtn")?.addEventListener("click", () => setAutonomyMode("autonomous"));
 
   // Obsidian Specific Hooks
   $("#editorToggle")?.addEventListener("click", toggleEditorPanel);

@@ -5,13 +5,20 @@ import { pollAutonomy } from "./status.js";
 
 export async function toggleAutonomyMode(mode) {
   try {
-    const r = await fetch(`${API}/api/autonomy/mode?mode=${mode}`, { method: "POST" });
+    const r = await fetch(`${API}/api/autonomy/mode`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+    });
     const d = await r.json();
     if (d.ok) {
       showToast(`🛡️ Mode: ${mode}`, "info");
       pollAutonomy();
+    } else {
+      showToast(`❌ Mode switch failed: ${d.error || "unknown"}`, "error");
     }
-  } catch {
+  } catch (e) {
+    console.error("Mode switch error:", e);
     showToast("❌ Mode switch failed", "error");
   }
 }
@@ -34,15 +41,17 @@ export async function triggerExecution() {
   }
 }
 
+/** Execute a directive from the priority input */
 export function executeDirective() {
-  if (!priorityInput) return;
-  const text = priorityInput.value.trim();
+  const input = priorityInput || document.getElementById("priorityDirectiveInput");
+  if (!input) return;
+  const text = input.value.trim();
   if (!text) return;
 
-  if (welcomeScreen) welcomeScreen.style.display = "none";
-  if (chatScreen) chatScreen.style.display = "flex";
-
-  sendMessage();
+  import("./priority.js").then(m => {
+    if (m.addPriority) m.addPriority(text);
+  });
+  input.value = "";
 }
 
 /** Toggle the activity feed panel visibility */
@@ -51,22 +60,7 @@ export function toggleActivityFeed() {
   if (feed) feed.classList.toggle("open");
 }
 
-/** Set autonomy mode (supervised/autonomous) */
+/** Set autonomy mode (supervised/autonomous) — alias for toggleAutonomyMode */
 export function setAutonomyMode(mode) {
   toggleAutonomyMode(mode);
-}
-
-/** Execute a directive from the priority input */
-export function executeDirective() {
-  const { priorityInput } = window.__localmind_state || {};
-  const input = priorityInput || document.getElementById("priorityDirectiveInput");
-  if (!input) return;
-  const text = input.value.trim();
-  if (!text) return;
-  
-  // Add priority and trigger reflection
-  import("./priority.js").then(m => {
-    if (m.addPriority) m.addPriority(text);
-  });
-  input.value = "";
 }
