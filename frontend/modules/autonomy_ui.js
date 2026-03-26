@@ -189,6 +189,13 @@ export function connectActivityFeed() {
         showToast(`${ACTION_ICONS[event.action] || "⚠️"} ${event.detail}`, "error");
         updateSuccessRate();
       }
+
+      // Update Architect Insight Panel with AI's current inner thought process
+      if (event.action === "thinking" || event.action === "reflecting" || event.action === "checking" || event.action === "writing" || event.action === "executing") {
+        updateArchitectInsight(event.detail || event.action);
+      } else if (event.action === "idle" || event.action === "completed") {
+        updateArchitectInsight("Standing by for reasoning vectors...");
+      }
     } catch (err) {
       console.error("Failed to parse SSE event:", err);
     }
@@ -235,8 +242,8 @@ function addActivityItem(event) {
 function updateActivityBar(_event) {
   const activityEl = document.getElementById("autonomyActivity");
   if (activityEl) {
-    const icon = ACTION_ICONS[event.action] || "";
-    activityEl.textContent = `${icon} ${event.detail || event.action}`;
+    const icon = ACTION_ICONS[_event.action] || "";
+    activityEl.textContent = `${icon} ${_event.detail || _event.action}`;
   }
 }
 
@@ -537,7 +544,7 @@ async function loadCategoryStats() {
   const el = document.getElementById("categoryChart");
   if (!el) return;
   try {
-    const resp = await fetch("/autonomy/category-stats");
+    const resp = await fetch(`${API}/api/autonomy/category-stats`);
     const { categories } = await resp.json();
     if (!categories || Object.keys(categories).length === 0) {
       el.textContent = "No data yet";
@@ -561,7 +568,7 @@ async function loadCategoryStats() {
 // ── Export Digest as Markdown ────────────────────────────────────
 async function exportDigest() {
   try {
-    const resp = await fetch("/autonomy/digest");
+    const resp = await fetch(`${API}/api/autonomy/digest`);
     const data = await resp.json();
     const today = new Date().toISOString().split("T")[0];
     let md = `# LocalMind Daily Digest — ${today}\n\n`;
@@ -690,6 +697,12 @@ export async function renderTaskPipeline() {
         const title = escapeHtml(p.title || p.category || "Untitled");
         const cat = p.category ? `<span class="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">${escapeHtml(p.category)}</span>` : "";
         const timeAgo = p.created_at ? `<span class="text-[9px] text-outline/60 font-medium">${formatTimeAgo(p.created_at)}</span>` : "";
+        const approveBtn = status === "proposed"
+          ? `<button class="pipeline-approve p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Approve"><span class="material-symbols-outlined text-xs">check</span></button>`
+          : "";
+        const denyBtn = status === "proposed"
+          ? `<button class="pipeline-deny p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Deny"><span class="material-symbols-outlined text-xs">close</span></button>`
+          : "";
         const retryBtn = status === "failed"
           ? `<button class="pipeline-retry p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Retry"><span class="material-symbols-outlined text-xs">refresh</span></button>`
           : "";
@@ -701,6 +714,8 @@ export async function renderTaskPipeline() {
         html += `  <div class="flex justify-between items-start gap-2">`;
         html += `    <span class="text-[11px] font-medium text-on-surface leading-snug">${title}</span>`;
         html += `    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">`;
+        html += `      ${approveBtn}`;
+        html += `      ${denyBtn}`;
         html += `      ${retryBtn}`;
         html += `      ${dismissBtn}`;
         html += `    </div>`;
@@ -747,10 +762,68 @@ export async function renderTaskPipeline() {
           if (d.ok) {
             showToast("🔄 Retrying", "info");
             renderTaskPipeline();
+            updateSuccessRate(); loadCategoryStats(); loadDigest();
           } else {
             showToast(`❌ ${d.message || "Retry failed"}`, "error");
           }
         } catch { showToast("❌ Retry failed", "error"); }
+      });
+    });
+
+    // Wire approve buttons
+    body.querySelectorAll(".pipeline-approve").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        try {
+          const r = await fetch(`${API}/api/autonomy/proposals/${id}/approve`, { method: "POST" });
+          const d = await r.json();
+          if (d.ok) {
+            showToast("✅ Approved", "info");
+            renderTaskPipeline();
+            updateSuccessRate(); loadCategoryStats(); loadDigest();
+          } else {
+            showToast(`❌ ${d.message || "Approval failed"}`, "error");
+          }
+        } catch { showToast("❌ Approval failed", "error"); }
+      });
+    });
+
+    // Wire deny buttons
+    body.querySelectorAll(".pipeline-deny").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        try {
+          const r = await fetch(`${API}/api/autonomy/proposals/${id}/deny`, { method: "POST" });
+          const d = await r.json();
+          if (d.ok) {
+            showToast("❌ Denied", "info");
+            renderTaskPipeline();
+            updateSuccessRate(); loadCategoryStats(); loadDigest();
+          } else {
+            showToast(`❌ ${d.message || "Deny failed"}`, "error");
+          }
+        } catch { showToast("❌ Deny failed", "error"); }
+      });
+    });
+
+    // Wire dismiss buttons
+    body.querySelectorAll(".pipeline-dismiss").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        try {
+          const r = await fetch(`${API}/api/autonomy/proposals/${id}/deny`, { method: "POST" });
+          const d = await r.json();
+          if (d.ok) {
+            showToast("✅ Dismissed", "info");
+            renderTaskPipeline();
+            updateSuccessRate(); loadCategoryStats(); loadDigest();
+          } else {
+            showToast(`❌ ${d.message || "Dismiss failed"}`, "error");
+          }
+        } catch { showToast("❌ Dismiss failed", "error"); }
       });
     });
 

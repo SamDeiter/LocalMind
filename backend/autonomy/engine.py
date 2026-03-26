@@ -1,13 +1,14 @@
 import asyncio
 import json
 import logging
+import re
 import time
 from pathlib import Path
 import httpx
 
 from backend.model_router import get_autonomy_models, get_startup_model
 from backend.proposals import ProposalManager
-from backend.config import OLLAMA_BASE_URL, SERVER_PORT
+from backend.config import OLLAMA_BASE_URL
 from backend.research import (
     FailureAnalyzer, SuccessTracker, CodebaseScanner,
     PerformanceProfiler, ExternalResearcher, WebResearcher
@@ -37,19 +38,35 @@ class AutonomyEngine:
         models = get_autonomy_models()
         self.reflection_model = models.get("reflection", "qwen2.5-coder:14b")
         self.editing_model = models.get("editing", "qwen2.5-coder:14b")
+        self.startup_model = get_startup_model()
+        self.default_model = self.reflection_model
+        
         self.mode = "supervised"
         self.enabled = True
+        self._last_chat_time = 0.0
+        self._activity_subscribers: list[asyncio.Queue] = []
+        self._recent_events: list[dict] = []
+        self._start_time: float = time.time()
+        
         self.status = {
-            "health": "ok",
-            "reflection": {"last_run": 0, "proposals_logged": 0},
-            "execution": {"last_run": 0, "proposals_executed": 0, "last_result": ""},
-            "research": {"last_run": 0},
-            "auto_test": {"last_run": 0}
+            "enabled": True,
+            "mode": "supervised",
+            "started_at": self._start_time,
+            "current_activity": None,
+            "health_check": {"last_run": None, "ollama_ok": False, "model_loaded": False},
+            "reflection": {"last_run": None, "proposals_logged": 0},
+            "execution": {"last_run": None, "proposals_executed": 0, "last_result": None},
+            "auto_test": {"last_run": None, "passed": 0, "failed": 0},
+            "research": {"last_run": 0}
         }
         
         self.proposals = ProposalManager()
         self.self_improver = SelfImprover(emit_activity=self._emit_activity)
-        self.meta_critic = MetaCritic(ollama_url=self.ollama_url, model=self.reflection_model, emit_activity=self._emit_activity)
+        self.meta_critic = MetaCritic(
+            ollama_url=self.ollama_url, 
+            model=self.reflection_model, 
+            emit_activity=self._emit_activity
+        )
         self.priority_queue = PriorityQueue()
 
         # Research Pipeline
@@ -60,23 +77,143 @@ class AutonomyEngine:
         self.external_researcher = ExternalResearcher()
         self.web_researcher = WebResearcher()
 
-        self._activity_subscribers = []
         self._manual_execution_event = asyncio.Event()
         self._manual_reflection_event = asyncio.Event()
+        
+        # Circuit breaker + backoff state
         self._consecutive_failures = 0
-        self._circuit_open_until = 0
+        self._circuit_open_until = 0.0
         self._current_backoff = BACKOFF_BASE
+        self._reflection_rejections = 0
+        self._reflection_backoff = 300
+        
         self.AUTO_APPROVE_RISKS = AUTO_APPROVE_RISKS
+        self.auto_research_enabled = True
 
-    def _emit_activity(self, type, message, **kwargs):
-        event = {"type": type, "message": message, "ts": time.time(), **kwargs}
+    def notify_chat_activity(self):
+        """Called by the chat route whenever the user sends a message."""
+        self._last_chat_time = time.time()
+
+    def is_user_active(self) -> bool:
+        """Returns True if the user chatted within CHAT_COOLDOWN seconds."""
+        return (time.time() - self._last_chat_time) < CHAT_COOLDOWN
+
+    def subscribe_activity(self) -> asyncio.Queue:
+        """Create a new subscriber queue for SSE activity events."""
+        q: asyncio.Queue = asyncio.Queue(maxsize=50)
+        self._activity_subscribers.append(q)
+        return q
+
+    def unsubscribe_activity(self, q: asyncio.Queue):
+        """Remove a subscriber queue."""
+        if q in self._activity_subscribers:
+            self._activity_subscribers.remove(q)
+
+    def _emit_activity(self, action: str, detail: str = "", **extra):
+        """Push a live activity event to all SSE subscribers."""
+        event = {
+            "ts": time.time(),
+            "time": time.strftime("%H:%M:%S"),
+            "action": action,
+            "detail": detail,
+            "model": extra.get("model", self.default_model),
+            "ideas": self.status["reflection"]["proposals_logged"],
+            "applied": self.status["execution"]["proposals_executed"],
+            **extra,
+        }
+        self.status["current_activity"] = event
+        self._recent_events.append(event)
+        if len(self._recent_events) > 30:
+            self._recent_events = self._recent_events[-30:]
+
         for q in self._activity_subscribers:
-            q.put_nowait(event)
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
 
-    def is_user_active(self):
-        # Implementation depends on server state, for now simple placeholder logic
-        # or it can be passed from the server
-        return False
+    def set_mode(self, mode: str) -> str:
+        """Switch between 'supervised' and 'autonomous' mode."""
+        if mode not in ("supervised", "autonomous"):
+            raise ValueError(f"Invalid mode: {mode}")
+        
+        self.mode = mode
+        self.status["mode"] = mode
+        
+        if mode == "autonomous":
+            self.trigger_reflection()
+            self.trigger_execution()
+            
+        log_event("mode_changed", {"mode": mode})
+        self._emit_activity("mode_changed", f"Switched to {mode} mode")
+        logger.info(f"🤖 Autonomy mode: {mode}")
+        return mode
+
+    def reset_engine(self) -> dict:
+        """Full engine reset: archive stale proposals, reset state, retry failed."""
+        self._emit_activity("engine_reset", "🔄 Full engine reset initiated")
+        archive_result = self.proposals.archive_terminal()
+        retried = self.proposals.retry_all_failed(emit_activity=self._emit_activity)
+        cleared_titles = self.proposals.clear_failed_titles()
+
+        self._consecutive_failures = 0
+        self._circuit_open_until = 0.0
+        self._current_backoff = BACKOFF_BASE
+        self._reflection_rejections = 0
+        self._reflection_backoff = 300
+        self.set_mode("autonomous")
+
+        summary = {
+            "archived": archive_result.get("archived", 0),
+            "retried": len(retried),
+            "mode": "autonomous",
+        }
+        log_event("engine_reset", summary)
+        return summary
+
+    def toggle(self) -> bool:
+        """Toggle the engine on/off."""
+        self.enabled = not self.enabled
+        self.status["enabled"] = self.enabled
+        log_event("engine_toggled", {"enabled": self.enabled})
+        logger.info(f"🤖 Autonomy Engine {'enabled' if self.enabled else 'paused'}")
+        return self.enabled
+
+    def get_status(self) -> dict:
+        """Return the full autonomy status for the API."""
+        return {
+            **self.status,
+            "uptime_seconds": round(time.time() - self._start_time)
+            if self._start_time else 0,
+        }
+
+    def trigger_reflection(self):
+        """Manually trigger the reflection cycle."""
+        self._manual_reflection_event.set()
+        logger.info("💡 Manual reflection event set")
+
+    def trigger_execution(self):
+        """Manually trigger the execution cycle."""
+        self._manual_execution_event.set()
+        logger.info("⚙️ Manual execution event set")
+
+    def list_proposals(self, status_filter: str = "all") -> list[dict]:
+        return self.proposals.list_proposals(status_filter)
+
+    def approve_proposal(self, proposal_id: str):
+        result = self.proposals.approve(proposal_id)
+        if result:
+            log_event("proposal_approved", {"id": proposal_id, "title": result.get("title", "?")})
+        return result
+
+    def deny_proposal(self, proposal_id: str):
+        result = self.proposals.deny(proposal_id)
+        if result:
+            log_event("proposal_denied", {"id": proposal_id, "title": result.get("title", "?")})
+        return result
+
+    def retry_proposal(self, proposal_id: str):
+        return self.proposals.retry(proposal_id, emit_activity=self._emit_activity)
 
     async def start(self):
         logger.info("🚀 Starting Autonomy Engine...")
@@ -92,6 +229,108 @@ class AutonomyEngine:
     async def _execute_next_proposal(self):
         return await execute_proposal_cycle(self)
 
+    async def _run_auto_research(self):
+        """Run automated research cycle using codebase scanning + web research."""
+        import httpx
+        self._emit_activity("research_started", "🔬 Starting automated research cycle...")
+
+        try:
+            # 1. Scan codebase for complexity hot spots and code smells
+            complexity = self.codebase_scanner.scan_complexity()
+            smells = self.codebase_scanner.scan_code_smells()
+
+            hot_categories = set()
+            if any(f.get("severity") == "high" for f in complexity):
+                hot_categories.add("code_quality")
+            if any(s.get("type") == "large_file" for s in smells):
+                hot_categories.add("code_quality")
+            hot_categories.add("performance")  # always useful
+
+            # 2. Gather web research for hot categories
+            research_context = []
+            for category in hot_categories:
+                web_findings = await self.web_researcher.get_findings_for_prompt(category)
+                if web_findings:
+                    research_context.append(web_findings)
+
+            # 3. Get performance profile
+            perf_report = self.performance_profiler.get_findings_for_prompt()
+            if perf_report:
+                research_context.append(perf_report)
+
+            # 4. Get lessons from past failures
+            lessons = self.failure_analyzer.get_lessons_for_prompt()
+            if lessons:
+                research_context.append(lessons)
+
+            # 5. Build research-enriched prompt and generate proposals
+            if research_context:
+                research_blob = "\n".join(research_context)
+                self._emit_activity(
+                    "research_analyzing",
+                    f"📊 Analyzed {len(complexity)} complex functions, "
+                    f"{len(smells)} code smells across {len(hot_categories)} categories"
+                )
+
+                # Use the reflection model to generate research-driven proposals
+                prompt = (
+                    "You are LocalMind's research engine. Based on the following automated "
+                    "codebase analysis and web research findings, propose 1-2 specific, "
+                    "actionable improvements. Each proposal should target a real file and "
+                    "describe a concrete change.\n\n"
+                    f"{research_blob}\n\n"
+                    f"Codebase scanner found {len(complexity)} complex functions and "
+                    f"{len(smells)} code smells.\n\n"
+                    "Respond in JSON format: "
+                    '[{{"title": "...", "description": "...", "category": "...", '
+                    '"risk": "low|medium", "files_affected": ["..."]}}]'
+                )
+
+                try:
+                    async with httpx.AsyncClient(timeout=60.0) as client:
+                        resp = await client.post(
+                            f"{self.ollama_url}/api/generate",
+                            json={
+                                "model": self.reflection_model,
+                                "prompt": prompt,
+                                "stream": False,
+                            },
+                        )
+                        if resp.status_code == 200:
+                            import json as _json
+                            text = resp.json().get("response", "")
+                            # Try to extract JSON array from response
+                            match = re.search(r'\[.*\]', text, re.DOTALL)
+                            if match:
+                                proposals = _json.loads(match.group())
+                                logged = 0
+                                for p in proposals[:2]:
+                                    self.proposals.log_proposal(
+                                        title=p.get("title", "Research finding"),
+                                        description=p.get("description", ""),
+                                        category=p.get("category", "research"),
+                                        risk=p.get("risk", "low"),
+                                        files_affected=p.get("files_affected", []),
+                                        source="auto_research",
+                                    )
+                                    logged += 1
+                                if logged:
+                                    self.status["reflection"]["proposals_logged"] += logged
+                                    self._emit_activity(
+                                        "research_complete",
+                                        f"🔬 Research generated {logged} new proposal(s)"
+                                    )
+                                    return
+                except Exception as e:
+                    logger.warning(f"Research LLM call failed: {e}")
+
+            self._emit_activity("research_complete", "🔬 Research cycle complete — no new findings")
+
+        except Exception as e:
+            logger.error(f"Auto-research error: {e}")
+            self._emit_activity("research_error", f"❌ Research error: {str(e)[:100]}")
+
     def _check_health(self):
-        # Ported from original health check
+        # The health check itself is handled in run_health_loop, 
+        # but the engine needs a method to actually hit Ollama or verify state.
         return "ok"
