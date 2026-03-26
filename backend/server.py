@@ -54,6 +54,7 @@ async def lifespan(app: FastAPI):
     """Initialize database, configure routers, and start autonomy engine."""
     db.init_db()
     _configure_routers()
+
     await autonomy_engine.start()
     logger.info("LocalMind server initialized (autonomy engine active)")
     yield
