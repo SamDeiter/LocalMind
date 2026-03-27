@@ -4,6 +4,11 @@ import os
 OLLAMA_BASE_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 SERVER_PORT = int(os.getenv("PORT", 8000))
 
+# --- Chat / Agent ---
+MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", 8192))
+MAX_AGENT_ITERATIONS = int(os.getenv("MAX_AGENT_ITERATIONS", 5))
+DEFAULT_CONTEXT_WINDOW = int(os.getenv("DEFAULT_CONTEXT_WINDOW", 8192))
+
 # -- Model Tiers --
 MODEL_TIERS = {
     "light":  "qwen2.5-coder:7b",
