@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from backend.logic.chat_service import ChatService
 from backend import db
 
-router = APIRouter()
+router = APIRouter(prefix="/api", tags=["chat"])
 logger = logging.getLogger("localmind.routes.chat")
 
 # These will be initialized by the server on startup or via dependency injection
