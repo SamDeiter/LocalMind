@@ -21,27 +21,27 @@ export async function addPriority() {
     const r = await fetch(`${API}/api/autonomy/priorities`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ priority: val })
+      body: JSON.stringify({ description: val, priority: "high" })
     });
     const d = await r.json();
     if (d.ok) {
       priorityInput.value = "";
-      renderPriorities(d.priorities);
       showToast("🎯 Target Locked", "info");
+      await loadPriorities();  // Reload full list from server
     }
   } catch {
     showToast("❌ Failed to add priority", "error");
   }
 }
 
-export async function removePriority(priority) {
+export async function removePriority(priorityId) {
   try {
-    const r = await fetch(`${API}/api/autonomy/priorities?priority=${encodeURIComponent(priority)}`, {
+    const r = await fetch(`${API}/api/autonomy/priorities/${encodeURIComponent(priorityId)}`, {
       method: "DELETE"
     });
     const d = await r.json();
     if (d.ok) {
-      renderPriorities(d.priorities);
+      await loadPriorities();  // Reload full list from server
     }
   } catch {
     showToast("❌ Failed to remove priority", "error");

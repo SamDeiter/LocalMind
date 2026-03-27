@@ -14,7 +14,7 @@ export * from "./digest.js";
 
 import { pollAutonomy } from "./status.js";
 import { connectActivityFeed } from "./activity.js";
-import { loadPriorities } from "./priority.js";
+import { loadPriorities, addPriority } from "./priority.js";
 import { loadDigest, exportDigest } from "./digest.js";
 import { renderTaskPipeline } from "./proposals.js";
 import { updateSuccessRate } from "./dashboard.js";
@@ -50,12 +50,18 @@ export function initAutonomyUI() {
     executeBtn.addEventListener("click", triggerExecution);
   }
 
+  // Wire Execute button (addPriorityBtn) to add priority
+  const addPriorityBtn = document.getElementById("addPriorityBtn");
+  if (addPriorityBtn) {
+    addPriorityBtn.addEventListener("click", () => addPriority());
+  }
+
   // Wire directive input ENTER key
   if (priorityInput) {
       priorityInput.addEventListener("keydown", (e) => {
           if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              import("./controls.js").then(m => m.executeDirective());
+              addPriority();
           }
       });
   }

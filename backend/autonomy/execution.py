@@ -62,7 +62,7 @@ async def execute_proposal_cycle(engine) -> bool:
             return True
 
         branch_name = f"self-improve/{proposal['id']}"
-        git_run(["checkout", "-b", branch_name])
+        git_run(["checkout", "-B", branch_name])
 
         edits_applied = []
         for target_file in targets[:3]:
@@ -97,4 +97,9 @@ async def execute_proposal_cycle(engine) -> bool:
 
     except Exception as exc:
         logger.error(f"Execution failed: {exc}")
+        if proposal:
+            try:
+                engine.proposals.mark_failed(proposal, f"Crashed during execution: {str(exc)[:150]}")
+            except Exception as e2:
+                logger.error(f"Failed to update proposal status after crash: {e2}")
         return False

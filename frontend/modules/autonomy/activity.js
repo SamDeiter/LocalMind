@@ -16,6 +16,7 @@ export function connectActivityFeed() {
       addActivityItem(event);
       updateActivityBar(event);
       updateBrainDashboard(event);
+      updateAiThinkingFeed(event);
 
       if (event.action === "completed") {
         showToast(`✨ ${event.detail}`, "info");
@@ -98,3 +99,66 @@ export function updateActivityBar(event) {
   if (icon) icon.textContent = ACTION_ICONS[event.action] || "📋";
 }
 
+const THINKING_COLORS = {
+  reflecting: { icon: "psychology", color: "text-purple-400", label: "THINKING" },
+  thinking: { icon: "neurology", color: "text-purple-400", label: "REASONING" },
+  checking: { icon: "fact_check", color: "text-blue-400", label: "CHECKING" },
+  writing: { icon: "edit_note", color: "text-green-400", label: "WRITING" },
+  executing: { icon: "bolt", color: "text-amber-400", label: "EXECUTING" },
+  research_started: { icon: "biotech", color: "text-cyan-400", label: "RESEARCH" },
+  research_analyzing: { icon: "analytics", color: "text-cyan-400", label: "ANALYZING" },
+  research_complete: { icon: "science", color: "text-cyan-400", label: "RESEARCH" },
+  completed: { icon: "check_circle", color: "text-green-400", label: "DONE" },
+  merged: { icon: "merge", color: "text-green-400", label: "MERGED" },
+  auto_approved: { icon: "verified", color: "text-secondary", label: "APPROVED" },
+  error: { icon: "error", color: "text-red-400", label: "ERROR" },
+  reverted: { icon: "undo", color: "text-red-400", label: "REVERTED" },
+  health_ok: { icon: "monitor_heart", color: "text-green-400", label: "HEALTH" },
+  mode_changed: { icon: "swap_horiz", color: "text-blue-400", label: "MODE" },
+  idle: { icon: "hourglass_empty", color: "text-outline", label: "IDLE" },
+};
+
+let _thinkingFeedInitialized = false;
+
+function updateAiThinkingFeed(event) {
+  const feed = document.getElementById("aiThinkingFeed");
+  if (!feed) return;
+
+  // Clear placeholder on first real event
+  if (!_thinkingFeedInitialized) {
+    feed.innerHTML = "";
+    _thinkingFeedInitialized = true;
+  }
+
+  const config = THINKING_COLORS[event.action] || { icon: "info", color: "text-outline", label: event.action?.toUpperCase() || "INFO" };
+  const detail = escapeHtml(event.detail || event.action || "...");
+  const time = event.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+  const entry = document.createElement("div");
+  entry.className = "flex items-start gap-3 py-2 px-2 rounded-lg hover:bg-surface-container-high/50 transition-colors opacity-0 translate-y-1";
+  entry.innerHTML = `
+    <div class="flex-shrink-0 mt-0.5">
+      <span class="material-symbols-outlined text-base ${config.color}">${config.icon}</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 mb-0.5">
+        <span class="text-[9px] font-bold ${config.color} uppercase tracking-widest">${config.label}</span>
+        <span class="text-[9px] font-mono opacity-30">${time}</span>
+      </div>
+      <p class="text-[11px] text-on-surface-variant/80 leading-relaxed break-words">${detail}</p>
+    </div>
+  `;
+
+  feed.prepend(entry);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    entry.classList.remove("opacity-0", "translate-y-1");
+    entry.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+  });
+
+  // Keep max 30 entries
+  while (feed.children.length > 30) {
+    feed.removeChild(feed.lastChild);
+  }
+}

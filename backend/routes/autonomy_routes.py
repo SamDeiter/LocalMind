@@ -59,6 +59,31 @@ async def autonomy_status():
     status["start_time"] = _engine._start_time
     status["recent_events"] = _engine._recent_events[-20:]
 
+    # Count proposals from disk for accurate dashboard stats
+    proposals_total = 0
+    proposals_completed = 0
+    proposals_failed = 0
+    try:
+        if _proposals_dir and _proposals_dir.exists():
+            import json as _json
+            for f in _proposals_dir.glob("*.json"):
+                try:
+                    data = _json.loads(f.read_text(encoding="utf-8"))
+                    proposals_total += 1
+                    s = data.get("status", "")
+                    if s == "completed":
+                        proposals_completed += 1
+                    elif s == "failed":
+                        proposals_failed += 1
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # Override in-memory counters with actual disk counts
+    status.setdefault("execution", {})["proposals_executed"] = proposals_completed
+    status.setdefault("reflection", {})["proposals_logged"] = proposals_total
+
     # Add global counts for sidebar synchronization
     memories_count = 0
     try:
@@ -75,16 +100,19 @@ async def autonomy_status():
     except Exception:
         pass
 
-    proposals_count = 0
+    # Active agents: count running background tasks on the engine
+    active_agents = 0
     try:
-        if _proposals_dir and _proposals_dir.exists():
-            proposals_count = len(list(_proposals_dir.glob("*.json")))
+        for task in getattr(_engine, "_tasks", []):
+            if not task.done():
+                active_agents += 1
     except Exception:
         pass
 
     status["memories_count"] = memories_count
     status["documents_count"] = documents_count
-    status["proposals_count"] = proposals_count
+    status["proposals_count"] = proposals_total
+    status["active_agents"] = active_agents
 
     return status
 

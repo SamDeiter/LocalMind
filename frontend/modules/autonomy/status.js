@@ -86,6 +86,12 @@ export async function pollAutonomy() {
       updateBrainUptime();
     }
 
+    // Sync active agents count
+    if (d.active_agents !== undefined) {
+      const el = document.getElementById("activeAgents");
+      if (el) el.textContent = d.active_agents;
+    }
+
     // On first poll, populate brain timeline from recent events
     if (d.recent_events && d.recent_events.length > 0 && !window._brainCaughtUp) {
       window._brainCaughtUp = true;
