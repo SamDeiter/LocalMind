@@ -261,8 +261,25 @@ def web_search(query: str, **kwargs) -> dict:
         return {"success": False, "query": query, "error": f"Web search failed: {e}"}
 
 
+def restart_server(**kwargs) -> dict:
+    """Trigger a server restart by touching a watched file (works in dev mode)."""
+    try:
+        trigger_file = Path(os.path.abspath(__file__)).parent / "__init__.py"
+        # Create it if it doesn't exist just in case
+        if not trigger_file.exists():
+            trigger_file.write_text("")
+        trigger_file.touch()
+        return {
+            "success": True, 
+            "message": "Server reload triggered. The system will restart shortly. (Note: Only works if auto-reload is enabled)."
+        }
+    except Exception as e:
+        return {"success": False, "error": f"Failed to trigger restart: {e}"}
+
+
 # ── Tool Definitions for Ollama ─────────────────────────────────────────────
 # These are sent to Ollama so the model knows what tools are available.
+
 
 TOOL_DEFINITIONS = [
     {

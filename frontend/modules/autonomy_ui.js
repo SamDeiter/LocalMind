@@ -14,32 +14,48 @@ export async function pollAutonomy() {
   try {
     const r = await fetch(`${API}/api/autonomy/status`);
     const d = await r.json();
-    const indicator = document.getElementById("autonomyIndicator");
-    const label = document.getElementById("autonomyLabel");
-    const loadingBanner = document.getElementById("brainLoadingBanner");
-    const brainPulse = document.getElementById("brainPulse");
+
+    const elements = {
+      indicator: document.getElementById("autonomyIndicator"),
+      label: document.getElementById("autonomyLabel"),
+      loadingBanner: document.getElementById("brainLoadingBanner"),
+      pulse: document.getElementById("brainPulse"),
+      codeSnippet: document.getElementById("codeSnippetContainer")
+    };
+
+    // Update code snippet display based on current status
+    if (elements.codeSnippet) {
+      const highlightedCode = Prism.highlight(d.code_snippet || '', Prism.languages.javascript, 'javascript');
+      const codeElement = document.createElement('code');
+      codeElement.className = 'language-javascript';
+      codeElement.innerHTML = highlightedCode;
+      const preElement = document.createElement('pre');
+      preElement.appendChild(codeElement);
+      elements.codeSnippet.innerHTML = '';
+      elements.codeSnippet.appendChild(preElement);
+    }
+
     // Model is ready if health_check says so, OR if the engine is actively working
     const healthReady = d.health_check && d.health_check.model_loaded;
     const engineActive = (d.ideas_generated || 0) > 0 || (d.current_task && d.current_task !== "idle");
     const modelReady = healthReady || engineActive;
 
-
-    if (indicator) {
-      indicator.className = d.enabled ? "autonomy-dot autonomy-active" : "autonomy-dot autonomy-paused";
+    if (elements.indicator) {
+      elements.indicator.className = d.enabled ? "autonomy-dot autonomy-active" : "autonomy-dot autonomy-paused";
     }
-    if (label) {
+    if (elements.label) {
       if (!d.enabled) {
-        label.textContent = "Paused";
+        elements.label.textContent = "Paused";
       } else if (modelReady) {
-        label.textContent = "Active";
+        elements.label.textContent = "Active";
       } else {
-        label.textContent = "Loading…";
+        elements.label.textContent = "Loading…";
       }
     }
 
     // Show/hide loading banner in brain dashboard
-    if (loadingBanner) {
-      loadingBanner.style.display = (d.enabled && !modelReady) ? "flex" : "none";
+    if (elements.loadingBanner) {
+      elements.loadingBanner.style.display = (d.enabled && !modelReady) ? "flex" : "none";
     }
 
     // Pulse dot: amber while loading, green when ready

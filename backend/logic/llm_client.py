@@ -1,7 +1,8 @@
 import json
 import logging
 import httpx
-import time
+import httpx
+import asyncio
 from typing import Optional, List, Dict, Any, AsyncIterator
 from backend import config, gemini_client
 
@@ -30,8 +31,20 @@ class LLMClient:
             async for chunk in self._stream_gemini(model, messages, **kwargs):
                 yield chunk
         else:
-            async for chunk in self._stream_ollama(model, messages, **kwargs):
-                yield chunk
+            for attempt in range(max_retries):
+                    try:
+                        async for chunk in self._stream_ollama(model, messages, **kwargs):
+                            yield chunk
+                        break
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            wait_time = backoff_factor * (2 ** attempt)
+                            logger.warning(f"Retrying in {wait_time} seconds due to exception: {e}")
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            logger.error(f"Ollama stream failed after retries: {e}")
+                            yield {"error": str(e)}
 
     async def _stream_ollama(self, model: str, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[Dict[str, Any]]:
         url = f"{self.ollama_url}/api/chat"
@@ -43,9 +56,48 @@ class LLMClient:
         }
         
         async with httpx.AsyncClient(timeout=self.timeout) as client:
+            max_retries = 3
+            backoff_factor = 1
+            max_retries = 3
+            backoff_factor = 1
             try:
-                async with client.stream("POST", url, json=payload) as response:
-                    if response.status_code != 200:
+                max_retries = 3
+                backoff_factor = 1
+                for attempt in range(max_retries):
+                    wait_time = backoff_factor * (2 ** attempt) if attempt > 0 else 0
+                    if wait_time > 0:
+                        logger.warning(f'Retrying in {wait_time} seconds due to exception')
+                        await asyncio.sleep(wait_time)
+                    try:
+                        async with client.stream('POST', url, json=payload, timeout=self.timeout) as response:
+                            if response.status_code != 200:
+                                err = await response.aread()
+                                logger.error(f'Ollama stream error: {err.decode()}')
+                                yield {'error': f'HTTP {response.status_code}'}
+                                return
+                            if response.status_code != 200:
+                                err = await response.aread()
+                                logger.error(f"Ollama stream error: {err.decode()}")
+                                yield {"error": f"Ollama error {response.status_code}"}
+                                return
+                            if response.status_code != 200:
+                                err = await response.aread()
+                                logger.error(f"Ollama stream error: {err.decode()}")
+                                yield {"error": f"Ollama error {response.status_code}"}
+                                return
+                                err = await response.aread()
+                                logger.error(f"Ollama stream error: {err.decode()}")
+                                yield {"error": f"Ollama error {response.status_code}"}
+                                return
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            wait_time = backoff_factor * (2 ** attempt)
+                            logger.warning(f"Retrying in {wait_time} seconds due to exception: {e}")
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            logger.error(f"Ollama connection failed after retries: {e}")
+                            yield {"error": str(e)}
                         err = await response.aread()
                         logger.error(f"Ollama stream error: {err.decode()}")
                         yield {"error": f"Ollama error {response.status_code}"}
@@ -67,6 +119,7 @@ class LLMClient:
                                 "tool_calls": data.get("message", {}).get("tool_calls", [])
                             }
                         except json.JSONDecodeError:
+                            logger.warning(f'Failed to decode JSON from response: {line}')
                             continue
             except Exception as e:
                 logger.error(f"Ollama connection failed: {e}")

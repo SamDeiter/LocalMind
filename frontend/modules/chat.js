@@ -76,7 +76,12 @@ export async function sendMessage() {
   messageInput.value = "";
   autoResize();
 
-  if (welcomeScreen) welcomeScreen.style.display = "none";
+  // Removed welcomeScreen hiding logic so chatting doesn't obscure the dashboard UI.
+  const chatScreen = document.getElementById("chatScreen");
+  if (chatScreen) {
+    chatScreen.classList.remove("hidden");
+    chatScreen.style.display = "flex";
+  }
 
   state.messages.push({ role: "user", content: text });
   appendMessage("user", text);
@@ -331,8 +336,15 @@ export function clearMessages() {
 export function renderMessages() {
   if (!messagesContainer) return;
   messagesContainer.innerHTML = "";
-  if (welcomeScreen) {
-    welcomeScreen.style.display = state.messages.length ? "none" : "";
+  const chatScreen = document.getElementById("chatScreen");
+  // Dashboard UI is no longer obscured when chatting
+  if (chatScreen) {
+    if (state.messages.length > 0) {
+      chatScreen.classList.remove("hidden");
+      chatScreen.style.display = "flex";
+    } else {
+      chatScreen.style.display = "none";
+    }
   }
   state.messages.forEach((m) => {
     createMessageEl(m.role, m.content);
@@ -348,9 +360,16 @@ export function appendMessage(role, content) {
 
 export function createMessageEl(role, content) {
   const wrapper = document.createElement("div");
-  wrapper.className = `message ${role}-message`;
+  const isUser = role === "user";
+  wrapper.className = `message ${role}-message flex w-full mb-6 ${isUser ? "justify-end" : "justify-start"}`;
+  
   const contentDiv = document.createElement("div");
-  contentDiv.className = "message-content";
+  contentDiv.className = `message-content max-w-[80%] p-4 rounded-2xl ${
+    isUser 
+    ? "bg-[#6366f1]/20 border border-[#6366f1]/30 text-[#e5e2e1] rounded-tr-sm" 
+    : "bg-[#1c1b1b] border border-[#444748]/20 text-[#c4c7c7] rounded-tl-sm shadow-md"
+  }`;
+  
   contentDiv.innerHTML = role === "assistant" ? renderMarkdown(content) : escapeHtml(content);
   wrapper.appendChild(contentDiv);
   if (messagesContainer) messagesContainer.appendChild(wrapper);

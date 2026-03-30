@@ -39,26 +39,31 @@ export function bindEvents() {
     state.messages = [];
     clearMessages();
     loadConversations();
-    if (welcomeScreen) welcomeScreen.style.display = "none";
-    if (chatScreen) chatScreen.style.display = "flex";
-  });
-
-  // Home button (logo) — go back to welcome/brain dashboard
-  $("#homeBtn")?.addEventListener("click", () => {
-    if (welcomeScreen) welcomeScreen.style.display = "flex";
-    if (chatScreen) chatScreen.style.display = "none";
-    state.currentConvId = null;
-    state.messages = [];
-    clearMessages();
-    loadConversations();
+    if (chatScreen) {
+      chatScreen.classList.remove("hidden");
+      chatScreen.style.display = "flex";
+    }
   });
 
   // Global Overview Button
   overviewBtn?.addEventListener("click", () => {
-    if (welcomeScreen) welcomeScreen.style.display = "flex";
-    if (chatScreen) chatScreen.style.display = "none";
+    if (chatScreen) {
+      chatScreen.classList.add("hidden");
+      chatScreen.style.display = "none";
+    }
     loadConversations();
   });
+
+  // Close Chat Overlay Button
+  const closeChatBtn = document.getElementById("closeChatBtn");
+  if (closeChatBtn) {
+    closeChatBtn.addEventListener("click", () => {
+      if (chatScreen) {
+        chatScreen.classList.add("hidden");
+        chatScreen.style.display = "none";
+      }
+    });
+  }
 
   // Unified Main Input: Always use sendMessage which switches to Chat Mode
   sendBtn?.addEventListener("click", () => {

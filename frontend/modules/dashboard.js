@@ -1,16 +1,11 @@
-/**
- * dashboard.js — Live data feed for the LocalMind dashboard
- * Connects neural topology nodes + metrics bars + status bar
- * to /api/hardware and /api/autonomy/status endpoints.
- */
+import { API } from "./state.js";
 
-const DASH_API = window.location.origin;
 let dashboardInterval = null;
 
 /** Update neural topology SVG nodes and metric cards with live hardware data */
 async function updateDashboardMetrics() {
   try {
-    const r = await fetch(`${DASH_API}/api/hardware`);
+    const r = await fetch(`${API}/api/hardware`);
     if (!r.ok) return;
     const hw = await r.json();
     const sys = hw.system || {};
@@ -60,7 +55,7 @@ async function updateStatusBar() {
   const connEl = document.getElementById("brainStatus");
   try {
     // Check autonomy status
-    const r = await fetch(`${DASH_API}/api/autonomy/status`);
+    const r = await fetch(`${API}/api/autonomy/status`);
     if (r.ok) {
       const s = await r.json();
       if (dot) dot.style.backgroundColor = "#4fdbc8";
@@ -72,16 +67,17 @@ async function updateStatusBar() {
 
     // Version
     try {
-      const vr = await fetch(`${DASH_API}/api/version`);
+      const vr = await fetch(`${API}/api/version`);
       if (vr.ok) {
         const vd = await vr.json();
+        const versionEl = document.querySelector(".version-badge");
         if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
       }
     } catch { /* ignore */ }
 
     // Ideas count for reasoning grid
     try {
-      const mr = await fetch(`${DASH_API}/api/memories`);
+      const mr = await fetch(`${API}/api/memories`);
       if (mr.ok) {
         const memories = await mr.json();
         const ideasEl = document.getElementById("brainIdeas");
@@ -115,11 +111,5 @@ function stopDashboard() {
   }
 }
 
-// Auto-start when DOM is ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initDashboard);
-} else {
-  initDashboard();
-}
 
-window.dashboardModule = { initDashboard, stopDashboard, updateDashboardMetrics, updateStatusBar };
+export { initDashboard, stopDashboard, updateDashboardMetrics, updateStatusBar };

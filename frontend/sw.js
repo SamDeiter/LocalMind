@@ -49,22 +49,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static files: try cache first, then network
+  // Static files: try network first, then cache
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).then((response) => {
-          // Cache successful responses for next time
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
-            });
-          }
-          return response;
-        })
-      );
-    }),
+    fetch(event.request)
+      .then((response) => {
+        // Cache successful HTTP/HTTPS GET responses
+        const url = new URL(event.request.url);
+        if (response.ok && event.request.method === "GET" && (url.protocol === "http:" || url.protocol === "https:")) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, clone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // Fallback to cache if offline
+        return caches.match(event.request);
+      }),
   );
 });

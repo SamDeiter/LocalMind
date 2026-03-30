@@ -181,7 +181,8 @@ class ChatService:
         return {"score": min(score, 10), "tier": tier}
 
     def _route_model(self, estimate: Dict[str, Any], override: str = None) -> (str, str):
-        if override: return override, "ollama"
+        if override and override != "auto":
+            return override, "ollama"
         
         # Cloud fallback for heavy tasks if available
         from backend import gemini_client

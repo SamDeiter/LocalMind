@@ -118,8 +118,12 @@ function populateInitialEvents(recentEvents) {
     }
   }
 
-  const feed = document.getElementById("activityFeed");
-  if (feed && feed.children.length <= 1) {
+  const sysFeed = document.getElementById("systemLogFeed");
+  if (sysFeed) {
+    // Clear static fakes if present
+    if (sysFeed.innerHTML.includes("Semantic index reconstruction complete")) {
+      sysFeed.innerHTML = "";
+    }
     const events = [...recentEvents].reverse();
     for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {
       const icon = ACTION_ICONS[event.action] || "📋";
@@ -139,7 +143,22 @@ function populateInitialEvents(recentEvents) {
             <p class="text-[11px] text-on-surface-variant leading-snug break-words">${escapeHtml(event.detail || event.action)}</p>
         </div>
       `;
-      feed.appendChild(item);
+      sysFeed.appendChild(item);
     }
+  }
+
+  const thinkFeed = document.getElementById("aiThinkingFeed");
+  if (thinkFeed) {
+    const placeholder = thinkFeed.querySelector(".italic");
+    if (placeholder) placeholder.remove();
+    const events = [...recentEvents].reverse();
+    for (const event of events.slice(0, 20)) {
+      const icon = ACTION_ICONS[event.action] || "📡";
+      const ts = event.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const line = document.createElement("p");
+      line.innerHTML = `<span class="text-outline/40">${ts}</span>  ${icon} <span class="text-on-surface-variant">${escapeHtml(event.detail || event.action || "...")}</span>`;
+      thinkFeed.appendChild(line);
+    }
+    thinkFeed.scrollTop = thinkFeed.scrollHeight;
   }
 }

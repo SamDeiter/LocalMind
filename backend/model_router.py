@@ -167,7 +167,7 @@ def get_autonomy_models() -> dict:
     """
     return {
         "reflection": MODELS["local_heavy"]["name"],
-        "editing": MODELS["local_ultra"]["name"],
+        "editing": MODELS["local_heavy"]["name"],
         "file_targeting": MODELS["local_heavy"]["name"],
     }
 

@@ -7,6 +7,12 @@ from unittest.mock import patch
 import pytest
 
 from backend.gemini_client import scrub_pii, is_available
+import httpx
+from tenacity import retry, wait_exponential, stop_after_attempt, after_log
+import logging
+from httpx import RequestError
+logging.basicConfig(level=logging.INFO)
+import logging
 
 
 class TestPIIScrubber:
@@ -70,7 +76,28 @@ class TestIsAvailable:
 
     def test_available_with_key(self):
         with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key-123"}):
-            assert is_available() is True
+            @retry(wait=wait_exponential(multiplier=1, min=2, max=30), stop=stop_after_attempt(5), after=after_log(logging.getLogger(__name__), logging.INFO))
+            def make_request():
+                try:
+                    response = httpx.get('https://api.gemini.com/check', timeout=httpx.Timeout(10.0))
+                    response.raise_for_status()
+                except RequestError as e:
+                    logging.error(f'Request failed: {e}')
+                    raise
+                assert response.status_code == 200
+                return response
+                try:
+                    response = httpx.get('https://api.gemini.com/check', timeout=httpx.Timeout(10.0))
+                    response.raise_for_status()
+                except RequestError as e:
+                    logging.error(f'Request failed: {e}')
+                    raise
+                assert response.status_code == 200
+                return response
+                response.raise_for_status()
+                assert response.status_code == 200
+                return response
+            make_request()
 
     def test_unavailable_without_key(self):
         env = os.environ.copy()

@@ -455,28 +455,40 @@ def _strip_line_numbers(text: str) -> str:
 
 
 def _parse_diff_response(raw_response: str, relative_path: str, emit_activity=None) -> dict | None:
-    """Parse the AI's JSON response, with fallback regex extraction."""
+    """Parse the AI's JSON response, with fallback regex/block extraction."""
+    # 1. Try raw parsing
     try:
-        json_text = raw_response
-        if "```" in json_text:
-            json_text = json_text.split("```")[1]
-            if json_text.startswith("json"):
-                json_text = json_text[4:]
-            json_text = json_text.strip()
+        parsed = json.loads(raw_response.strip())
+        if isinstance(parsed, dict) and "search" in parsed and "replace" in parsed:
+            return parsed
+    except json.JSONDecodeError:
+        pass
+        
+    # 2. Try parsing all markdown code blocks
+    blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', raw_response, re.DOTALL | re.IGNORECASE)
+    for block in blocks:
+        try:
+            parsed = json.loads(block.strip())
+            if isinstance(parsed, dict) and "search" in parsed and "replace" in parsed:
+                return parsed
+        except json.JSONDecodeError:
+            continue
 
-        return json.loads(json_text)
-    except (json.JSONDecodeError, IndexError):
-        match = re.search(r'\{[^{}]*"search"[^{}]*\}', raw_response, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
+    # 3. Extract greedy JSON block between first { and last }
+    first_brace = raw_response.find('{')
+    last_brace = raw_response.rfind('}')
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        try:
+            parsed = json.loads(raw_response[first_brace:last_brace+1])
+            if isinstance(parsed, dict) and "search" in parsed and "replace" in parsed:
+                return parsed
+        except json.JSONDecodeError:
+            pass
 
-        logger.warning(f"Could not parse edit response for {relative_path}")
-        if emit_activity:
-            emit_activity("error", f"Edit failed: could not parse AI response for {relative_path}")
-        return None
+    logger.warning(f"Could not parse edit response for {relative_path}\nResponse was:\n{raw_response[:500]}")
+    if emit_activity:
+        emit_activity("error", f"Edit failed: could not parse AI response for {relative_path}")
+    return None
 
 
 def _apply_search_replace(original_content: str, search_text: str, replace_text: str, relative_path: str) -> str | None:

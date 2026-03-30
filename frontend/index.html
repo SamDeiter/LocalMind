@@ -443,11 +443,10 @@
             <div class="flex items-center gap-8">
                 <div class="flex items-center gap-2">
                     <span id="brainPulse" class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(79,219,200,0.4)]"></span>
-                    <span id="brainStatus" class="font-headline tracking-widest text-[#e5e2e1] text-sm uppercase">Command Center</span>
+                    <span id="brainStatus" class="font-headline tracking-widest text-[#e5e2e1] text-sm uppercase">ONLINE</span>
                 </div>
                 <div class="hidden lg:flex items-center gap-6">
-                    <span class="text-[#2dd4bf] font-medium text-xs tracking-wider font-label" id="versionBadge">Cluster-01</span>
-                    <span class="text-[#8e9192] hover:text-[#c0c1ff] transition-colors text-xs tracking-wider" id="uptimeDisplay">Sync: 00:00:00</span>
+                    <span class="text-primary font-mono text-[10px] tracking-widest uppercase border border-primary/20 bg-primary/5 px-2 py-0.5 rounded-full" id="tokenCounter">0 / 8192 TX</span>
                 </div>
             </div>
             
@@ -568,32 +567,41 @@
                     </div>
                 </div>
 
-                <!-- Chat Screen (Initially Hidden) -->
-                <div id="chatScreen" class="hidden flex flex-col h-full w-full">
-                    <div class="flex items-center justify-between mb-4 pb-2 border-b border-outline-variant/10">
-                        <h2 class="font-headline text-xl font-light tracking-tight text-on-background">Conversation Session</h2>
+                <!-- Chat Window (Unified Overlay) -->
+                <div id="chatScreen" class="hidden absolute bottom-12 left-1/2 -translate-x-1/2 w-[calc(100%-80px)] lg:w-[800px] max-h-[85vh] h-[750px] bg-surface-container-high/95 backdrop-blur-3xl border border-outline-variant/30 rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.8)] z-50 flex flex-col overflow-hidden transition-all duration-300">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between p-5 border-b border-outline-variant/10 bg-surface-container-highest/80 backdrop-blur-md sticky top-0 z-10">
+                        <h2 class="font-headline text-lg font-medium text-on-background flex items-center gap-2">
+                            <span id="chatIndicator" class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(79,219,200,0.6)]"></span>
+                            Prime Session
+                        </h2>
+                        <button id="closeChatBtn" class="p-2 text-outline hover:text-error hover:bg-error/10 rounded-xl transition-all">
+                            <span class="material-symbols-outlined text-[20px]">close</span>
+                        </button>
                     </div>
-                    <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-6 pb-4">
+                    
+                    <!-- Message Feed -->
+                    <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
                         <!-- Messages populated by JS -->
                     </div>
-                </div>
 
-                <!-- Action/Command input anchor inside Main (Replaces priorities textarea if desired, but we keep sidebar priorities so we could omit or repurpose this) -->
-                <div class="mt-auto pt-4 border-t border-outline-variant/10 z-10 sticky bottom-0 bg-[#131313]">
-                    <div class="bg-surface-container-low rounded-xl border border-outline-variant/20 focus-within:border-primary/50 transition-all p-2 flex gap-2">
-                        <div class="flex flex-col gap-2 border-r border-outline-variant/20 pr-2">
-                            <button id="micBtn" class="p-2 text-outline hover:text-primary transition-colors">
-                                <span class="material-symbols-outlined">mic</span>
-                            </button>
-                            <button id="openCameraBtn" class="p-2 text-outline hover:text-primary transition-colors">
-                                <span class="material-symbols-outlined">photo_camera</span>
-                            </button>
-                        </div>
-                        <textarea id="messageInput" class="bg-transparent border-none focus:ring-0 text-sm flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[48px] py-3" placeholder="Transmit architectural directives or quick queries..." rows="1"></textarea>
-                        <div class="flex items-center gap-1 pl-2">
-                            <button id="sendBtn" class="primary-gradient p-2 rounded-lg text-on-primary hover:brightness-110 transition-all h-full self-end">
-                                <span class="material-symbols-outlined">send</span>
-                            </button>
+                    <!-- Input Area -->
+                    <div class="p-4 bg-surface-container/50 border-t border-outline-variant/10">
+                        <div class="bg-background/50 backdrop-blur-md rounded-2xl border border-outline-variant/30 focus-within:border-primary/50 transition-shadow p-2 flex gap-3 shadow-inner">
+                            <div class="flex flex-col gap-2 border-r border-outline-variant/20 pr-3">
+                                <button id="micBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
+                                    <span class="material-symbols-outlined text-[22px]">mic</span>
+                                </button>
+                                <button id="openCameraBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
+                                    <span class="material-symbols-outlined text-[22px]">photo_camera</span>
+                                </button>
+                            </div>
+                            <textarea id="messageInput" class="bg-transparent border-none focus:ring-0 text-md flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[56px] py-4" placeholder="Transmit architectural directives or quick queries..." rows="1"></textarea>
+                            <div class="flex items-center gap-1 pl-2">
+                                <button id="sendBtn" class="primary-gradient p-4 rounded-xl text-on-primary hover:brightness-110 transition-all h-full self-end shadow-lg shadow-primary/20">
+                                    <span class="material-symbols-outlined text-[24px]">send</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -770,7 +778,7 @@
     </select>
 </div>
 
-<script src="modules/dashboard.js"></script>
+<!-- dashboard.js is now imported as a module in app.js -->
 <script type="module" src="app.js"></script>
 </body>
 </html>

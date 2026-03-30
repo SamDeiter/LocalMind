@@ -11,6 +11,8 @@ import { toggleEditorPanel, initEditorEnhancements } from "./modules/editor.js";
 import { bindEvents } from "./modules/events.js";
 import { initResearchPanel, initGlobalSearch } from "./modules/research_ui.js";
 import { initSettingsUI } from "./modules/settings_ui.js";
+import { initDashboard } from "./modules/dashboard.js";
+import { initLiveReload } from "./modules/live_reload.js";
 
 async function init() {
   checkHealth();
@@ -30,11 +32,18 @@ async function init() {
   initResearchPanel();
   initGlobalSearch();
   initSettingsUI();
+  initDashboard();
+  initLiveReload();
 
   // Restore editor panel if it was open
 
   if (localStorage.getItem("localmind_editor") === "on") {
     setTimeout(toggleEditorPanel, 500);
+  }
+
+  // Register Service Worker for PWA/Cache
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
 }
 

@@ -41,17 +41,25 @@ export async function triggerExecution() {
   }
 }
 
-/** Execute a directive from the priority input */
 export function executeDirective() {
-  const input = priorityInput || document.getElementById("priorityDirectiveInput");
+  const input = priorityInput || document.getElementById("priorityDirectiveInput") || document.getElementById("priorityInput");
   if (!input) return;
   const text = input.value.trim();
   if (!text) return;
 
-  import("./priority.js").then(m => {
-    if (m.addPriority) m.addPriority(text);
-  });
-  input.value = "";
+  // Show chat overlay without hiding the dashboard
+  if (chatScreen) {
+    chatScreen.classList.remove("hidden");
+    chatScreen.style.display = "flex";
+  }
+
+  // Copy text to message input so sendMessage can use it
+  const msgInput = document.getElementById("messageInput");
+  if (msgInput) {
+      msgInput.value = text;
+      input.value = "";
+      sendMessage();
+  }
 }
 
 /** Toggle the activity feed panel visibility */

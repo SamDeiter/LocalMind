@@ -52,7 +52,7 @@ class MetaCognitiveController:
         emit_activity: Optional[Callable] = None,
     ):
         self.ollama_url = ollama_url
-        self.model = model or "qwen2.5-coder:7b"
+        self.model = model or "llama3.3:70b"
         self._emit = emit_activity or (lambda *a, **kw: None)
 
         # Initialize subsystems
