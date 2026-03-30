@@ -4,7 +4,7 @@ from pathlib import Path
 
 logger = logging.getLogger("localmind.db")
 
-DB_PATH = Path(__file__).parent / "conversations.db"
+from backend.config import DB_PATH
 
 def init_db():
     """Create conversations and messages tables if they don't exist."""

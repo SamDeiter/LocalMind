@@ -1,6 +1,6 @@
 """
 Gemini Client — Thin wrapper around Google's Generative AI SDK.
-Handles API calls to Gemini models with PII scrubbing.
+Handles API calls to Gemini models with PII scrubbing and retry logic.
 
 Privacy: All prompts are scrubbed of personal information before
 being sent to Google's servers. The user must approve cloud usage
@@ -11,46 +11,67 @@ import logging
 import json
 import os
 import re
+import asyncio
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger("localmind.gemini")
+import httpx
+from tenacity import (
+    retry, 
+    wait_exponential, 
+    stop_after_attempt, 
+    before_sleep_log,
+    retry_if_exception_type
+)
 
+logger = logging.getLogger("localmind.gemini")
 
 # ── PII Scrubber ────────────────────────────────────────────────────────
 # Patterns to strip before sending data to cloud
 _PII_PATTERNS = [
-    # Email addresses
     (re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'), '[EMAIL_REDACTED]'),
-    # Phone numbers (US formats)
     (re.compile(r'\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'), '[PHONE_REDACTED]'),
-    # SSN
     (re.compile(r'\b\d{3}-\d{2}-\d{4}\b'), '[SSN_REDACTED]'),
-    # Credit card numbers (basic)
     (re.compile(r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b'), '[CARD_REDACTED]'),
-    # IP addresses
     (re.compile(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'), '[IP_REDACTED]'),
-    # Windows file paths with usernames — use lambda to avoid \U escape in re.sub
     (re.compile(r'C:\\Users\\[^\\]+', re.IGNORECASE), lambda m: 'C:\\Users\\[USER_REDACTED]'),
-    # Unix home dirs
     (re.compile(r'/home/[^/\s]+'), '/home/[USER_REDACTED]'),
-    # API keys (generic patterns) — {35,} to match keys >= 35 chars
     (re.compile(r'\b(AIza[A-Za-z0-9_-]{35,})\b'), '[API_KEY_REDACTED]'),
     (re.compile(r'\b(sk-[a-zA-Z0-9]{20,})\b'), '[API_KEY_REDACTED]'),
 ]
 
-
 def scrub_pii(text: str) -> str:
     """Remove personal identifiable information from text before cloud send."""
+    if not text:
+        return ""
     scrubbed = text
     for pattern, replacement in _PII_PATTERNS:
         scrubbed = pattern.sub(replacement, scrubbed)
     return scrubbed
 
+# ── Settings Management ────────────────────────────────────────────────
+WORKSPACE = Path.home() / "LocalMind_Workspace"
+CLOUD_SETTINGS_FILE = WORKSPACE / "cloud_settings.json"
+
+def get_settings() -> dict:
+    """Load cloud settings from disk."""
+    if CLOUD_SETTINGS_FILE.exists():
+        try:
+            return json.loads(CLOUD_SETTINGS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {"api_key": None}
+
+def save_settings(settings: dict):
+    """Save cloud settings to disk."""
+    CLOUD_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CLOUD_SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
 
 # ── Gemini API Client ──────────────────────────────────────────────────
 _client = None
-
+RETRIES = 5
+BACKOFF_MIN = 4
+BACKOFF_MAX = 32
 
 def _get_api_key() -> Optional[str]:
     """Get Gemini API key from environment or local config."""
@@ -60,7 +81,6 @@ def _get_api_key() -> Optional[str]:
     
     config = get_settings()
     return config.get("api_key")
-
 
 def _ensure_client():
     """Lazy-init the Gemini client."""
@@ -72,8 +92,7 @@ def _ensure_client():
     if not api_key:
         raise ValueError(
             "GEMINI_API_KEY not found in environment. "
-            "Get a free key at https://aistudio.google.com/apikey "
-            "and add it to your .env file."
+            "Add it to your .env file."
         )
 
     try:
@@ -84,10 +103,38 @@ def _ensure_client():
         return _client
     except ImportError:
         raise ImportError(
-            "google-generativeai package not installed. "
-            "Run: pip install google-generativeai"
+            "google-generativeai package not installed. Run: pip install google-generativeai"
         )
 
+def is_available() -> bool:
+    """Check if Gemini is configured and available."""
+    return _get_api_key() is not None
+
+# ── Generation with Retry Logic ─────────────────────────────────────────
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=BACKOFF_MIN, max=BACKOFF_MAX),
+    stop=stop_after_attempt(RETRIES),
+    retry=retry_if_exception_type((httpx.HTTPError, Exception)),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True
+)
+async def _generate_with_retry(client, model, system_instruction, prompt):
+    """Internal helper to handle the actual LLM call with retry logic."""
+    try:
+        gen_model = client.GenerativeModel(
+            model_name=model,
+            system_instruction=system_instruction or None,
+        )
+        # Assuming async usage since we're using asyncio in the app
+        response = await gen_model.generate_content_async(prompt)
+        return response.text
+    except httpx.HTTPError as exc:
+        logger.error(f"HTTP error occurred: {exc}")
+        raise
+    except Exception as exc:
+        logger.error(f"Unexpected error occurred: {exc}")
+        raise
 
 async def generate(
     prompt: str,
@@ -112,36 +159,4 @@ async def generate(
     clean_prompt = scrub_pii(prompt) if scrub else prompt
     clean_system = scrub_pii(system_instruction) if (scrub and system_instruction) else system_instruction
 
-    try:
-        gen_model = client.GenerativeModel(
-            model_name=model,
-            system_instruction=clean_system or None,
-        )
-        response = gen_model.generate_content(clean_prompt)
-        return response.text
-    except Exception as exc:
-        logger.error(f"Gemini generation failed: {exc}")
-        raise
-
-
-def is_available() -> bool:
-    """Check if Gemini is configured and available."""
-    return _get_api_key() is not None
-
-# ── Settings Management ────────────────────────────────────────────────
-WORKSPACE = Path.home() / "LocalMind_Workspace"
-CLOUD_SETTINGS_FILE = WORKSPACE / "cloud_settings.json"
-
-def get_settings() -> dict:
-    """Load cloud settings from disk."""
-    if CLOUD_SETTINGS_FILE.exists():
-        try:
-            return json.loads(CLOUD_SETTINGS_FILE.read_text(encoding="utf-8"))
-        except:
-            pass
-    return {"api_key": None}
-
-def save_settings(settings: dict):
-    """Save cloud settings to disk."""
-    CLOUD_SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CLOUD_SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    return await _generate_with_retry(client, model, clean_system, clean_prompt)

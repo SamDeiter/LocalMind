@@ -351,6 +351,30 @@ class ProposalManager:
                 continue
         return None
 
+    def mark_completed(self, proposal: dict, edits_applied: list[str] = None,
+                        execution_duration: float = None, total_tokens: int = None,
+                        model_used: str = None):
+        """Mark a proposal as completed and persist to disk.
+
+        Records execution metadata (files edited, duration, tokens, model)
+        for the dashboard and confidence scoring.
+        """
+        proposal["status"] = "completed"
+        proposal["completed_at"] = time.time()
+        proposal["completed_at_human"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        if edits_applied:
+            proposal["files_edited"] = edits_applied
+        if execution_duration is not None:
+            proposal["execution_duration"] = round(execution_duration, 1)
+        if total_tokens is not None:
+            proposal["total_tokens"] = total_tokens
+        if model_used:
+            proposal["model_used"] = model_used
+
+        # Persist to disk
+        self._write_proposal(proposal)
+        logger.info(f"✅ Completed: {proposal.get('title', '?')}")
+
     def mark_failed(self, proposal: dict, error: str, filepath=None):
         """Mark a proposal as failed and track its title.
 
@@ -361,8 +385,25 @@ class ProposalManager:
         proposal["status"] = "failed"
         proposal["error"] = error
         self._failed_titles.add(proposal.get("title", ""))
-        if filepath:
-            filepath.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+        self._write_proposal(proposal)
+
+    def _write_proposal(self, proposal: dict):
+        """Find a proposal's file on disk and update it."""
+        proposal_id = proposal.get("id")
+        if not proposal_id or not PROPOSALS_DIR.exists():
+            return
+        for f in PROPOSALS_DIR.glob("*.json"):
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                if data.get("id") == proposal_id:
+                    f.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
+                    return
+            except Exception:
+                continue
+        # If not found (new or renamed), write a new file
+        cat = proposal.get("category", "misc")
+        fp = PROPOSALS_DIR / f"{proposal_id}_{cat}.json"
+        fp.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
 
     def count_active(self) -> int:
         """Count proposals that are proposed or approved (i.e. still actionable)."""

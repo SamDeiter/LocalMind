@@ -75,16 +75,21 @@ async def execute_proposal_cycle(engine) -> bool:
             engine.proposals.mark_failed(proposal, "No edits applied")
             return True
 
-        test_passed, test_output = await run_tests()
+        test_passed, test_output = await run_tests(target_files=edits_applied)
         if test_passed:
             git_run(["add", "-A"])
             git_run(["commit", "-m", f"[autonomy] {proposal['title']}"])
             git_run(["checkout", "main"])
             git_run(["merge", branch_name])
             
-            proposal["status"] = "completed"
+            engine.proposals.mark_completed(
+                proposal,
+                edits_applied=edits_applied,
+                model_used=engine.editing_model,
+            )
             engine.status["execution"]["proposals_executed"] += 1
             engine.success_tracker.record_outcome(proposal, success=True)
+            engine._emit_activity("completed", f"✅ {proposal['title']}", proposal_id=proposal["id"])
             return True
         else:
             for f in edits_applied: revert_file(f)

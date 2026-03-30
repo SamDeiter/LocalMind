@@ -13,16 +13,18 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL
+from backend.config import DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, PROPOSALS_DIR
 from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
 from backend.tools.registry import ToolRegistry
 from backend.autonomy import AutonomyEngine, PROPOSALS_DIR
 from backend.metacognition.controller import MetaCognitiveController
 from backend import notifications, gemini_client, db
+from backend.db import DB_PATH, get_db
 
 # -- Logging --
 logging.basicConfig(

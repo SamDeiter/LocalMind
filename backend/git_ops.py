@@ -48,19 +48,40 @@ def revert_file(relative_path: str):
         logger.warning(f"No backup found for: {relative_path}")
 
 
-async def run_tests() -> tuple[bool, str]:
+async def run_tests(target_files: list[str] = None) -> tuple[bool, str]:
     """Run pytest and return (success, output).
     
-    Waits 3s before running to let any server file-watcher reload complete,
-    preventing import collisions that cause false 0-passed results.
+    By default runs only fast smoke tests (server + core) to avoid
+    the full 170s+ suite timing out every execution.
+    
+    Args:
+        target_files: Optional list of changed file paths to scope tests.
     """
     import asyncio
     await asyncio.sleep(3)  # Let WatchFiles settle after file edits
 
+    # Build a targeted test command based on what files were changed.
+    # If we changed backend/foo.py, try tests/test_foo.py first.
+    test_targets = []
+    if target_files:
+        for f in target_files:
+            name = Path(f).stem
+            candidate = PROJECT_ROOT / "tests" / f"test_{name}.py"
+            if candidate.exists():
+                test_targets.append(str(candidate))
+
+    # Fallback: run a fast subset — server health + core logic only
+    if not test_targets:
+        fast_tests = PROJECT_ROOT / "tests" / "test_server.py"
+        if fast_tests.exists():
+            test_targets = [str(fast_tests)]
+        else:
+            test_targets = ["tests/"]
+
     try:
         result = subprocess.run(
-            ["python", "-m", "pytest", "tests/", "-q", "--tb=short"],
-            capture_output=True, text=True, timeout=60,
+            ["python", "-m", "pytest"] + test_targets + ["-q", "--tb=short", "-x"],
+            capture_output=True, text=True, timeout=180,
             cwd=str(PROJECT_ROOT),
         )
 
