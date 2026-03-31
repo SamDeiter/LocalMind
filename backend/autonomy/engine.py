@@ -260,6 +260,7 @@ async def _run_auto_research(self):
         logger.debug('Starting automated research cycle...')
 
         self._emit_activity("research_started", "🔬 Starting automated research cycle...")
+        start_time = time.time()
 
         try:
             # 0. Load architecture context and user priorities
