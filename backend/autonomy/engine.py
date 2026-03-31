@@ -253,18 +253,13 @@ class AutonomyEngine:
     async def _execute_next_proposal(self):
         return await execute_proposal_cycle(self)
 
-async def _run_auto_research(self):
-    """Run automated research cycle using codebase scanning + web research."""
-    async with httpx.AsyncClient(timeout=600.0) as client:
-        logger.debug('Starting automated research cycle...')
+    async def _run_auto_research(self):
+        """Run automated research cycle using codebase scanning + web research."""
+        async with httpx.AsyncClient(timeout=AUTO_RESEARCH_TIMEOUT) as client:
+            logger.debug('Starting automated research cycle...')
 
-        self._emit_activity("research_started", "🔬 Starting automated research cycle...")
-        start_time = time.time()
-
-        # Use existing imports from the module scope
-        import json as _json
-        import re
-        from backend.config import AUTO_RESEARCH_TIMEOUT  # Import timeout setting from config
+            self._emit_activity("research_started", "🔬 Starting automated research cycle...")
+            start_time = time.time()
         try:
             # 0. Load architecture context and user priorities
             arch_context = ""

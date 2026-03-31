@@ -264,7 +264,7 @@ async def _run_auto_research(self):
         # Use existing imports from the module scope
         import json as _json
         import re
-
+        from backend.config import AUTO_RESEARCH_TIMEOUT  # Import timeout setting from config
         try:
             # 0. Load architecture context and user priorities
             arch_context = ""
