@@ -65,6 +65,7 @@ class AutonomyEngine:
         }
         
         self.proposals = ProposalManager()
+        assert hasattr(self, '_emit_activity'), 'self._emit_activity must be defined before initializing SelfImprover'
         self.self_improver = SelfImprover(emit_activity=self._emit_activity)
         self.meta_critic = MetaCritic(
             ollama_url=self.ollama_url, 

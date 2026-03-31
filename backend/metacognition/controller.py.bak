@@ -127,7 +127,6 @@ class MetaCognitiveController:
                         intent.constraints.append(constraint)
 
         # Step 3: Score uncertainty
-        assert self.uncertainty_gate, "UncertaintyGate instance is not initialized"
         uncertainty = self.uncertainty_gate.score(intent)
 
         self._emit("thinking",
