@@ -9,7 +9,7 @@ from backend.git_ops import run_tests, git_run, revert_file
 
 logger = logging.getLogger("localmind.autonomy.execution")
 
-async def execute_proposal_cycle(engine) -> bool:
+async def execute_proposal_cycle(engine, timeout=300) -> bool:
     """Logic for executing the next proposal."""
     proposals = engine.proposals.list_proposals("approved")
     if not proposals: return False

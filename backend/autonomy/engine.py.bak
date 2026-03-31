@@ -261,6 +261,12 @@ class AutonomyEngine:
 
             self._emit_activity("research_started", "🔬 Starting automated research cycle...")
             start_time = time.time()
+
+            # Initialize research context components
+            arch_context, priority_context = await asyncio.gather(
+                self._load_architecture_context(),
+                self._load_priority_context()
+            )
         try:
             # 0. Load architecture context and user priorities
             arch_context = ""

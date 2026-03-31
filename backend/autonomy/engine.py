@@ -62,7 +62,9 @@ class AutonomyEngine:
             "auto_test": {"last_run": None, "passed": 0, "failed": 0},
             "research": {"last_run": 0}
         }
-        
+
+        # Initialize loop task lists to avoid AttributeError
+        self._tasks = []        
         self.proposals = ProposalManager()
         assert hasattr(self, '_emit_activity'), 'self._emit_activity must be defined before initializing SelfImprover'
         self.self_improver = SelfImprover(emit_activity=self._emit_activity)
