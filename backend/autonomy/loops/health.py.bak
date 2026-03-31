@@ -55,7 +55,7 @@ async def run_health_loop(engine):
                             "🔓 Circuit breaker reset — resuming operations"
                         )
 
-            await asyncio.sleep(15)
+            await asyncio.sleep(30)
         except asyncio.CancelledError:
             break
         except Exception as exc:
