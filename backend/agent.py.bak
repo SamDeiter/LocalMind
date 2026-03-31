@@ -48,7 +48,7 @@ async def agent_chat(
 
         try:
             # Call Ollama with tools
-            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
                 response = await client.post(
                     f"{OLLAMA_BASE_URL}/api/chat",
                     json={

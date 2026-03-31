@@ -43,8 +43,13 @@ export async function pollAutonomy() {
       const supBtn = document.getElementById("modeSupervisedBtn");
       const autoBtn = document.getElementById("modeAutonomousBtn");
       if (supBtn && autoBtn) {
-        supBtn.classList.toggle("active", d.mode === "supervised");
-        autoBtn.classList.toggle("active", d.mode === "autonomous");
+        if (d.mode === "supervised") {
+          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface-variant border border-outline-variant/20 transition-all";
+          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline/50 hover:text-on-surface border border-transparent transition-all";
+        } else {
+          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline/50 hover:text-on-surface border border-transparent transition-all";
+          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/30 transition-all";
+        }
       }
       const brainMode = document.getElementById("brainMode");
       if (brainMode) {
