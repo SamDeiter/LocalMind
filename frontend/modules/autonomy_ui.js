@@ -652,6 +652,7 @@ export function initDashboardPanels() {
 
 // ── Task Pipeline Widget ────────────────────────────────────────
 let _pipelineTimer = null;
+const _userToggledGroups = new Set(); // Tracks user-expanded/collapsed groups across re-renders
 
 export async function renderTaskPipeline() {
   const body = document.getElementById("taskPipelineBody");
@@ -707,19 +708,22 @@ export async function renderTaskPipeline() {
 
       const isCollapsible = status === "completed" || status === "denied" || status === "failed";
       const defaultClosed = status === "completed" || status === "denied";
+      // Respect user's manual toggle — if they've toggled this group, invert the default
+      const userOverride = _userToggledGroups.has(status);
+      const isClosed = userOverride ? !defaultClosed : defaultClosed;
       html += `<div class="pipeline-group pipeline-${config.cls} mb-6">`;
-      html += `<div class="flex items-center justify-between mb-3 px-1 ${isCollapsible ? 'cursor-pointer select-none hover:opacity-80' : ''}" ${isCollapsible ? `onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron-icon').classList.toggle('rotate-90')"` : ''}>`;
+      html += `<div class="flex items-center justify-between mb-3 px-1 ${isCollapsible ? 'cursor-pointer select-none hover:opacity-80' : ''}" ${isCollapsible ? `data-toggle-group="${status}"` : ''}>`;
       html += `  <div class="flex items-center gap-2">`;
       html += `    <span class="text-sm">${config.icon}</span>`;
       html += `    <span class="text-[10px] font-bold uppercase tracking-[0.2em]" style="color: ${config.color}">${config.label}</span>`;
       if (isCollapsible) {
-        html += `    <span class="material-symbols-outlined text-xs text-outline/40 chevron-icon transition-transform ${defaultClosed ? '' : 'rotate-90'}" style="font-size:14px">chevron_right</span>`;
+        html += `    <span class="material-symbols-outlined text-xs text-outline/40 chevron-icon transition-transform ${isClosed ? '' : 'rotate-90'}" style="font-size:14px">chevron_right</span>`;
       }
       html += `  </div>`;
       html += `  <span class="text-[9px] font-bold bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-outline">${items.length}</span>`;
       html += `</div>`;
 
-      html += `<div class="space-y-2 ${defaultClosed ? 'hidden' : ''}">`;
+      html += `<div class="space-y-2 ${isClosed ? 'hidden' : ''}">`;
       for (const p of displayItems) {
         const title = escapeHtml(p.title || p.category || "Untitled");
         const cat = p.category ? `<span class="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">${escapeHtml(p.category)}</span>` : "";
@@ -765,6 +769,36 @@ export async function renderTaskPipeline() {
           html += `  </div>`;
         }
 
+        // Description / reasoning row — "why it chose to do this"
+        const desc = p.description;
+        if (desc) {
+          html += `  <div class="mt-2 pt-2 border-t border-outline-variant/10">`;
+          html += `    <p class="text-[9px] text-outline/70 leading-relaxed italic">${escapeHtml(desc.length > 200 ? desc.slice(0, 200) + '…' : desc)}</p>`;
+          html += `  </div>`;
+        }
+
+        // Files edited
+        const filesEdited = p.files_edited || p.files_affected || [];
+        if (filesEdited.length > 0) {
+          html += `  <div class="flex flex-wrap gap-1 mt-1">`;
+          for (const f of filesEdited.slice(0, 3)) {
+            const basename = f.split('/').pop();
+            html += `<span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-primary/5 text-primary/70 border border-primary/10">${escapeHtml(basename)}</span>`;
+          }
+          if (filesEdited.length > 3) html += `<span class="text-[8px] text-outline/40">+${filesEdited.length - 3} more</span>`;
+          html += `  </div>`;
+        }
+
+        // Confidence + error
+        const conf = p.confidence;
+        const err = p.error;
+        if (conf != null || err) {
+          html += `  <div class="flex items-center gap-2 mt-1">`;
+          if (conf != null) html += `<span class="text-[8px] font-mono ${conf >= 50 ? 'text-primary/60' : 'text-tertiary/60'}">⚡ ${conf}% confidence</span>`;
+          if (err) html += `<span class="text-[8px] text-error/70 font-mono truncate max-w-[200px]" title="${escapeHtml(err)}">❌ ${escapeHtml(err.length > 60 ? err.slice(0, 60) + '…' : err)}</span>`;
+          html += `  </div>`;
+        }
+
         html += `</div>`;
       }
       html += `</div>`;
@@ -777,6 +811,24 @@ export async function renderTaskPipeline() {
     }
 
     body.innerHTML = html;
+
+    // Wire collapsible group toggles (using delegation-safe approach)
+    body.querySelectorAll("[data-toggle-group]").forEach(header => {
+      header.addEventListener("click", () => {
+        const group = header.dataset.toggleGroup;
+        // Toggle the user override
+        if (_userToggledGroups.has(group)) {
+          _userToggledGroups.delete(group);
+        } else {
+          _userToggledGroups.add(group);
+        }
+        // Immediately toggle visibility without waiting for re-render
+        const itemsContainer = header.nextElementSibling;
+        if (itemsContainer) itemsContainer.classList.toggle("hidden");
+        const chevron = header.querySelector(".chevron-icon");
+        if (chevron) chevron.classList.toggle("rotate-90");
+      });
+    });
 
     // Wire retry buttons
     body.querySelectorAll(".pipeline-retry").forEach(btn => {
