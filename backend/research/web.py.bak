@@ -25,10 +25,7 @@ class AcademicResearcher:
 
     def _load_cache(self):
         if ACADEMIC_CACHE_FILE.exists():
-            try:
-                cache_data = json.loads(ACADEMIC_CACHE_FILE.read_text(encoding='utf-8'))
-                current_time = time.time()
-                self.cache = {k: v for k, v in cache_data.items() if current_time - v.get('timestamp', 0) < ACADEMIC_CACHE_TTL}
+            try: self.cache = json.loads(ACADEMIC_CACHE_FILE.read_text(encoding='utf-8'))
             except Exception: pass
 
     def _save_cache(self):
