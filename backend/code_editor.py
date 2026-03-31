@@ -25,7 +25,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Security boundaries
 BLOCKED_DIRS = {"venv", ".git", "node_modules", "__pycache__", "memory_db"}
-BLOCKED_NAMES = {".env", ".env.local", ".env.production", "autonomy.py", "server.py", "run.py"}
+BLOCKED_NAMES = {
+    ".env", ".env.local", ".env.production",
+    # Core infrastructure — engine must never edit its own runtime
+    "autonomy.py", "server.py", "run.py",
+    "code_editor.py", "llm_client.py", "model_router.py",
+    "chat_service.py", "config.py",
+}
 BLOCKED_EXTS = {".key", ".pem", ".secret", ".p12", ".pfx"}
 
 # Proposals containing these keywords are too abstract for a 7B model to implement
@@ -206,7 +212,7 @@ async def identify_target_files(
                     "model": editing_model,
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
-                    "options": {"num_predict": 200, "num_ctx": 4096},
+                    "options": {"num_predict": 200, "num_ctx": 8192, "num_gpu": 99},
                 },
             )
 
@@ -356,7 +362,7 @@ async def edit_single_file(
                     "model": editing_model,
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
-                    "options": {"num_predict": 2000, "num_ctx": 8192},
+                    "options": {"num_predict": 2000, "num_ctx": 16384, "num_gpu": 99},
                 },
             )
 
