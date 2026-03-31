@@ -261,7 +261,7 @@ async def _run_auto_research(self):
         self._emit_activity("research_started", "🔬 Starting automated research cycle...")
         start_time = time.time()
 
-        # Reduce unnecessary imports within the method scope
+        # Use existing imports from the module scope
         import json as _json
         import re
 
