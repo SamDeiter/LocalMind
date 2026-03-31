@@ -25,6 +25,16 @@ async def agent_chat(
 ) -> AsyncGenerator[dict, None]:
     """
     Run the agent loop. Yields events for the frontend:
+    - {type: thinking}                     — model is generating
+    - {type: tool_call, tool: {...}}      — model wants to use a tool
+    - {type: tool_result, result: {...}}  — tool execution result
+    - {type: content, content: "..."}     — text content from model
+    - {type: done}                          — agent is finished
+    - {type: error, error: "..."}         — something went wrong
+    - {type: approval_needed, tool: {...}} — needs user approval (when not auto_execute)
+    """
+    """
+    Run the agent loop. Yields events for the frontend:
     - {"type": "thinking"}                     — model is generating
     - {"type": "tool_call", "tool": {...}}      — model wants to use a tool
     - {"type": "tool_result", "result": {...}}  — tool execution result
