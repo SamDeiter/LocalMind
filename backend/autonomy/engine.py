@@ -239,6 +239,7 @@ class AutonomyEngine:
             asyncio.create_task(run_auto_research_loop(self)),
             asyncio.create_task(run_digest_loop(self)),
         ]
+        logger.info("All tasks created and scheduled.")
 
     async def stop(self):
         """Gracefully cancel all background tasks."""
