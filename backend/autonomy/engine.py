@@ -268,7 +268,8 @@ async def _run_auto_research(self):
                 try:
                     with open(arch_file, "r", encoding="utf-8") as f:
                         arch_context = f.read()[:2000]  # Cap at 2k chars
-                except Exception:
+                except Exception as e:
+                    logger.error(f"Error reading ARCHITECTURE.md: {e}")
                     pass
 
             priority_context = ""
