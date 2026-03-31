@@ -35,7 +35,7 @@ logger = logging.getLogger("localmind.autonomy.engine")
 
 class AutonomyEngine:
     def __init__(self, config=None, ollama_url: str = OLLAMA_BASE_URL):
-        self.config = config if config is not None else {}
+        self.config = config or {}
         # Ensure the communication module is initialized before use in initialize method.
         from backend.multi_agent_communication import CommunicationModule
         self.communication_module = CommunicationModule(config=self.config)

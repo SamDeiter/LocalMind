@@ -54,8 +54,10 @@ class AutonomyEngine:
         self.communication_module = CommunicationModule(config=self.config)
 
     async def initialize(self):
-        # Ensure the config is properly initialized
-        self.config = self.config if hasattr(self, 'config') else {}
+        # Ensure the communication module is fully initialized
+        if not hasattr(self, 'communication_module'):
+            from backend.multi_agent_communication import CommunicationModule
+            self.communication_module = CommunicationModule(config=self.config)
         # Existing initialization code
         await asyncio.sleep(0)  # Example of an async operation
 
