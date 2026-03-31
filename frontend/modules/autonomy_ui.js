@@ -23,6 +23,13 @@ export async function pollAutonomy() {
       codeSnippet: document.getElementById("codeSnippetContainer")
     };
 
+    for (const key in elements) {
+      if (!elements[key]) {
+        console.error(`Element with ID ${key} not found`);
+        return;
+      }
+    }
+
     // Update code snippet display based on current status
     if (elements.codeSnippet) {
       const highlightedCode = Prism.highlight(d.code_snippet || '', Prism.languages.javascript, 'javascript');

@@ -16,9 +16,10 @@ logger = logging.getLogger("localmind.logic.chat_service")
 from backend.logic.summarizer import Summarizer
 
 class ChatService:
-    def __init__(self, db_factory, registry, ontology, autonomy_engine=None, metacog_controller=None):
+    def __init__(self, db_factory, registry, ontology=None, autonomy_engine=None, metacog_controller=None):
         self.db_factory = db_factory
         self.registry = registry
+        self.ontology = ontology
         self.autonomy_engine = autonomy_engine
         self.metacog_controller = metacog_controller
         self.llm = LLMClient()

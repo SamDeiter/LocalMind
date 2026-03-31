@@ -320,16 +320,9 @@ export async function sendMessage() {
 // ── Message Rendering ───────────────────────────────────────────
 export function clearMessages() {
   if (messagesContainer) {
-    // Remove only message elements, preserve the welcome screen
+    // Remove only message elements
     const messages = messagesContainer.querySelectorAll(".message");
     messages.forEach((m) => m.remove());
-  }
-  if (welcomeScreen) {
-    // Re-append in case it was removed, then show it
-    if (messagesContainer && !messagesContainer.contains(welcomeScreen)) {
-      messagesContainer.appendChild(welcomeScreen);
-    }
-    welcomeScreen.style.display = "";
   }
 }
 

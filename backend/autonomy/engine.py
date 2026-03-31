@@ -35,37 +35,10 @@ logger = logging.getLogger("localmind.autonomy.engine")
 
 class AutonomyEngine:
     def __init__(self, config=None, ollama_url: str = OLLAMA_BASE_URL):
-        self.config = config or {}
-        # Ensure the communication module is initialized before use in initialize method.
-        from backend.multi_agent_communication import CommunicationModule
-        self.communication_module = CommunicationModule(config=self.config)
-    def __init__(self, config=None, ollama_url: str = OLLAMA_BASE_URL):
-        self.config = config if config is not None else {}
-        # Ensure the communication module is initialized before use in initialize method.
-        from backend.multi_agent_communication import CommunicationModule
-
-        self.communication_module = CommunicationModule(config=self.config)
-
-    def __init__(self, config=None, ollama_url: str = OLLAMA_BASE_URL):
-        self.config = config if config is not None else {}
-        # Ensure the communication module is initialized before use in initialize method.
-        from backend.multi_agent_communication import CommunicationModule
-
-        self.communication_module = CommunicationModule(config=self.config)
-
-    async def initialize(self):
-        # Ensure the communication module is fully initialized
-        if not hasattr(self, 'communication_module'):
-            from backend.multi_agent_communication import CommunicationModule
-            self.communication_module = CommunicationModule(config=self.config)
-        # Existing initialization code
-        await asyncio.sleep(0)  # Example of an async operation
-
-    """Background scheduler for autonomous LocalMind operations."""
-
-    def __init__(self, config=None, ollama_url: str = OLLAMA_BASE_URL):
+        """Background scheduler for autonomous LocalMind operations."""
         self.config = config if config is not None else {}
         self.ollama_url = ollama_url
+        
         models = get_autonomy_models()
         self.reflection_model = models.get("reflection", "llama3.3:70b") # Default to 70b since user has it
         self.editing_model = models.get("editing", "llama3.3:70b")
