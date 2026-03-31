@@ -13,4 +13,4 @@ BACKOFF_BASE = 180
 BACKOFF_MAX = 1800
 REFLECTION_FUTILITY_MAX = 5
 REFLECTION_BACKOFF_MAX = 1800
-AUTO_APPROVE_RISKS = frozenset({"low", "medium", "high", "critical"})
+AUTO_APPROVE_RISKS = {"low", "medium", "high", "critical"}
