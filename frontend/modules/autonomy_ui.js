@@ -12,8 +12,11 @@ import { sendMessage } from "./chat.js";
 // ── Autonomy Status ─────────────────────────────────────────────
 export async function pollAutonomy() {
   try {
-    const r = await fetch(`${API}/api/autonomy/status`);
-    const d = await r.json();
+    fetch(`${API}/api/autonomy/status`).then(r => r.json()).then(d => {
+      // Existing code inside the try block
+    }).catch(err => {
+      console.error('Failed to fetch autonomy status:', err);
+    });
 
     const elements = {
       indicator: document.getElementById("autonomyIndicator"),
@@ -86,8 +89,13 @@ export async function pollAutonomy() {
       const supBtn = document.getElementById("modeSupervisedBtn");
       const autoBtn = document.getElementById("modeAutonomousBtn");
       if (supBtn && autoBtn) {
-        supBtn.classList.toggle("active", d.mode === "supervised");
-        autoBtn.classList.toggle("active", d.mode === "autonomous");
+        if (d.mode === "supervised") {
+          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface border border-outline-variant/20 transition-all";
+          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline hover:text-on-surface border border-transparent transition-all opacity-50";
+        } else {
+          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline hover:text-on-surface border border-transparent transition-all opacity-50";
+          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/30 shadow-[0_0_15px_rgba(79,219,200,0.2)] transition-all";
+        }
       }
       // Also update brain dashboard mode badge
       const brainMode = document.getElementById("brainMode");

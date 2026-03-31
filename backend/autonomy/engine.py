@@ -253,9 +253,10 @@ class AutonomyEngine:
     async def _execute_next_proposal(self):
         return await execute_proposal_cycle(self)
 
-    async def _run_auto_research(self):
-        """Run automated research cycle using codebase scanning + web research."""
-        import httpx
+async def _run_auto_research(self):
+    """Run automated research cycle using codebase scanning + web research."""
+    async with httpx.AsyncClient(timeout=600.0) as client:
+
         self._emit_activity("research_started", "🔬 Starting automated research cycle...")
 
         try:

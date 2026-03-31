@@ -23,6 +23,13 @@ export async function pollAutonomy() {
       codeSnippet: document.getElementById("codeSnippetContainer")
     };
 
+    for (const key in elements) {
+      if (!elements[key]) {
+        console.error(`Element with ID ${key} not found`);
+        return;
+      }
+    }
+
     // Update code snippet display based on current status
     if (elements.codeSnippet) {
       const highlightedCode = Prism.highlight(d.code_snippet || '', Prism.languages.javascript, 'javascript');
@@ -79,8 +86,13 @@ export async function pollAutonomy() {
       const supBtn = document.getElementById("modeSupervisedBtn");
       const autoBtn = document.getElementById("modeAutonomousBtn");
       if (supBtn && autoBtn) {
-        supBtn.classList.toggle("active", d.mode === "supervised");
-        autoBtn.classList.toggle("active", d.mode === "autonomous");
+        if (d.mode === "supervised") {
+          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface border border-outline-variant/20 transition-all";
+          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline hover:text-on-surface border border-transparent transition-all opacity-50";
+        } else {
+          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline hover:text-on-surface border border-transparent transition-all opacity-50";
+          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/30 shadow-[0_0_15px_rgba(79,219,200,0.2)] transition-all";
+        }
       }
       // Also update brain dashboard mode badge
       const brainMode = document.getElementById("brainMode");
