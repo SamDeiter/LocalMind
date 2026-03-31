@@ -257,6 +257,7 @@ class AutonomyEngine:
 async def _run_auto_research(self):
     """Run automated research cycle using codebase scanning + web research."""
     async with httpx.AsyncClient(timeout=600.0) as client:
+        logger.debug('Starting automated research cycle...')
 
         self._emit_activity("research_started", "🔬 Starting automated research cycle...")
 

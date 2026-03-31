@@ -45,15 +45,20 @@ export async function pollAutonomy() {
       elements.codeSnippet.appendChild(preElement);
 
       // Add a button to execute the code snippet
-      const execButton = document.createElement('button');
-      execButton.textContent = 'Execute';
-      execButton.className = 'execute-code-btn';
-      execButton.addEventListener('click', () => {
-        eval(d.code_snippet);
-        showToast('Code executed successfully!', 'info');
-      });
+const execButton = document.createElement('button');
+execButton.textContent = 'Execute';
+execButton.className = 'execute-code-btn';
+execButton.addEventListener('click', () => {
+try {
+eval(d.code_snippet);
+showToast('Code executed successfully!', 'info');
+} catch (error) {
+console.error('Error executing code:', error);
+showToast('Error executing code. Please check the console.', 'error');
+}
+});
 
-      elements.codeSnippet.appendChild(execButton);
+elements.codeSnippet.appendChild(execButton);
     }
 
     // Model is ready if health_check says so, OR if the engine is actively working

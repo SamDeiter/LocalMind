@@ -12,8 +12,11 @@ import { sendMessage } from "./chat.js";
 // ── Autonomy Status ─────────────────────────────────────────────
 export async function pollAutonomy() {
   try {
-    const r = await fetch(`${API}/api/autonomy/status`);
-    const d = await r.json();
+    fetch(`${API}/api/autonomy/status`).then(r => r.json()).then(d => {
+      // Existing code inside the try block
+    }).catch(err => {
+      console.error('Failed to fetch autonomy status:', err);
+    });
 
     const elements = {
       indicator: document.getElementById("autonomyIndicator"),
