@@ -5,7 +5,7 @@ Allows the LLM to generate HTML/CSS interfaces using Gemini,
 similar to Google Stitch but callable as a tool within the agent loop.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from backend.tools.base import BaseTool
 from backend.metacognition.ui_generator import UIGenerator
