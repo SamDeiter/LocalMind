@@ -1,33 +1,49 @@
 # 📊 LocalMind — Development Progress
 
-> Last updated: March 9, 2026
+> Last updated: March 31, 2026
 
-## Current Version: v0.3.1
+## Current Version: v0.6.0 — Phase 7 (Autonomy)
 
 ---
 
-## ✅ Sprint 1 — "The Moat" (Complete)
+## ✅ Phase 1 — Core Setup (Complete)
+
+| Feature                             | Status  | Notes                                       |
+| ----------------------------------- | ------- | ------------------------------------------- |
+| Install script (PowerShell)         | ✅ Done | One-click Ollama + models + venv            |
+| Project folder structure            | ✅ Done | Backend/frontend/docs/scripts               |
+| FastAPI backend with Ollama         | ✅ Done | Async server with SSE streaming             |
+
+---
+
+## ✅ Phase 2 — Web UI (Complete)
+
+| Feature                    | Status  | Notes                                        |
+| -------------------------- | ------- | -------------------------------------------- |
+| Chat interface             | ✅ Done | Code syntax highlighting + markdown          |
+| Model selector             | ✅ Done | Swap between installed models                |
+| Conversation history       | ✅ Done | SQLite persistence                           |
+| Dark mode + polished theme | ✅ Done | Premium glassmorphism design                 |
+
+---
+
+## ✅ Phase 3 — Enhancements (Complete)
 
 | Feature                             | Status  | Notes                                       |
 | ----------------------------------- | ------- | ------------------------------------------- |
 | Document RAG ("Talk to Your Files") | ✅ Done | Index + query via ChromaDB                  |
 | Hardware Dashboard                  | ✅ Done | Live CPU/RAM/VRAM bars in status bar        |
-| Multi-Model Router                  | ✅ Done | ⚡Fast (7B) / 🤖Auto / 🧠Deep (32B)         |
+| Multi-Model Router                  | ✅ Done | ⚡Fast (7B) / 🤖Auto / 🧠Deep (14B+)       |
 | Monaco Code Editor                  | ✅ Done | File tree, Ctrl+S, syntax highlighting      |
 | Multi-Provider Web Search           | ✅ Done | DDG → Google → Brave auto-fallback          |
 | Memory Viewer UI                    | ✅ Done | List/delete memories in sidebar             |
 | Tool Execution Bug Fixes            | ✅ Done | Async execute, text fallback, serialization |
-| Build Versioning                    | ✅ Done | v0.3.0 #5 auto-incrementing                 |
+| Build Versioning                    | ✅ Done | Auto-incrementing build numbers             |
 | Port Guard                          | ✅ Done | Auto-kills duplicate server processes       |
-
-**Not started:**
-
-- Screen Region Capture
-- Plugin/Tool System (public marketplace)
 
 ---
 
-## ✅ Sprint 1.5 — Editor Enhancements (Complete)
+## ✅ Phase 4 — Editor Enhancements (Complete)
 
 | Feature                   | Status  | Notes                                       |
 | ------------------------- | ------- | ------------------------------------------- |
@@ -42,63 +58,71 @@
 
 ---
 
-## 📋 Sprint 2 — "The Edge" (Upcoming)
+## ✅ Phase 5 — Git & Intelligence (Complete)
 
-| Feature                         | Status     | Notes                                                 |
-| ------------------------------- | ---------- | ----------------------------------------------------- |
-| Interactive Onboarding Tutorial | 📋 Planned | Guided 2-min tour on first launch — AI demos itself   |
-| AI Time Machine                 | �� Planned | Every AI action versioned + replayable, undo any step |
-| Cross-Project Hub               | 📋 Planned | AI remembers patterns across ALL your projects        |
-| Git Awareness                   | 📋 Planned | status, diff, commit, log tools                       |
-| Project Context Loading         | 📋 Planned | dir tree as context                                   |
-| Voice Input                     | 📋 Planned | faster-whisper + mic UI                               |
-
-## 📋 Sprint 3 — "The Polish"
-
-| Feature                    | Status     |
-| -------------------------- | ---------- |
-| Response Streaming Quality | 📋 Planned |
-| Mobile PWA Polish          | 📋 Planned |
-| Voice Quality (Piper TTS)  | 📋 Planned |
-
-## 📋 Sprint 4 — "The Future"
-
-| Feature            | Status     |
-| ------------------ | ---------- |
-| VS Code Extension  | 📋 Planned |
-| Team/Shared Memory | 📋 Planned |
-
-## 📋 Sprint 5 — "The Brain"
-
-| Feature                    | Status     | Notes                                                                      |
-| -------------------------- | ---------- | -------------------------------------------------------------------------- |
-| Autonomous Agent Mode      | 📋 Planned | "Work on X for 2 hours" — plans, codes, tests, commits                     |
-| Goal-based execution       | 📋 Planned | "Build feature Y and stop when tests pass"                                 |
-| Self-extending tools       | 📋 Planned | AI writes new tool plugins when it lacks a capability                      |
-| Learn from mistakes        | 📋 Planned | Log failed tool calls, adjust behavior over time                           |
-| Visual agent progress      | 📋 Planned | Watch the AI work in real-time: editor, terminal, diffs                    |
-| Project profiling          | 📋 Planned | Auto-index repos: tech stack, structure, dependencies                      |
-| Pattern learning           | 📋 Planned | Learn coding style, workflow habits, naming conventions from git history   |
-| Cross-project intelligence | 📋 Planned | Apply patterns from one project to another ("use the same approach as...") |
+| Feature                  | Status  | Notes                                    |
+| ------------------------ | ------- | ---------------------------------------- |
+| Git Awareness tool       | ✅ Done | status, diff, commit, log, branch        |
+| Project Context Loading  | ✅ Done | Dir tree as context for AI               |
 
 ---
 
-## 🚦 Next Steps (Priority Order)
+## ✅ Phase 6 — Metacognition (Complete)
 
-When resuming, complete these in order:
+| Feature                     | Status  | Notes                                                 |
+| --------------------------- | ------- | ----------------------------------------------------- |
+| Intent Parser               | ✅ Done | Classifies user intent before processing              |
+| Uncertainty Gate             | ✅ Done | Routes based on model confidence                     |
+| Self-Checker                | ✅ Done | Validates output quality before sending              |
+| Calibration Tracking        | ✅ Done | Tracks model accuracy over time                      |
+| Tool Router                 | ✅ Done | Smart tool selection based on context                |
+| Memory Manager              | ✅ Done | Relevance scoring for memory injection               |
+| UI Generator                | ✅ Done | Dynamic UI component generation                      |
+| Revision Controller         | ✅ Done | Edit revision and rollback logic                     |
 
-1. **Git Awareness tool** — New `backend/tools/git_tools.py` with status, diff, commit, log
-2. **Project Context Loading** — Send directory tree as context so AI understands your project structure
-3. **Voice Input** — faster-whisper integration with mic button in the UI
-4. **Interactive Onboarding Tutorial** — Guided 2-min tour on first launch
+---
+
+## ✅ Phase 7 — Autonomy Engine (In Progress)
+
+| Feature                          | Status      | Notes                                                    |
+| -------------------------------- | ----------- | -------------------------------------------------------- |
+| Autonomy Engine core             | ✅ Done     | Reflection, research, execution loops                    |
+| Proposal lifecycle               | ✅ Done     | Create, dedup, approve, deny, execute, archive           |
+| Self-healing health monitor      | ✅ Done     | Auto-restart, model pre-warming                          |
+| Background research              | ✅ Done     | Web + academic research fed into reflection              |
+| Code editor (AI edits)           | ✅ Done     | 4-layer matching + search/replace diffs                  |
+| Git branching for edits          | ✅ Done     | Branch → edit → test → merge pipeline                   |
+| Confidence scoring               | ✅ Done     | 0-100 score based on category success + file familiarity |
+| Confidence gating                | ✅ Done     | Auto-deny proposals below threshold                      |
+| Infrastructure protection        | ✅ Done     | Core files blocked from self-edit                        |
+| Success/failure tracking         | ✅ Done     | Engine learns from outcomes                              |
+| Action Stream UI                 | ✅ Done     | Live pipeline with reasoning, files, and confidence      |
+| Persistent UI state              | ✅ Done     | Collapsible groups remember user toggles                 |
+| Error transparency               | ✅ Done     | Detailed diagnostics for edit failures                   |
+| Daily digest generation          | ✅ Done     | Automatic daily summary of engine activity               |
+| Chat streaming reliability       | 🔧 Active  | Ongoing protection against self-edit corruption          |
+| Interactive Onboarding Tutorial  | 📋 Planned | Guided 2-min tour on first launch                        |
+| Voice quality (Piper TTS)        | 📋 Planned | Offline neural voice synthesis                           |
+
+---
+
+## 📋 Phase 8 — Intelligence (Planned)
+
+| Feature                    | Status     | Notes                                                                        |
+| -------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| AI Time Machine            | 📋 Planned | Every AI action versioned + replayable, undo any step                        |
+| Cross-Project Hub          | 📋 Planned | AI remembers patterns across ALL your projects                              |
+| Self-extending tools       | 📋 Planned | AI writes new tool plugins when it lacks a capability                        |
+| VS Code Extension          | 📋 Planned | LocalMind as a VS Code sidecar                                               |
 
 ---
 
 ## 🏛️ Tech Stack
 
-- **Backend:** Python, FastAPI, Ollama, ChromaDB, SQLite
-- **Frontend:** Vanilla HTML/CSS/JS (ES Modules), Monaco Editor (CDN), ESLint, Jest
-- **AI Models:** qwen2.5-coder:7b (fast), qwen2.5-coder:32b (deep)
+- **Backend:** Python 3.12, FastAPI, Ollama, ChromaDB, SQLite
+- **Frontend:** Vanilla HTML/CSS/JS (ES Modules), Monaco Editor (CDN)
+- **AI Models:** qwen2.5-coder:7b (fast), qwen2.5-coder:14b (deep/editing)
+- **Cloud Fallback:** Gemini 1.5 Pro (optional, PII-scrubbed)
 - **Hardware:** NVIDIA RTX 3080 (10GB VRAM)
 
 ---
@@ -107,21 +131,13 @@ When resuming, complete these in order:
 
 > **LocalMind: The AI workbench anyone can use — powerful enough for developers, safe enough for everyone.**
 
-### Positioning vs OpenClaw
-
-OpenClaw is a **power-user CLI agent** that gives full shell access through messaging apps. That's powerful but dangerous and invisible. LocalMind takes the opposite approach:
+### Positioning
 
 | Principle                   | What It Means                                                   |
 | --------------------------- | --------------------------------------------------------------- |
 | **Visual first**            | Everything has a UI — no terminal required to get value         |
 | **Safe by default**         | No file deletion, sandboxed execution, pausable learning        |
-| **Zero config**             | One-click install, works out of the box, no WSL needed          |
-| **See what the AI does**    | Tool calls shown in real-time, not hidden behind a chat message |
+| **Zero config**             | One-click install, works out of the box                         |
+| **See what the AI does**    | Tool calls shown in real-time + action stream dashboard         |
 | **Your data, your machine** | No cloud, no accounts, no telemetry                             |
-
-### Strategic Priorities
-
-1. **Make the editor the center** — AI + code side-by-side, auto-context, run button
-2. **Show, don't tell** — Visual git diffs, live terminal output, tool execution previews
-3. **One-click everything** — Install, start, add tools, share workflows
-4. **Safety as a feature** — Confirmation dialogs for destructive actions, undo, audit log
+| **Self-improving**          | Engine reflects, proposes, and executes improvements autonomously|
