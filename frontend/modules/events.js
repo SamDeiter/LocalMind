@@ -40,8 +40,8 @@ export function bindEvents() {
     clearMessages();
     loadConversations();
     if (chatScreen) {
-      chatScreen.classList.remove("hidden");
-      chatScreen.style.display = "flex";
+      chatScreen.classList.add("hidden");
+      chatScreen.style.display = "none";
     }
   });
 

@@ -178,7 +178,6 @@ class AutonomyEngine:
             "mode": "autonomous",
         }
         log_event("engine_reset", summary)
-        self._emit_activity("engine_reset_summary", json.dumps(summary))
         return summary
 
     def toggle(self) -> bool:

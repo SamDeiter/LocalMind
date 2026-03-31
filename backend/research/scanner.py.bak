@@ -80,7 +80,7 @@ class CodebaseScanner:
     def get_findings_for_prompt(self, max_findings: int = 8) -> str:
         complexity = self.scan_complexity()
         smells = self.scan_code_smells()
-        if not complexity and not smells: return "No code issues found."
+        if not complexity and not smells: return ""
         lines = ["CODEBASE HEALTH SCAN RESULTS:"]
         if complexity:
             lines.append("  Complex functions (consider refactoring):")
