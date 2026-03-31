@@ -62,7 +62,7 @@ class MetaCognitiveController:
         self.self_checker = SelfChecker(ollama_url, self.model)
         self.revision_controller = RevisionController(ollama_url, self.model)
         self.memory = MemoryManager()
-         # self.calibration = CalibrationTracker()
+         # # self.calibration = CalibrationTracker()
 
 
         # Active session (created per conversation)
