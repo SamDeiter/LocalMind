@@ -22,6 +22,7 @@ async def agent_chat(
     system_prompt: str,
     working_dir: str,
     auto_execute: bool = False,
+    assistant_name: str = "AI Assistant",
 ) -> AsyncGenerator[dict, None]:
     """
     Run the agent loop. Yields events for the frontend:
