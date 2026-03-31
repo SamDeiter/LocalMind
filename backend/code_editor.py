@@ -396,7 +396,8 @@ async def edit_single_file(
                 f"Search (first 150 chars): {repr(search_text[:150])}"
             )
             if emit_activity:
-                emit_activity("error", f"Edit failed: search text not found in {relative_path}")
+                search_preview = search_text[:80].replace('\n', '↵ ')
+                emit_activity("error", f"Edit failed for {relative_path}: search text not found. Looking for: '{search_preview}...'")
             return False, 0
 
         # ── AST Validation (Python) ──
@@ -485,9 +486,20 @@ def _parse_diff_response(raw_response: str, relative_path: str, emit_activity=No
         except json.JSONDecodeError:
             pass
 
-    logger.warning(f"Could not parse edit response for {relative_path}\nResponse was:\n{raw_response[:500]}")
+    # Determine a useful diagnostic snippet
+    snippet = raw_response[:150].replace('\n', ' ').strip()
+    if not raw_response.strip():
+        reason = "AI returned empty response"
+    elif '{' not in raw_response:
+        reason = f"AI response contained no JSON object. Got: '{snippet}...'"
+    elif '"search"' not in raw_response and '"replace"' not in raw_response:
+        reason = f"AI response missing search/replace keys. Got: '{snippet}...'"
+    else:
+        reason = f"JSON parse failed despite braces present. Got: '{snippet}...'"
+
+    logger.warning(f"Could not parse edit response for {relative_path}\nReason: {reason}\nFull response:\n{raw_response[:500]}")
     if emit_activity:
-        emit_activity("error", f"Edit failed: could not parse AI response for {relative_path}")
+        emit_activity("error", f"Edit failed for {relative_path}: {reason}")
     return None
 
 
