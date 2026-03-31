@@ -6,7 +6,7 @@
 let apiOrigin = window.location.origin;
 // If running dev server on a different port locally, force backend port 8000
 if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-  apiOrigin = `http://${window.location.hostname}:8000`;
+  apiOrigin = `http://${window.location.hostname}:8001`;
 }
 export const API = apiOrigin;
 

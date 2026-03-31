@@ -74,17 +74,17 @@ cd LocalMind
 
 ### 2. Start
 
-```powershell
-.\start.ps1
+```cmd
+.\LocalMind.bat
 ```
 
-Then open **http://localhost:8000** in your browser.
+The launcher will automatically open **http://localhost:8001** in your browser.
 
 ### 3. Mobile Access (Optional)
 
 1. Install [Tailscale](https://tailscale.com) on your PC and phone
 2. Start LocalMind on your PC
-3. Open `http://<your-tailscale-ip>:8000` on your phone
+3. Open `http://<your-tailscale-ip>:8001` on your phone
 4. Tap "Add to Home Screen" in your browser for the PWA experience
 
 ## 🔧 Tool Plugin System
