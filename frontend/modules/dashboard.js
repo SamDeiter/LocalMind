@@ -1,6 +1,8 @@
 import { API } from "./state.js";
 
 let dashboardInterval = null;
+let statusFailCount = 0;
+const OFFLINE_THRESHOLD = 3; // consecutive failures before showing Offline
 
 /** Update neural topology SVG nodes and metric cards with live hardware data */
 async function updateDashboardMetrics() {
@@ -58,11 +60,15 @@ async function updateStatusBar() {
     const r = await fetch(`${API}/api/autonomy/status`);
     if (r.ok) {
       const s = await r.json();
+      statusFailCount = 0; // Reset on success
       if (dot) dot.style.backgroundColor = "#4fdbc8";
       if (connEl) connEl.textContent = s.status ? `ACTIVE: ${s.status}` : "ONLINE";
     } else {
-      if (dot) dot.style.backgroundColor = "#ff6b98";
-      if (connEl) connEl.textContent = "Degraded";
+      statusFailCount++;
+      if (statusFailCount >= OFFLINE_THRESHOLD) {
+        if (dot) dot.style.backgroundColor = "#ff6b98";
+        if (connEl) connEl.textContent = "Degraded";
+      }
     }
 
     // Version
@@ -86,10 +92,13 @@ async function updateStatusBar() {
     } catch { /* ignore */ }
 
   } catch {
-    const dot = document.getElementById("brainPulse");
-    const connEl = document.getElementById("brainStatus");
-    if (dot) dot.style.backgroundColor = "#ff6b98";
-    if (connEl) connEl.textContent = "Offline";
+    statusFailCount++;
+    if (statusFailCount >= OFFLINE_THRESHOLD) {
+      const dot = document.getElementById("brainPulse");
+      const connEl = document.getElementById("brainStatus");
+      if (dot) dot.style.backgroundColor = "#ff6b98";
+      if (connEl) connEl.textContent = "OFFLINE";
+    }
   }
 }
 

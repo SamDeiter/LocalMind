@@ -287,12 +287,11 @@ let brainExecutedCount = 0;
 
 function updateBrainDashboard(event) {
   const timeline = document.getElementById("taskPipelineBody");
-  const statusEl = document.getElementById("brainStatus");
-
-  // Update status text
-  if (statusEl) {
+  // Update activity text (do NOT overwrite brainStatus — that's owned by dashboard.js)
+  const activityEl = document.getElementById("autonomyActivity");
+  if (activityEl) {
     const icon = ACTION_ICONS[event.action] || "";
-    statusEl.textContent = `${icon} ${event.action}`;
+    activityEl.textContent = `${icon} ${event.action}`;
   }
 
   // Track counters
