@@ -74,7 +74,9 @@ def route_model(
         cloud_approved: Whether user approved cloud usage for this request
     
     Returns:
-        Model config dict with name, provider, privacy, needs_approval
+        Model config dict with name, provider, privacy, route_reason.
+        needs_approval is always False — cloud routing is handled upstream
+        by the autonomy engine's proposal/approval workflow.
     """
     # Always respect user's force_local preference
     if force_local:
@@ -89,13 +91,6 @@ def route_model(
         return model
 
     # Trivial tasks → micro model (instant response)
-    if complexity_score <= 2:
-        model = MODELS["local_micro"].copy()
-        model["needs_approval"] = False
-        model["route_reason"] = "Simple chat — using micro model"
-        return model
-
-    # Simple chat — using micro model
     if complexity_score <= 2:
         model = MODELS["local_micro"].copy()
         model["needs_approval"] = False
