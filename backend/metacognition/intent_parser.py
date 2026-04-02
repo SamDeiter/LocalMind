@@ -6,6 +6,7 @@ all fields of the IntentState dataclass. Falls back to a heuristic
 parser if the LLM call fails or exceeds the call budget.
 """
 
+from backend.config import OLLAMA_BASE_URL
 import json
 import logging
 from typing import Optional
@@ -46,7 +47,7 @@ Output ONLY valid JSON, nothing else."""
 class IntentParser:
     """Extracts structured IntentState from user input."""
 
-    def __init__(self, ollama_url: str = "http://localhost:11434", model: str = ""):
+    def __init__(self, ollama_url: str = OLLAMA_BASE_URL, model: str = ""):
         self.ollama_url = ollama_url
         self.model = model or "qwen2.5-coder:7b"
 

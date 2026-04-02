@@ -9,6 +9,7 @@ Asks specific questions, not "is this good?":
   5. Does it match the preferred output style?
 """
 
+from backend.config import OLLAMA_BASE_URL
 import json
 import logging
 from typing import Optional
@@ -52,7 +53,7 @@ class SelfChecker:
       - Heuristic mode: fast pattern matching (no LLM call needed)
     """
 
-    def __init__(self, ollama_url: str = "http://localhost:11434", model: str = ""):
+    def __init__(self, ollama_url: str = OLLAMA_BASE_URL, model: str = ""):
         self.ollama_url = ollama_url
         self.model = model or "qwen2.5-coder:7b"
 

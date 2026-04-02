@@ -9,6 +9,7 @@ The generate_paper_proposal() function is shared by both the endpoint
 and the autonomy engine's auto-research loop.
 """
 
+from backend.config import OLLAMA_BASE_URL
 import json
 import logging
 import random
@@ -23,7 +24,6 @@ logger = logging.getLogger("localmind.routes.research")
 router = APIRouter(prefix="/api", tags=["research"])
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-OLLAMA_URL = "http://localhost:11434"
 
 # Lazy-initialized singletons (created on first request)
 _researcher = None
@@ -67,7 +67,7 @@ async def _generate_layman_pitch(title: str, abstract: str) -> str:
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                f"http://localhost:11434/api/generate",
+                f"{OLLAMA_BASE_URL}/api/generate",
                 json={
                     "model": model,
                     "prompt": prompt,
@@ -229,7 +229,7 @@ async def generate_paper_proposal(
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(
-                f"{OLLAMA_URL}/api/generate",
+                f"{OLLAMA_BASE_URL}/api/generate",
                 json={
                     "model": model,
                     "prompt": prompt,

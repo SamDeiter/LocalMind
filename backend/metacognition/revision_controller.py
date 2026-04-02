@@ -8,6 +8,7 @@ Rules:
   - After 2 failed revisions, ship with caveats instead of spinning
 """
 
+from backend.config import OLLAMA_BASE_URL
 import json
 import logging
 from typing import Optional
@@ -52,7 +53,7 @@ class RevisionController:
 
     MAX_REVISIONS = 2
 
-    def __init__(self, ollama_url: str = "http://localhost:11434", model: str = ""):
+    def __init__(self, ollama_url: str = OLLAMA_BASE_URL, model: str = ""):
         self.ollama_url = ollama_url
         self.model = model or "qwen2.5-coder:7b"
 

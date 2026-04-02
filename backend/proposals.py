@@ -241,7 +241,7 @@ class ProposalManager:
         filepath.write_text(json.dumps(full_proposal, indent=2), encoding="utf-8")
         return full_proposal
 
-        def _calculate_confidence(self, proposal: dict) -> int:
+    def _calculate_confidence(self, proposal: dict) -> int:
         """Calculate a 0-100 confidence score for a proposal.
         
         Single-pass implementation to optimize filesystem access.
