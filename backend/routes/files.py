@@ -47,8 +47,12 @@ async def list_files_api(path: str = "."):
     target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
 
     # Security: prevent directory traversal (e.g., "../../etc/passwd")
-    if not target.startswith(PROJECT_ROOT):
+    try:
+        if os.path.commonpath([PROJECT_ROOT, target]) != os.path.normpath(PROJECT_ROOT):
+            return {"error": "Access denied", "files": []}
+    except ValueError:
         return {"error": "Access denied", "files": []}
+
     if not os.path.isdir(target):
         return {"error": "Not a directory", "files": []}
 
@@ -89,8 +93,12 @@ async def read_file_api(path: str):
     target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
 
     # Security: prevent directory traversal
-    if not target.startswith(PROJECT_ROOT):
+    try:
+        if os.path.commonpath([PROJECT_ROOT, target]) != os.path.normpath(PROJECT_ROOT):
+            return {"error": "Access denied"}
+    except ValueError:
         return {"error": "Access denied"}
+
     if not os.path.isfile(target):
         return {"error": "File not found"}
 
@@ -123,7 +131,10 @@ async def write_file_api(request: Request):
     target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
 
     # Security: prevent directory traversal
-    if not target.startswith(PROJECT_ROOT):
+    try:
+        if os.path.commonpath([PROJECT_ROOT, target]) != os.path.normpath(PROJECT_ROOT):
+            return {"error": "Access denied"}
+    except ValueError:
         return {"error": "Access denied"}
 
     try:
