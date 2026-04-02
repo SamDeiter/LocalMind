@@ -15,6 +15,9 @@ import signal
 import subprocess
 import sys
 import time
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 
 def kill_existing_server(port: int):

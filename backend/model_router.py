@@ -7,9 +7,9 @@ Routing logic:
   - Complex tasks → Gemini 2.0 Flash (free tier) — needs user approval
   - Very hard tasks → Gemini 2.5 Pro (free tier) — needs user approval
 
-The router checks if Gemini is available and whether the user has approved
-cloud usage for the current session. Cloud models require approval via
-the propose_action tool before each use.
+The router handles automatic selection of local models for privacy,
+while flagging cloud models with `needs_approval=True` to trigger
+the frontend/autonomy safety gates.
 """
 
 import logging
@@ -120,7 +120,7 @@ def route_model(
     if complexity_score <= 8:
         if gemini_available and cloud_approved:
             model = MODELS["cloud_flash"].copy()
-            model["needs_approval"] = False
+            model["needs_approval"] = True
             model["route_reason"] = "Complex task — using Gemini Flash (approved)"
             return model
         else:
@@ -133,7 +133,7 @@ def route_model(
     # Very hard tasks → Ultra Local or Gemini Pro
     if gemini_available and cloud_approved:
         model = MODELS["cloud_pro"].copy()
-        model["needs_approval"] = False
+        model["needs_approval"] = True
         model["route_reason"] = "Very complex task — using Gemini Pro (approved)"
         return model
     else:
