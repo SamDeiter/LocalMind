@@ -12,8 +12,8 @@ export async function loadConversations() {
     const d = await r.json();
     state.conversations = d.conversations || [];
     renderConversations();
-  } catch {
-    /* offline */
+  } catch (e) {
+    console.warn("Failed to load conversations:", e);
   }
 }
 

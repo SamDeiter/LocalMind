@@ -1,0 +1,99 @@
+/**
+ * Tests for modules/conversations.js
+ */
+
+import { jest } from "@jest/globals";
+import * as conv from "../modules/conversations.js";
+import { state } from "../modules/state.js";
+
+describe("loadConversations", () => {
+  let originalFetch;
+  let renderSpy;
+  let warnSpy;
+
+  beforeAll(() => {
+    originalFetch = global.fetch;
+    // Jest cannot spy on ESM modules when imported directly like this because exports are read-only
+    // We will bypass it by not spying on renderConversations and just let it run.
+    // To prevent DOM errors since renderConversations updates the DOM, we will mock document.getElementById.
+    renderSpy = jest.spyOn(document, "getElementById").mockReturnValue({
+      innerHTML: "",
+      appendChild: jest.fn(),
+      querySelector: jest.fn().mockReturnValue({ addEventListener: jest.fn() })
+    });
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+    renderSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  beforeEach(() => {
+    // Reset state before each test to prevent leaking
+    state.conversations = null;
+    jest.clearAllMocks();
+  });
+
+  test("happy path: updates state.conversations and calls renderConversations", async () => {
+    const mockConversations = [{ id: 1, title: "Test Chat" }, { id: 2, title: "Another Chat" }];
+    global.fetch = jest.fn().mockResolvedValue({
+      json: jest.fn().mockResolvedValue({ conversations: mockConversations })
+    });
+
+    await conv.loadConversations();
+
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/conversations"));
+    expect(state.conversations).toEqual(mockConversations);
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("empty list: updates state.conversations to empty array", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      json: jest.fn().mockResolvedValue({ conversations: [] })
+    });
+
+    await conv.loadConversations();
+
+    expect(state.conversations).toEqual([]);
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("missing key: falls back to empty array if response is missing conversations key", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      json: jest.fn().mockResolvedValue({})
+    });
+
+    await conv.loadConversations();
+
+    expect(state.conversations).toEqual([]);
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("null response: handles null by catching TypeError and not mutating state", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      json: jest.fn().mockResolvedValue(null)
+    });
+
+    await conv.loadConversations();
+    // Assuming `d` is null, `d.conversations` will throw an error,
+    // leading to the catch block where state.conversations remains untouched (or whatever value it was)
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(state.conversations).toBeNull(); // It was initialized to null in beforeEach
+    expect(renderSpy).not.toHaveBeenCalled();
+  });
+
+  test("error path: logs a warning and does not alter state.conversations", async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error("Network Error"));
+    state.conversations = [{ id: 99, title: "Old Chat" }]; // Set some pre-existing state
+
+    await conv.loadConversations();
+
+    expect(warnSpy).toHaveBeenCalledWith("Failed to load conversations:", expect.any(Error));
+    // State should remain unchanged
+    expect(state.conversations).toEqual([{ id: 99, title: "Old Chat" }]);
+    expect(renderSpy).not.toHaveBeenCalled();
+  });
+});
