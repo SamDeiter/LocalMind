@@ -16,6 +16,7 @@ are filtered from directory listings to keep the UI clean.
 
 import os
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Request
 
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/api/files", tags=["files"])
 
 # PROJECT_ROOT is the top-level LocalMind directory.
 # All file operations are sandboxed within this directory.
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
@@ -44,13 +45,10 @@ async def list_files_api(path: str = "."):
     Filters out hidden/system directories to keep the UI clean.
     Security: prevents directory traversal via path normalization.
     """
-    target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+    target = (PROJECT_ROOT / path).resolve()
 
     # Security: prevent directory traversal (e.g., "../../etc/passwd")
-    try:
-        if os.path.commonpath([PROJECT_ROOT, target]) != os.path.normpath(PROJECT_ROOT):
-            return {"error": "Access denied", "files": []}
-    except ValueError:
+    if not target.is_relative_to(PROJECT_ROOT):
         return {"error": "Access denied", "files": []}
 
     if not os.path.isdir(target):
@@ -90,13 +88,10 @@ async def read_file_api(path: str):
     
     Security: prevents directory traversal via path normalization.
     """
-    target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+    target = (PROJECT_ROOT / path).resolve()
 
     # Security: prevent directory traversal
-    try:
-        if os.path.commonpath([PROJECT_ROOT, target]) != os.path.normpath(PROJECT_ROOT):
-            return {"error": "Access denied"}
-    except ValueError:
+    if not target.is_relative_to(PROJECT_ROOT):
         return {"error": "Access denied"}
 
     if not os.path.isfile(target):
@@ -128,13 +123,10 @@ async def write_file_api(request: Request):
     body = await request.json()
     path = body.get("path", "")
     content = body.get("content", "")
-    target = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+    target = (PROJECT_ROOT / path).resolve()
 
     # Security: prevent directory traversal
-    try:
-        if os.path.commonpath([PROJECT_ROOT, target]) != os.path.normpath(PROJECT_ROOT):
-            return {"error": "Access denied"}
-    except ValueError:
+    if not target.is_relative_to(PROJECT_ROOT):
         return {"error": "Access denied"}
 
     try:

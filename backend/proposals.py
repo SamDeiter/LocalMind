@@ -46,7 +46,7 @@ def validate_files_exist(files_affected: list[str]) -> list[str]:
         target = (PROJECT_ROOT / rel_path).resolve()
 
         # Security: ensure path doesn't escape project root
-        if not str(target).startswith(str(PROJECT_ROOT)):
+        if not target.is_relative_to(PROJECT_ROOT):
             logger.warning(f"Rejected path escaping project: {rel_path}")
             continue
 

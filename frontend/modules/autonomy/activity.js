@@ -110,7 +110,7 @@ export function addActivityItem(event) {
   }
   
   // Also refresh the task pipeline
-  import("./dashboard.js").then(m => m.renderTaskPipeline && m.renderTaskPipeline());
+  // renderTaskPipeline moved to specific events to avoid flickering
 }
 
 export function updateActivityBar(event) {

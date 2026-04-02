@@ -36,11 +36,8 @@ async def execute_proposal_cycle(engine, timeout=300) -> bool:
 
     proposals.sort(key=proposal_score)
 
-    proposal = None
-    for p in proposals:
-        if engine.proposals.is_prerequisite_met(p):
-            proposal = p
-            break
+    # Filter and select the first proposal that meets prerequisites
+    proposal = next((p for p in proposals if engine.proposals.is_prerequisite_met(p)), None)
     if not proposal: return False
 
     try:

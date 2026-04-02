@@ -118,7 +118,7 @@ def is_protected_file(relative_path: str) -> bool:
     """Check if a file is protected from editing."""
     target = (PROJECT_ROOT / relative_path).resolve()
 
-    if not str(target).startswith(str(PROJECT_ROOT)):
+    if not target.is_relative_to(PROJECT_ROOT):
         logger.warning(f"Path escapes project: {relative_path}")
         return True
 
