@@ -16,8 +16,7 @@ from typing import Optional
 
 logger = logging.getLogger("localmind.autonomy.proposals")
 
-from backend.config import PROPOSALS_DIR
-ARCHIVE_DIR = Path.home() / "LocalMind_Workspace" / "proposals_archive"
+from backend.config import PROPOSALS_DIR, ARCHIVE_DIR
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 MAX_RETRIES = 5  # Max times a proposal can be retried before permanent blacklist
