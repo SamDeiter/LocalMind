@@ -31,6 +31,13 @@ def init_db():
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )
     """)
+
+    # ⚡ Bolt: Add indexes to speed up frequently executed queries
+    # Optimizes `SELECT * FROM conversations ORDER BY updated_at DESC`
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at DESC)")
+    # Optimizes `SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at`
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id, created_at)")
+
     conn.commit()
     conn.close()
 
