@@ -40,6 +40,31 @@ GENERAL:
 - When using tools, briefly mention what you're doing — like a person would.
 - Be proactive. If you can help more than asked, do it."""
 
+# -- Prompt Enhancements --
+CODING_PROMPT_SUFFIX = """
+[CODING INSTRUCTIONS]
+- When writing code, prioritize readability, security, and performance.
+- Use explicit types if the language supports them.
+- Always include a brief comment explaining non-obvious logic.
+- Ensure all file operations are relative to the project root.
+- Follow the DRY (Don't Repeat Yourself) principle.
+[/CODING INSTRUCTIONS]
+"""
+
+MODEL_AWARENESS_SUFFIX = """
+[MODEL IDENTITY]
+You are currently running on the {model_name} architecture.
+Adapt your reasoning depth and verbosity to match this capacity.
+[/MODEL IDENTITY]
+"""
+
+SELF_IMPROVEMENT_SUFFIX = """
+[SELF-IMPROVEMENT]
+- After completing a task, briefly reflect on if there was a more efficient way to do it.
+- If you made a mistake, acknowledge it, fix it, and learn from the pattern.
+[/SELF-IMPROVEMENT]
+"""
+
 # --- Model Tiers ---
 MODEL_TIERS = {
     "light":  os.getenv("MODEL_LIGHT", "qwen2.5-coder:7b"),
@@ -47,6 +72,11 @@ MODEL_TIERS = {
     "heavy":  os.getenv("MODEL_HEAVY", "qwen2.5-coder:32b"),
     "ultra":  os.getenv("MODEL_ULTRA", "qwen2.5-coder:70b"),
 }
+
+# --- Agent Limits ---
+MAX_CONTEXT_TOKENS = 6000
+MAX_AGENT_ITERATIONS = 10
+DEFAULT_CONTEXT_WINDOW = 8192
 
 # --- Paths ---
 from pathlib import Path

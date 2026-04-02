@@ -166,6 +166,8 @@ async def run_reflection_cycle(engine) -> bool:
                     saved = engine.proposals.save(proposal, mode=engine.mode, auto_approve_risks=engine.AUTO_APPROVE_RISKS)
                     if saved:
                         engine.status["reflection"]["proposals_logged"] += 1
+                        # Update Architect Insight summary for the UI
+                        engine.status["reflection"]["last_reflection_summary"] = proposal.get("title", "Generated new improvement proposal")
                         return True
             except Exception as critique_exc:
                 logger.warning(f"Meta-critic/save failed: {critique_exc}\n{traceback.format_exc()}")

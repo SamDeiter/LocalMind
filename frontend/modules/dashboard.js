@@ -14,7 +14,8 @@ async function updateDashboardMetrics() {
     const models = hw.models || [];
 
     // ── CPU ──
-    const cpuPct = sys.cpu_percent ?? 0;
+    const rawCpuPct = sys.cpu_percent ?? 0;
+    const cpuPct = Math.min(100, rawCpuPct); // Clamp to 100%
     const cpuEl = document.getElementById("cpuVal");
     if (cpuEl) cpuEl.textContent = `${cpuPct}%`;
 

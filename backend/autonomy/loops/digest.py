@@ -14,6 +14,7 @@ async def run_digest_loop(engine):
                 try:
                     digest = generate_digest()
                     if digest:
+                        engine.status["digest"] = digest
                         engine._emit_activity("completed", f"📊 Daily digest generated")
                 except Exception as exc:
                     logger.warning(f"Digest generation failed: {exc}")

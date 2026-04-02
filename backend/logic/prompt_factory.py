@@ -1,3 +1,4 @@
+from backend import config
 from backend.logic.token_manager import TokenManager
 
 class PromptFactory:

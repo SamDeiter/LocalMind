@@ -6,7 +6,7 @@
     <title>Nexus | Autonomous Command Interface</title>
 
     <!-- Tailwind & Fonts -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="dist/output.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <link rel="icon" type="image/png" href="icon.png" />
@@ -19,45 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 
-            <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "surface-container-lowest": "#020617",
-                        "on-surface-variant": "#94a3b8",
-                        "background": "#020617",
-                        "surface": "#0f172a",
-                        "surface-container-low": "#0f172a",
-                        "surface-container": "#1e293b",
-                        "surface-container-high": "#334155",
-                        "surface-container-highest": "#475569",
-                        "primary": "#6366f1",
-                        "secondary": "#10b981",
-                        "tertiary": "#8b5cf6",
-                        "on-background": "#f8fafc",
-                        "on-surface": "#f1f5f9",
-                        "on-primary": "#ffffff",
-                        "outline": "#64748b",
-                        "outline-variant": "#334155",
-                        "error": "#ef4444",
-                        "surface-variant": "#1e293b",
-                        "surface-bright": "#334155",
-                    },
-                    fontFamily: {
-                        "headline": ["Space Grotesk", "sans-serif"],
-                        "body": ["Inter", "sans-serif"],
-                        "mono": ["JetBrains Mono", "monospace"]
-                    },
-                },
-            },
-        }
-    </script>
     <link rel="stylesheet" href="styles.css" />
-    <style type="text/tailwindcss">
-        /* Tailwind @layer overrides go here if needed */
-    </style>
 </head>
 
 <body class="bg-[#020617] text-slate-300 font-body selection:bg-indigo-500/30 overflow-hidden h-screen flex">

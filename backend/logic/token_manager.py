@@ -62,6 +62,29 @@ class TokenManager:
         return [system_msg, summary_msg] + kept_history + latest_msgs
 
     @classmethod
+    def truncate_history(cls, messages: List[Dict[str, str]], max_tokens: int) -> List[Dict[str, str]]:
+        """Simple truncation based on token count when history is too short to summarize."""
+        if not messages:
+            return []
+            
+        system_msg = messages[0] if messages[0]["role"] == "system" else None
+        history = messages[1:] if system_msg else messages
+        
+        kept = []
+        current_tokens = cls.count_tokens(system_msg["content"]) if system_msg else 0
+        
+        # Keep as many recent messages as possible
+        for msg in reversed(history):
+            msg_tokens = cls.count_tokens(msg.get("content", ""))
+            if current_tokens + msg_tokens <= max_tokens:
+                kept.insert(0, msg)
+                current_tokens += msg_tokens
+            else:
+                break
+                
+        return [system_msg] + kept if system_msg else kept
+
+    @classmethod
     def truncate_text(cls, text: str, max_tokens: int) -> str:
         """Truncates a single block of text (e.g., RAG context) to a token limit."""
         if not text:

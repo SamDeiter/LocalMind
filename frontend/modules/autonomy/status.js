@@ -64,11 +64,25 @@ export async function pollAutonomy() {
       const ideasEl = document.getElementById("brainIdeas");
       if (ideasEl) ideasEl.textContent = d.reflection.proposals_logged || 0;
       window.brainProposalCount = d.reflection.proposals_logged || 0;
+      
+      // Update Architect Insight if present
+      const insightEl = document.getElementById("insightContent");
+      if (insightEl && d.reflection.last_reflection_summary) {
+        insightEl.textContent = d.reflection.last_reflection_summary;
+        insightEl.classList.remove("italic", "opacity-40");
+      }
     }
     if (d.execution) {
       const execEl = document.getElementById("brainApplied");
       if (execEl) execEl.textContent = d.execution.proposals_executed || 0;
       window.brainExecutedCount = d.execution.proposals_executed || 0;
+    }
+
+    // Update Brain Digest if present
+    const digestEl = document.getElementById("brainDigest");
+    if (digestEl && d.digest) {
+        digestEl.innerHTML = d.digest.content || d.digest.summary || "";
+        digestEl.classList.toggle("hidden", !(d.digest.content || d.digest.summary));
     }
 
     // Sync global counts for sidebar counters
