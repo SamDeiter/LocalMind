@@ -3,6 +3,7 @@
  * mode toggle, trigger buttons.
  * Extracted from sidebar.js for maintainability.
  */
+/* global Prism, brainPulse, brainDigest, insightContent */
 
 import { API, priorityInput, chatScreen, welcomeScreen } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
@@ -12,11 +13,8 @@ import { sendMessage } from "./chat.js";
 // ── Autonomy Status ─────────────────────────────────────────────
 export async function pollAutonomy() {
   try {
-    fetch(`${API}/api/autonomy/status`).then(r => r.json()).then(d => {
-      // Existing code inside the try block
-    }).catch(err => {
-      console.error('Failed to fetch autonomy status:', err);
-    });
+    const r = await fetch(`${API}/api/autonomy/status`);
+    const d = await r.json();
 
     const elements = {
       indicator: document.getElementById("autonomyIndicator"),
@@ -764,7 +762,7 @@ export async function renderTaskPipeline() {
         const model = p.model_used;
         if (dur || tok || model) {
           html += `  <div class="flex items-center gap-3 mt-2 pt-2 border-t border-outline-variant/10">`;
-          if (dur != null) html += `    <span class="text-[9px] text-outline/60 font-mono">⏱ ${dur}s</span>`;
+          if (dur !== null) html += `    <span class="text-[9px] text-outline/60 font-mono">⏱ ${dur}s</span>`;
           if (tok) html += `    <span class="text-[9px] text-outline/60 font-mono">🎟 ${tok > 999 ? (tok / 1000).toFixed(1) + 'k' : tok} tkns</span>`;
           if (model) html += `    <span class="text-[9px] text-primary/50 font-mono">${escapeHtml(model)}</span>`;
           html += `  </div>`;
@@ -793,9 +791,9 @@ export async function renderTaskPipeline() {
         // Confidence + error
         const conf = p.confidence;
         const err = p.error;
-        if (conf != null || err) {
+        if (conf !== null || err) {
           html += `  <div class="flex items-center gap-2 mt-1">`;
-          if (conf != null) html += `<span class="text-[8px] font-mono ${conf >= 50 ? 'text-primary/60' : 'text-tertiary/60'}">⚡ ${conf}% confidence</span>`;
+          if (conf !== null) html += `<span class="text-[8px] font-mono ${conf >= 50 ? 'text-primary/60' : 'text-tertiary/60'}">⚡ ${conf}% confidence</span>`;
           if (err) html += `<span class="text-[8px] text-error/70 font-mono truncate max-w-[200px]" title="${escapeHtml(err)}">❌ ${escapeHtml(err.length > 60 ? err.slice(0, 60) + '…' : err)}</span>`;
           html += `  </div>`;
         }
