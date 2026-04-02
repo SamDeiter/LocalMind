@@ -10,7 +10,7 @@ This document outlines the detailed roadmap for addressing technical debt, UI/UX
   - Extract Reflection & Proposal logic to `reflection_service.py`.
   - Extract Git/State awareness to `git_coordinator.py`.
   - Keep `engine.py` tightly focused on pure orchestration.
-- [ ] **A2. UI Globals Resolution (`frontend/modules/`)**
+- [x] **A2. UI Globals Resolution (`frontend/modules/`)**
   - Review all ESLint conflicts regarding undefined globals (e.g., `Prism`, `brainPulse`, `marked`).
   - Create a safe `window.LocalMind` shared namespace or explicit module imports to eliminate errors and prevent race conditions.
 - [x] **A3. Configuration Finalization**

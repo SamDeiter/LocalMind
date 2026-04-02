@@ -2,7 +2,7 @@
  * Monaco code editor — file tree, Run button, Send to AI, drag-drop, resize.
  */
 
-import { API, $, editorState, editorPanel, panelDivider, editorToggle } from "./state.js";
+import { API, editorState, editorPanel, panelDivider, editorToggle } from "./state.js";
 import { getLang, getFileIcon } from "./utils.js";
 import { sendMessage } from "./chat.js";
 

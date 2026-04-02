@@ -29,7 +29,7 @@ import { toggleProposalList } from "./proposals_ui.js";
 import { toggleActivityFeed } from "./autonomy/index.js";
 import { toggleEditorPanel } from "./editor.js";
 import { toggleSettingsModal } from "./settings_ui.js";
-import { welcomeScreen, chatScreen, overviewBtn } from "./state.js";
+import { chatScreen, overviewBtn } from "./state.js";
 
 export function bindEvents() {
   // Sidebar

@@ -3,9 +3,8 @@
  * mode toggle, trigger buttons.
  * Extracted from sidebar.js for maintainability.
  */
-/* global Prism, brainPulse, brainDigest, insightContent */
 
-import { API, priorityInput, chatScreen, welcomeScreen } from "./state.js";
+import { API, priorityInput, chatScreen, welcomeScreen, brainDigest, insightContent } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 import { loadProposals } from "./proposals_ui.js";
 import { sendMessage } from "./chat.js";
@@ -33,7 +32,7 @@ export async function pollAutonomy() {
 
     // Update code snippet display based on current status
     if (elements.codeSnippet) {
-      const highlightedCode = Prism.highlight(d.code_snippet || '', Prism.languages.javascript, 'javascript');
+      const highlightedCode = window.Prism.highlight(d.code_snippet || '', window.Prism.languages.javascript, 'javascript');
       const codeElement = document.createElement('code');
       codeElement.className = 'language-javascript';
       codeElement.innerHTML = highlightedCode;
@@ -83,8 +82,8 @@ elements.codeSnippet.appendChild(execButton);
     }
 
     // Pulse dot: amber while loading, green when ready
-    if (brainPulse) {
-      brainPulse.classList.toggle("loading", d.enabled && !modelReady);
+    if (elements.pulse) {
+      elements.pulse.classList.toggle("loading", d.enabled && !modelReady);
     }
 
     // Sync mode toggle buttons from server state
@@ -150,9 +149,7 @@ elements.codeSnippet.appendChild(execButton);
       const feed = document.getElementById("activityFeed");
       if (feed && feed.children.length <= 1) {
         const events = [...d.recent_events].reverse();
-        for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {
-          const icon = ACTION_ICONS[event.action] || "📋";
-          const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+        for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {          const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
           const item = document.createElement("div");
           item.className = "group flex gap-3";
           const label = isActive ? event.action.toUpperCase() : "INFO";

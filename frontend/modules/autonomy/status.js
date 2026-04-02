@@ -106,9 +106,7 @@ function populateInitialEvents(recentEvents) {
   if (timeline) {
     timeline.innerHTML = "";
     const events = [...recentEvents].reverse();
-    for (const event of events.slice(0, 20)) {
-      const icon = ACTION_ICONS[event.action] || "📋";
-      const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+    for (const event of events.slice(0, 20)) {      const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
       const evEl = document.createElement("div");
       const colorClass = isActive ? "bg-primary" : "bg-surface-variant";
       evEl.className = "flex gap-3 py-1";
@@ -130,9 +128,7 @@ function populateInitialEvents(recentEvents) {
       sysFeed.innerHTML = "";
     }
     const events = [...recentEvents].reverse();
-    for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {
-      const icon = ACTION_ICONS[event.action] || "📋";
-      const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+    for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {      const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
       const item = document.createElement("div");
       item.className = "group flex gap-3";
       const label = isActive ? event.action.toUpperCase() : "INFO";
