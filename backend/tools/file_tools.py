@@ -23,13 +23,20 @@ def _validate_path(filepath: str) -> Path:
     target = (WORKSPACE / filepath).resolve()
 
     # Security: ensure the resolved path is still inside the workspace
-    if not str(target).startswith(str(WORKSPACE.resolve())):
+    try:
+        if os.path.commonpath([str(WORKSPACE.resolve()), str(target)]) != str(WORKSPACE.resolve()):
+            raise ValueError(f"Path escapes sandbox: {filepath}")
+    except ValueError:
+        # commonpath raises ValueError if paths are on different drives (Windows)
         raise ValueError(f"Path escapes sandbox: {filepath}")
 
     # Reject symlinks that point outside workspace
     if target.is_symlink():
         real = target.resolve()
-        if not str(real).startswith(str(WORKSPACE.resolve())):
+        try:
+            if os.path.commonpath([str(WORKSPACE.resolve()), str(real)]) != str(WORKSPACE.resolve()):
+                raise ValueError(f"Symlink escapes sandbox: {filepath}")
+        except ValueError:
             raise ValueError(f"Symlink escapes sandbox: {filepath}")
 
     return target

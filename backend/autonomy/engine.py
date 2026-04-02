@@ -356,86 +356,84 @@ class AutonomyEngine:
                         '"risk": "low|medium", "files_affected": ["..."]}}]'
                     )
 
-                    try:
-                        async with httpx.AsyncClient(timeout=600.0) as client:
-                            resp = await client.post(
-                                f"{self.ollama_url}/api/chat",
-                                json={
-                                    "model": self.reflection_model,
-                                    "messages": [{"role": "user", "content": prompt}],
-                                    "stream": False,
-                                    "options": {
-                                        "num_ctx": 16384,
-                                        "temperature": 0.1
-                                    }
-                                },
-                            )
-                            if resp.status_code != 200:
-                                logger.warning(f"Research LLM call failed with {resp.status_code}: {resp.text}")
-                            else:
-                                import json as _json
-                                text = resp.json().get("message", {}).get("content", "")
-                                # Try to extract JSON array from response
-                                match = re.search(r'\[.*\]', text, re.DOTALL)
-                                if match:
-                                    proposals = _json.loads(match.group())
-                                    logged = 0
-                                    for p in proposals[:2]:
-                                        self.proposals.save(
-                                            proposal={
-                                                "title": p.get("title", "Research finding"),
-                                                "description": p.get("description", ""),
-                                                "category": p.get("category", "research"),
-                                                "risk": p.get("risk", "low"),
-                                                "files_affected": p.get("files_affected", []),
-                                                "source": "auto_research",
-                                                "context": research_blob if 'research_blob' in locals() else ""
-                                            },
-                                            mode=self.mode,
-                                            auto_approve_risks=self.AUTO_APPROVE_RISKS,
-                                            emit_activity=self._emit_activity
-                                        )
-                                        logged += 1
-                                    if logged:
-                                        self.status["reflection"]["proposals_logged"] += logged
-                                        self._emit_activity(
-                                            "research_complete",
-                                            f"🔬 Research generated {logged} new proposal(s)"
-                                        )
-                                        return
-                    except Exception as e:
-                        logger.warning(f"Research LLM call failed: {e}")
-                        # Fallback to Gemini if local model failed
-                        gemini_result = await self._try_gemini_escalation(prompt)
-                        if gemini_result:
-                            import json as _json2
-                            match2 = re.search(r'\[.*\]', gemini_result, re.DOTALL)
-                            if match2:
-                                try:
-                                    proposals = _json2.loads(match2.group())
-                                    for p in proposals[:2]:
-                                        self.proposals.save(
-                                            proposal={
-                                                "title": p.get("title", "Research finding"),
-                                                "description": p.get("description", ""),
-                                                "category": p.get("category", "research"),
-                                                "risk": p.get("risk", "low"),
-                                                "files_affected": p.get("files_affected", []),
-                                                "source": "gemini_escalation",
-                                                "context": research_blob if 'research_blob' in locals() else ""
-                                            },
-                                            mode=self.mode,
-                                            auto_approve_risks=self.AUTO_APPROVE_RISKS,
-                                            emit_activity=self._emit_activity
-                                        )
-                                    self.status["reflection"]["proposals_logged"] += len(proposals[:2])
+                try:
+                    async with httpx.AsyncClient(timeout=600.0) as client:
+                        resp = await client.post(
+                            f"{self.ollama_url}/api/chat",
+                            json={
+                                "model": self.reflection_model,
+                                "messages": [{"role": "user", "content": prompt}],
+                                "stream": False,
+                                "options": {
+                                    "num_ctx": 16384,
+                                    "temperature": 0.1
+                                }
+                            },
+                        )
+                        if resp.status_code != 200:
+                            logger.warning(f"Research LLM call failed with {resp.status_code}: {resp.text}")
+                        else:
+                            text = resp.json().get("message", {}).get("content", "")
+                            # Try to extract JSON array from response
+                            match = re.search(r'\[.*\]', text, re.DOTALL)
+                            if match:
+                                proposals = json.loads(match.group())
+                                logged = 0
+                                for p in proposals[:2]:
+                                    self.proposals.save(
+                                        proposal={
+                                            "title": p.get("title", "Research finding"),
+                                            "description": p.get("description", ""),
+                                            "category": p.get("category", "research"),
+                                            "risk": p.get("risk", "low"),
+                                            "files_affected": p.get("files_affected", []),
+                                            "source": "auto_research",
+                                            "context": research_blob if 'research_blob' in locals() else ""
+                                        },
+                                        mode=self.mode,
+                                        auto_approve_risks=self.AUTO_APPROVE_RISKS,
+                                        emit_activity=self._emit_activity
+                                    )
+                                    logged += 1
+                                if logged:
+                                    self.status["reflection"]["proposals_logged"] += logged
                                     self._emit_activity(
                                         "research_complete",
-                                        f"☁️ Gemini fallback generated {len(proposals[:2])} proposal(s)"
+                                        f"🔬 Research generated {logged} new proposal(s)"
                                     )
                                     return
-                                except Exception:
-                                    pass
+                except Exception as e:
+                    logger.warning(f"Research LLM call failed: {e}")
+                    # Fallback to Gemini if local model failed
+                    gemini_result = await self._try_gemini_escalation(prompt)
+                    if gemini_result:
+                        match2 = re.search(r'\[.*\]', gemini_result, re.DOTALL)
+                        if match2:
+                            try:
+                                proposals = json.loads(match2.group())
+                                for p in proposals[:2]:
+                                    self.proposals.save(
+                                        proposal={
+                                            "title": p.get("title", "Research finding"),
+                                            "description": p.get("description", ""),
+                                            "category": p.get("category", "research"),
+                                            "risk": p.get("risk", "low"),
+                                            "files_affected": p.get("files_affected", []),
+                                            "source": "gemini_escalation",
+                                            "context": research_blob if 'research_blob' in locals() else ""
+                                        },
+                                        mode=self.mode,
+                                        auto_approve_risks=self.AUTO_APPROVE_RISKS,
+                                        emit_activity=self._emit_activity
+                                    )
+                                self.status["reflection"]["proposals_logged"] += len(proposals[:2])
+                                self._emit_activity(
+                                    "research_complete",
+                                    f"☁️ Gemini fallback generated {len(proposals[:2])} proposal(s)"
+                                )
+                                return
+                            except Exception:
+                                pass
 
                 self._emit_activity("research_complete", "🔬 Research cycle complete — no new findings")
 

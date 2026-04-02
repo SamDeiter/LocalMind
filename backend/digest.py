@@ -9,11 +9,9 @@ import logging
 import time
 from pathlib import Path
 
-logger = logging.getLogger("localmind.autonomy.digest")
+from backend.config import PROPOSALS_DIR, ARCHIVE_DIR, DIGESTS_DIR
 
-PROPOSALS_DIR = Path(__file__).resolve().parent.parent / "data" / "proposals"
-ARCHIVE_DIR = Path(__file__).resolve().parent.parent / "data" / "proposals" / "archive"
-DIGESTS_DIR = Path(__file__).resolve().parent.parent / "data" / "digests"
+logger = logging.getLogger("localmind.autonomy.digest")
 
 
 def generate_digest(hours: int = 24) -> str:

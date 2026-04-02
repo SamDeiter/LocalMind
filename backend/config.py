@@ -53,7 +53,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = Path.home() / "LocalMind_Workspace" / "localmind.db"
 PROPOSALS_DIR = Path.home() / "LocalMind_Workspace" / "proposals"
+ARCHIVE_DIR = PROPOSALS_DIR / "archive"
+DIGESTS_DIR = Path.home() / "LocalMind_Workspace" / "digests"
 
 # Ensure workspace exists
 (Path.home() / "LocalMind_Workspace").mkdir(parents=True, exist_ok=True)
 PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
+ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+DIGESTS_DIR.mkdir(parents=True, exist_ok=True)

@@ -8,6 +8,7 @@ Extracted from autonomy.py to keep files lean and editable.
 
 import json
 import logging
+import os
 import shutil
 import time
 import uuid
@@ -16,8 +17,7 @@ from typing import Optional
 
 logger = logging.getLogger("localmind.autonomy.proposals")
 
-from backend.config import PROPOSALS_DIR
-ARCHIVE_DIR = Path.home() / "LocalMind_Workspace" / "proposals_archive"
+from backend.config import PROPOSALS_DIR, ARCHIVE_DIR
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 MAX_RETRIES = 5  # Max times a proposal can be retried before permanent blacklist
@@ -90,6 +90,8 @@ class ProposalManager:
 
     def __init__(self):
         self._failed_titles: set[str] = set()
+        self._active_count_cache = None
+        self._last_dir_mtime = None
         # Load failed titles from existing proposals on startup
         self._load_failed_titles()
 
@@ -323,6 +325,7 @@ class ProposalManager:
 
     def retry(self, proposal_id: str, emit_activity=None) -> Optional[dict]:
         """Reset a failed proposal to approved status for re-execution."""
+        self._invalidate_cache()
         if not PROPOSALS_DIR.exists():
             return None
 
@@ -387,8 +390,14 @@ class ProposalManager:
         self._failed_titles.add(proposal.get("title", ""))
         self._write_proposal(proposal)
 
+    def _invalidate_cache(self):
+        """Invalidate the active count cache."""
+        self._active_count_cache = None
+        self._last_dir_mtime = None
+
     def _write_proposal(self, proposal: dict):
         """Find a proposal's file on disk and update it."""
+        self._invalidate_cache()
         proposal_id = proposal.get("id")
         if not proposal_id or not PROPOSALS_DIR.exists():
             return
@@ -409,6 +418,19 @@ class ProposalManager:
         """Count proposals that are proposed or approved (i.e. still actionable)."""
         if not PROPOSALS_DIR.exists():
             return 0
+
+        try:
+            # Re-read dir stats
+            stat = os.stat(PROPOSALS_DIR)
+            current_mtime = stat.st_mtime
+        except OSError:
+            current_mtime = None
+
+        if (self._active_count_cache is not None
+            and getattr(self, "_last_dir_mtime", None) is not None
+            and current_mtime == self._last_dir_mtime):
+            return self._active_count_cache
+
         count = 0
         for f in PROPOSALS_DIR.glob("*.json"):
             try:
@@ -417,6 +439,9 @@ class ProposalManager:
                     count += 1
             except Exception:
                 continue
+
+        self._active_count_cache = count
+        self._last_dir_mtime = current_mtime
         return count
 
     def is_prerequisite_met(self, proposal: dict) -> bool:
@@ -457,6 +482,7 @@ class ProposalManager:
 
         Returns a summary: {archived: int, statuses: dict}.
         """
+        self._invalidate_cache()
         if not PROPOSALS_DIR.exists():
             return {"archived": 0, "statuses": {}}
 
@@ -492,6 +518,7 @@ class ProposalManager:
 
         Returns list of retried proposals.
         """
+        self._invalidate_cache()
         retried = []
         if not PROPOSALS_DIR.exists():
             return retried
@@ -523,6 +550,7 @@ class ProposalManager:
 
         Returns a summary of what was cleaned up.
         """
+        self._invalidate_cache()
         if not PROPOSALS_DIR.exists():
             return {"archived": 0, "deleted": 0}
 
@@ -572,6 +600,7 @@ class ProposalManager:
 
     def _update_status(self, proposal_id: str, new_status: str) -> Optional[dict]:
         """Update a proposal's status by ID."""
+        self._invalidate_cache()
         if not PROPOSALS_DIR.exists():
             return None
 
