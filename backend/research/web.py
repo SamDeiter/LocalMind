@@ -35,11 +35,11 @@ class AcademicResearcher:
         WORKSPACE.mkdir(parents=True, exist_ok=True)
         ACADEMIC_CACHE_FILE.write_text(json.dumps(self.cache, indent=2), encoding="utf-8")
 
-    async def search_arxiv(self, query: str, max_results: int = 5) -> list[dict]:
+    async def search_arxiv(self, query: str, max_results: int = 5, start: int = 0) -> list[dict]:
         try:
             import feedparser
             url = "https://export.arxiv.org/api/query"
-            params = {"search_query": f"all:{query}", "max_results": max_results}
+            params = {"search_query": f"all:{query}", "max_results": max_results, "start": start}
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.get(url, params=params)
                 if resp.status_code != 200: return []

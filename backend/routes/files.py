@@ -50,6 +50,7 @@ async def list_files_api(path: str = "."):
     # Security: prevent directory traversal (e.g., "../../etc/passwd")
     if not target.is_relative_to(PROJECT_ROOT):
         return {"error": "Access denied", "files": []}
+
     if not os.path.isdir(target):
         return {"error": "Not a directory", "files": []}
 
@@ -92,6 +93,7 @@ async def read_file_api(path: str):
     # Security: prevent directory traversal
     if not target.is_relative_to(PROJECT_ROOT):
         return {"error": "Access denied"}
+
     if not os.path.isfile(target):
         return {"error": "File not found"}
 

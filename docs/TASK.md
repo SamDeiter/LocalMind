@@ -33,22 +33,49 @@
 - [x] Auto-context injection (editor → system prompt)
 - [x] CSS: drop zone overlay, output panel, run button
 
-## ✅ Phase 5 — Code Quality (Complete)
+## ✅ Phase 5 — Code Quality & Git (Complete)
 
-- [x] Modularize `app.js` into 8 ES modules
+- [x] Modularize `app.js` into ES modules
 - [x] Set up ESLint (0 errors)
 - [x] Set up Jest (23 tests passing)
 - [x] Set up Prettier
-- [x] Add `node_modules` to `.gitignore`
-
-## ✅ Phase 6 — Git & Intelligence (Complete)
-
 - [x] Git Awareness tool (status, diff, commit, log)
 - [x] Project Context Loading (dir tree as context)
 
-## 📋 Phase 7 — UX & Voice (Upcoming)
+## ✅ Phase 6 — Metacognition (Complete)
 
+- [x] Intent parser (user intent classification)
+- [x] Uncertainty gate (confidence-based routing)
+- [x] Self-checker (output quality validation)
+- [x] Calibration tracking
+- [x] Smart tool router
+- [x] Memory manager (relevance scoring)
+- [x] UI generator (dynamic component creation)
+- [x] Revision controller
+
+## 🔧 Phase 7 — Autonomy Engine (Active)
+
+- [x] Autonomy Engine core (reflection, research, execution loops)
+- [x] Proposal lifecycle (create, dedup, approve, deny, execute, archive)
+- [x] Self-healing health monitor (auto-restart, pre-warm)
+- [x] Background web + academic research
+- [x] AI code editor (4-layer search/replace matching)
+- [x] Git branching pipeline (branch → edit → test → merge)
+- [x] Confidence scoring and gating
+- [x] Infrastructure file protection (BLOCKED_NAMES)
+- [x] Success/failure tracking
+- [x] Action stream UI with reasoning, files, and confidence
+- [x] Persistent collapsible UI state
+- [x] Error transparency (diagnostic feedback)
+- [x] Daily digest generation
+- [/] Chat streaming reliability (protecting llm_client from self-edit)
 - [ ] Interactive Onboarding Tutorial
 - [ ] Voice quality (Piper TTS)
 - [ ] Brain visualization (memory heatmap / knowledge graph)
 
+## 📋 Phase 8 — Intelligence (Planned)
+
+- [ ] AI Time Machine (versioned + replayable actions)
+- [ ] Cross-Project Hub (patterns across projects)
+- [ ] Self-extending tools (AI writes new tool plugins)
+- [ ] VS Code Extension

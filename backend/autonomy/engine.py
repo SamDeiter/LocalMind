@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-import json
+import os
 import re
 import time
 from pathlib import Path
@@ -32,6 +32,8 @@ from .execution import execute_proposal_cycle
 
 logger = logging.getLogger("localmind.autonomy.engine")
 
+AUTO_RESEARCH_TIMEOUT = 600
+
 class AutonomyEngine:
     def __init__(self, config=None, ollama_url: str = OLLAMA_BASE_URL):
         """Background scheduler for autonomous LocalMind operations."""
@@ -60,9 +62,12 @@ class AutonomyEngine:
             "reflection": {"last_run": None, "proposals_logged": 0},
             "execution": {"last_run": None, "proposals_executed": 0, "last_result": None},
             "auto_test": {"last_run": None, "passed": 0, "failed": 0},
-            "research": {"last_run": 0}
+            "research": {"last_run": 0},
+            "agent_loop": {"active": False, "current_agent": None}
         }
-        
+
+        # Initialize loop task lists to avoid AttributeError
+        self._tasks = []        
         self.proposals = ProposalManager()
         assert hasattr(self, '_emit_activity'), 'self._emit_activity must be defined before initializing SelfImprover'
         self.self_improver = SelfImprover(emit_activity=self._emit_activity)
@@ -261,91 +266,95 @@ class AutonomyEngine:
 
             self._emit_activity("research_started", "🔬 Starting automated research cycle...")
             start_time = time.time()
-        try:
-            # 0. Load architecture context and user priorities
-            arch_context = ""
-            arch_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "ARCHITECTURE.md")
-            if os.path.exists(arch_file):
-                try:
-                    with open(arch_file, "r", encoding="utf-8") as f:
-                        arch_context = f.read()[:2000]  # Cap at 2k chars
-                except Exception as e:
-                    logger.error(f"Error reading ARCHITECTURE.md: {e}")
-                    pass
 
-            priority_context = ""
-            prio_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "priorities.json")
-            if os.path.exists(prio_file):
-                try:
-                    with open(prio_file, "r", encoding="utf-8") as f:
-                        prios = json.loads(f.read())
-                    active = [p for p in prios if p.get("status") == "active"]
-                    if active:
-                        priority_context = "USER PRIORITIES:\n" + "\n".join(
-                            f"- [{p.get('priority','medium')}] {p.get('description','')}"
-                            for p in active[:5]
-                        )
-                except Exception:
-                    pass
-            # 1. Scan codebase for complexity hot spots and code smells (non-blocking)
-            complexity_task = asyncio.to_thread(self.codebase_scanner.scan_complexity)
-            smells_task = asyncio.to_thread(self.codebase_scanner.scan_code_smells)
-            complexity, smells = await asyncio.gather(complexity_task, smells_task)
+            # Initialize research context components
+            arch_context = await self._load_architecture_context()
+            priority_context = await self._load_priority_context()
+            try:
+                # 0. Load architecture context and user priorities
+                arch_context = ""
+                arch_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "ARCHITECTURE.md")
+                if os.path.exists(arch_file):
+                    try:
+                        with open(arch_file, "r", encoding="utf-8") as f:
+                            arch_context = f.read()[:2000]  # Cap at 2k chars
+                    except Exception as e:
+                        logger.error(f"Error reading ARCHITECTURE.md: {e}")
+                        pass
 
-            hot_categories = set()
-            if any(f.get("severity") == "high" for f in complexity):
-                hot_categories.add("code_quality")
-            if any(s.get("type") == "large_file" for s in smells):
-                hot_categories.add("code_quality")
-            hot_categories.add("performance")  # always useful
+                priority_context = ""
+                prio_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "priorities.json")
+                if os.path.exists(prio_file):
+                    try:
+                        with open(prio_file, "r", encoding="utf-8") as f:
+                            prios = json.loads(f.read())
+                        active = [p for p in prios if p.get("status") == "active"]
+                        if active:
+                            priority_context = "USER PRIORITIES:\n" + "\n".join(
+                                f"- [{p.get('priority','medium')}] {p.get('description','')}"
+                                for p in active[:5]
+                            )
+                    except Exception:
+                        pass
+                # 1. Scan codebase for complexity hot spots and code smells (non-blocking)
+                complexity_task = asyncio.to_thread(self.codebase_scanner.scan_complexity)
+                smells_task = asyncio.to_thread(self.codebase_scanner.scan_code_smells)
+                complexity, smells = await asyncio.gather(complexity_task, smells_task)
 
-            research_context = []
-            for category in hot_categories:
-                # Get web findings
-                web_findings = await self.web_researcher.get_findings_for_prompt(category)
-                if web_findings:
-                    research_context.append(web_findings)
+                hot_categories = set()
+                if any(f.get("severity") == "high" for f in complexity):
+                    hot_categories.add("code_quality")
+                if any(s.get("type") == "large_file" for s in smells):
+                    hot_categories.add("code_quality")
+                hot_categories.add("performance")  # always useful
+
+                research_context = []
+                for category in hot_categories:
+                    # Get web findings
+                    web_findings = await self.web_researcher.get_findings_for_prompt(category)
+                    if web_findings:
+                        research_context.append(web_findings)
                 
-                # Get academic findings (ArXiv)
-                academic_findings = await self.academic_researcher.get_findings_for_prompt(category)
-                if academic_findings:
-                    research_context.append(academic_findings)
+                    # Get academic findings (ArXiv)
+                    academic_findings = await self.academic_researcher.get_findings_for_prompt(category)
+                    if academic_findings:
+                        research_context.append(academic_findings)
 
-            # 3. Get performance profile
-            perf_report = self.performance_profiler.get_findings_for_prompt()
-            if perf_report:
-                research_context.append(perf_report)
+                # 3. Get performance profile
+                perf_report = self.performance_profiler.get_findings_for_prompt()
+                if perf_report:
+                    research_context.append(perf_report)
 
-            # 4. Get lessons from past failures
-            lessons = self.failure_analyzer.get_lessons_for_prompt()
-            if lessons:
-                research_context.append(lessons)
+                # 4. Get lessons from past failures
+                lessons = self.failure_analyzer.get_lessons_for_prompt()
+                if lessons:
+                    research_context.append(lessons)
 
-            # 5. Build research-enriched prompt and generate proposals
-            if research_context:
-                research_blob = "\n".join(research_context)
-                self._emit_activity(
-                    "research_analyzing",
-                    f"📊 Analyzed {len(complexity)} complex functions, "
-                    f"{len(smells)} code smells across {len(hot_categories)} categories"
-                )
+                # 5. Build research-enriched prompt and generate proposals
+                if research_context:
+                    research_blob = "\n".join(research_context)
+                    self._emit_activity(
+                        "research_analyzing",
+                        f"📊 Analyzed {len(complexity)} complex functions, "
+                        f"{len(smells)} code smells across {len(hot_categories)} categories"
+                    )
 
-                # Use the reflection model to generate research-driven proposals
-                prompt = (
-                    "You are LocalMind's research engine. Based on the following automated "
-                    "codebase analysis, web research findings, project architecture, and "
-                    "user priorities, propose 1-2 specific, actionable improvements. "
-                    "Each proposal should target real files and describe concrete changes "
-                    "that align with the user's priorities.\n\n"
-                    f"{research_blob}\n\n"
-                    f"{('PROJECT ARCHITECTURE:\n' + arch_context + chr(10)*2) if arch_context else ''}"
-                    f"{(priority_context + chr(10)*2) if priority_context else ''}"
-                    f"Codebase scanner found {len(complexity)} complex functions and "
-                    f"{len(smells)} code smells.\n\n"
-                    "Respond in JSON format: "
-                    '[{{"title": "...", "description": "...", "category": "...", '
-                    '"risk": "low|medium", "files_affected": ["..."]}}]'
-                )
+                    # Use the reflection model to generate research-driven proposals
+                    prompt = (
+                        "You are LocalMind's research engine. Based on the following automated "
+                        "codebase analysis, web research findings, project architecture, and "
+                        "user priorities, propose 1-2 specific, actionable improvements. "
+                        "Each proposal should target real files and describe concrete changes "
+                        "that align with the user's priorities.\n\n"
+                        f"{research_blob}\n\n"
+                        f"{('PROJECT ARCHITECTURE:\n' + arch_context + chr(10)*2) if arch_context else ''}"
+                        f"{(priority_context + chr(10)*2) if priority_context else ''}"
+                        f"Codebase scanner found {len(complexity)} complex functions and "
+                        f"{len(smells)} code smells.\n\n"
+                        "Respond in JSON format: "
+                        '[{{"title": "...", "description": "...", "category": "...", '
+                        '"risk": "low|medium", "files_affected": ["..."]}}]'
+                    )
 
                 try:
                     async with httpx.AsyncClient(timeout=600.0) as client:
@@ -364,12 +373,11 @@ class AutonomyEngine:
                         if resp.status_code != 200:
                             logger.warning(f"Research LLM call failed with {resp.status_code}: {resp.text}")
                         else:
-                            import json as _json
                             text = resp.json().get("message", {}).get("content", "")
                             # Try to extract JSON array from response
                             match = re.search(r'\[.*\]', text, re.DOTALL)
                             if match:
-                                proposals = _json.loads(match.group())
+                                proposals = json.loads(match.group())
                                 logged = 0
                                 for p in proposals[:2]:
                                     self.proposals.save(
@@ -399,11 +407,10 @@ class AutonomyEngine:
                     # Fallback to Gemini if local model failed
                     gemini_result = await self._try_gemini_escalation(prompt)
                     if gemini_result:
-                        import json as _json2
                         match2 = re.search(r'\[.*\]', gemini_result, re.DOTALL)
                         if match2:
                             try:
-                                proposals = _json2.loads(match2.group())
+                                proposals = json.loads(match2.group())
                                 for p in proposals[:2]:
                                     self.proposals.save(
                                         proposal={
@@ -428,49 +435,65 @@ class AutonomyEngine:
                             except Exception:
                                 pass
 
-            self._emit_activity("research_complete", "🔬 Research cycle complete — no new findings")
+                self._emit_activity("research_complete", "🔬 Research cycle complete — no new findings")
 
-        except Exception as e:
-            logger.error(f"Auto-research error: {e}")
-            self._emit_activity("research_error", f"❌ Research error: {str(e)}")
+            except Exception as e:
+                logger.error(f"Auto-research error: {e}")
+                self._emit_activity("research_error", f"❌ Research error: {str(e)}")
 
-    async def _try_gemini_escalation(self, prompt: str) -> str:
-        """Optionally escalate to Gemini when local model fails. Local-first, cheap."""
-        try:
-            from backend.gemini_client import is_available, generate
-            if not is_available():
+        async def _try_gemini_escalation(self, prompt: str) -> str:
+            """Optionally escalate to Gemini when local model fails. Local-first, cheap."""
+            try:
+                from backend.gemini_client import is_available, generate
+                if not is_available():
+                    return None
+                logger.info("Escalating to Gemini (local model failed or unavailable)")
+                self._emit_activity("gemini_escalation", "☁️ Escalating to Gemini for complex analysis...")
+                result = await generate(prompt, scrub=True)
+                return result
+            except Exception as e:
+                logger.warning(f"Gemini escalation failed: {e}")
                 return None
-            logger.info("Escalating to Gemini (local model failed or unavailable)")
-            self._emit_activity("gemini_escalation", "☁️ Escalating to Gemini for complex analysis...")
-            result = await generate(prompt, scrub=True)
-            return result
-        except Exception as e:
-            logger.warning(f"Gemini escalation failed: {e}")
-            return None
 
-    async def _generate_interactive_proposal(self, topic: str, question: str):
-        """Create a proposal that asks the user a question before proceeding."""
-        self.proposals.save(
-            proposal={
-                "title": f"❓ Input needed: {topic}",
-                "description": question,
-                "category": "interactive",
-                "risk": "low",
-                "files_affected": [],
-                "source": "auto_research",
-            },
-            mode=self.mode,
-            auto_approve_risks=self.AUTO_APPROVE_RISKS,
-            emit_activity=self._emit_activity
-        )
-        self._emit_activity(
-            "needs_input",
-            f"❓ LocalMind needs your input: {topic}"
-        )
-        self.status["reflection"]["proposals_logged"] += 1
+        async def _generate_interactive_proposal(self, topic: str, question: str):
+            """Create a proposal that asks the user a question before proceeding."""
+            self.proposals.save(
+                proposal={
+                    "title": f"❓ Input needed: {topic}",
+                    "description": question,
+                    "category": "interactive",
+                    "risk": "low",
+                    "files_affected": [],
+                    "source": "auto_research",
+                },
+                mode=self.mode,
+                auto_approve_risks=self.AUTO_APPROVE_RISKS,
+                emit_activity=self._emit_activity
+            )
+            self._emit_activity(
+                "needs_input",
+                f"❓ LocalMind needs your input: {topic}"
+            )
+            self.status["reflection"]["proposals_logged"] += 1
 
 
-    def _check_health(self):
-        # The health check itself is handled in run_health_loop, 
-        # but the engine needs a method to actually hit Ollama or verify state.
-        return "ok"
+        def _check_health(self):
+            # The health check itself is handled in run_health_loop, 
+            # but the engine needs a method to actually hit Ollama or verify state.
+            return "ok"
+    async def _load_architecture_context(self):
+        arch_file = PROJECT_ROOT / "ARCHITECTURE.md"
+        if arch_file.exists():
+            return arch_file.read_text(encoding="utf-8")[:3000]
+        return ""
+
+    async def _load_priority_context(self):
+        prio_file = PROJECT_ROOT / "data" / "priorities.json"
+        if prio_file.exists():
+            try:
+                import json as _json
+                prios = _json.loads(prio_file.read_text(encoding="utf-8"))
+                active = [p for p in prios if p.get("status") == "active"]
+                return "\n".join([f"- {p.get('description')}" for p in active])
+            except: pass
+        return ""

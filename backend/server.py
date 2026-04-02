@@ -100,7 +100,7 @@ app = FastAPI(title="LocalMind", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -110,8 +110,15 @@ app.add_middleware(
 async def no_cache_static(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path
-    if path.endswith((".js", ".css", ".html")) or path == "/":
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    
+    is_local = request.url.hostname in ["localhost", "127.0.0.1"]
+    is_static = path.endswith((".js", ".css", ".html")) or path == "/"
+    
+    # We want Service Worker to handle caching for stability, 
+    # but still allow browser to check for updates during dev.
+    if is_static and is_local:
+        response.headers["Cache-Control"] = "no-cache"
+    
     return response
 
 # -- Register Routers --

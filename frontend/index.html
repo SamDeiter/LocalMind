@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>LocalMind | Obsidian Command Interface</title>
+    <title>Nexus | Autonomous Command Interface</title>
 
     <!-- Tailwind & Fonts -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -19,360 +19,56 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 
-    <script id="tailwind-config">
+            <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "surface-container-lowest": "#0e0e0e",
-                        "on-surface-variant": "#c4c7c7",
-                        "tertiary-fixed": "#e0e0ff",
-                        "outline": "#8e9192",
-                        "primary-container": "#010027",
-                        "background": "#131313",
-                        "on-tertiary-container": "#626dd7",
-                        "on-secondary-container": "#003f38",
-                        "on-background": "#e5e2e1",
-                        "surface-tint": "#c0c1ff",
-                        "on-error": "#690005",
-                        "tertiary-container": "#000125",
-                        "on-primary-container": "#6366f1",
-                        "on-tertiary-fixed-variant": "#2f3aa3",
-                        "on-secondary-fixed-variant": "#005048",
-                        "inverse-surface": "#e5e2e1",
-                        "tertiary": "#bdc2ff",
-                        "on-tertiary": "#131e8c",
-                        "on-secondary-fixed": "#00201c",
-                        "error": "#ffb4ab",
-                        "surface": "#131313",
-                        "surface-dim": "#131313",
-                        "surface-container-low": "#1c1b1b",
-                        "on-tertiary-fixed": "#000767",
-                        "surface-variant": "#353534",
-                        "surface-container-high": "#2a2a2a",
-                        "secondary-container": "#04b4a2",
-                        "on-primary-fixed-variant": "#2f2ebe",
-                        "tertiary-fixed-dim": "#bdc2ff",
-                        "outline-variant": "#444748",
-                        "on-secondary": "#003731",
-                        "on-primary": "#1000a9",
-                        "surface-container-highest": "#353534",
-                        "primary": "#c0c1ff",
-                        "on-primary-fixed": "#07006c",
-                        "primary-fixed-dim": "#c0c1ff",
-                        "inverse-primary": "#494bd6",
-                        "inverse-on-surface": "#313030",
-                        "primary-fixed": "#e1e0ff",
-                        "surface-bright": "#3a3939",
-                        "on-surface": "#e5e2e1",
-                        "on-error-container": "#ffdad6",
-                        "error-container": "#93000a",
-                        "surface-container": "#201f1f",
-                        "secondary-fixed-dim": "#4fdbc8",
-                        "secondary-fixed": "#71f8e4",
-                        "secondary": "#4fdbc8"
+                        "surface-container-lowest": "#020617",
+                        "on-surface-variant": "#94a3b8",
+                        "background": "#020617",
+                        "surface": "#0f172a",
+                        "surface-container-low": "#0f172a",
+                        "surface-container": "#1e293b",
+                        "surface-container-high": "#334155",
+                        "surface-container-highest": "#475569",
+                        "primary": "#6366f1",
+                        "secondary": "#10b981",
+                        "tertiary": "#8b5cf6",
+                        "on-background": "#f8fafc",
+                        "on-surface": "#f1f5f9",
+                        "on-primary": "#ffffff",
+                        "outline": "#64748b",
+                        "outline-variant": "#334155",
+                        "error": "#ef4444",
+                        "surface-variant": "#1e293b",
+                        "surface-bright": "#334155",
                     },
                     fontFamily: {
-                        "headline": ["Space Grotesk"],
-                        "body": ["Inter"],
-                        "label": ["Inter"]
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
                     },
-                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
                 },
             },
         }
     </script>
+    <link rel="stylesheet" href="styles.css" />
     <style type="text/tailwindcss">
-        .glass-panel {
-            background: rgba(53, 53, 52, 0.6);
-            backdrop-filter: blur(20px);
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #0e0e0e;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #444748;
-            border-radius: 10px;
-        }
-        .primary-gradient {
-            background: linear-gradient(135deg, #c0c1ff 0%, #6366f1 100%);
-        }
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
-        }
-        /* Toast Notification Styles */
-        .toast-container {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            z-index: 9999;
-            pointer-events: none;
-        }
-        .toast {
-            background: #2a2a2a;
-            border-left: 4px solid #4fdbc8;
-            padding: 1rem 1.5rem;
-            border-radius: 0.5rem;
-            color: #e5e2e1;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-            display: flex;
-            justify-content: space-between;
-            gap: 1.5rem;
-            transform: translateX(120%);
-            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
-            pointer-events: auto;
-        }
-        .toast.visible { transform: translateX(0); }
-        .toast-success { border-left-color: #4fdbc8; }
-        .toast-error { border-left-color: #ffb4ab; }
-        .toast-close { opacity: 0.5; cursor: pointer; }
-        .toast-close:hover { opacity: 1; }
-
-        /* ArXiv Search UI */
-        #arxivResults .insight-card {
-            background: #2a2a2a;
-            border: 1px solid rgba(255,255,255,0.05);
-            transition: all 0.3s ease;
-        }
-        #arxivResults .insight-card:hover { border-color: rgba(79, 219, 200, 0.4); }
-
-        /* Editor Layout Classes */
-        #monacoContainer { height: 100%; width: 100%; background: #000; }
-        .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
-        .editor-panel { display: none; flex: 1; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.08); background: #000; z-index: 45; }
-        .main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
-        
-        .ai-step-indicator {
-            width: 24px; height: 24px; border-radius: 50%; border: 1px solid #4fdbc8;
-            display: flex; align-items: center; justify-content: center; background: rgba(79, 219, 200, 0.1);
-        }
-
-        /* ═══ Proposal Cards ═══ */
-        .proposal-card {
-            background: #1c1b1b;
-            border: 1px solid rgba(68,71,72,0.25);
-            border-radius: 0.75rem;
-            padding: 1rem 1.25rem;
-            margin-bottom: 0.75rem;
-            transition: all 0.25s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .proposal-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0;
-            width: 3px; height: 100%;
-            background: rgba(192,193,255,0.3);
-            border-radius: 3px 0 0 3px;
-        }
-        .proposal-card:hover {
-            border-color: rgba(192,193,255,0.3);
-            background: #201f1f;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        .proposal-status-proposed::before { background: #c0c1ff; }
-        .proposal-status-approved::before { background: #ffc107; }
-        .proposal-status-completed::before { background: #4fdbc8; }
-        .proposal-status-failed::before { background: #ffb4ab; }
-        .proposal-status-denied::before { background: #8e9192; }
-
-        .proposal-header {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-bottom: 0.5rem;
-        }
-        .proposal-type {
-            font-size: 0.625rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: #c0c1ff;
-            background: rgba(99,102,241,0.12);
-            padding: 0.15rem 0.5rem;
-            border-radius: 0.25rem;
-        }
-        .proposal-priority {
-            font-size: 0.625rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .proposal-status-badge {
-            font-size: 0.625rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #c4c7c7;
-            margin-left: auto;
-        }
-        .confidence-badge {
-            font-size: 0.625rem;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-        }
-        .badge-arxiv {
-            font-size: 0.563rem;
-            font-weight: 700;
-            background: rgba(79,219,200,0.12);
-            color: #4fdbc8;
-            padding: 0.1rem 0.4rem;
-            border-radius: 0.2rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-        .proposal-title {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            font-size: 0.875rem;
-            color: #e5e2e1;
-            margin-bottom: 0.35rem;
-            line-height: 1.3;
-        }
-        .proposal-desc {
-            font-size: 0.75rem;
-            color: #8e9192;
-            line-height: 1.5;
-            margin-bottom: 0.5rem;
-        }
-        .proposal-timeline {
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-            font-size: 0.563rem;
-            color: #8e9192;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-bottom: 0.5rem;
-        }
-        .tl-arrow { color: rgba(192,193,255,0.4); }
-        .proposal-actions {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-            padding-top: 0.5rem;
-            border-top: 1px solid rgba(68,71,72,0.2);
-        }
-        .approval-btn, .retry-btn, .rollback-btn {
-            font-size: 0.625rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            padding: 0.35rem 0.75rem;
-            border-radius: 0.375rem;
-            border: 1px solid rgba(68,71,72,0.3);
-            background: rgba(42,42,42,0.6);
-            color: #c4c7c7;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .approval-btn:hover { background: rgba(192,193,255,0.1); border-color: rgba(192,193,255,0.3); color: #e5e2e1; }
-        .approval-btn.approve:hover { background: rgba(79,219,200,0.1); border-color: rgba(79,219,200,0.3); }
-        .approval-btn.deny:hover { background: rgba(255,180,171,0.1); border-color: rgba(255,180,171,0.3); }
-        .retry-btn:hover { background: rgba(255,193,7,0.1); border-color: rgba(255,193,7,0.3); }
-        .rollback-btn:hover { background: rgba(255,180,171,0.1); border-color: rgba(255,180,171,0.3); }
-        .approval-btn:disabled, .retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .proposal-result {
-            font-size: 0.688rem;
-            color: #4fdbc8;
-            background: rgba(79,219,200,0.06);
-            padding: 0.4rem 0.6rem;
-            border-radius: 0.375rem;
-            margin-top: 0.5rem;
-            line-height: 1.4;
-        }
-        .proposal-error {
-            font-size: 0.688rem;
-            color: #ffb4ab;
-            background: rgba(255,180,171,0.06);
-            padding: 0.4rem 0.6rem;
-            border-radius: 0.375rem;
-            margin-top: 0.5rem;
-            line-height: 1.4;
-        }
-
-        /* ═══ Priority Tags ═══ */
-        .priority-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            background: rgba(99,102,241,0.1);
-            border: 1px solid rgba(192,193,255,0.2);
-            border-radius: 0.5rem;
-            padding: 0.25rem 0.6rem;
-            font-size: 0.688rem;
-            color: #c0c1ff;
-            transition: all 0.2s ease;
-        }
-        .priority-tag:hover { border-color: rgba(192,193,255,0.5); background: rgba(99,102,241,0.18); }
-        .priority-tag .remove-priority {
-            background: none;
-            border: none;
-            color: #8e9192;
-            cursor: pointer;
-            font-size: 0.875rem;
-            line-height: 1;
-            padding: 0;
-            transition: color 0.15s;
-        }
-        .priority-tag .remove-priority:hover { color: #ffb4ab; }
-
-        /* ═══ Action Stream Cards ═══ */
-        #taskPipelineBody > div {
-            background: #1c1b1b;
-            border: 1px solid rgba(68,71,72,0.2);
-            border-radius: 0.75rem;
-            padding: 1rem;
-            transition: all 0.25s ease;
-            font-family: 'Inter', sans-serif;
-            font-size: 12px;
-            line-height: 1.5;
-            color: #e5e2e1;
-        }
-        #taskPipelineBody > div:hover {
-            border-color: rgba(192,193,255,0.25);
-            background: #201f1f;
-        }
-
-        /* ═══ Memory Empty State ═══ */
-        .memory-empty {
-            text-align: center;
-            padding: 2rem 1rem;
-            color: #8e9192;
-            font-size: 0.75rem;
-            font-style: italic;
-        }
-
-        /* ═══ Proposal List Container ═══ */
-        #proposalList {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        #proposalList.open {
-            max-height: 2000px;
-        }
+        /* Tailwind @layer overrides go here if needed */
     </style>
 </head>
 
-<body class="bg-surface-container-lowest text-on-background font-body selection:bg-primary/30 overflow-hidden h-screen flex">
+<body class="bg-[#020617] text-slate-300 font-body selection:bg-indigo-500/30 overflow-hidden h-screen flex">
 <div class="app-container w-full">
 
     <!-- SideNavBar (from Stitch + LocalMind features) -->
-    <aside id="sidebar" class="w-64 flex-shrink-0 flex flex-col bg-[#131313] border-r border-[#444748]/15 z-50">
+    <aside id="sidebar" class="w-64 flex-shrink-0 flex flex-col bg-[#030712]/95 border-r border-slate-800/60 z-50">
         <div class="px-6 py-8 flex items-center justify-between">
             <div>
-                <div class="text-xl font-bold tracking-tighter text-[#c0c1ff] font-headline">OBSIDIAN</div>
-                <div class="text-[10px] tracking-[0.2em] text-outline font-medium mt-1 uppercase">PRIME-V4</div>
+                <div class="text-lg font-black tracking-tighter text-white font-headline">NEXUS</div>
+                <div class="text-[9px] font-mono text-indigo-400 tracking-widest uppercase mt-1 font-bold opacity-80">Prime v4.0</div>
             </div>
             <button id="sidebarToggle" class="text-outline hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">menu_open</span></button>
         </div>
@@ -399,11 +95,11 @@
         </div>
 
         <nav class="flex-1 space-y-1 overflow-y-auto px-2 custom-scrollbar">
-            <button id="overviewBtn" class="w-full text-left text-[#c0c1ff] font-bold border-l-2 border-[#6366f1] bg-gradient-to-r from-[#6366f1]/10 to-transparent flex items-center px-4 py-3 transition-all">
+            <button id="overviewBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold transition-all">
                 <span class="material-symbols-outlined mr-4">terminal</span>
                 <span class="text-sm font-headline tracking-tight">Main Dashboard</span>
             </button>
-            <button id="newChatBtn" class="w-full text-left text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b] flex items-center px-4 py-3 transition-all group rounded-r-lg">
+            <button id="newChatBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
                 <span class="material-symbols-outlined mr-4 group-hover:text-primary">add_comment</span>
                 <span class="text-sm tracking-tight">New Session</span>
             </button>
@@ -426,10 +122,10 @@
             </div>
             
             <div class="pt-4 border-t border-outline-variant/15 space-y-2">
-                <button id="editorToggle" class="w-full text-left text-[#8e9192] hover:text-[#e5e2e1] flex items-center px-2 py-2 transition-colors">
+                <button id="editorToggle" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
                     <span class="material-symbols-outlined text-sm mr-3">code</span> Code Editor
                 </button>
-                <button id="systemPromptBtn" class="w-full text-left flex items-center text-xs text-outline hover:text-on-background px-2 py-2 transition-colors">
+                <button id="systemPromptBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
                     <span class="material-symbols-outlined text-sm mr-3">settings</span> Settings
                 </button>
             </div>
@@ -437,13 +133,13 @@
     </aside>
 
     <!-- Main Content Area -->
-    <div class="main-content flex-1 h-screen flex flex-col relative bg-[#131313]">
+    <div class="main-content flex-1 h-screen flex flex-col relative bg-[radial-gradient(ellipse_at_top,_#0f172a80,_#020617_70%)]">
         <!-- TopNavBar -->
-        <header class="h-16 z-40 bg-[#0e0e0e]/80 backdrop-blur-xl border-b border-[#444748]/15 shadow-sm flex items-center justify-between px-8 flex-shrink-0">
+        <header class="h-16 z-40 bg-slate-950/60 backdrop-blur-md border-b border-slate-800/60 flex items-center justify-between px-8 flex-shrink-0">
             <div class="flex items-center gap-8">
                 <div class="flex items-center gap-2">
-                    <span id="brainPulse" class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(79,219,200,0.4)]"></span>
-                    <span id="brainStatus" class="font-headline tracking-widest text-[#e5e2e1] text-sm uppercase">ONLINE</span>
+                    <span id="brainPulse" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]"></span>
+                    <span id="brainStatus" class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Core Active</span>
                 </div>
                 <div class="hidden lg:flex items-center gap-6">
                     <span class="text-primary font-mono text-[10px] tracking-widest uppercase border border-primary/20 bg-primary/5 px-2 py-0.5 rounded-full" id="tokenCounter">0 / 16384 TX</span>
@@ -452,22 +148,28 @@
             
             <div class="flex items-center gap-6">
                 <!-- System Status Indicators -->
-                <div class="flex items-center gap-4 border-r border-outline-variant/20 pr-6">
-                    <div class="flex flex-col items-end">
-                        <span class="text-[10px] text-outline leading-none uppercase tracking-tighter">CPU Load</span>
-                        <span class="text-xs font-mono font-bold text-secondary" id="cpuVal">--%</span>
+                <div class="flex items-center gap-3">
+                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]">
+                        <div class="flex items-center gap-2 text-[9px] uppercase tracking-wider font-bold text-slate-500">
+                            <span class="material-symbols-outlined text-cyan-400 text-[12px]">memory</span> CPU
+                        </div>
+                        <div class="text-xs font-bold text-slate-100 tabular-nums font-mono" id="cpuVal">--%</div>
                     </div>
-                    <div class="flex flex-col items-end">
-                        <span class="text-[10px] text-outline leading-none uppercase tracking-tighter">VRAM Free</span>
-                        <span class="text-xs font-mono font-bold text-primary" id="vramVal">SYNCED</span>
+                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]">
+                        <div class="flex items-center gap-2 text-[9px] uppercase tracking-wider font-bold text-slate-500">
+                            <span class="material-symbols-outlined text-violet-400 text-[12px]">storage</span> VRAM
+                        </div>
+                        <div class="text-xs font-bold text-slate-100 tabular-nums font-mono" id="vramVal">--</div>
                     </div>
-                    <div class="flex flex-col items-end">
-                        <span class="text-[10px] text-outline leading-none uppercase tracking-tighter">RAM</span>
-                        <span class="text-xs font-mono font-bold text-secondary" id="ramVal">--GB</span>
+                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]">
+                        <div class="flex items-center gap-2 text-[9px] uppercase tracking-wider font-bold text-slate-500">
+                            <span class="material-symbols-outlined text-indigo-400 text-[12px]">monitoring</span> RAM
+                        </div>
+                        <div class="text-xs font-bold text-slate-100 tabular-nums font-mono" id="ramVal">--</div>
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-4 text-[#8e9192]">
+                <div class="flex items-center gap-4 text-slate-400">
                     <span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors">notifications_active</span>
                 </div>
             </div>
@@ -476,7 +178,7 @@
         <!-- Editor Panel Overlay/Split -->
         <section class="editor-panel absolute inset-0 pt-16" id="editorPanel">
             <!-- Full height content container inside editor panel -->
-            <div class="flex flex-col h-full bg-[#0e0e0e] border-l border-outline-variant/20">
+            <div class="flex flex-col h-full bg-slate-950 border-l border-outline-variant/20">
                 <div class="flex items-center justify-between p-3 border-b border-outline-variant/20 bg-surface-container-low">
                     <span class="text-xs font-headline tracking-widest text-[#c0c1ff]">Neural IDE</span>
                     <div class="flex gap-2">
@@ -487,7 +189,7 @@
                     </div>
                 </div>
                 <div class="flex-1 flex overflow-hidden">
-                    <div id="editorFileTree" class="w-56 border-r border-[#444748]/15 bg-[#131313] p-2 overflow-y-auto custom-scrollbar">
+                    <div id="editorFileTree" class="w-56 border-r border-slate-800/15 bg-transparent p-2 overflow-y-auto custom-scrollbar">
                         <div id="editorFileList" class="space-y-0.5 text-xs text-outline"></div>
                     </div>
                     <!-- Editor panel divider for resizing -->
@@ -496,7 +198,7 @@
                         <div id="monacoContainer" class="absolute inset-0"></div>
                     </div>
                 </div>
-                <div id="editorStatus" class="p-2 border-t border-outline-variant/20 bg-[#131313] text-[9px] text-outline uppercase tracking-widest flex justify-between">
+                <div id="editorStatus" class="p-2 border-t border-outline-variant/20 bg-transparent text-[9px] text-outline uppercase tracking-widest flex justify-between">
                     <span id="editorPath">No file open</span>
                     <span id="editorLang">plaintext</span>
                 </div>
@@ -513,7 +215,7 @@
                     
                     <div class="flex items-center justify-between">
                         <div>
-                            <h1 class="text-3xl font-headline font-bold text-on-background tracking-tight">System Node Alpha-9</h1>
+                            <h1 class="text-2xl font-black text-white tracking-tight font-headline">Nexus Node Alpha-9</h1>
                             <p class="text-outline text-sm mt-1">Status: <span class="text-secondary font-medium">Operational</span> — Operations Active</p>
                         </div>
                         <div class="flex items-center gap-3">
@@ -522,17 +224,17 @@
                                 <span class="text-outline-variant/30">│</span>
                                 <span>Tasks: <span id="brainApplied" class="text-primary">0</span></span>
                             </div>
-                            <button id="brainReflectBtn" class="px-3 py-2 bg-surface-container-high border border-outline-variant/30 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-surface-bright transition-colors">
+                            <button id="brainReflectBtn" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-[10px] font-black text-slate-200 hover:bg-slate-700 transition-all uppercase tracking-widest shadow-lg">
                                 <span class="material-symbols-outlined text-sm">psychology</span> Reflect
                             </button>
-                            <button id="brainExecuteBtn" class="px-3 py-2 primary-gradient text-on-primary rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/10 hover:brightness-110 active:scale-95 transition-all">
+                            <button id="brainExecuteBtn" class="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-[10px] font-black text-white hover:shadow-2xl hover:shadow-indigo-500/30 transition-all uppercase tracking-widest">
                                 <span class="material-symbols-outlined text-sm">bolt</span> Execute
                             </button>
                         </div>
                     </div>
 
                     <!-- Reasoning & Execution Console (AI Thinking Feed) -->
-                    <div class="bg-surface-container rounded-2xl p-6 flex flex-col gap-6 relative overflow-hidden group border border-outline-variant/10 shadow-lg" id="aiThinkingPanel">
+                    <div class="bg-slate-900/30 border border-slate-800/60 rounded-3xl p-6 flex flex-col gap-6 relative overflow-hidden shadow-xl" id="aiThinkingPanel">
                         <div class="absolute inset-0 opacity-5 pointer-events-none">
                             <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,#6366f1,transparent)]"></div>
                         </div>
@@ -547,7 +249,62 @@
                                     <span class="text-[10px] font-mono text-outline">Engine Activity Log</span>
                                 </div>
                             </div>
-                            <span class="px-2 py-1 bg-surface-container-highest text-[10px] font-mono text-on-surface-variant rounded">LOCAL_MIND_V4</span>
+                            <span class="px-2.5 py-0.5 bg-slate-950 text-[9px] font-mono text-slate-400 rounded-full border border-slate-800/50">NXS_CORE_V4</span>
+                        </div>
+                        
+                        
+                        <!-- Agent Workflow Visualizer -->
+                        <div id="agent-workflow-stepper" class="flex items-center justify-around mb-6 mt-4 px-4 z-10 w-full">
+                            
+                            <!-- Step 1: Planner (Active) -->
+                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0">
+                                <div class="relative">
+                                    <div id="step-planner" class="w-11 h-11 rounded-full bg-indigo-500/20 border-2 border-indigo-500 flex items-center justify-center text-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.5)] transition-all duration-300">
+                                        <span class="material-symbols-outlined text-[20px]">schema</span>
+                                    </div>
+                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-indigo-500 text-[8px] font-black text-white flex items-center justify-center shadow-lg">1</span>
+                                </div>
+                                <span class="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-400">Planner</span>
+                            </div>
+                            
+
+                            
+                            <!-- Step 2: Coder -->
+                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0">
+                                <div class="relative">
+                                    <div id="step-coder" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
+                                        <span class="material-symbols-outlined text-[20px]">code_blocks</span>
+                                    </div>
+                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center">2</span>
+                                </div>
+                                <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Coder</span>
+                            </div>
+                            
+
+                            
+                            <!-- Step 3: Execute -->
+                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0">
+                                <div class="relative">
+                                    <div id="step-execute" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
+                                        <span class="material-symbols-outlined text-[20px]">terminal</span>
+                                    </div>
+                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center">3</span>
+                                </div>
+                                <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Execute</span>
+                            </div>
+                            
+
+                            
+                            <!-- Step 4: Review -->
+                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0">
+                                <div class="relative">
+                                    <div id="step-reviewer" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
+                                        <span class="material-symbols-outlined text-[20px]">verified_user</span>
+                                    </div>
+                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center">4</span>
+                                </div>
+                                <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Review</span>
+                            </div>
                         </div>
                         
                         <div id="aiThinkingFeed" class="flex-1 space-y-4 max-h-[250px] overflow-y-auto custom-scrollbar pr-2 z-10 font-mono text-sm">
@@ -557,7 +314,7 @@
 
                     <div class="mt-4">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-[10px] font-bold text-outline tracking-widest uppercase">Global Action Stream</h3>
+                            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]"></span> Action Stream</h3>
                             <span class="text-[10px] font-bold text-secondary uppercase tracking-widest" id="taskPipelineCount">0 Active Tasks</span>
                         </div>
                         <!-- We use a grid matching the Stitch "Active Directives" -->
@@ -568,6 +325,35 @@
                 </div>
 
                 <!-- Chat Window (Unified Overlay) -->
+                
+                <!-- The "Thinking" Terminal -->
+                <div id="thinking-terminal" class="absolute bottom-0 left-0 right-0 h-[250px] bg-slate-950 border-t border-slate-800 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] flex flex-col z-40 transform translate-y-full transition-transform duration-300">
+                    <div class="flex items-center justify-between px-6 py-2 bg-slate-900 border-b border-slate-800">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-green-400 text-sm">terminal</span>
+                            <span class="font-mono text-xs text-green-400 font-bold uppercase tracking-widest">Agent Shell Output</span>
+                        </div>
+                        <button id="closeThinkingTerminalBtn" class="text-gray-400 hover:text-white transition-colors">
+                            <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+                        </button>
+                    </div>
+                    
+                    <div id="mini-stepper" class="flex items-center gap-4 px-6 py-2 bg-slate-900/80 border-b border-slate-800/50">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Active Phase:</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] uppercase font-bold text-primary animate-pulse flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">schema</span> Planner</span>
+                            <span class="text-slate-700">→</span>
+                            <span class="text-[10px] uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">code</span> Coder</span>
+                            <span class="text-slate-700">→</span>
+                            <span class="text-[10px] uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">terminal</span> Sandbox</span>
+                            <span class="text-slate-700">→</span>
+                            <span class="text-[10px] uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">rule</span> Review</span>
+                        </div>
+                    </div>
+                    
+                    <div id="thinkingTerminalOutput" class="flex-1 overflow-y-auto p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap custom-scrollbar">Loading OpenClaw-level shell access sandbox...</div>
+                </div>
+                
                 <div id="chatScreen" class="hidden absolute bottom-12 left-1/2 -translate-x-1/2 w-[calc(100%-80px)] lg:w-[800px] max-h-[85vh] h-[750px] bg-surface-container-high/95 backdrop-blur-3xl border border-outline-variant/30 rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.8)] z-50 flex flex-col overflow-hidden transition-all duration-300">
                     <!-- Header -->
                     <div class="flex items-center justify-between p-5 border-b border-outline-variant/10 bg-surface-container-highest/80 backdrop-blur-md sticky top-0 z-10">
@@ -586,7 +372,7 @@
                     </div>
 
                     <!-- Input Area -->
-                    <div class="p-4 bg-surface-container/50 border-t border-outline-variant/10">
+                    <div class="p-4 bg-surface-container-low/50 border-t border-outline-variant/10">
                         <div class="bg-background/50 backdrop-blur-md rounded-2xl border border-outline-variant/30 focus-within:border-primary/50 transition-shadow p-2 flex gap-3 shadow-inner">
                             <div class="flex flex-col gap-2 border-r border-outline-variant/20 pr-3">
                                 <button id="micBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
@@ -609,26 +395,26 @@
             </section>
 
             <!-- Secondary Information (Right Pane) -->
-            <section class="w-80 flex-shrink-0 bg-[#0e0e0e] border-l border-[#444748]/15 flex flex-col p-6 overflow-y-auto custom-scrollbar shadow-inner z-10">
+            <section class="w-80 flex-shrink-0 bg-[#030712] border-l border-slate-800/60 flex flex-col p-6 overflow-y-auto custom-scrollbar z-10">
                 
                 <!-- Decision Support / Architect Insight -->
                 <div class="mb-8">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="font-headline font-bold text-sm tracking-widest uppercase text-[#e5e2e1]">Architect Insight</h2>
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Architect Insight</h2>
                         <span class="material-symbols-outlined text-sm text-primary">lightbulb</span>
                     </div>
                     <div id="architectInsight" class="bg-surface-container-high p-4 rounded-xl border border-outline-variant/20 shadow-lg relative overflow-hidden group">
                         <p id="insightContent" class="text-xs text-on-surface-variant leading-relaxed italic">
                             Standing by for reasoning vectors...
                         </p>
-                        <div id="brainDigest" class="hidden mt-3 p-2 bg-surface-container-lowest rounded border border-outline-variant/10 text-[10px] text-outline leading-tight font-mono"></div>
+                        <div id="brainDigest" class="hidden mt-3 p-2 bg-transparent rounded border border-outline-variant/10 text-[10px] text-outline leading-tight font-mono"></div>
                     </div>
                 </div>
 
                 <!-- Research Intelligence (ArXiv Search) -->
                 <div class="mb-8">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="font-headline font-bold text-sm tracking-widest uppercase text-[#e5e2e1]">Research Network</h2>
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200 flex items-center gap-2.5">Research Network</h2>
                         <span class="material-symbols-outlined text-sm text-secondary">history_edu</span>
                     </div>
                     <div class="space-y-4">
@@ -650,10 +436,10 @@
                 <!-- System Logs (Replacing visual charts with the Operations Log) -->
                 <div class="flex-1 flex flex-col">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="font-headline font-bold text-sm tracking-widest uppercase text-[#e5e2e1]">System Logs</h2>
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Event Stream</h2>
                         <span class="material-symbols-outlined text-outline text-lg cursor-pointer hover:text-on-background">filter_list</span>
                     </div>
-                    <div class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar" id="systemLogFeed">
+                    <div class="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar" id="systemLogFeed">
                         <!-- Static fake logs from design -->
                         <div class="group flex gap-3">
                             <div class="w-1 h-8 bg-secondary rounded-full mt-1"></div>

@@ -11,8 +11,8 @@ const CACHE_NAME = "localmind-v1";
 // Files to cache for instant loading
 const SHELL_FILES = [
   "/",
-  "/static/style.css",
-  "/static/app.js",
+  "/style.css",
+  "/app.js",
   "/manifest.json",
 ];
 
