@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, PROPOSALS_DIR
+from backend.config import DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, PROPOSALS_DIR, FRONTEND_URLS
 from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
 from backend.tools.registry import ToolRegistry
 from backend.autonomy import AutonomyEngine, PROPOSALS_DIR
@@ -100,8 +100,8 @@ app = FastAPI(title="LocalMind", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=FRONTEND_URLS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

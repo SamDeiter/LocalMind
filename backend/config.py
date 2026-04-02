@@ -3,6 +3,7 @@ import os
 # --- Network & URLs ---
 OLLAMA_BASE_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 SERVER_PORT = int(os.getenv("PORT", 8000))
+FRONTEND_URLS = os.getenv("FRONTEND_URLS", "http://localhost:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173").split(",")
 
 # -- Model Tiers --
 MODEL_TIERS = {
