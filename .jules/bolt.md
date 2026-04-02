@@ -1,0 +1,3 @@
+## 2025-05-15 - [Proposal Status Update Optimization]
+**Learning:** In the `ProposalManager`, updating a proposal's status was previously scanning all JSON files in the `PROPOSALS_DIR` and parsing them to find the one with the matching ID. Since IDs are part of the filename (`{proposal_id}_{category}.json`), this was inefficient and led to $O(N)$ performance for file I/O and JSON parsing.
+**Action:** Use a targeted glob pattern like `PROPOSALS_DIR.glob(f"{proposal_id}_*.json")` to directly access the relevant file(s). This reduces the cost to $O(1)$ in the common case, significantly speeding up proposal updates as the number of proposals grows.

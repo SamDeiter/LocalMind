@@ -326,7 +326,8 @@ class ProposalManager:
         if not PROPOSALS_DIR.exists():
             return None
 
-        for f in PROPOSALS_DIR.glob("*.json"):
+        # Optimization: lookup file by ID prefix instead of scanning all JSON files
+        for f in PROPOSALS_DIR.glob(f"{proposal_id}_*.json"):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 if data.get("id") == proposal_id:
@@ -392,7 +393,9 @@ class ProposalManager:
         proposal_id = proposal.get("id")
         if not proposal_id or not PROPOSALS_DIR.exists():
             return
-        for f in PROPOSALS_DIR.glob("*.json"):
+
+        # Optimization: lookup file by ID prefix instead of scanning all JSON files
+        for f in PROPOSALS_DIR.glob(f"{proposal_id}_*.json"):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 if data.get("id") == proposal_id:
@@ -425,7 +428,8 @@ class ProposalManager:
         if not follows_id:
             return True  # No prerequisite
 
-        for f in PROPOSALS_DIR.glob("*.json"):
+        # Optimization: lookup file by ID prefix instead of scanning all JSON files
+        for f in PROPOSALS_DIR.glob(f"{follows_id}_*.json"):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 if data.get("id") == follows_id:
@@ -575,7 +579,8 @@ class ProposalManager:
         if not PROPOSALS_DIR.exists():
             return None
 
-        for f in PROPOSALS_DIR.glob("*.json"):
+        # Optimization: lookup file by ID prefix instead of scanning all JSON files
+        for f in PROPOSALS_DIR.glob(f"{proposal_id}_*.json"):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 if data.get("id") == proposal_id:
