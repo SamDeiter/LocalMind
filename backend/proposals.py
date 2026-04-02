@@ -249,45 +249,46 @@ class ProposalManager:
         """
         score = 0
 
-        # Category success (from completed vs failed counts)
         category = proposal.get("category", "unknown")
+        target_files = set(proposal.get("files_affected", []))
+
         completed = failed = 0
-        for d in (PROPOSALS_DIR, PROPOSALS_DIR / "archive"):
+        familiar = 0
+
+        # Single pass over proposals to collect both category and file familiarity stats
+        for d in (PROPOSALS_DIR, ARCHIVE_DIR):
             if not d.exists():
                 continue
             for f in d.glob("*.json"):
                 try:
                     data = json.loads(f.read_text(encoding="utf-8"))
+
+                    status = data.get("status")
+
+                    # Category success check
                     if data.get("category") == category:
-                        if data.get("status") == "completed":
+                        if status == "completed":
                             completed += 1
-                        elif data.get("status") == "failed":
+                        elif status == "failed":
                             failed += 1
+
+                    # File familiarity check
+                    if target_files and status == "completed":
+                        edited = set(data.get("files_edited", []))
+                        if edited & target_files:
+                            familiar += 1
                 except (json.JSONDecodeError, OSError):
                     continue
 
+        # Category success score
         total = completed + failed
         if total > 0:
             score += int((completed / total) * 40)
         else:
             score += 20  # Unknown category = neutral
 
-        # File familiarity
-        target_files = set(proposal.get("files_affected", []))
+        # File familiarity score
         if target_files:
-            familiar = 0
-            for d in (PROPOSALS_DIR, PROPOSALS_DIR / "archive"):
-                if not d.exists():
-                    continue
-                for f in d.glob("*.json"):
-                    try:
-                        data = json.loads(f.read_text(encoding="utf-8"))
-                        if data.get("status") == "completed":
-                            edited = set(data.get("files_edited", []))
-                            if edited & target_files:
-                                familiar += 1
-                    except (json.JSONDecodeError, OSError):
-                        continue
             score += min(30, familiar * 10)
         else:
             score += 15  # No files = neutral
