@@ -5,14 +5,6 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 SERVER_PORT = int(os.getenv("PORT", 8000))
 FRONTEND_URLS = os.getenv("FRONTEND_URLS", "http://localhost:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173").split(",")
 
-# -- Model Tiers --
-MODEL_TIERS = {
-    "light":  "qwen2.5-coder:7b",
-    "medium": "qwen2.5-coder:14b",
-    "heavy":  "qwen2.5-coder:32b",
-    "ultra":  "qwen2.5-coder:70b",
-}
-
 # -- Default System Prompt --
 DEFAULT_SYSTEM_PROMPT = """You are LocalMind — think of yourself as the user's brilliant, reliable friend who happens to be great with technology. You talk naturally, like a real person — not a corporate chatbot.
 
@@ -60,9 +52,16 @@ MODEL_TIERS = {
 # --- Paths ---
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = Path.home() / "LocalMind_Workspace" / "localmind.db"
-PROPOSALS_DIR = Path.home() / "LocalMind_Workspace" / "proposals"
+
+# Default Workspace: ~/LocalMind_Workspace
+WORKSPACE_ROOT = Path(os.getenv("WORKSPACE_DIR", str(Path.home() / "LocalMind_Workspace")))
+DB_PATH = Path(os.getenv("DB_PATH", str(WORKSPACE_ROOT / "localmind.db")))
+PROPOSALS_DIR = WORKSPACE_ROOT / "proposals"
+ARCHIVE_DIR = PROPOSALS_DIR / "archive"
+DIGESTS_DIR = WORKSPACE_ROOT / "digests"
 
 # Ensure workspace exists
 (Path.home() / "LocalMind_Workspace").mkdir(parents=True, exist_ok=True)
 PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
+ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+DIGESTS_DIR.mkdir(parents=True, exist_ok=True)

@@ -34,7 +34,7 @@ def _get_researcher():
     """Lazy-init the AcademicResearcher to avoid import-time side effects."""
     global _researcher
     if _researcher is None:
-        from backend.research_engine import AcademicResearcher
+        from backend.research.web import AcademicResearcher
         _researcher = AcademicResearcher()
     return _researcher
 

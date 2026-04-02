@@ -328,7 +328,7 @@ export function clearMessages() {
 
 export function renderMessages() {
   if (!messagesContainer) return;
-  messagesContainer.innerHTML = "";
+  // messagesContainer.innerHTML = ""; // Managed by clearMessages
   const chatScreen = document.getElementById("chatScreen");
   // Dashboard UI is no longer obscured when chatting
   if (chatScreen) {

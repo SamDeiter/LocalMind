@@ -694,6 +694,7 @@ export async function renderTaskPipeline() {
       proposed:    { icon: "📋", label: "Pending",    cls: "pending",    color: "#aaabb2" },
       failed:      { icon: "❌", label: "Failed",     cls: "failed",     color: "#f44336" },
       completed:   { icon: "✅", label: "Done",       cls: "done",       color: "#4caf50" },
+      denied:      { icon: "🚫", label: "Denied",     cls: "denied",     color: "#e91e63" },
     };
 
     let html = "";
@@ -703,8 +704,8 @@ export async function renderTaskPipeline() {
       const items = groups[status] || [];
       if (items.length === 0) continue;
 
-      // For completed, only show last 3 collapsed
-      const displayItems = status === "completed" ? items.slice(-3) : items;
+      // Show all items when expanded; the hidden class on the container handles collapse
+      const displayItems = items;
 
       const isCollapsible = status === "completed" || status === "denied" || status === "failed";
       const defaultClosed = status === "completed" || status === "denied";
@@ -802,10 +803,6 @@ export async function renderTaskPipeline() {
         html += `</div>`;
       }
       html += `</div>`;
-
-      if (status === "completed" && items.length > 3) {
-        html += `<div class="mt-2 text-[10px] text-center font-bold uppercase tracking-widest text-outline/40 py-2 border border-dashed border-outline-variant/20 rounded-lg hover:text-outline/60 cursor-pointer transition-colors">+${items.length - 3} more records archived</div>`;
-      }
 
       html += `</div>`;
     }

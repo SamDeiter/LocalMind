@@ -25,7 +25,7 @@ async def agent_chat(
     assistant_name: str = "AI Assistant",
 ) -> AsyncGenerator[dict, None]:
     """
-    Run the agent loop. Yields events for the frontend:
+# Run the agent loop. Yields events for the frontend:
     - {type: thinking}                     — model is generating
     - {type: tool_call, tool: {...}}      — model wants to use a tool
     - {type: tool_result, result: {...}}  — tool execution result
@@ -86,7 +86,7 @@ async def agent_chat(
         if content and not tool_calls:
             yield {"type": "content", "content": content}
             yield {"type": "done"}
-            return
+            break
 
         # If the model returned text content WITH tool calls, send text first
         if content:
@@ -99,6 +99,10 @@ async def agent_chat(
 
         # Process tool calls
         # Add the assistant's message (with tool calls) to the conversation
+        if not isinstance(message, dict) or 'role' not in message or 'content' not in message:
+            yield {'type': 'error', 'error': 'Invalid message format'}
+            return
+
         full_messages.append(message)
 
         for tool_call in tool_calls:
