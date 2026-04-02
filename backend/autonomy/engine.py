@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import json
 import re
 import time
 from pathlib import Path
@@ -364,12 +363,11 @@ class AutonomyEngine:
                         if resp.status_code != 200:
                             logger.warning(f"Research LLM call failed with {resp.status_code}: {resp.text}")
                         else:
-                            import json as _json
                             text = resp.json().get("message", {}).get("content", "")
                             # Try to extract JSON array from response
                             match = re.search(r'\[.*\]', text, re.DOTALL)
                             if match:
-                                proposals = _json.loads(match.group())
+                                proposals = json.loads(match.group())
                                 logged = 0
                                 for p in proposals[:2]:
                                     self.proposals.save(
@@ -399,11 +397,10 @@ class AutonomyEngine:
                     # Fallback to Gemini if local model failed
                     gemini_result = await self._try_gemini_escalation(prompt)
                     if gemini_result:
-                        import json as _json2
                         match2 = re.search(r'\[.*\]', gemini_result, re.DOTALL)
                         if match2:
                             try:
-                                proposals = _json2.loads(match2.group())
+                                proposals = json.loads(match2.group())
                                 for p in proposals[:2]:
                                     self.proposals.save(
                                         proposal={

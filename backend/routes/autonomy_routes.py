@@ -275,7 +275,6 @@ async def rollback_proposal(proposal_id: str):
     """Revert a completed proposal's merge."""
     from backend.git_ops import get_merge_commit, revert_merge
     from backend.proposals import PROPOSALS_DIR
-    import json
 
     # Find the proposal
     for f in PROPOSALS_DIR.glob("*.json"):
@@ -307,7 +306,6 @@ async def rollback_proposal(proposal_id: str):
 async def category_stats():
     """Return per-category success/fail/total counts for dashboard charts."""
     from backend.proposals import PROPOSALS_DIR
-    import json
     from collections import defaultdict
 
     stats = defaultdict(lambda: {"completed": 0, "failed": 0, "total": 0, "denied": 0})

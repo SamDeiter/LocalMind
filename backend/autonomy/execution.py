@@ -20,8 +20,7 @@ async def execute_proposal_cycle(engine, timeout=300) -> bool:
     try:
         prio_file = Path(__file__).parent.parent.parent / "data" / "priorities.json"
         if prio_file.exists():
-            import json as _json
-            prios = _json.loads(prio_file.read_text(encoding="utf-8"))
+            prios = json.loads(prio_file.read_text(encoding="utf-8"))
             user_priorities = [p.get("description", "").lower() for p in prios if p.get("status") == "active"]
     except Exception:
         pass
