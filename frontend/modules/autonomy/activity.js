@@ -1,7 +1,7 @@
 import { API } from "../state.js";
 import { escapeHtml, showToast } from "../utils.js";
 import { ACTION_ICONS, MAX_ACTIVITY_ITEMS } from "./constants.js";
-import { updateBrainDashboard, updateSuccessRate } from "./dashboard.js";
+import { updateBrainDashboard, updateSuccessRate, updateAgentStepper } from "./dashboard.js";
 
 let activityEventSource = null;
 
@@ -16,6 +16,15 @@ export function connectActivityFeed() {
       addActivityItem(event);
       updateActivityBar(event);
       updateBrainDashboard(event);
+      // Stepper Phase Mapping
+      const dMatch = (event.detail || "").toLowerCase();
+      const a = (event.action || "").toLowerCase();
+      let ph = "idle";
+      if (["think", "reflect", "plan"].some(s => a.includes(s) || dMatch.includes(s))) ph = "planning";
+      else if (["write", "code", "gen"].some(s => a.includes(s) || dMatch.includes(s))) ph = "coding";
+      else if (["run", "execute", "commit"].some(s => a.includes(s) || dMatch.includes(s))) ph = "executing";
+      else if (["verify", "check", "review"].some(s => a.includes(s) || dMatch.includes(s))) ph = "reviewing";
+      updateAgentStepper(ph);
 
       if (event.action === "completed") {
         showToast(`✨ ${event.detail}`, "info");

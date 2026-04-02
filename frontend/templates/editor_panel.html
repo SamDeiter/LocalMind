@@ -1,0 +1,28 @@
+<section class="editor-panel absolute inset-0 pt-16" id="editorPanel">
+            <!-- Full height content container inside editor panel -->
+            <div class="flex flex-col h-full bg-slate-950 border-l border-outline-variant/20">
+                <div class="flex items-center justify-between p-3 border-b border-outline-variant/20 bg-surface-container-low">
+                    <span class="text-xs font-headline tracking-widest text-[#c0c1ff]">Neural IDE</span>
+                    <div class="flex gap-2">
+                        <button id="editorRunBtn" class="bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors">Run Script</button>
+                        <button id="editorSendToAI" class="bg-surface-variant hover:bg-surface-bright text-on-surface text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors border border-outline-variant/30">Attach to Context</button>
+                        <!-- Close Editor Button -->
+                        <button id="editorCloseBtn" onclick="document.getElementById('editorToggle').click()" class="text-outline hover:text-error ml-4"><span class="material-symbols-outlined">close</span></button>
+                    </div>
+                </div>
+                <div class="flex-1 flex overflow-hidden">
+                    <div id="editorFileTree" class="w-56 border-r border-slate-800/15 bg-transparent p-2 overflow-y-auto custom-scrollbar">
+                        <div id="editorFileList" class="space-y-0.5 text-xs text-outline"></div>
+                    </div>
+                    <!-- Editor panel divider for resizing -->
+                    <div id="panelDivider" class="w-1 cursor-col-resize bg-outline-variant/10 hover:bg-primary/50 transition-colors z-50"></div>
+                    <div class="flex-1 relative">
+                        <div id="monacoContainer" class="absolute inset-0"></div>
+                    </div>
+                </div>
+                <div id="editorStatus" class="p-2 border-t border-outline-variant/20 bg-transparent text-[9px] text-outline uppercase tracking-widest flex justify-between">
+                    <span id="editorPath">No file open</span>
+                    <span id="editorLang">plaintext</span>
+                </div>
+            </div>
+        </section>

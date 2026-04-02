@@ -1,3 +1,4 @@
+import { loadAllTemplates } from "./modules/template_loader.js";
 /**
  * LocalMind v3 — Entry Point
  * Thin boot file: imports modules and calls init.
@@ -47,8 +48,16 @@ async function init() {
   }
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
+async function boot() {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadAllTemplates();
+      init();
+    });
+  } else {
+    await loadAllTemplates();
+    init();
+  }
 }
+
+boot();

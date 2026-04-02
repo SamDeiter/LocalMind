@@ -18,7 +18,7 @@ import { loadPriorities } from "./priority.js";
 import { loadDigest, exportDigest } from "./digest.js";
 import { renderTaskPipeline } from "./proposals.js";
 import { updateSuccessRate } from "./dashboard.js";
-import { toggleAutonomyMode, triggerReflection, triggerExecution } from "./controls.js";
+import { toggleAutonomyMode, triggerReflection, triggerExecution, pauseBrain, stopBrain } from "./controls.js";
 import { priorityInput } from "../state.js";
 
 export function initAutonomyUI() {
@@ -65,6 +65,11 @@ export function initAutonomyUI() {
           import("./controls.js").then(m => m.executeDirective());
       });
   }
+
+
+  // Wire Engine Controls (Top Bar)
+  document.getElementById("enginePauseBtn")?.addEventListener("click", pauseBrain);
+  document.getElementById("engineStopBtn")?.addEventListener("click", stopBrain);
 
   // Initial load
   loadPriorities();

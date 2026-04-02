@@ -110,7 +110,28 @@ export async function pollAutonomy() {
       window._brainCaughtUp = true;
       populateInitialEvents(d.recent_events);
     }
-  } catch {
+  
+    // Update Reflection History (Architect Insight)
+    const reflectHistory = document.getElementById("architectInsightHistory");
+    if (reflectHistory && d.recent_events) {
+        const thoughts = d.recent_events.filter(e => 
+            e.action === "reflecting" || e.action === "thinking" || (e.detail && e.detail.toLowerCase().includes("reflect"))
+        ).slice(-5).reverse();
+        
+        if (thoughts.length > 0) {
+            reflectHistory.innerHTML = thoughts.map(t => `
+                <div class="mb-3 p-2 bg-slate-800/40 border-l-2 border-indigo-500/50 rounded-r text-[11px] text-slate-300">
+                    <div class="flex justify-between opacity-50 mb-1">
+                        <span class="font-bold uppercase tracking-tighter">Cycle: ${t.action}</span>
+                        <span>${t.time || ""}</span>
+                    </div>
+                    <p class="leading-relaxed italic">"${escapeHtml(t.detail || "")}"</p>
+                </div>
+            `).join("");
+        }
+    }
+
+    } catch {
     /* server not ready yet */
   }
 }

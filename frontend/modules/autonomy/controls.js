@@ -72,3 +72,29 @@ export function toggleActivityFeed() {
 export function setAutonomyMode(mode) {
   toggleAutonomyMode(mode);
 }
+
+
+export async function pauseBrain() {
+    showToast("⏸️ Pausing Nexus Engine...", "info");
+    try {
+        const r = await fetch(`${API}/api/autonomy/pause`, { method: "POST" });
+        const d = await r.json();
+        if (d.ok) showToast("⏸️ Engine Paused", "success");
+        else showToast(`❌ Pause failed: ${d.error}`, "error");
+    } catch {
+        showToast("❌ Pause failed", "error");
+    }
+}
+
+export async function stopBrain() {
+    if (!confirm("⚠️ Are you sure you want to STOP all active autonomous tasks?")) return;
+    showToast("🛑 Stopping Nexus Engine...", "info");
+    try {
+        const r = await fetch(`${API}/api/autonomy/stop`, { method: "POST" });
+        const d = await r.json();
+        if (d.ok) showToast("🛑 Engine Stopped", "success");
+        else showToast(`❌ Stop failed: ${d.error}`, "error");
+    } catch {
+        showToast("❌ Stop failed", "error");
+    }
+}

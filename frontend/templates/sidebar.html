@@ -1,0 +1,67 @@
+<aside id="sidebar" class="w-64 flex-shrink-0 flex flex-col bg-[#030712]/95 border-r border-slate-800/60 z-50">
+        <div class="px-6 py-8 flex items-center justify-between">
+            <div>
+                <div class="text-lg font-black tracking-tighter text-white font-headline">NEXUS</div>
+                <div class="text-[9px] font-mono text-indigo-400 tracking-widest uppercase mt-1 font-bold opacity-80">Prime v4.0</div>
+            </div>
+            <button id="sidebarToggle" class="text-outline hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">menu_open</span></button>
+        </div>
+        
+        <!-- Priority Input -->
+        <div class="px-4 mb-6 relative group">
+            <div class="absolute -inset-0.5 bg-primary/20 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
+            <div class="relative bg-surface-container-high rounded-lg border border-outline-variant/40 flex flex-col">
+                <div id="sidebarImagePreview" class="hidden p-2 bg-white/5 border-b border-outline-variant/10 relative">
+                    <img id="sidebarPreviewImg" class="max-h-24 rounded border border-white/5 mx-auto" alt="Preview"/>
+                    <button id="sidebarRemoveImageBtn" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]">✕</button>
+                </div>
+                <!-- Clarify this is for background tasks -->
+                <textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline font-body resize-none min-h-[100px] custom-scrollbar" placeholder="Queue background task for AI..."></textarea>
+                <div id="priorityList" class="mt-4 flex flex-wrap gap-2 px-3"></div>
+                <div class="flex items-center justify-between p-2 border-t border-outline-variant/10">
+                    <div class="flex gap-0.5">
+                        <button id="sidebarUploadBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">attach_file</span></button>
+                        <button id="sidebarCameraBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
+                    </div>
+                    <button id="addPriorityBtn" class="primary-gradient text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase hover:brightness-110 active:scale-95 transition-all">Execute</button>
+                </div>
+            </div>
+        </div>
+
+        <nav class="flex-1 space-y-1 overflow-y-auto px-2 custom-scrollbar">
+            <button id="overviewBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold transition-all">
+                <span class="material-symbols-outlined mr-4">terminal</span>
+                <span class="text-sm font-headline tracking-tight">Main Dashboard</span>
+            </button>
+            <button id="newChatBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                <span class="material-symbols-outlined mr-4 group-hover:text-primary">add_comment</span>
+                <span class="text-sm tracking-tight">New Session</span>
+            </button>
+            <div id="conversationList" class="mt-4 space-y-1 pl-4"></div>
+        </nav>
+
+        <div class="px-4 mt-auto mb-4 space-y-4">
+            <!-- Autonomy Controls -->
+            <div class="pt-4 border-t border-outline-variant/15 space-y-2">
+                <div class="flex items-center justify-between px-2 mb-2">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-outline">Operation Mode</span>
+                    <span id="autonomyIndicator" class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                </div>
+                <button id="modeSupervisedBtn" class="w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface-variant border border-outline-variant/20 hover:text-on-surface">
+                    <span class="material-symbols-outlined text-sm">shield</span> Supervised
+                </button>
+                <button id="modeAutonomousBtn" class="w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest text-outline border border-outline-variant/20 hover:text-on-surface">
+                    <span class="material-symbols-outlined text-sm">robot_2</span> Autonomous
+                </button>
+            </div>
+            
+            <div class="pt-4 border-t border-outline-variant/15 space-y-2">
+                <button id="editorToggle" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
+                    <span class="material-symbols-outlined text-sm mr-3">code</span> Code Editor
+                </button>
+                <button id="systemPromptBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
+                    <span class="material-symbols-outlined text-sm mr-3">settings</span> Settings
+                </button>
+            </div>
+        </div>
+    </aside>

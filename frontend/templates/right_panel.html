@@ -1,0 +1,71 @@
+<section class="w-80 flex-shrink-0 bg-[#030712] border-l border-slate-800/60 flex flex-col p-6 overflow-y-auto custom-scrollbar z-10">
+                
+                <!-- Decision Support / Architect Insight -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Architect Insight</h2>
+                        <span class="material-symbols-outlined text-sm text-primary">lightbulb</span>
+                    </div>
+                    <div id="architectInsight" class="bg-surface-container-high p-4 rounded-xl border border-outline-variant/20 shadow-lg relative overflow-hidden group">
+                        <p id="insightContent" class="text-xs text-on-surface-variant leading-relaxed italic">
+                            Standing by for reasoning vectors...
+                        </p>
+                        <div id="brainDigest" class="hidden mt-3 p-2 bg-transparent rounded border border-outline-variant/10 text-[10px] text-outline leading-tight font-mono"></div>
+                    </div>
+                    <div id="architectInsightHistory" class="mt-4 space-y-3 overflow-y-auto max-h-[300px] custom-scrollbar">
+                        <!-- History populated by status.js -->
+                    </div>
+                </div>
+
+                <!-- Research Intelligence (ArXiv Search) -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200 flex items-center gap-2.5">Research Network</h2>
+                        <span class="material-symbols-outlined text-sm text-secondary">history_edu</span>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex gap-2">
+                            <input id="arxivSearchInput" class="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-lg py-1.5 px-3 text-xs font-medium focus:ring-1 focus:ring-primary focus:outline-none placeholder:text-outline transition-all" placeholder="Query ArXiv..." type="text"/>
+                            <button id="arxivSearchBtn" class="bg-surface-container-high text-primary border border-outline-variant/20 text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-widest hover:bg-primary/10 transition-all flex items-center justify-center shadow-lg shadow-black/20">
+                                <span class="material-symbols-outlined text-sm">search</span>
+                            </button>
+                        </div>
+                        <div id="arxivResults" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div class="flex flex-col items-center justify-center py-6 text-outline/30 gap-2">
+                                <span class="material-symbols-outlined text-3xl opacity-20">description</span>
+                                <p class="text-[9px] uppercase tracking-widest font-bold">Input Query to Index Papers</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Logs (Replacing visual charts with the Operations Log) -->
+                <div class="flex-1 flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Event Stream</h2>
+                        <span class="material-symbols-outlined text-outline text-lg cursor-pointer hover:text-on-background">filter_list</span>
+                    </div>
+                    <div class="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar" id="systemLogFeed">
+                        <!-- Static fake logs from design -->
+                        <div class="group flex gap-3">
+                            <div class="w-1 h-8 bg-secondary rounded-full mt-1"></div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] font-bold text-secondary uppercase tracking-tight">Success</span>
+                                </div>
+                                <p class="text-[11px] text-on-surface-variant leading-tight">Semantic index reconstruction complete.</p>
+                            </div>
+                        </div>
+                        <div class="group flex gap-3">
+                            <div class="w-1 h-8 bg-primary rounded-full mt-1"></div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] font-bold text-primary uppercase tracking-tight">Info</span>
+                                </div>
+                                <p class="text-[11px] text-on-surface-variant leading-tight">External API handshake initiated.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>

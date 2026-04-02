@@ -43,3 +43,33 @@ export function updateSuccessRate() {
   const pct = Math.round((success / total) * 100);
   rateEl.textContent = pct + "%";
 }
+
+export function updateAgentStepper(phase) {
+    const steps = {
+        'planner': document.getElementById('step-planner'),
+        'coder': document.getElementById('step-coder'),
+        'execute': document.getElementById('step-execute'),
+        'reviewer': document.getElementById('step-reviewer')
+    };
+
+    const phaseMap = {
+        'planning': 'planner',
+        'coding': 'coder',
+        'executing': 'execute',
+        'reviewing': 'reviewer',
+        'idle': null
+    };
+
+    const activeStep = phaseMap[phase] || null;
+
+    Object.entries(steps).forEach(([name, el]) => {
+        if (!el) return;
+        el.classList.remove('active', 'complete', 'shadow-[0_0_20px_#6366f1]', 'border-indigo-500', 'text-indigo-400');
+        el.classList.add('bg-slate-800/80', 'border-slate-700/60', 'text-slate-500');
+
+        if (name === activeStep) {
+            el.classList.remove('bg-slate-800/80', 'border-slate-700/60', 'text-slate-500');
+            el.classList.add('active', 'bg-indigo-500/20', 'border-indigo-500', 'text-indigo-400', 'shadow-[0_0_20px_#6366f1]');
+        }
+    });
+}
