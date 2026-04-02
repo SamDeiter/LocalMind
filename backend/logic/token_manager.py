@@ -68,7 +68,4 @@ class TokenManager:
             return ""
         
         limit_chars = max_tokens * cls.CHARS_PER_TOKEN
-        if len(text) <= limit_chars:
-            return text
-            
-        return text[:limit_chars] + "... [Context Truncated]"
+        return text if len(text) <= limit_chars else text[:limit_chars] + "... [Context Truncated]"
