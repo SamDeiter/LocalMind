@@ -5,7 +5,7 @@ This document outlines the detailed roadmap for addressing technical debt, UI/UX
 ## 🎯 Phase A: Architectural Refactoring & Stability (Immediate)
 *Goal: Reduce tech debt, stabilize the module system, and improve maintainability.*
 
-- [ ] **A1. Engine Modularization (`backend/autonomy/engine.py`)**
+- [x] **A1. Engine Modularization (`backend/autonomy/engine.py`)**
   - Break down the monolithic `AutonomyEngine` class (currently doing too much).
   - Extract Reflection & Proposal logic to `reflection_service.py`.
   - Extract Git/State awareness to `git_coordinator.py`.
@@ -13,7 +13,7 @@ This document outlines the detailed roadmap for addressing technical debt, UI/UX
 - [ ] **A2. UI Globals Resolution (`frontend/modules/`)**
   - Review all ESLint conflicts regarding undefined globals (e.g., `Prism`, `brainPulse`, `marked`).
   - Create a safe `window.LocalMind` shared namespace or explicit module imports to eliminate errors and prevent race conditions.
-- [ ] **A3. Configuration Finalization**
+- [x] **A3. Configuration Finalization**
   - complete the migration of any remaining hardcoded Ollama URLs to respect the `.env` `OLLAMA_BASE_URL` standard.
 
 ## 🎨 Phase B: UI/UX & Product Polish (Short-term)
