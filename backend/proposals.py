@@ -88,22 +88,42 @@ def _normalize_title(title: str) -> set[str]:
 class ProposalManager:
     """Manages proposal lifecycle: create, dedup, approve, deny, retry."""
 
-    def __init__(self):
-        self._failed_titles: set[str] = set()
-        # Load failed titles from existing proposals on startup
-        self._load_failed_titles()
+    _cache_initialized: bool = False
+    _failed_titles: set[str] = set()
+    _existing_titles_cache: list[dict] = []
+    _failed_titles_cache: list[dict] = []
 
-    def _load_failed_titles(self):
-        """Load failed proposal titles from disk on startup."""
+    def __init__(self):
+        if not ProposalManager._cache_initialized:
+            ProposalManager._load_cache()
+
+    @classmethod
+    def _load_cache(cls):
+        """Load proposal titles from disk into cache."""
+        cls._failed_titles.clear()
+        cls._existing_titles_cache.clear()
+        cls._failed_titles_cache.clear()
+
         if not PROPOSALS_DIR.exists():
+            cls._cache_initialized = True
             return
+
         for f in PROPOSALS_DIR.glob("*.json"):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
-                if data.get("status") == "failed":
-                    self._failed_titles.add(data.get("title", ""))
+                status = data.get("status", "")
+                title = data.get("title", "")
+                normalized = frozenset(_normalize_title(title))
+                cache_entry = {"raw_title": title, "normalized": normalized}
+
+                if status == "failed":
+                    cls._failed_titles.add(title)
+                    cls._failed_titles_cache.append(cache_entry)
+                else:
+                    cls._existing_titles_cache.append(cache_entry)
             except Exception:
                 continue
+        cls._cache_initialized = True
 
     def is_duplicate(self, new_title: str) -> bool:
         """Check if a similar proposal already exists.
@@ -115,39 +135,35 @@ class ProposalManager:
         if not new_words:
             return False
 
-        # Check against proposals on disk
-        if PROPOSALS_DIR.exists():
-            for f in PROPOSALS_DIR.glob("*.json"):
-                try:
-                    data = json.loads(f.read_text(encoding="utf-8"))
-                    existing_title = data.get("title", "")
-                    existing_words = _normalize_title(existing_title)
-                    if not existing_words:
-                        continue
-                    overlap = len(new_words & existing_words)
-                    total = len(new_words | existing_words)
-                    similarity = overlap / total if total > 0 else 0
-                    if similarity > 0.55:
-                        logger.info(f"Duplicate detected: \"{new_title}\" ≈ \"{existing_title}\" ({similarity:.0%})")
-                        return True
-                except Exception:
-                    continue
+        # Check against proposals in cache
+        for cache_entry in ProposalManager._existing_titles_cache:
+            existing_words = cache_entry["normalized"]
+            if not existing_words:
+                continue
+            overlap = len(new_words & existing_words)
+            total = len(new_words | existing_words)
+            similarity = overlap / total if total > 0 else 0
+            if similarity > 0.55:
+                logger.info(f"Duplicate detected: \"{new_title}\" ≈ \"{cache_entry['raw_title']}\" ({similarity:.0%})")
+                return True
 
         # Check against failed titles in memory
-        return self._is_failed_title(new_title)
+        return self._is_failed_title(new_title, new_words)
 
-    def _is_failed_title(self, new_title: str) -> bool:
+    def _is_failed_title(self, new_title: str, new_words: set[str] = None) -> bool:
         """Check against failed titles in memory."""
-        new_words = _normalize_title(new_title)
-        for failed_title in self._failed_titles:
-            failed_words = _normalize_title(failed_title)
+        if new_words is None:
+            new_words = _normalize_title(new_title)
+
+        for cache_entry in ProposalManager._failed_titles_cache:
+            failed_words = cache_entry["normalized"]
             if not new_words or not failed_words:
                 continue
             overlap = len(new_words & failed_words)
             total = len(new_words | failed_words)
             similarity = overlap / total if total > 0 else 0
             if similarity > 0.45:
-                logger.info(f"Blocked (similar to failed): \"{new_title}\" ≈ \"{failed_title}\" ({similarity:.0%})")
+                logger.info(f"Blocked (similar to failed): \"{new_title}\" ≈ \"{cache_entry['raw_title']}\" ({similarity:.0%})")
                 return True
         return False
 
@@ -219,6 +235,11 @@ class ProposalManager:
             return full_proposal
 
         filepath = PROPOSALS_DIR / f"{full_proposal['id']}_{full_proposal['category']}.json"
+
+        ProposalManager._existing_titles_cache.append({
+            "raw_title": title,
+            "normalized": frozenset(_normalize_title(title))
+        })
 
         # In autonomous mode, auto-approve low/medium risk proposals
         risk = full_proposal.get("priority", "medium").lower()
@@ -384,7 +405,14 @@ class ProposalManager:
         """
         proposal["status"] = "failed"
         proposal["error"] = error
-        self._failed_titles.add(proposal.get("title", ""))
+
+        title = proposal.get("title", "")
+        ProposalManager._failed_titles.add(title)
+        ProposalManager._failed_titles_cache.append({
+            "raw_title": title,
+            "normalized": frozenset(_normalize_title(title))
+        })
+
         self._write_proposal(proposal)
 
     def _write_proposal(self, proposal: dict):
@@ -478,12 +506,14 @@ class ProposalManager:
 
         if archived:
             logger.info(f"📦 Archived {archived} terminal proposals: {statuses}")
+            ProposalManager._load_cache() # Refresh cache
         return {"archived": archived, "statuses": statuses}
 
     def clear_failed_titles(self):
         """Clear the in-memory failed title cache so new proposals aren't blocked."""
-        count = len(self._failed_titles)
-        self._failed_titles.clear()
+        count = len(ProposalManager._failed_titles)
+        ProposalManager._failed_titles.clear()
+        ProposalManager._failed_titles_cache.clear()
         logger.info(f"🧹 Cleared {count} failed titles from anti-repeat cache")
         return count
 
@@ -562,13 +592,14 @@ class ProposalManager:
 
         if archived or deleted:
             logger.info(f"🧹 Proposal cleanup: archived {archived}, removed {deleted} exhausted")
+            ProposalManager._load_cache()
 
         return {"archived": archived, "deleted": deleted}
 
     def get_anti_repeat_titles(self) -> list[str]:
         """Get titles to include in anti-repeat prompt (recent + failed)."""
         recent = [p.get("title", "") for p in self.list_proposals()][-10:]
-        return list(set(recent) | self._failed_titles)
+        return list(set(recent) | ProposalManager._failed_titles)
 
     def _update_status(self, proposal_id: str, new_status: str) -> Optional[dict]:
         """Update a proposal's status by ID."""
