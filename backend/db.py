@@ -31,6 +31,15 @@ def init_db():
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )
     """)
+
+    # Performance Optimization: Bolt
+    # Composite index to speed up message retrieval when loading a chat:
+    # "SELECT ... FROM messages WHERE conversation_id = ? ORDER BY created_at"
+    # This turns an O(N) full table scan into an O(log N) lookup.
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_messages_conversation_id_created_at
+        ON messages (conversation_id, created_at)
+    """)
     conn.commit()
     conn.close()
 

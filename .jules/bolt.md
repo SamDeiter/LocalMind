@@ -1,0 +1,3 @@
+## 2024-05-18 - SQLite Foreign Keys & Performance Bottlenecks
+**Learning:** SQLite foreign keys are not automatically indexed. Unbounded collections like chat messages, which reference a parent entity (e.g. `conversation_id`), will trigger O(N) full table scans if queried without an index. This leads to severe lag when loading chats as the history grows.
+**Action:** Always add an index (often a composite index with the primary sorting field, e.g. `(conversation_id, created_at)`) on any column that serves as a foreign key in SQLite, particularly if the table data is expected to grow infinitely.
