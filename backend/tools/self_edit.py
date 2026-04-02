@@ -39,7 +39,7 @@ def _validate_self_path(filepath: str) -> Path:
     target = (PROJECT_ROOT / filepath).resolve()
 
     # Must stay inside project
-    if not str(target).startswith(str(PROJECT_ROOT)):
+    if not target.is_relative_to(PROJECT_ROOT):
         raise ValueError(f"Path escapes project: {filepath}")
 
     # Check blocked filenames
