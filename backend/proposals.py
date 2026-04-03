@@ -601,3 +601,23 @@ class ProposalManager:
             except Exception:
                 continue
         return None
+
+    def list_completed(self, limit: int = 5) -> list[dict]:
+        """List the N most recent completed proposals."""
+        completed = []
+        for d in [PROPOSALS_DIR, ARCHIVE_DIR]:
+            if not d.exists(): continue
+            for f in d.glob("*.json"):
+                try:
+                    data = json.loads(f.read_text(encoding="utf-8"))
+                    if data.get("status") == "completed":
+                        completed.append({
+                            "id": data.get("id"),
+                            "title": data.get("title"),
+                            "category": data.get("category"),
+                            "completed_at_human": data.get("completed_at_human"),
+                            "completed_at": data.get("completed_at", 0)
+                        })
+                except: continue
+        completed.sort(key=lambda x: x.get("completed_at", 0), reverse=True)
+        return completed[:limit]

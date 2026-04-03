@@ -361,6 +361,7 @@ class HiveCoordinator:
                 **self.queue.get_stats(),
                 "peak_depth": self._peak_queue_depth
             },
+            "recent_improvements": self.proposals.list_completed(limit=5),
             "agents": {
                 "total": len(all_agents),
                 "active": len(active_agents),

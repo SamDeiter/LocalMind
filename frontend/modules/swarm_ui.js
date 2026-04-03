@@ -21,6 +21,7 @@ const els = {
     successRate: () => document.getElementById('swarmSuccessRate'),
     agentGrid: () => document.getElementById('swarmAgentGrid'),
     resultStream: () => document.getElementById('swarmResultStream'),
+    improvementsStream: () => document.getElementById('swarmImprovementsStream'),
     scanBtn: () => document.getElementById('swarmScanBtn'),
     agentCountBadge: () => document.getElementById('swarmAgentCount'),
     // Heartbeat row
@@ -174,6 +175,9 @@ function renderSwarmStatus(data) {
 
     // Recent results
     renderResultStream(data.recent_results || []);
+
+    // Recent improvements
+    renderImprovements(data.recent_improvements || []);
 }
 
 function renderAgentGrid(agents) {
@@ -238,6 +242,43 @@ function renderResultStream(results) {
                 <span class="text-[10px] text-slate-500 w-16">${r.duration}s</span>
                 <span class="text-[10px] font-mono text-slate-600 truncate flex-1">${r.agent || '--'}</span>
                 ${r.error ? `<span class="text-[9px] text-red-400/80 truncate max-w-[200px]">${r.error}</span>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function renderImprovements(improvements) {
+    const stream = els.improvementsStream();
+    if (!stream) return;
+
+    if (!improvements || improvements.length === 0) {
+        stream.innerHTML = `<div class="text-xs text-slate-500 italic p-4">Waiting for improvements to be verified...</div>`;
+        return;
+    }
+
+    // Sort to ensure descending order on the UI even if the backend is already sorted
+    stream.innerHTML = improvements.map(imp => {
+        const cat = (imp.category || 'refactor').toLowerCase();
+        let catColor = 'cyan';
+        if (cat === 'bugfix' || cat === 'fix') catColor = 'red';
+        if (cat === 'feature' || cat === 'add') catColor = 'emerald';
+        
+        const timeStr = imp.completed_at_human ? imp.completed_at_human.split(' ')[1] : '--:--';
+        
+        return `
+            <div class="px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/10 rounded-lg flex flex-col gap-1 transition-all hover:bg-cyan-500/10 group">
+                <div class="flex items-center justify-between">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-${catColor}-400">${cat}</span>
+                    <span class="text-[9px] font-mono text-slate-500">${timeStr}</span>
+                </div>
+                <div class="text-[11px] text-slate-300 font-medium leading-tight group-hover:text-white transition-colors line-clamp-2">${imp.title}</div>
+                <div class="flex items-center justify-between mt-1 pt-1 border-t border-cyan-500/5">
+                    <span class="text-[9px] font-mono text-slate-600 uppercase">ID: ${imp.id}</span>
+                    <div class="flex items-center gap-1">
+                        <span class="w-1 h-1 rounded-full bg-emerald-400"></span>
+                        <span class="text-[8px] text-emerald-400 font-black uppercase tracking-tighter">Verified</span>
+                    </div>
+                </div>
             </div>
         `;
     }).join('');
