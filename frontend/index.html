@@ -70,7 +70,7 @@
                 <div class="text-lg font-black tracking-tighter text-white font-headline">NEXUS</div>
                 <div class="text-[9px] font-mono text-indigo-400 tracking-widest uppercase mt-1 font-bold opacity-80">Prime v4.0</div>
             </div>
-            <button id="sidebarToggle" class="text-outline hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">menu_open</span></button>
+            <button id="sidebarToggle" class="text-outline hover:text-primary transition-colors" title="Toggle Sidebar" aria-label="Toggle Sidebar"><span class="material-symbols-outlined text-sm">menu_open</span></button>
         </div>
         
         <!-- Priority Input -->
@@ -79,17 +79,17 @@
             <div class="relative bg-surface-container-high rounded-lg border border-outline-variant/40 flex flex-col">
                 <div id="sidebarImagePreview" class="hidden p-2 bg-white/5 border-b border-outline-variant/10 relative">
                     <img id="sidebarPreviewImg" class="max-h-24 rounded border border-white/5 mx-auto" alt="Preview"/>
-                    <button id="sidebarRemoveImageBtn" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]">✕</button>
+                    <button id="sidebarRemoveImageBtn" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]" title="Remove image" aria-label="Remove image">✕</button>
                 </div>
                 <!-- Clarify this is for background tasks -->
-                <textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline font-body resize-none min-h-[100px] custom-scrollbar" placeholder="Queue background task for AI..."></textarea>
+                <textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline font-body resize-none min-h-[100px] custom-scrollbar" placeholder="Queue background task for AI..." title="Background task input" aria-label="Background task input"></textarea>
                 <div id="priorityList" class="mt-4 flex flex-wrap gap-2 px-3"></div>
                 <div class="flex items-center justify-between p-2 border-t border-outline-variant/10">
                     <div class="flex gap-0.5">
-                        <button id="sidebarUploadBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">attach_file</span></button>
-                        <button id="sidebarCameraBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
+                        <button id="sidebarUploadBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded" title="Upload Document" aria-label="Upload Document"><span class="material-symbols-outlined text-sm">attach_file</span></button>
+                        <button id="sidebarCameraBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded" title="Use Camera" aria-label="Use Camera"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
                     </div>
-                    <button id="addPriorityBtn" class="primary-gradient text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase hover:brightness-110 active:scale-95 transition-all">Execute</button>
+                    <button id="addPriorityBtn" class="primary-gradient text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase hover:brightness-110 active:scale-95 transition-all" title="Run background task" aria-label="Run background task">Execute</button>
                 </div>
             </div>
         </div>
@@ -435,16 +435,16 @@
                     <div class="p-4 bg-surface-container-low/50 border-t border-outline-variant/10">
                         <div class="bg-background/50 backdrop-blur-md rounded-2xl border border-outline-variant/30 focus-within:border-primary/50 transition-shadow p-2 flex gap-3 shadow-inner">
                             <div class="flex flex-col gap-2 border-r border-outline-variant/20 pr-3">
-                                <button id="micBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
+                                <button id="micBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl" title="Voice Input" aria-label="Voice Input">
                                     <span class="material-symbols-outlined text-[22px]">mic</span>
                                 </button>
-                                <button id="openCameraBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
+                                <button id="openCameraBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl" title="Camera" aria-label="Camera">
                                     <span class="material-symbols-outlined text-[22px]">photo_camera</span>
                                 </button>
                             </div>
-                            <textarea id="messageInput" class="bg-transparent border-none focus:ring-0 text-md flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[56px] py-4" placeholder="Transmit architectural directives or quick queries..." rows="1"></textarea>
+                            <textarea id="messageInput" class="bg-transparent border-none focus:ring-0 text-md flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[56px] py-4" placeholder="Transmit architectural directives or quick queries..." rows="1" title="Message Input" aria-label="Message Input"></textarea>
                             <div class="flex items-center gap-1 pl-2">
-                                <button id="sendBtn" class="primary-gradient p-4 rounded-xl text-on-primary hover:brightness-110 transition-all h-full self-end shadow-lg shadow-primary/20">
+                                <button id="sendBtn" class="primary-gradient p-4 rounded-xl text-on-primary hover:brightness-110 transition-all h-full self-end shadow-lg shadow-primary/20" title="Send Message" aria-label="Send Message">
                                     <span class="material-symbols-outlined text-[24px]">send</span>
                                 </button>
                             </div>

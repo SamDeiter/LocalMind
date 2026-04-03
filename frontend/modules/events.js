@@ -36,6 +36,9 @@ export function bindEvents() {
   // Sidebar
   sidebarToggle?.addEventListener("click", () => sidebar?.classList.toggle("collapsed"));
   newChatBtn?.addEventListener("click", () => {
+    if (state.messages.length > 0) {
+      if (!confirm("Start a new session? This will clear the current chat.")) return;
+    }
     state.currentConvId = null;
     state.messages = [];
     clearMessages();
