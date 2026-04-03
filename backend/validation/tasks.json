@@ -1,0 +1,29 @@
+{
+  "project_id": "AgentFixer_Phase3_RootCause",
+  "plan": [
+    {
+      "step": 1,
+      "type": "research",
+      "description": "Analyze existing reflection.py and self_improver.py for validation hook points and trace accumulation logic.",
+      "validation": "Identify 2 specific hook points for trace aggregation."
+    },
+    {
+      "step": 2,
+      "type": "execution",
+      "description": "Implement root_cause.py in backend/validation/ to support causal analysis of agent failures based on the paper's Strategy 6.",
+      "validation": "Verify module imports and run basic instantiation test."
+    },
+    {
+      "step": 3,
+      "type": "execution",
+      "description": "Inject the InformationConsistencyValidator and EdgeCaseValidator into reflection.py to harden the autonomous logic.",
+      "validation": "Verify no regression in basic reflection loop."
+    },
+    {
+      "step": 4,
+      "type": "verification",
+      "description": "Run a system-wide validation check to confirm end-to-end trace collection.",
+      "validation": "Verify trace entries are being recorded in the ValidationReport database."
+    }
+  ]
+}

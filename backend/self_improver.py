@@ -105,6 +105,16 @@ class SelfImprover:
                 pass
         return []
 
+    def _load_validation_reports(self) -> list:
+        """Load validation_history.json if it exists."""
+        report_path = WORKSPACE / "validation_history.json"
+        if report_path.exists():
+            try:
+                return json.loads(report_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                pass
+        return []
+
     # ── Core Optimization ─────────────────────────────────────────
 
     def optimize(self) -> list[str]:
@@ -136,6 +146,10 @@ class SelfImprover:
 
         # Strategy 6: Learn file preferences
         changes.extend(self._learn_file_preferences(lessons, stats))
+
+        # Strategy 7: Validation Feedback Loop (AgentFixer Strategy 7)
+        validation_reports = self._load_validation_reports()
+        changes.extend(self._optimize_from_validation(validation_reports))
 
         if changes:
             # Record improvement history
@@ -451,3 +465,44 @@ class SelfImprover:
             return ""
 
         return "\n".join(["BRAIN CONFIG (self-taught intelligence):"] + parts) + "\n"
+
+    # ── Strategy 7: Validation Feedback ──────────────────────────
+
+    def _optimize_from_validation(self, reports: list) -> list[str]:
+        """Learn from systemic validation failures (hallucinations, syntax)."""
+        changes = []
+        if not reports:
+            return changes
+
+        # Check for recurring syntax errors (Blocks execution) 
+        syntax_fails = [
+            r for r in reports 
+            if any(res.get("validator") == "PythonSyntaxValidator" and not res.get("passed") for res in r.get("results", []))
+        ]
+        
+        if len(syntax_fails) >= 3:
+            old_max = self.config.get("max_edit_lines", 30)
+            if old_max > 15:
+                # Systematic syntax issues — reduce edit scope to be safer
+                self.config["max_edit_lines"] = 15
+                changes.append(f"Drastic max_edit_lines reduction 30→15 due to {len(syntax_fails)} syntax failures")
+
+        # Check for recurring hallucinated files
+        hallucinations = []
+        for r in reports:
+            for res in r.get("results", []):
+                if res.get("validator") == "InformationConsistencyValidator" and not res.get("passed"):
+                    details = res.get("details", {})
+                    hallucinations.extend(details.get("files", []))
+        
+        from collections import Counter
+        counts = Counter(hallucinations)
+        for path, count in counts.items():
+            if count >= 2:
+                avoided = set(self.config.get("avoided_file_targets", []))
+                if path not in avoided:
+                    avoided.add(path)
+                    self.config["avoided_file_targets"] = list(avoided)
+                    changes.append(f"Auto-avoiding hallucinated file '{path}' (failed {count} times)")
+
+        return changes
