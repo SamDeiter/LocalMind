@@ -28,17 +28,17 @@ logger = logging.getLogger("localmind.gemini")
 
 # ── PII Scrubber ────────────────────────────────────────────────────────
 # Patterns to strip before sending data to cloud
-_PII_PATTERNS = [
-    (re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'), '[EMAIL_REDACTED]'),
-    (re.compile(r'\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'), '[PHONE_REDACTED]'),
-    (re.compile(r'\b\d{3}-\d{2}-\d{4}\b'), '[SSN_REDACTED]'),
-    (re.compile(r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b'), '[CARD_REDACTED]'),
-    (re.compile(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'), '[IP_REDACTED]'),
-    (re.compile(r'C:\\Users\\[^\\]+', re.IGNORECASE), lambda m: 'C:\\Users\\[USER_REDACTED]'),
-    (re.compile(r'/home/[^/\s]+'), '/home/[USER_REDACTED]'),
-    (re.compile(r'\b(AIza[A-Za-z0-9_-]{35,})\b'), '[API_KEY_REDACTED]'),
-    (re.compile(r'\b(sk-[a-zA-Z0-9]{20,})\b'), '[API_KEY_REDACTED]'),
-]
+_PII_PATTERNS = (
+    (re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'), "[EMAIL]"),
+    (re.compile(r'\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'), "[PHONE]"),
+    (re.compile(r'\b\d{3}-\d{2}-\d{4}\b'), "[SSN]"),
+    (re.compile(r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b'), "[CARD]"),
+    (re.compile(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'), "[IP_ADDRESS]"),
+    (re.compile(r'C:\\Users\\[^\\]+', re.IGNORECASE), "C:\\Users\\[USER]"),
+    (re.compile(r'/home/[^/\s]+'), "/home/[USER]"),
+    (re.compile(r'\b(AIza[A-Za-z0-9_-]{35,})\b'), "[API_KEY]"),
+    (re.compile(r'\b(sk-[a-zA-Z0-9]{20,})\b'), "[API_KEY]"),
+)
 
 def scrub_pii(text: str) -> str:
     """Remove personal identifiable information from text before cloud send."""
