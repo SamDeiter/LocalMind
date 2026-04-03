@@ -3,13 +3,13 @@ Vision Tool — analyze images using Ollama's multimodal models.
 Handles webcam captures and workspace images.
 """
 
+from backend.config import OLLAMA_BASE_URL_URL
 import base64
 
 import httpx
 
 from .base import BaseTool
 
-OLLAMA_BASE = "http://localhost:11434"
 VISION_MODEL = "llama3.2-vision:11b"
 
 
@@ -50,7 +50,7 @@ class AnalyzeImageTool(BaseTool):
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
                 resp = await client.post(
-                    f"{OLLAMA_BASE}/api/chat",
+                    f"{OLLAMA_BASE_URL}/api/chat",
                     json={
                         "model": VISION_MODEL,
                         "messages": [

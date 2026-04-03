@@ -1,4 +1,4 @@
-import { API, priorityInput, welcomeScreen, chatScreen } from "../state.js";
+import { API, priorityInput, chatScreen } from "../state.js";
 import { showToast } from "../utils.js";
 import { sendMessage } from "../chat.js";
 import { pollAutonomy } from "./status.js";

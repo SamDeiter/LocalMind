@@ -4,6 +4,7 @@ Implements the agentic loop: send tools to Ollama, execute tool calls,
 feed results back, repeat until the model gives a final text response.
 """
 
+from backend.config import OLLAMA_BASE_URL
 import json
 import time
 from typing import AsyncGenerator
@@ -12,7 +13,6 @@ import httpx
 
 from tools import TOOL_DEFINITIONS, execute_tool
 
-OLLAMA_BASE_URL = "http://localhost:11434"
 MAX_TOOL_ITERATIONS = 15
 
 

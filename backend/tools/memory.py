@@ -4,6 +4,7 @@ Supports save_memory and recall_memories with semantic search.
 Learning can be paused via the /api/memory/toggle endpoint.
 """
 
+from backend.config import OLLAMA_BASE_URL_URL
 import time
 import uuid
 
@@ -12,7 +13,6 @@ import httpx
 
 from .base import BaseTool
 
-OLLAMA_BASE = "http://localhost:11434"
 EMBED_MODEL = "nomic-embed-text"
 
 # Global learning state (toggled via API)
@@ -55,7 +55,7 @@ async def _embed(text: str) -> list[float]:
     """Get embedding vector from Ollama."""
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
-            f"{OLLAMA_BASE}/api/embed",
+            f"{OLLAMA_BASE_URL}/api/embed",
             json={"model": EMBED_MODEL, "input": text},
         )
         resp.raise_for_status()

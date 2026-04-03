@@ -5,7 +5,6 @@ import logging
 import time
 from pathlib import Path
 from backend.code_editor import identify_target_files, edit_single_file
-from backend.git_ops import run_tests, git_run, revert_file
 
 logger = logging.getLogger("localmind.autonomy.execution")
 
@@ -58,8 +57,7 @@ async def execute_proposal_cycle(engine, timeout=300) -> bool:
             engine.proposals.mark_failed(proposal, "No target files found")
             return True
 
-        branch_name = f"self-improve/{proposal['id']}"
-        git_run(["checkout", "-b", branch_name])
+        branch_name = engine.git_coordinator.create_sandbox_branch(proposal['id'])
 
         edits_applied = []
         for target_file in targets[:3]:
@@ -67,17 +65,13 @@ async def execute_proposal_cycle(engine, timeout=300) -> bool:
             if success: edits_applied.append(target_file)
 
         if not edits_applied:
-            git_run(["checkout", "main"])
-            git_run(["branch", "-D", branch_name])
+            engine.git_coordinator.revert_and_cleanup(branch_name, [])
             engine.proposals.mark_failed(proposal, "No edits applied")
             return True
 
-        test_passed, test_output = await run_tests(target_files=edits_applied)
+        test_passed, test_output = await engine.git_coordinator.run_tests(target_files=edits_applied)
         if test_passed:
-            git_run(["add", "-A"])
-            git_run(["commit", "-m", f"[autonomy] {proposal['title']}"])
-            git_run(["checkout", "main"])
-            git_run(["merge", branch_name])
+            engine.git_coordinator.commit_and_merge(branch_name, proposal['title'])
             
             engine.proposals.mark_completed(
                 proposal,
@@ -89,9 +83,7 @@ async def execute_proposal_cycle(engine, timeout=300) -> bool:
             engine._emit_activity("completed", f"✅ {proposal['title']}", proposal_id=proposal["id"])
             return True
         else:
-            for f in edits_applied: revert_file(f)
-            git_run(["checkout", "main"])
-            git_run(["branch", "-D", branch_name])
+            engine.git_coordinator.revert_and_cleanup(branch_name, edits_applied)
             engine.proposals.mark_failed(proposal, f"Tests failed: {test_output[:100]}")
             engine.failure_analyzer.analyze_failure(proposal, test_output)
             engine.success_tracker.record_outcome(proposal, success=False)

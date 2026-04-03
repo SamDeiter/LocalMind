@@ -243,76 +243,76 @@ class ProposalManager:
 
     def _calculate_confidence(self, proposal: dict) -> int:
         """Calculate a 0-100 confidence score for a proposal.
-
-        Scoring:
-          - Category success rate (0-40 pts)
-          - File familiarity: has engine successfully edited these files? (0-30 pts)
-          - Effort level: small=30, medium=20, large=5 (0-30 pts)
+        
+        Single-pass implementation to optimize filesystem access.
         """
         score = 0
-
-        # Category success (from completed vs failed counts)
         category = proposal.get("category", "unknown")
-        completed = failed = 0
-        for d in (PROPOSALS_DIR, PROPOSALS_DIR / "archive"):
+        target_files = set(proposal.get("files_affected", []))
+        
+        completed = failed = familiar = 0
+        
+        # Single pass over active and archived proposals
+        for d in (PROPOSALS_DIR, ARCHIVE_DIR):
             if not d.exists():
                 continue
             for f in d.glob("*.json"):
                 try:
                     data = json.loads(f.read_text(encoding="utf-8"))
+                    # 1. Cat stats
                     if data.get("category") == category:
                         if data.get("status") == "completed":
                             completed += 1
                         elif data.get("status") == "failed":
                             failed += 1
-                except (json.JSONDecodeError, OSError):
+                    
+                    # 2. File familiarity (only on completion)
+                    if data.get("status") == "completed":
+                        edited = set(data.get("files_edited", []))
+                        if target_files and (edited & target_files):
+                            familiar += 1
+                except Exception:
                     continue
-
+        
+        # Scoring
+        # Cat success (0-40)
         total = completed + failed
-        if total > 0:
-            score += int((completed / total) * 40)
-        else:
-            score += 20  # Unknown category = neutral
-
-        # File familiarity
-        target_files = set(proposal.get("files_affected", []))
-        if target_files:
-            familiar = 0
-            for d in (PROPOSALS_DIR, PROPOSALS_DIR / "archive"):
-                if not d.exists():
-                    continue
-                for f in d.glob("*.json"):
-                    try:
-                        data = json.loads(f.read_text(encoding="utf-8"))
-                        if data.get("status") == "completed":
-                            edited = set(data.get("files_edited", []))
-                            if edited & target_files:
-                                familiar += 1
-                    except (json.JSONDecodeError, OSError):
-                        continue
-            score += min(30, familiar * 10)
-        else:
-            score += 15  # No files = neutral
-
-        # Effort
+        score += int((completed / total) * 40) if total > 0 else 20
+        
+        # Familiarity (0-30)
+        score += min(30, familiar * 10) if target_files else 15
+        
+        # Effort (0-30)
         effort_scores = {"small": 30, "medium": 20, "large": 5}
         score += effort_scores.get(proposal.get("effort", "medium"), 10)
-
+        
         return min(100, max(0, score))
 
-    def list_proposals(self, status_filter: str = "all") -> list[dict]:
-        """List all proposals, optionally filtered by status."""
-        if not PROPOSALS_DIR.exists():
-            return []
-
+    def list_proposals(self, status_filter: str = "all", include_archived: bool = True) -> list[dict]:
+        """List all proposals, optionally filtered by status.
+        
+        If include_archived=True, also scans the archive directory.
+        """
         proposals = []
-        for f in sorted(PROPOSALS_DIR.glob("*.json")):
-            try:
-                data = json.loads(f.read_text(encoding="utf-8"))
-                if status_filter == "all" or data.get("status") == status_filter:
-                    proposals.append(data)
-            except Exception:
+        
+        # Directories to scan
+        dirs_to_scan = [PROPOSALS_DIR]
+        if include_archived and ARCHIVE_DIR.exists():
+            dirs_to_scan.append(ARCHIVE_DIR)
+
+        for d in dirs_to_scan:
+            if not d.exists():
                 continue
+            for f in sorted(d.glob("*.json")):
+                try:
+                    data = json.loads(f.read_text(encoding="utf-8"))
+                    if status_filter == "all" or data.get("status") == status_filter:
+                        proposals.append(data)
+                except Exception:
+                    continue
+        
+        # Sort by creation time (descending) if they have created_at
+        proposals.sort(key=lambda x: x.get("created_at", 0), reverse=True)
         return proposals
 
     def approve(self, proposal_id: str) -> Optional[dict]:

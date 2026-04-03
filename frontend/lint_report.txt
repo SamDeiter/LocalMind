@@ -1,0 +1,77 @@
+
+> localmind-frontend@3.0.0 lint
+> eslint modules/ app.js
+
+
+C:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\modules\autonomy\controls.js
+  1:30  warning  'welcomeScreen' is defined but never used  no-unused-vars
+
+C:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\modules\autonomy\status.js
+  110:13  warning  'icon' is assigned a value but never used  no-unused-vars
+  134:13  warning  'icon' is assigned a value but never used  no-unused-vars
+
+C:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\modules\autonomy_ui.js
+   15:66  warning  'd' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+   38:31  error    'Prism' is not defined                                               no-undef
+   38:47  error    'd' is not defined                                                   no-undef
+   38:69  error    'Prism' is not defined                                               no-undef
+   53:6   error    'd' is not defined                                                   no-undef
+   65:25  error    'd' is not defined                                                   no-undef
+   65:43  error    'd' is not defined                                                   no-undef
+   66:27  error    'd' is not defined                                                   no-undef
+   66:59  error    'd' is not defined                                                   no-undef
+   66:77  error    'd' is not defined                                                   no-undef
+   70:38  error    'd' is not defined                                                   no-undef
+   73:12  error    'd' is not defined                                                   no-undef
+   84:47  error    'd' is not defined                                                   no-undef
+   88:9   error    'brainPulse' is not defined                                          no-undef
+   89:7   error    'brainPulse' is not defined                                          no-undef
+   89:46  error    'd' is not defined                                                   no-undef
+   93:9   error    'd' is not defined                                                   no-undef
+   97:13  error    'd' is not defined                                                   no-undef
+  108:24  error    'd' is not defined                                                   no-undef
+  115:9   error    'd' is not defined                                                   no-undef
+  117:42  error    'd' is not defined                                                   no-undef
+  118:28  error    'd' is not defined                                                   no-undef
+  120:9   error    'd' is not defined                                                   no-undef
+  122:40  error    'd' is not defined                                                   no-undef
+  123:28  error    'd' is not defined                                                   no-undef
+  127:9   error    'd' is not defined                                                   no-undef
+  129:32  error    'd' is not defined                                                   no-undef
+  131:9   error    'd' is not defined                                                   no-undef
+  133:32  error    'd' is not defined                                                   no-undef
+  135:9   error    'd' is not defined                                                   no-undef
+  137:32  error    'd' is not defined                                                   no-undef
+  141:9   error    'd' is not defined                                                   no-undef
+  142:31  error    'd' is not defined                                                   no-undef
+  147:9   error    'd' is not defined                                                   no-undef
+  147:28  error    'd' is not defined                                                   no-undef
+  154:28  error    'd' is not defined                                                   no-undef
+  156:17  warning  'icon' is assigned a value but never used                            no-unused-vars
+  767:19  error    Expected '!==' and instead saw '!='                                  eqeqeq
+  796:18  error    Expected '!==' and instead saw '!='                                  eqeqeq
+  798:20  error    Expected '!==' and instead saw '!='                                  eqeqeq
+  940:7   error    'insightContent' is not defined                                      no-undef
+  941:5   error    'insightContent' is not defined                                      no-undef
+  942:5   error    'insightContent' is not defined                                      no-undef
+  944:7   error    'brainDigest' is not defined                                         no-undef
+  946:7   error    'brainDigest' is not defined                                         no-undef
+  947:7   error    'brainDigest' is not defined                                         no-undef
+  949:7   error    'brainDigest' is not defined                                         no-undef
+
+C:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\modules\editor.js
+  5:15  warning  '$' is defined but never used  no-unused-vars
+
+C:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\modules\events.js
+  32:10  warning  'welcomeScreen' is defined but never used  no-unused-vars
+
+C:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\modules\media.js
+  11:3  warning  'snapBtn' is defined but never used  no-unused-vars
+
+C:\Users\Sam Deiter\Documents\GitHub\LocalMind\frontend\modules\research_ui.js
+  68:15  warning  'pitch' is assigned a value but never used      no-unused-vars
+  72:15  warning  'url' is assigned a value but never used        no-unused-vars
+  73:15  warning  'published' is assigned a value but never used  no-unused-vars
+
+Γ£û 56 problems (45 errors, 11 warnings)
+

@@ -4,6 +4,7 @@ manage_model.py — LocalMind Resource Management Tool
 Gives the AI the ability to load and unload models from VRAM/RAM via the Ollama API.
 """
 
+from backend.config import OLLAMA_BASE_URL
 import httpx
 import logging
 from typing import Any
@@ -11,7 +12,6 @@ from .base import BaseTool
 
 logger = logging.getLogger("localmind.tools.manage_model")
 
-OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 
 class ManageModelTool(BaseTool):
     """Tool to load or unload Ollama models dynamically."""

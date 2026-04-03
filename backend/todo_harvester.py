@@ -15,6 +15,25 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SKIP_DIRS = {"venv", "__pycache__", ".git", "node_modules", "memory_db", ".bak", "browser_recordings"}
 TODO_PATTERN = re.compile(r"#\s*(TODO|FIXME|HACK|XXX)\b[:\s]*(.*)", re.IGNORECASE)
 
+def _extract_priority(tag: str, comment: str) -> int:
+    """Extract priority score (0-10, lower = higher priority)."""
+    text = f"{tag} {comment}".upper()
+    
+    # Highest priority overrides
+    if "(P0)" in text or "[CRITICAL]" in text or "[BLOCKER]" in text: return 0
+    if "(P1)" in text or "[HIGH]" in text: return 1
+    
+    # Tag-based defaults
+    rank = {"FIXME": 2, "HACK": 3, "XXX": 4, "TODO": 5}
+    base = rank.get(tag, 6)
+    
+    # Secondary adjustments
+    if "(P2)" in text or "[MEDIUM]" in text: return base + 0
+    if "(P3)" in text or "[LOW]" in text: return base + 1
+    
+    return base
+
+
 
 def harvest_todos(max_results: int = 15) -> list[dict]:
     """Scan project files for TODO/FIXME/HACK comments.
@@ -42,13 +61,13 @@ def harvest_todos(max_results: int = 15) -> list[dict]:
                                 "line": i,
                                 "tag": tag,
                                 "comment": comment[:120],
+                                "priority": _extract_priority(tag, comment),
                             })
             except (OSError, UnicodeDecodeError):
                 continue
 
-    # Sort: FIXME > HACK > TODO, then by file
-    rank = {"FIXME": 0, "HACK": 1, "XXX": 2, "TODO": 3}
-    results.sort(key=lambda r: (rank.get(r["tag"], 9), r["file"]))
+    # Sort primarily by calculated priority (lowest score first), then file
+    results.sort(key=lambda r: (r.get("priority", 99), r["file"]))
     return results[:max_results]
 
 

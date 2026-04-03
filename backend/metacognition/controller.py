@@ -15,6 +15,7 @@ Budget: max 3 LLM calls per turn.
 Max: 2 revision passes.
 """
 
+from backend.config import OLLAMA_BASE_URL
 import logging
 import time
 from typing import Optional, Callable
@@ -47,7 +48,7 @@ class MetaCognitiveController:
 
     def __init__(
         self,
-        ollama_url: str = "http://localhost:11434",
+        ollama_url: str = OLLAMA_BASE_URL,
         model: str = "",
         emit_activity: Optional[Callable] = None,
     ):
