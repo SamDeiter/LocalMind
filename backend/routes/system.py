@@ -35,7 +35,9 @@ async def get_version():
 @router.get("/hardware")
 async def hardware_status():
     """Get system and Ollama hardware usage."""
-    cpu_pct = psutil.cpu_percent(interval=0.1)
+    # ⚡ Bolt: Use interval=None to prevent blocking the event loop for 100ms.
+    # psutil will return the average CPU usage since the last call.
+    cpu_pct = psutil.cpu_percent(interval=None)
     mem = psutil.virtual_memory()
     system = {
         "cpu_percent": cpu_pct,

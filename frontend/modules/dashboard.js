@@ -1,4 +1,5 @@
 import { API } from "./state.js";
+import { pollAutonomy } from "./autonomy/status.js";
 
 let dashboardInterval = null;
 let statusFailCount = 0;
@@ -106,9 +107,11 @@ async function updateStatusBar() {
 function initDashboard() {
   updateDashboardMetrics();
   updateStatusBar();
+  pollAutonomy();
   dashboardInterval = setInterval(() => {
     updateDashboardMetrics();
     updateStatusBar();
+    pollAutonomy();
   }, 3000);
 }
 

@@ -28,7 +28,6 @@ export {
 } from "./proposals_ui.js";
 
 // ── Hardware Dashboard ──────────────────────────────────────────
-let hwInterval = null;
 
 export async function pollHardware() {
   // hardware polling consolidated to dashboard.js to reduce fetch overhead
@@ -36,9 +35,8 @@ export async function pollHardware() {
 }
 
 export function startHwPolling() {
-  if (hwInterval) return;
+  // Polling consolidated to dashboard.js
   pollHardware();
-  hwInterval = setInterval(pollHardware, 3000);
 }
 
 // ── Memory Viewer ───────────────────────────────────────────────
