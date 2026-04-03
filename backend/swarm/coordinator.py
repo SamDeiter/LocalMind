@@ -13,6 +13,7 @@ Manages:
 import asyncio
 import logging
 import time
+from datetime import datetime, timezone
 from typing import Optional
 from pathlib import Path
 
@@ -111,7 +112,12 @@ class HiveCoordinator:
                 asyncio.create_task(self._io_worker_loop(agent))
             )
 
-        logger.info("🐝 All swarm workers running.")
+        # Start the auto-scheduler that feeds work into the queue
+        self._worker_tasks.append(
+            asyncio.create_task(self._auto_scheduler_loop())
+        )
+
+        logger.info("🐝 All swarm workers running (auto-scheduler active).")
 
     async def stop(self):
         """Gracefully stop all workers."""
@@ -180,6 +186,50 @@ class HiveCoordinator:
             except Exception as exc:
                 logger.error(f"I/O worker error: {exc}")
                 await asyncio.sleep(1.0)
+
+    # ── Auto Scheduler ────────────────────────────────────────────
+
+    async def _auto_scheduler_loop(self):
+        """Periodically submit scan and health-check tasks to keep agents busy."""
+        # Short initial delay to let everything spin up
+        await asyncio.sleep(5)
+        logger.info("🗓️  Auto-scheduler started (60s interval)")
+
+        while self._running:
+            try:
+                # Submit a syntax-check sweep of the whole project
+                all_files = self._get_project_files()
+                py_files = [f for f in all_files if f.endswith(".py")]
+
+                if py_files:
+                    # Chunk into groups of 25 for parallel scanning
+                    for i in range(0, len(py_files), 25):
+                        chunk = py_files[i:i + 25]
+                        task = SwarmTask(
+                            type=TaskType.TEST_SYNTAX,
+                            payload={"files": chunk, "mode": "syntax"},
+                            priority=5,  # Low priority — background work
+                        )
+                        self.queue.submit(task)
+
+                    logger.info(f"🗓️  Scheduled syntax check for {len(py_files)} files")
+
+                # Also submit a scan task for a random chunk
+                if all_files:
+                    import random
+                    sample = random.sample(all_files, min(30, len(all_files)))
+                    scan_task = SwarmTask(
+                        type=TaskType.SCAN_FILES,
+                        payload={"files": sample, "scan_type": "complexity"},
+                        priority=5,
+                    )
+                    self.queue.submit(scan_task)
+
+            except Exception as exc:
+                logger.warning(f"Auto-scheduler error: {exc}")
+
+            # Wait 60 seconds before next round
+            await asyncio.sleep(60)
 
     # ── Result Collection ─────────────────────────────────────────
 
@@ -286,6 +336,7 @@ class HiveCoordinator:
         return {
             "running": self._running,
             "uptime": round(time.time() - self._start_time) if self._start_time else 0,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "queue": self.queue.get_stats(),
             "agents": {
                 "total": len(all_agents),

@@ -23,6 +23,12 @@ const els = {
     resultStream: () => document.getElementById('swarmResultStream'),
     scanBtn: () => document.getElementById('swarmScanBtn'),
     agentCountBadge: () => document.getElementById('swarmAgentCount'),
+    // Heartbeat row
+    uptime: () => document.getElementById('swarmUptime'),
+    totalTasks: () => document.getElementById('swarmTotalTasks'),
+    totalFailed: () => document.getElementById('swarmTotalFailed'),
+    lastPoll: () => document.getElementById('swarmLastPoll'),
+    heartbeat: () => document.getElementById('swarmHeartbeat'),
 };
 
 // ── Agent Type Icons & Colors ───────────────────────────────────
@@ -121,6 +127,13 @@ async function fetchSwarmStatus() {
 }
 
 function renderSwarmStatus(data) {
+    // Flash heartbeat dot to prove live update
+    const hb = els.heartbeat();
+    if (hb) {
+        hb.classList.remove('bg-emerald-400', 'bg-slate-600');
+        hb.classList.add(data.running ? 'bg-emerald-400' : 'bg-slate-600');
+    }
+
     // Status badge
     const badge = els.statusBadge();
     if (badge) {
@@ -133,6 +146,15 @@ function renderSwarmStatus(data) {
             badge.classList.add('bg-red-500/20', 'text-red-400');
         }
     }
+
+    // Heartbeat row
+    const uptime = data.uptime || 0;
+    const mins = Math.floor(uptime / 60);
+    const secs = uptime % 60;
+    setTextSafe(els.uptime(), mins > 0 ? `${mins}m ${secs}s` : `${secs}s`);
+    setTextSafe(els.totalTasks(), data.metrics?.tasks_processed ?? 0);
+    setTextSafe(els.totalFailed(), data.metrics?.tasks_failed ?? 0);
+    setTextSafe(els.lastPoll(), new Date().toLocaleTimeString());
 
     // Metrics
     const agents = data.agents || {};

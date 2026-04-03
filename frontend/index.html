@@ -227,6 +227,17 @@
                     </div>
                 </div>
 
+                <!-- Live Heartbeat Row -->
+                <div class="flex items-center gap-4 text-[10px] text-slate-500 font-mono">
+                    <span class="flex items-center gap-1.5">
+                        <span id="swarmHeartbeat" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Uptime: <span id="swarmUptime" class="text-slate-400">0s</span>
+                    </span>
+                    <span>Tasks Processed: <span id="swarmTotalTasks" class="text-cyan-400">0</span></span>
+                    <span>Failed: <span id="swarmTotalFailed" class="text-red-400">0</span></span>
+                    <span class="ml-auto">Last poll: <span id="swarmLastPoll" class="text-slate-400">--</span></span>
+                </div>
+
                 <!-- Swarm Metrics Row -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="swarmMetrics">
                     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
