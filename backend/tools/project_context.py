@@ -34,8 +34,9 @@ def _validate_context_path(dir_path: str) -> Path:
     """
     WORKSPACE.mkdir(parents=True, exist_ok=True)
     target = (WORKSPACE / dir_path).resolve()
+    base = WORKSPACE.resolve()
 
-    if not str(target).startswith(str(WORKSPACE.resolve())):
+    if not target.is_relative_to(base):
         raise ValueError(f"Path escapes sandbox: {dir_path}")
 
     if not target.is_dir():

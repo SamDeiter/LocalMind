@@ -24,7 +24,7 @@ def _sanitize_path(path: str, working_dir: str) -> Path:
     target = (working / path).resolve()
 
     # Ensure the resolved path is within the working directory
-    if not str(target).startswith(str(working)):
+    if not target.is_relative_to(working):
         raise PermissionError(f"Access denied: path '{path}' is outside the working directory")
 
     return target
