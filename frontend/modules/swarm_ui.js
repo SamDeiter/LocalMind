@@ -161,65 +161,62 @@ function renderSwarmStatus(data) {
     const metrics = data.metrics || {};
     const queue = data.queue || {};
 
-    setTextSafe(els.activeCount(), agents.active || 0);
+    setTextSafe(els.activeCount(), data.metrics?.tasks_processed ?? 0);
     setTextSafe(els.gpuUsed(), agents.by_type?.gpu?.active || 0);
     setTextSafe(els.gpuTotal(), agents.by_type?.gpu?.total || 3);
     setTextSafe(els.queueDepth(), queue.total_queued || 0);
     setTextSafe(els.successRate(), metrics.success_rate !== null && metrics.success_rate !== undefined ? `${metrics.success_rate}%` : '--');
 
-    // Agent grid
-    renderAgentGrid();
+    // Agent grid — pass data directly, no second fetch
+    renderAgentGrid(data.agent_details || []);
 
     // Recent results
     renderResultStream(data.recent_results || []);
 }
 
-function renderAgentGrid() {
+function renderAgentGrid(agents) {
     const grid = els.agentGrid();
     if (!grid) return;
 
-    // Get agent details
-    fetchAgentDetails().then(agents => {
-        if (!agents || agents.length === 0) {
-            grid.innerHTML = `<div class="col-span-3 text-xs text-slate-500 italic p-4">No agents registered yet</div>`;
-            return;
-        }
-
-        grid.innerHTML = agents.map(agent => {
-            const style = AGENT_STYLES[agent.agent_type] || AGENT_STYLES.base;
-            const isActive = agent.is_running;
-
-            return `
-                <div class="bg-slate-900/40 border ${isActive ? `border-${style.color}-500/30` : 'border-slate-800/40'} rounded-lg p-3 transition-all ${isActive ? `shadow-[0_0_12px_-4px] shadow-${style.color}-500/20` : ''}">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-${style.color}-400 text-sm">${style.icon}</span>
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-300">${style.label}</span>
-                        </div>
-                        <span class="w-2 h-2 rounded-full ${isActive ? `bg-${style.color}-400 animate-pulse` : 'bg-slate-600'}"></span>
-                    </div>
-                    <div class="text-[9px] font-mono text-slate-500 truncate">${agent.agent_id}</div>
-                    <div class="flex items-center gap-3 mt-2 text-[9px] text-slate-400">
-                        <span>✅ ${agent.tasks_completed}</span>
-                        <span>❌ ${agent.tasks_failed}</span>
-                        ${agent.current_task ? `<span class="text-amber-400 truncate">📋 ${agent.current_task}</span>` : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
-    });
-}
-
-async function fetchAgentDetails() {
-    try {
-        const resp = await fetch(`${API_BASE}/api/swarm/agents`);
-        if (!resp.ok) return [];
-        const data = await resp.json();
-        return data.agents || [];
-    } catch {
-        return [];
+    if (!agents || agents.length === 0) {
+        grid.innerHTML = `<div class="col-span-3 text-xs text-slate-500 italic p-4">No agents registered yet</div>`;
+        return;
     }
+
+    grid.innerHTML = agents.map(agent => {
+        const style = AGENT_STYLES[agent.agent_type] || AGENT_STYLES.base;
+        const isActive = agent.is_running;
+        const totalDone = agent.tasks_completed + agent.tasks_failed;
+
+        return `
+            <div class="bg-slate-900/40 border ${
+                isActive ? `border-cyan-500/40` : (totalDone > 0 ? 'border-slate-700/50' : 'border-slate-800/30')
+            } rounded-lg p-3 transition-all ${
+                isActive ? `shadow-[0_0_10px_-4px] shadow-cyan-500/30` : ''
+            }">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-${style.color}-400 text-sm">${style.icon}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-300">${style.label}</span>
+                    </div>
+                    <span class="w-2 h-2 rounded-full ${
+                        isActive ? `bg-${style.color}-400 animate-pulse` : (totalDone > 0 ? 'bg-slate-500' : 'bg-slate-700')
+                    }"></span>
+                </div>
+                <div class="text-[9px] font-mono text-slate-500 truncate mb-2">${agent.agent_id}</div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-[9px]">
+                        <span class="text-emerald-400 font-mono font-bold">${agent.tasks_completed} ✓</span>
+                        ${agent.tasks_failed > 0 ? `<span class="text-red-400 font-mono">${agent.tasks_failed} ✗</span>` : ''}
+                    </div>
+                    ${agent.current_task ? `<span class="text-[8px] text-amber-400 truncate max-w-[80px]">▶ ${agent.current_task}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
+
+
 
 function renderResultStream(results) {
     const stream = els.resultStream();

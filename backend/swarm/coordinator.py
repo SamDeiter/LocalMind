@@ -355,6 +355,7 @@ class HiveCoordinator:
                     (self._tasks_processed - self._tasks_failed) / max(self._tasks_processed, 1) * 100, 1
                 ),
             },
+            "agent_details": self.get_agent_details(),
             "recent_results": [
                 {
                     "task_id": r.task_id,
