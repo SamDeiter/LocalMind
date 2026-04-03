@@ -95,13 +95,13 @@
         </div>
 
         <nav class="flex-1 space-y-1 overflow-y-auto px-2 custom-scrollbar">
-            <button id="overviewBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold transition-all">
-                <span class="material-symbols-outlined mr-4">terminal</span>
-                <span class="text-sm font-headline tracking-tight">Main Dashboard</span>
+            <button id="overviewBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-100 bg-slate-800/40 border border-slate-700/30 text-xs font-semibold transition-all group">
+                <span class="material-symbols-outlined mr-4 pointer-events-none">terminal</span>
+                <span class="text-sm font-headline tracking-tight pointer-events-none">Main Dashboard</span>
             </button>
             <button id="newChatBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 group-hover:text-primary">add_comment</span>
-                <span class="text-sm tracking-tight">New Session</span>
+                <span class="material-symbols-outlined mr-4 group-hover:text-primary pointer-events-none">add_comment</span>
+                <span class="text-sm tracking-tight pointer-events-none">New Session</span>
             </button>
             <div id="conversationList" class="mt-4 space-y-1 pl-4"></div>
         </nav>
@@ -126,8 +126,9 @@
                     <span class="material-symbols-outlined text-sm mr-3">code</span> Code Editor
                 </button>
                 <button id="swarmDashBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                    <span class="material-symbols-outlined text-sm mr-3 group-hover:text-amber-400">hive</span> Hive Mind
-                    <span id="swarmAgentCount" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full">0</span>
+                    <span class="material-symbols-outlined text-sm mr-3 group-hover:text-amber-400 pointer-events-none">hive</span>
+                    <span class="pointer-events-none">Hive Mind</span>
+                    <span id="swarmAgentCount" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none">0</span>
                 </button>
                 <button id="systemPromptBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
                     <span class="material-symbols-outlined text-sm mr-3">settings</span> Settings
@@ -438,7 +439,7 @@
                     <div id="thinkingTerminalOutput" class="flex-1 overflow-y-auto p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap custom-scrollbar">Loading OpenClaw-level shell access sandbox...</div>
                 </div>
                 
-                <div id="chatScreen" class="hidden absolute bottom-12 left-1/2 -translate-x-1/2 w-[calc(100%-80px)] lg:w-[800px] max-h-[85vh] h-[750px] bg-surface-container-high/95 backdrop-blur-3xl border border-outline-variant/30 rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.8)] z-50 flex flex-col overflow-hidden transition-all duration-300">
+                <div id="chatScreen" class="hidden absolute bottom-12 left-1/2 -translate-x-1/2 w-[calc(100%-80px)] lg:w-[800px] max-h-[85vh] h-[750px] bg-surface-container-high/95 backdrop-blur-3xl border border-outline-variant/30 rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.8)] z-40 flex flex-col overflow-hidden transition-all duration-300">
                     <!-- Header -->
                     <div class="flex items-center justify-between p-5 border-b border-outline-variant/10 bg-surface-container-highest/80 backdrop-blur-md sticky top-0 z-10">
                         <h2 class="font-headline text-lg font-medium text-on-background flex items-center gap-2">
@@ -649,6 +650,6 @@
 </div>
 
 <!-- dashboard.js is now imported as a module in app.js -->
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=2"></script>
 </body>
 </html>
