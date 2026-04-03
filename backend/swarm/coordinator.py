@@ -72,6 +72,8 @@ class HiveCoordinator:
         self._start_time: Optional[float] = None
         self._tasks_processed = 0
         self._tasks_failed = 0
+        self._peak_queue_depth = 0
+        self._last_peak_reset = time.time()
 
     async def start(self):
         """Start the swarm coordinator and all worker loops."""
@@ -225,8 +227,23 @@ class HiveCoordinator:
                     )
                     self.queue.submit(scan_task)
 
+                # Occasionally submit a low-priority LLM reflection task to exercise GPU slots
+                import random
+                if random.random() < 0.3: # 30% chance every minute
+                    self.submit_llm(
+                        prompt="Audit current file structure for modularity improvements.",
+                        priority=5,
+                        task_type=TaskType.LLM_REFLECT
+                    )
+                    logger.info("🗓️  Scheduled background LLM reflection")
+
             except Exception as exc:
                 logger.warning(f"Auto-scheduler error: {exc}")
+
+            # Reset peak every 60 seconds
+            if time.time() - self._last_peak_reset > 60:
+                self._peak_queue_depth = self.queue.depth
+                self._last_peak_reset = time.time()
 
             # Wait 60 seconds before next round
             await asyncio.sleep(60)
@@ -255,7 +272,10 @@ class HiveCoordinator:
 
     def submit(self, task: SwarmTask) -> bool:
         """Submit a single task to the queue."""
-        return self.queue.submit(task)
+        success = self.queue.submit(task)
+        if success:
+            self._peak_queue_depth = max(self._peak_queue_depth, self.queue.depth)
+        return success
 
     def submit_scan(self, files: list[str], scan_type: str = "both", priority: int = 3) -> str:
         """Convenience: submit a scan task."""
@@ -337,7 +357,10 @@ class HiveCoordinator:
             "running": self._running,
             "uptime": round(time.time() - self._start_time) if self._start_time else 0,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "queue": self.queue.get_stats(),
+            "queue": {
+                **self.queue.get_stats(),
+                "peak_depth": self._peak_queue_depth
+            },
             "agents": {
                 "total": len(all_agents),
                 "active": len(active_agents),

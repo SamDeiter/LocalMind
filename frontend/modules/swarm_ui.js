@@ -29,6 +29,7 @@ const els = {
     totalFailed: () => document.getElementById('swarmTotalFailed'),
     lastPoll: () => document.getElementById('swarmLastPoll'),
     heartbeat: () => document.getElementById('swarmHeartbeat'),
+    queuePeak: () => document.getElementById('swarmQueuePeak'),
 };
 
 // ── Agent Type Icons & Colors ───────────────────────────────────
@@ -165,6 +166,7 @@ function renderSwarmStatus(data) {
     setTextSafe(els.gpuUsed(), agents.by_type?.gpu?.active || 0);
     setTextSafe(els.gpuTotal(), agents.by_type?.gpu?.total || 3);
     setTextSafe(els.queueDepth(), queue.total_queued || 0);
+    setTextSafe(els.queuePeak(), queue.peak_depth || 0);
     setTextSafe(els.successRate(), metrics.success_rate !== null && metrics.success_rate !== undefined ? `${metrics.success_rate}%` : '--');
 
     // Agent grid — pass data directly, no second fetch
