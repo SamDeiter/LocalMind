@@ -191,7 +191,7 @@ async def identify_target_files(
 
         numbered = "\n".join(f"  {i+1}. {f}" for i, f in enumerate(files_list[:80]))
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             prompt = (
                 f"You are a code targeting assistant. Pick which file(s) to edit.\n\n"
                 f"PROPOSAL: {proposal['title']}\n"
@@ -325,7 +325,7 @@ async def edit_single_file(
         if len(lines) > preview_limit:
             file_preview += f"\n     ... ({len(lines) - preview_limit} more lines)"
 
-        async with httpx.AsyncClient(timeout=180.0) as client:
+        async with httpx.AsyncClient(timeout=600.0) as client:
             prompt = (
                 f"You are a code editor. Make ONE small, precise change.\n\n"
                 f"TASK: {proposal['title']}\n"
