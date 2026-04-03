@@ -6,7 +6,7 @@
  * API calls always go to the network (no offline AI inference).
  */
 
-const CACHE_NAME = "localmind-v1";
+const CACHE_NAME = "localmind-v2";
 
 // Files to cache for instant loading
 const SHELL_FILES = [
@@ -45,6 +45,11 @@ self.addEventListener("activate", (event) => {
 // ── Fetch: Cache-first for static/CDN, Network-only (or fallback) for API ─────────
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+
+  // Only handle http/https — skip chrome-extension://, data:, etc.
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return;
+  }
 
   // API calls: Network-only, No caching
   if (url.pathname.startsWith("/api/")) {
