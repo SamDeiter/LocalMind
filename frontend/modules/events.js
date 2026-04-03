@@ -49,6 +49,11 @@ export function bindEvents() {
   // Global Overview Button
   overviewBtn?.addEventListener("click", () => {
     hideSwarmDashboard();
+    // Close editor if open
+    const ep = document.getElementById('editorPanel');
+    if (ep && ep.classList.contains('visible')) {
+      toggleEditorPanel();
+    }
     if (chatScreen) {
       chatScreen.classList.add("hidden");
       chatScreen.style.display = "none";

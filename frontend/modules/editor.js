@@ -362,6 +362,6 @@ export function initEditorEnhancements() {
     });
   }
 
-  // Editor toggle button
-  editorToggle?.addEventListener("click", toggleEditorPanel);
+  // Editor toggle button — handled by events.js to avoid double-fire
+  // editorToggle click handler is bound in events.js:bindEvents()
 }

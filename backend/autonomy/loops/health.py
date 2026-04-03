@@ -65,7 +65,7 @@ async def run_health_loop(engine):
 async def _check_system_health(engine):
     """Ping Ollama and check if a model is loaded. Returns True if healthy."""
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(f"{engine.ollama_url}/api/tags")
             ollama_ok = resp.status_code == 200
 
