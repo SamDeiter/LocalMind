@@ -19,6 +19,8 @@ from pathlib import Path
 
 import httpx
 
+from backend.validation.robust_parser import parse_json
+
 logger = logging.getLogger("localmind.autonomy.editor")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -221,28 +223,12 @@ async def identify_target_files(
                 return [], 0
 
             text = resp.json().get("message", {}).get("content", "").strip()
-            if "```" in text:
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-                text = text.strip()
 
             candidates = []
-            try:
-                result = json.loads(text)
-                if isinstance(result, list):
-                    candidates = [f for f in result if isinstance(f, str) and f.strip()]
-            except json.JSONDecodeError:
-                match = re.search(r'\[([^\]]+)\]', text)
-                if match:
-                    try:
-                        result = json.loads(f"[{match.group(1)}]")
-                        if isinstance(result, list):
-                            candidates = [f for f in result if isinstance(f, str) and f.strip()]
-                    except json.JSONDecodeError:
-                        pass
-
-            if not candidates:
+            result = parse_json(text)
+            if isinstance(result, list):
+                candidates = [f for f in result if isinstance(f, str) and f.strip()]
+            elif result is None:
                 # Fallback: sweep the raw text for any matching filenames
                 for word in text.replace('"', ' ').replace("'", " ").replace(",", " ").split():
                     word = word.strip("[].,-")
@@ -251,10 +237,10 @@ async def identify_target_files(
                     if word in files_set or any(f.endswith("/" + word) or f == word for f in files_list):
                         if word not in candidates:
                             candidates.append(word)
-                            
-                if not candidates:
-                    logger.warning(f"Could not parse file targeting response: {text[:200]}")
-                    return [], 0
+
+            if not candidates:
+                logger.warning(f"Could not parse file targeting response: {text[:200]}")
+                return [], 0
 
             validated = []
             for candidate in candidates:
@@ -462,35 +448,11 @@ def _strip_line_numbers(text: str) -> str:
 
 
 def _parse_diff_response(raw_response: str, relative_path: str, emit_activity=None) -> dict | None:
-    """Parse the AI's JSON response, with fallback regex/block extraction."""
-    # 1. Try raw parsing
-    try:
-        parsed = json.loads(raw_response.strip())
-        if isinstance(parsed, dict) and "search" in parsed and "replace" in parsed:
-            return parsed
-    except json.JSONDecodeError:
-        pass
-        
-    # 2. Try parsing all markdown code blocks
-    blocks = re.findall(r'```(?:json)?\s*(.*?)\s*```', raw_response, re.DOTALL | re.IGNORECASE)
-    for block in blocks:
-        try:
-            parsed = json.loads(block.strip())
-            if isinstance(parsed, dict) and "search" in parsed and "replace" in parsed:
-                return parsed
-        except json.JSONDecodeError:
-            continue
+    """Parse the AI's JSON response using the cascading robust_parser."""
+    parsed = parse_json(raw_response)
 
-    # 3. Extract greedy JSON block between first { and last }
-    first_brace = raw_response.find('{')
-    last_brace = raw_response.rfind('}')
-    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-        try:
-            parsed = json.loads(raw_response[first_brace:last_brace+1])
-            if isinstance(parsed, dict) and "search" in parsed and "replace" in parsed:
-                return parsed
-        except json.JSONDecodeError:
-            pass
+    if isinstance(parsed, dict) and "search" in parsed and "replace" in parsed:
+        return parsed
 
     # Determine a useful diagnostic snippet
     snippet = raw_response[:150].replace('\n', ' ').strip()
