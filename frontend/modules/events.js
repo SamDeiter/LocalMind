@@ -29,6 +29,7 @@ import { toggleProposalList } from "./proposals_ui.js";
 import { toggleActivityFeed } from "./autonomy/index.js";
 import { toggleEditorPanel } from "./editor.js";
 import { toggleSettingsModal } from "./settings_ui.js";
+import { hideSwarmDashboard } from "./swarm_ui.js";
 import { chatScreen, overviewBtn } from "./state.js";
 
 export function bindEvents() {
@@ -47,6 +48,7 @@ export function bindEvents() {
 
   // Global Overview Button
   overviewBtn?.addEventListener("click", () => {
+    hideSwarmDashboard();
     if (chatScreen) {
       chatScreen.classList.add("hidden");
       chatScreen.style.display = "none";
@@ -155,7 +157,10 @@ export function bindEvents() {
   // Autonomy mode buttons
 
   // Obsidian Specific Hooks
-  $("#editorToggle")?.addEventListener("click", toggleEditorPanel);
+  $("#editorToggle")?.addEventListener("click", () => {
+    hideSwarmDashboard();
+    toggleEditorPanel();
+  });
 
   // Stop button
   $("#stopBtn")?.addEventListener("click", () => {

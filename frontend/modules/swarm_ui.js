@@ -47,9 +47,27 @@ export function initSwarmUI() {
         scanBtn.addEventListener('click', triggerFullScan);
     }
 
+    // When other sidebar buttons are clicked, close swarm panel
+    const otherNavBtns = ['overviewBtn', 'editorToggle', 'activityToggle', 'memoryToggleBtn'];
+    otherNavBtns.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', hideSwarmDashboard);
+    });
+
     // Start background agent count polling (even when hidden)
     setInterval(updateAgentCountBadge, 10000);
     updateAgentCountBadge();
+}
+
+/** Close the swarm dashboard and restore the main view. */
+export function hideSwarmDashboard() {
+    if (!swarmVisible) return;
+    const view = els.dashView();
+    const main = els.mainScroll();
+    swarmVisible = false;
+    if (view) view.classList.add('hidden');
+    if (main) main.classList.remove('hidden');
+    stopPolling();
 }
 
 function toggleSwarmDashboard() {
@@ -60,6 +78,12 @@ function toggleSwarmDashboard() {
     swarmVisible = !swarmVisible;
 
     if (swarmVisible) {
+        // Also hide the editor panel if it's open
+        const editorPanel = document.getElementById('editorPanelContainer');
+        if (editorPanel && !editorPanel.classList.contains('hidden')) {
+            editorPanel.classList.add('hidden');
+        }
+
         view.classList.remove('hidden');
         if (main) main.classList.add('hidden');
         startPolling();
