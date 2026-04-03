@@ -11,14 +11,17 @@ export async function pollAutonomy() {
     const label = document.getElementById("autonomyLabel");
     const loadingBanner = document.getElementById("brainLoadingBanner");
     const brainPulse = document.getElementById("brainPulse");
-    
+
     // Model is ready if health_check says so, OR if the engine is actively working
     const healthReady = d.health_check && d.health_check.model_loaded;
-    const engineActive = (d.ideas_generated || 0) > 0 || (d.current_task && d.current_task !== "idle");
+    const engineActive =
+      (d.ideas_generated || 0) > 0 || (d.current_task && d.current_task !== "idle");
     const modelReady = healthReady || engineActive;
 
     if (indicator) {
-      indicator.className = d.enabled ? "autonomy-dot autonomy-active" : "autonomy-dot autonomy-paused";
+      indicator.className = d.enabled
+        ? "autonomy-dot autonomy-active"
+        : "autonomy-dot autonomy-paused";
     }
     if (label) {
       if (!d.enabled) {
@@ -31,7 +34,7 @@ export async function pollAutonomy() {
     }
 
     if (loadingBanner) {
-      loadingBanner.style.display = (d.enabled && !modelReady) ? "flex" : "none";
+      loadingBanner.style.display = d.enabled && !modelReady ? "flex" : "none";
     }
 
     if (brainPulse) {
@@ -44,11 +47,15 @@ export async function pollAutonomy() {
       const autoBtn = document.getElementById("modeAutonomousBtn");
       if (supBtn && autoBtn) {
         if (d.mode === "supervised") {
-          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface-variant border border-outline-variant/20 transition-all";
-          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline/50 hover:text-on-surface border border-transparent transition-all";
+          supBtn.className =
+            "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface-variant border border-outline-variant/20 transition-all";
+          autoBtn.className =
+            "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline/50 hover:text-on-surface border border-transparent transition-all";
         } else {
-          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline/50 hover:text-on-surface border border-transparent transition-all";
-          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/30 transition-all";
+          supBtn.className =
+            "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline/50 hover:text-on-surface border border-transparent transition-all";
+          autoBtn.className =
+            "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/30 transition-all";
         }
       }
       const brainMode = document.getElementById("brainMode");
@@ -106,7 +113,8 @@ function populateInitialEvents(recentEvents) {
   if (timeline) {
     timeline.innerHTML = "";
     const events = [...recentEvents].reverse();
-    for (const event of events.slice(0, 20)) {      const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+    for (const event of events.slice(0, 20)) {
+      const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
       const evEl = document.createElement("div");
       const colorClass = isActive ? "bg-primary" : "bg-surface-variant";
       evEl.className = "flex gap-3 py-1";
@@ -128,7 +136,8 @@ function populateInitialEvents(recentEvents) {
       sysFeed.innerHTML = "";
     }
     const events = [...recentEvents].reverse();
-    for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {      const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+    for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {
+      const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
       const item = document.createElement("div");
       item.className = "group flex gap-3";
       const label = isActive ? event.action.toUpperCase() : "INFO";
@@ -155,7 +164,13 @@ function populateInitialEvents(recentEvents) {
     const events = [...recentEvents].reverse();
     for (const event of events.slice(0, 20)) {
       const icon = ACTION_ICONS[event.action] || "📡";
-      const ts = event.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const ts =
+        event.time ||
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
       const line = document.createElement("p");
       line.innerHTML = `<span class="text-outline/40">${ts}</span>  ${icon} <span class="text-on-surface-variant">${escapeHtml(event.detail || event.action || "...")}</span>`;
       thinkFeed.appendChild(line);

@@ -153,7 +153,7 @@ function openFileInEditor(path, name) {
       const lang = getLang(name);
       monaco.editor.setModelLanguage(editorState.monacoEditor.getModel(), lang);
       editorState.monacoEditor.setValue(d.content);
-  document.getElementById('monacoContainer').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById("monacoContainer").scrollIntoView({ behavior: "smooth" });
       document.getElementById("editorLang").textContent = lang;
       document.getElementById("editorPath").textContent = path;
       document.querySelectorAll(".file-tree-item").forEach((el) => el.classList.remove("active"));

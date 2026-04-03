@@ -6,7 +6,15 @@
 import { checkHealth, loadModels } from "./modules/chat.js";
 import { loadConversations } from "./modules/conversations.js";
 import { populateVoices, initSpeechRecognition } from "./modules/media.js";
-import { startHwPolling, loadMemories, loadDocuments, loadVersion, loadProposals, connectActivityFeed, initDashboardPanels } from "./modules/sidebar.js";
+import {
+  startHwPolling,
+  loadMemories,
+  loadDocuments,
+  loadVersion,
+  loadProposals,
+  connectActivityFeed,
+  initDashboardPanels,
+} from "./modules/sidebar.js";
 import { toggleEditorPanel, initEditorEnhancements } from "./modules/editor.js";
 import { bindEvents } from "./modules/events.js";
 import { initResearchPanel, initGlobalSearch } from "./modules/research_ui.js";

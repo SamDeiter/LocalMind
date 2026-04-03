@@ -118,9 +118,9 @@ export function showToast(message, type = "info") {
     <span class="toast-message">${message}</span>
     <button class="toast-close">&times;</button>
   `;
-  
+
   container.appendChild(toast);
-  
+
   // Animate in
   requestAnimationFrame(() => {
     toast.classList.add("visible");

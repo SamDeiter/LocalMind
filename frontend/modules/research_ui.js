@@ -34,8 +34,7 @@ export async function searchArxiv(query, page = 0) {
     btn.textContent = "Searching…";
   }
   if (resultsEl) {
-    resultsEl.innerHTML =
-      '<div class="arxiv-loading">🔄 Searching arXiv…</div>';
+    resultsEl.innerHTML = '<div class="arxiv-loading">🔄 Searching arXiv…</div>';
   }
 
   try {
@@ -62,17 +61,11 @@ export async function searchArxiv(query, page = 0) {
     let html = papers
       .map((p, idx) => {
         const title = escapeHtml(p.title || "Untitled");
-        const authors = escapeHtml(
-          (p.authors || "Unknown authors").substring(0, 100),
-        );
+        const authors = escapeHtml((p.authors || "Unknown authors").substring(0, 100));
         const pitch = p.pitch ? escapeHtml(p.pitch) : null;
-        const abstract = escapeHtml(
-          (p.abstract || "No abstract available").substring(0, 250),
-        );
+        const abstract = escapeHtml((p.abstract || "No abstract available").substring(0, 250));
         const url = p.url || "#";
-        const published = p.published
-          ? new Date(p.published).toLocaleDateString()
-          : "";
+        const published = p.published ? new Date(p.published).toLocaleDateString() : "";
 
         // Unified paper card (Premium Style — matches reference image)
         return `
@@ -267,7 +260,7 @@ export function initGlobalSearch() {
   input.addEventListener("input", (e) => {
     const q = e.target.value.trim();
     if (!q || q.length < 3) return;
-    
+
     // Wire to arXiv search as requested ("paper feature" search)
     console.log("Obsidian Global Search Pulse:", q);
     searchArxiv(q);
@@ -275,10 +268,8 @@ export function initGlobalSearch() {
 
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-        const q = input.value.trim();
-        if (q) searchArxiv(q);
+      const q = input.value.trim();
+      if (q) searchArxiv(q);
     }
   });
 }
-
-

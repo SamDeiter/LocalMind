@@ -24,9 +24,9 @@ export function renderConversations() {
   state.conversations.forEach((c) => {
     const div = document.createElement("div");
     div.className = `conversation-item flex items-center justify-between px-3 py-2 text-sm rounded-r-lg cursor-pointer transition-all group ${
-      c.id === state.currentConvId 
-      ? "text-[#c0c1ff] bg-primary/10 border-l-2 border-[#6366f1]" 
-      : "text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b]"
+      c.id === state.currentConvId
+        ? "text-[#c0c1ff] bg-primary/10 border-l-2 border-[#6366f1]"
+        : "text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b]"
     }`;
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>

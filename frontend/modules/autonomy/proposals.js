@@ -15,12 +15,20 @@ export async function renderTaskPipeline() {
     const proposals = d.proposals || [];
 
     if (proposals.length === 0) {
-      body.innerHTML = '<div class="task-pipeline-empty">No tasks yet — engine will generate proposals soon.</div>';
+      body.innerHTML =
+        '<div class="task-pipeline-empty">No tasks yet — engine will generate proposals soon.</div>';
       if (countEl) countEl.textContent = "0";
       return;
     }
 
-    const groups = { in_progress: [], approved: [], proposed: [], failed: [], completed: [], denied: [] };
+    const groups = {
+      in_progress: [],
+      approved: [],
+      proposed: [],
+      failed: [],
+      completed: [],
+      denied: [],
+    };
     for (const p of proposals) {
       const s = p.status || "proposed";
       if (groups[s]) groups[s].push(p);
@@ -31,10 +39,10 @@ export async function renderTaskPipeline() {
 
     const statusConfig = {
       in_progress: { icon: "🔧", label: "Processing", cls: "processing", color: "#00eefc" },
-      approved:    { icon: "⏳", label: "Queued",     cls: "queued",     color: "#ffc107" },
-      proposed:    { icon: "📋", label: "Pending",    cls: "pending",    color: "#aaabb2" },
-      failed:      { icon: "❌", label: "Failed",     cls: "failed",     color: "#f44336" },
-      completed:   { icon: "✅", label: "Done",       cls: "done",       color: "#4caf50" },
+      approved: { icon: "⏳", label: "Queued", cls: "queued", color: "#ffc107" },
+      proposed: { icon: "📋", label: "Pending", cls: "pending", color: "#aaabb2" },
+      failed: { icon: "❌", label: "Failed", cls: "failed", color: "#f44336" },
+      completed: { icon: "✅", label: "Done", cls: "done", color: "#4caf50" },
     };
 
     let html = "";
@@ -46,22 +54,22 @@ export async function renderTaskPipeline() {
       const defaultClosed = status === "completed" || status === "denied";
 
       html += `<div class="pipeline-group pipeline-${config.cls} mb-6">`;
-      html += `<div class="flex items-center justify-between mb-3 px-1 ${isCollapsible ? 'cursor-pointer select-none hover:opacity-80' : ''}" ${isCollapsible ? `onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron-icon').classList.toggle('rotate-90')"` : ''}>`;
+      html += `<div class="flex items-center justify-between mb-3 px-1 ${isCollapsible ? "cursor-pointer select-none hover:opacity-80" : ""}" ${isCollapsible ? `onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron-icon').classList.toggle('rotate-90')"` : ""}>`;
       html += `  <div class="flex items-center gap-2">`;
       html += `    <span class="text-sm">${config.icon}</span>`;
       html += `    <span class="text-[10px] font-bold uppercase tracking-[0.2em]" style="color: ${config.color}">${config.label}</span>`;
       if (isCollapsible) {
-        html += `    <span class="material-symbols-outlined text-xs text-outline/40 chevron-icon transition-transform ${defaultClosed ? '' : 'rotate-90'}" style="font-size:14px">chevron_right</span>`;
+        html += `    <span class="material-symbols-outlined text-xs text-outline/40 chevron-icon transition-transform ${defaultClosed ? "" : "rotate-90"}" style="font-size:14px">chevron_right</span>`;
       }
       html += `  </div>`;
       html += `  <span class="text-[9px] font-bold bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-outline">${items.length}</span>`;
       html += `</div>`;
-      html += `<div class="space-y-2 ${defaultClosed ? 'hidden' : ''}">`;
+      html += `<div class="space-y-2 ${defaultClosed ? "hidden" : ""}">`;
 
       if (status === "completed" && items.length > 3) {
         const visibleItems = items.slice(-3);
         const archivedItems = items.slice(0, items.length - 3);
-        
+
         for (const p of visibleItems) {
           html += renderProposalItem(p, status);
         }
@@ -94,13 +102,29 @@ export async function renderTaskPipeline() {
 
 function renderProposalItem(p, status) {
   const title = escapeHtml(p.title || p.category || "Untitled");
-  const cat = p.category ? `<span class="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">${escapeHtml(p.category)}</span>` : "";
-  const timeAgo = p.created_at ? `<span class="text-[9px] text-outline/60 font-medium">${formatTimeAgo(p.created_at)}</span>` : "";
-  
-  const approveBtn = status === "proposed" ? `<button class="pipeline-approve p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Approve"><span class="material-symbols-outlined text-xs">check</span></button>` : "";
-  const denyBtn = status === "proposed" ? `<button class="pipeline-deny p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Deny"><span class="material-symbols-outlined text-xs">close</span></button>` : "";
-  const retryBtn = status === "failed" ? `<button class="pipeline-retry p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Retry"><span class="material-symbols-outlined text-xs">refresh</span></button>` : "";
-  const dismissBtn = status === "failed" ? `<button class="pipeline-dismiss p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Dismiss"><span class="material-symbols-outlined text-xs">close</span></button>` : "";
+  const cat = p.category
+    ? `<span class="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">${escapeHtml(p.category)}</span>`
+    : "";
+  const timeAgo = p.created_at
+    ? `<span class="text-[9px] text-outline/60 font-medium">${formatTimeAgo(p.created_at)}</span>`
+    : "";
+
+  const approveBtn =
+    status === "proposed"
+      ? `<button class="pipeline-approve p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Approve"><span class="material-symbols-outlined text-xs">check</span></button>`
+      : "";
+  const denyBtn =
+    status === "proposed"
+      ? `<button class="pipeline-deny p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Deny"><span class="material-symbols-outlined text-xs">close</span></button>`
+      : "";
+  const retryBtn =
+    status === "failed"
+      ? `<button class="pipeline-retry p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Retry"><span class="material-symbols-outlined text-xs">refresh</span></button>`
+      : "";
+  const dismissBtn =
+    status === "failed"
+      ? `<button class="pipeline-dismiss p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Dismiss"><span class="material-symbols-outlined text-xs">close</span></button>`
+      : "";
 
   let html = `<div class="group flex flex-col gap-1 p-3 rounded-lg bg-surface-container-low/40 border border-outline-variant/10 hover:border-primary/30 transition-all">`;
   html += `  <div class="flex justify-between items-start gap-2">`;
@@ -118,9 +142,12 @@ function renderProposalItem(p, status) {
   const model = p.model_used;
   if (dur || tok || model) {
     html += `  <div class="flex items-center gap-3 mt-2 pt-2 border-t border-outline-variant/10">`;
-    if (dur !== null && dur !== undefined) html += `    <span class="text-[9px] text-outline/60 font-mono">⏱ ${dur}s</span>`;
-    if (tok) html += `    <span class="text-[9px] text-outline/60 font-mono">🎟 ${tok > 999 ? (tok / 1000).toFixed(1) + 'k' : tok} tkns</span>`;
-    if (model) html += `    <span class="text-[9px] text-primary/50 font-mono">${escapeHtml(model)}</span>`;
+    if (dur !== null && dur !== undefined)
+      html += `    <span class="text-[9px] text-outline/60 font-mono">⏱ ${dur}s</span>`;
+    if (tok)
+      html += `    <span class="text-[9px] text-outline/60 font-mono">🎟 ${tok > 999 ? (tok / 1000).toFixed(1) + "k" : tok} tkns</span>`;
+    if (model)
+      html += `    <span class="text-[9px] text-primary/50 font-mono">${escapeHtml(model)}</span>`;
     html += `  </div>`;
   }
   html += `</div>`;
@@ -128,27 +155,31 @@ function renderProposalItem(p, status) {
 }
 
 function wirePipelineButtons(body) {
-    const actions = ["approve", "deny", "retry", "dismiss"];
-    actions.forEach(action => {
-      body.querySelectorAll(`.pipeline-${action}`).forEach(btn => {
-        btn.addEventListener("click", async (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.id;
-          const endpoint = action === "dismiss" ? "deny" : action;
-          try {
-            const r = await fetch(`${API}/api/autonomy/proposals/${id}/${endpoint}`, { method: "POST" });
-            const d = await r.json();
-            if (d.ok) {
-              showToast(`✅ ${action.charAt(0).toUpperCase() + action.slice(1)}ed`, "info");
-              renderTaskPipeline();
-              updateSuccessRate();
-            } else {
-              showToast(`❌ ${d.message || "Failed"}`, "error");
-            }
-          } catch { showToast("❌ Action failed", "error"); }
-        });
+  const actions = ["approve", "deny", "retry", "dismiss"];
+  actions.forEach((action) => {
+    body.querySelectorAll(`.pipeline-${action}`).forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const endpoint = action === "dismiss" ? "deny" : action;
+        try {
+          const r = await fetch(`${API}/api/autonomy/proposals/${id}/${endpoint}`, {
+            method: "POST",
+          });
+          const d = await r.json();
+          if (d.ok) {
+            showToast(`✅ ${action.charAt(0).toUpperCase() + action.slice(1)}ed`, "info");
+            renderTaskPipeline();
+            updateSuccessRate();
+          } else {
+            showToast(`❌ ${d.message || "Failed"}`, "error");
+          }
+        } catch {
+          showToast("❌ Action failed", "error");
+        }
       });
     });
+  });
 }
 
 function formatTimeAgo(ts) {

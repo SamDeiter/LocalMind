@@ -13,7 +13,7 @@ export function updateBrainDashboard(event) {
   evEl.innerHTML = `
     <span class="brain-event-icon">${icon}</span>
     <span class="brain-event-text">${escapeHtml(event.detail || event.action)}</span>
-    <span class="brain-event-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+    <span class="brain-event-time">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
   `;
 
   timeline.prepend(evEl);
@@ -33,9 +33,9 @@ export function updateBrainUptime() {
 export function updateSuccessRate() {
   const rateEl = document.getElementById("brainSuccessRate");
   if (!rateEl) return;
-  
-  const total = (window.brainProposalCount || 0);
-  const success = (window.brainExecutedCount || 0);
+
+  const total = window.brainProposalCount || 0;
+  const success = window.brainExecutedCount || 0;
   if (total === 0) {
     rateEl.textContent = "100%";
     return;
