@@ -266,27 +266,32 @@
                     </div>
                 </div>
 
-                <!-- Agent Grid -->
+                <!-- Agent Grid (scrollable) -->
                 <div>
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Agent Pool</div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="swarmAgentGrid">
-                        <!-- Populated by swarm_ui.js -->
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Agent Pool</div>
+                        <span class="text-[9px] font-mono text-slate-600" id="swarmWorkerTotal">0 workers</span>
+                    </div>
+                    <div class="max-h-[320px] overflow-y-auto custom-scrollbar rounded-xl border border-slate-800/30 bg-slate-950/20 p-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="swarmAgentGrid">
+                            <!-- Populated by swarm_ui.js -->
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
                     <!-- Recent Activity Stream -->
-                    <div>
+                    <div class="bg-slate-900/30 border border-slate-800/40 rounded-xl p-4">
                         <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Recent Task Results</div>
-                        <div class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar" id="swarmResultStream">
+                        <div class="space-y-1 max-h-72 overflow-y-auto custom-scrollbar" id="swarmResultStream">
                             <div class="text-xs text-slate-500 italic p-4">Waiting for tasks...</div>
                         </div>
                     </div>
 
                     <!-- Recent Improvements -->
-                    <div>
+                    <div class="bg-slate-900/30 border border-slate-800/40 rounded-xl p-4">
                         <div class="text-[10px] font-bold uppercase tracking-widest text-cyan-500 mb-3">Recent Improvements (Verified)</div>
-                        <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar" id="swarmImprovementsStream">
+                        <div class="space-y-2 max-h-72 overflow-y-auto custom-scrollbar" id="swarmImprovementsStream">
                             <div class="text-xs text-slate-500 italic p-4">No verified improvements merged yet...</div>
                         </div>
                     </div>
