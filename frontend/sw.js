@@ -41,31 +41,30 @@ self.addEventListener("activate", (event) => {
 });
 
 // ── Fetch: network-first for API, cache-first for static ─────────
+
+// ── Fetch: Cache-first for static/CDN, Network-only (or fallback) for API ─────────
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // API calls always go to network (can't do AI offline)
+  // API calls: Network-only, No caching
   if (url.pathname.startsWith("/api/")) {
     return;
   }
 
-  // Static files: try network first, then cache
+  // Static/CDN: Cache-first strategy (Stale-While-Revalidate)
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cache successful HTTP/HTTPS GET responses
-        const url = new URL(event.request.url);
-        if (response.ok && event.request.method === "GET" && (url.protocol === "http:" || url.protocol === "https:")) {
-          const clone = response.clone();
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.ok && event.request.method === "GET") {
+          const cacheCopy = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
+            cache.put(event.request, cacheCopy);
           });
         }
-        return response;
-      })
-      .catch(() => {
-        // Fallback to cache if offline
-        return caches.match(event.request);
-      }),
+        return networkResponse;
+      }).catch(() => cachedResponse);
+
+      return cachedResponse || fetchPromise;
+    })
   );
 });

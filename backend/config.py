@@ -65,3 +65,6 @@ DIGESTS_DIR = WORKSPACE_ROOT / "digests"
 PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 DIGESTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Performance optimization flag (from PR #12)
+ACTIVE_CACHE_ENABLED = True

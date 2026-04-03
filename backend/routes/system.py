@@ -14,7 +14,7 @@ async def health_check():
     """Check server and Ollama connectivity."""
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5.0)
+            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
             ollama_ok = resp.status_code == 200
     except Exception:
         ollama_ok = False
@@ -46,7 +46,7 @@ async def hardware_status():
 
     models = []
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=2.0) as client:
             r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
             data = r.json()
             for m in data.get("models", []):
@@ -66,7 +66,7 @@ async def list_models():
     """List available Ollama models."""
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10.0)
+            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
             data = resp.json()
             models = [
                 {"name": m["name"], "size": m.get("size", 0)}

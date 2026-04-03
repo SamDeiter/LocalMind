@@ -415,33 +415,18 @@ class ProposalManager:
         fp.write_text(json.dumps(proposal, indent=2), encoding="utf-8")
 
     def count_active(self) -> int:
-        """Count proposals that are proposed or approved (i.e. still actionable)."""
-        if not PROPOSALS_DIR.exists():
-            return 0
-
-        try:
-            # Re-read dir stats
-            stat = os.stat(PROPOSALS_DIR)
-            current_mtime = stat.st_mtime
-        except OSError:
-            current_mtime = None
-
-        if (self._active_count_cache is not None
-            and getattr(self, "_last_dir_mtime", None) is not None
-            and current_mtime == self._last_dir_mtime):
-            return self._active_count_cache
+        """Count active proposals using mtime-aware caching (⚡ Bolt)."""
+        current_mtime = PROPOSALS_DIR.stat().st_mtime
+        if hasattr(self, "_active_cache") and self._active_cache["mtime"] == current_mtime:
+            return self._active_cache["count"]
 
         count = 0
         for f in PROPOSALS_DIR.glob("*.json"):
             try:
-                data = json.loads(f.read_text(encoding="utf-8"))
-                if data.get("status") in ("proposed", "approved"):
-                    count += 1
-            except Exception:
-                continue
-
-        self._active_count_cache = count
-        self._last_dir_mtime = current_mtime
+                with open(f, encoding="utf-8") as j: data = json.load(j)
+                if data.get("status") in ("proposed", "approved"): count += 1
+            except: continue
+        self._active_cache = {"count": count, "mtime": current_mtime}
         return count
 
     def is_prerequisite_met(self, proposal: dict) -> bool:
