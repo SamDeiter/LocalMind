@@ -3,7 +3,7 @@ Vision Tool — analyze images using Ollama's multimodal models.
 Handles webcam captures and workspace images.
 """
 
-from backend.config import OLLAMA_BASE_URL_URL
+from backend.config import OLLAMA_BASE_URL
 import base64
 
 import httpx
