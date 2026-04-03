@@ -42,12 +42,14 @@ class HiveCoordinator:
         max_io_workers: int = 8,
         ollama_url: str = OLLAMA_BASE_URL,
         emit_activity=None,
+        proposals=None,
     ):
         self.max_gpu_workers = max_gpu_workers
         self.max_cpu_workers = max_cpu_workers
         self.max_io_workers = max_io_workers
         self.ollama_url = ollama_url
         self._emit_activity = emit_activity or (lambda *a, **k: None)
+        self.proposals = proposals
 
         # Semaphore gates GPU access
         self.gpu_semaphore = asyncio.Semaphore(max_gpu_workers)
@@ -361,7 +363,7 @@ class HiveCoordinator:
                 **self.queue.get_stats(),
                 "peak_depth": self._peak_queue_depth
             },
-            "recent_improvements": self.proposals.list_completed(limit=5),
+            "recent_improvements": self.proposals.list_completed(limit=5) if self.proposals else [],
             "agents": {
                 "total": len(all_agents),
                 "active": len(active_agents),

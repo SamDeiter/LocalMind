@@ -252,6 +252,7 @@ class AutonomyEngine:
             max_io_workers=8,
             ollama_url=self.ollama_url,
             emit_activity=self._emit_activity,
+            proposals=self.proposals,
         )
         await self.coordinator.start()
 
