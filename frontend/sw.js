@@ -6,7 +6,7 @@
  * API calls always go to the network (no offline AI inference).
  */
 
-const CACHE_NAME = "localmind-v2";
+const CACHE_NAME = "localmind-v2.1";
 
 // Files to cache for instant loading
 const SHELL_FILES = [
