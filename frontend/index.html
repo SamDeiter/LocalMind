@@ -125,6 +125,10 @@
                 <button id="editorToggle" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
                     <span class="material-symbols-outlined text-sm mr-3">code</span> Code Editor
                 </button>
+                <button id="swarmDashBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                    <span class="material-symbols-outlined text-sm mr-3 group-hover:text-amber-400">hive</span> Hive Mind
+                    <span id="swarmAgentCount" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full">0</span>
+                </button>
                 <button id="systemPromptBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
                     <span class="material-symbols-outlined text-sm mr-3">settings</span> Settings
                 </button>
@@ -207,6 +211,62 @@
 
         <!-- Main Dashboard View Container -->
         <div class="flex-1 flex h-full overflow-hidden" id="mainDashboardView">
+
+            <!-- Swarm Dashboard (hidden by default) -->
+            <div id="swarmDashboardView" class="hidden flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-amber-400 text-2xl">hive</span>
+                        <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">Hive Mind</h2>
+                        <span id="swarmStatusBadge" class="text-[9px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full">Initializing</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="swarmScanBtn" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-amber-500/20">
+                            <span class="material-symbols-outlined text-xs align-middle mr-1">radar</span> Full Scan
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Swarm Metrics Row -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="swarmMetrics">
+                    <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
+                        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Active Agents</div>
+                        <div class="text-2xl font-bold text-slate-100 font-mono" id="swarmActiveCount">0</div>
+                    </div>
+                    <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
+                        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">GPU Slots</div>
+                        <div class="text-2xl font-bold font-mono">
+                            <span id="swarmGpuUsed" class="text-violet-400">0</span>
+                            <span class="text-slate-600">/</span>
+                            <span id="swarmGpuTotal" class="text-slate-400">3</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
+                        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Queue Depth</div>
+                        <div class="text-2xl font-bold text-amber-400 font-mono" id="swarmQueueDepth">0</div>
+                    </div>
+                    <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
+                        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Success Rate</div>
+                        <div class="text-2xl font-bold text-emerald-400 font-mono" id="swarmSuccessRate">--</div>
+                    </div>
+                </div>
+
+                <!-- Agent Grid -->
+                <div>
+                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Agent Pool</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="swarmAgentGrid">
+                        <!-- Populated by swarm_ui.js -->
+                    </div>
+                </div>
+
+                <!-- Recent Activity Stream -->
+                <div>
+                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Recent Task Results</div>
+                    <div class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar" id="swarmResultStream">
+                        <div class="text-xs text-slate-500 italic p-4">Waiting for tasks...</div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Primary Workspace (Middle Pane) -->
             <section class="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-8" id="mainScrollArea">

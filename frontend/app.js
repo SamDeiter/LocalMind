@@ -13,6 +13,7 @@ import { initResearchPanel, initGlobalSearch } from "./modules/research_ui.js";
 import { initSettingsUI } from "./modules/settings_ui.js";
 import { initDashboard } from "./modules/dashboard.js";
 import { initLiveReload } from "./modules/live_reload.js";
+import { initSwarmUI } from "./modules/swarm_ui.js";
 
 async function init() {
   checkHealth();
@@ -34,6 +35,7 @@ async function init() {
   initSettingsUI();
   initDashboard();
   initLiveReload();
+  initSwarmUI();
 
   // Restore editor panel if it was open
 

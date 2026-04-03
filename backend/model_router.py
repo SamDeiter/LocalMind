@@ -95,13 +95,6 @@ def route_model(
         model["route_reason"] = "Simple chat — using micro model"
         return model
 
-    # Simple chat — using micro model
-    if complexity_score <= 2:
-        model = MODELS["local_micro"].copy()
-        model["needs_approval"] = False
-        model["route_reason"] = "Simple chat — using micro model"
-        return model
-
     # Simple tasks → local light
     if complexity_score <= 4:
         model = MODELS["local_light"].copy()

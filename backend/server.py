@@ -57,9 +57,15 @@ async def lifespan(app: FastAPI):
     db.init_db()
     _configure_routers()
 
+    # Store engine on app.state for route access
+    app.state.autonomy_engine = autonomy_engine
+
     await autonomy_engine.start()
     logger.info("LocalMind server initialized (autonomy engine active)")
     yield
+    # Stop swarm if running
+    if hasattr(autonomy_engine, 'coordinator') and autonomy_engine.coordinator:
+        await autonomy_engine.coordinator.stop()
     await autonomy_engine.stop()
 
 def _configure_routers():
@@ -132,6 +138,7 @@ from backend.routes.autonomy_routes import router as autonomy_router
 from backend.routes.research_routes import router as research_router
 from backend.routes.system import router as system_router
 from backend.routes.settings import router as settings_router
+from backend.routes.swarm_routes import router as swarm_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -143,6 +150,7 @@ app.include_router(autonomy_router)
 app.include_router(research_router)
 app.include_router(system_router)
 app.include_router(settings_router)
+app.include_router(swarm_router)
 
 # -- Static Files --
 frontend_path = Path(__file__).parent.parent / "frontend"

@@ -241,6 +241,18 @@ class AutonomyEngine:
 
     async def start(self):
         logger.info("🚀 Starting Autonomy Engine...")
+
+        # Initialize the Hive Mind swarm coordinator
+        from backend.swarm.coordinator import HiveCoordinator
+        self.coordinator = HiveCoordinator(
+            max_gpu_workers=3,
+            max_cpu_workers=16,
+            max_io_workers=8,
+            ollama_url=self.ollama_url,
+            emit_activity=self._emit_activity,
+        )
+        await self.coordinator.start()
+
         self._tasks = [
             asyncio.create_task(run_health_loop(self)),
             asyncio.create_task(run_reflection_loop(self)),
