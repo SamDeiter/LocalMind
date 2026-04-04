@@ -9,6 +9,9 @@ from backend.config import OLLAMA_BASE_URL
 router = APIRouter(prefix="/api")
 logger = logging.getLogger("localmind.routes.system")
 
+# Initialize CPU measurement to avoid 0.0 on first call
+psutil.cpu_percent(interval=None)
+
 @router.get("/health")
 async def health_check():
     """Check server and Ollama connectivity."""
@@ -35,7 +38,9 @@ async def get_version():
 @router.get("/hardware")
 async def hardware_status():
     """Get system and Ollama hardware usage."""
-    cpu_pct = psutil.cpu_percent(interval=0.1)
+    # Using interval=None returns the average since the last call (non-blocking)
+    # This prevents blocking the event loop for 100ms.
+    cpu_pct = psutil.cpu_percent(interval=None)
     mem = psutil.virtual_memory()
     system = {
         "cpu_percent": cpu_pct,
