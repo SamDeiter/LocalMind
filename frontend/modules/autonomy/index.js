@@ -12,7 +12,6 @@ export * from "./controls.js";
 export * from "./priority.js";
 export * from "./digest.js";
 
-import { pollAutonomy } from "./status.js";
 import { connectActivityFeed } from "./activity.js";
 import { loadPriorities } from "./priority.js";
 import { loadDigest, exportDigest } from "./digest.js";
@@ -72,7 +71,4 @@ export function initAutonomyUI() {
   updateSuccessRate();
   renderTaskPipeline();
   connectActivityFeed();
-  
-  // Set up polling
-  setInterval(pollAutonomy, 5000);
 }
