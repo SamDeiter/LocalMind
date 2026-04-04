@@ -25,9 +25,38 @@ logger = logging.getLogger("localmind.routes.files")
 # Create router — all endpoints are file-browser-related
 router = APIRouter(prefix="/api/files", tags=["files"])
 
-# PROJECT_ROOT is the top-level LocalMind directory.
-# All file operations are sandboxed within this directory.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from backend.config import PROJECT_ROOT
+
+# Security boundaries — matching backend/code_editor.py for consistency
+BLOCKED_DIRS = {"venv", ".git", "node_modules", "__pycache__", "memory_db"}
+BLOCKED_NAMES = {
+    ".env", ".env.local", ".env.production",
+    "autonomy.py", "server.py", "run.py",
+    "code_editor.py", "llm_client.py", "model_router.py",
+    "chat_service.py", "config.py",
+}
+BLOCKED_EXTS = {".key", ".pem", ".secret", ".p12", ".pfx"}
+
+
+def _is_restricted(target: Path) -> bool:
+    """Check if a path is restricted (blocked or escapes PROJECT_ROOT)."""
+    try:
+        # Security: prevent directory traversal
+        if not target.is_relative_to(PROJECT_ROOT):
+            return True
+
+        # Check for blocked filenames or extensions
+        if target.name in BLOCKED_NAMES or target.suffix.lower() in BLOCKED_EXTS:
+            return True
+
+        # Check if any parent directory is blocked
+        for part in target.relative_to(PROJECT_ROOT).parts:
+            if part in BLOCKED_DIRS:
+                return True
+
+        return False
+    except (ValueError, RuntimeError):
+        return True
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
@@ -47,8 +76,8 @@ async def list_files_api(path: str = "."):
     """
     target = (PROJECT_ROOT / path).resolve()
 
-    # Security: prevent directory traversal (e.g., "../../etc/passwd")
-    if not target.is_relative_to(PROJECT_ROOT):
+    # Security: prevent directory traversal or access to restricted areas
+    if _is_restricted(target):
         return {"error": "Access denied", "files": []}
 
     if not os.path.isdir(target):
@@ -56,14 +85,14 @@ async def list_files_api(path: str = "."):
 
     try:
         entries = []
-        # Directories/files to hide from the file browser
-        hidden = {'.git', '__pycache__', 'node_modules', 'venv', '.pytest_cache'}
 
         for entry in sorted(os.listdir(target)):
-            # Skip hidden files (dotfiles) and system directories
-            if entry.startswith('.') or entry in hidden:
+            full = Path(os.path.join(target, entry)).resolve()
+
+            # Skip restricted files (dotfiles, blocked names, blocked dirs)
+            if entry.startswith('.') or _is_restricted(full):
                 continue
-            full = os.path.join(target, entry)
+
             rel = os.path.relpath(full, PROJECT_ROOT).replace("\\", "/")
             entries.append({
                 "name": entry,
@@ -86,12 +115,12 @@ async def read_file_api(path: str):
     Caps file reads at 100KB to prevent loading huge files into memory.
     Returns the file content, relative path, and size in bytes.
     
-    Security: prevents directory traversal via path normalization.
+    Security: prevents directory traversal and unauthorized file access.
     """
     target = (PROJECT_ROOT / path).resolve()
 
-    # Security: prevent directory traversal
-    if not target.is_relative_to(PROJECT_ROOT):
+    # Security: prevent directory traversal or access to restricted files
+    if _is_restricted(target):
         return {"error": "Access denied"}
 
     if not os.path.isfile(target):
@@ -125,8 +154,8 @@ async def write_file_api(request: Request):
     content = body.get("content", "")
     target = (PROJECT_ROOT / path).resolve()
 
-    # Security: prevent directory traversal
-    if not target.is_relative_to(PROJECT_ROOT):
+    # Security: prevent directory traversal or modification of restricted files
+    if _is_restricted(target):
         return {"error": "Access denied"}
 
     try:

@@ -70,11 +70,9 @@ def test_project_root_consistency():
     # Some point to backend/, some point to project root.
     # Let's verify they are relative to each other as expected.
 
-    # FILES_PROJECT_ROOT is /app/backend
-    # PROPOSALS_PROJECT_ROOT is /app
-    # SELF_EDIT_PROJECT_ROOT is /app
-    # CODE_EDITOR_PROJECT_ROOT is /app
+    # All PROJECT_ROOTs should now be /app (project root)
+    # after the fix in backend/routes/files.py
 
-    assert FILES_PROJECT_ROOT.is_relative_to(PROPOSALS_PROJECT_ROOT)
+    assert FILES_PROJECT_ROOT.resolve() == PROPOSALS_PROJECT_ROOT.resolve()
     assert PROPOSALS_PROJECT_ROOT.resolve() == SELF_EDIT_PROJECT_ROOT.resolve()
     assert SELF_EDIT_PROJECT_ROOT.resolve() == CODE_EDITOR_PROJECT_ROOT.resolve()
