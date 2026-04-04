@@ -25,8 +25,9 @@ def _validate_repo_path(repo_path: str) -> Path:
     """
     WORKSPACE.mkdir(parents=True, exist_ok=True)
     target = (WORKSPACE / repo_path).resolve()
+    base = WORKSPACE.resolve()
 
-    if not str(target).startswith(str(WORKSPACE.resolve())):
+    if not target.is_relative_to(base):
         raise ValueError(f"Path escapes sandbox: {repo_path}")
 
     if not target.is_dir():
