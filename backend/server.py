@@ -42,7 +42,9 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s [cycle:%(cycle_id)s]: %(message)s",
     datefmt="%H:%M:%S",
 )
-logging.getLogger().addFilter(_CycleIdFilter())
+# Add filter to handlers (not the logger) so it runs for propagated child-logger records too
+for _h in logging.getLogger().handlers:
+    _h.addFilter(_CycleIdFilter())
 logger = logging.getLogger("localmind")
 
 # -- RAG Availability Check --
