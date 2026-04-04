@@ -1,0 +1,3 @@
+## 2025-05-14 - Accessible Icon Buttons and Form Labels
+**Learning:** Icon-only buttons often lack descriptive `aria-label` or `title` attributes, making them inaccessible to screen readers and difficult to understand for sighted users without tooltips. Additionally, form labels in settings modals frequently lack the `for` attribute, failing to programmatically associate with their corresponding inputs.
+**Action:** Always ensure icon-only buttons have descriptive `aria-label` and `title` attributes. Use the `for` attribute on `<label>` elements to explicitly link them to their target `<input>` or `<textarea>` by ID.
