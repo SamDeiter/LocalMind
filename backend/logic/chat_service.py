@@ -6,7 +6,7 @@ import traceback
 import uuid
 from typing import Optional, List, Dict, Any, AsyncIterator
 
-from backend import config
+from backend import config, events
 from backend.logic.llm_client import LLMClient
 from backend.logic.prompt_factory import PromptFactory
 from backend.logic.token_manager import TokenManager
@@ -20,6 +20,8 @@ class ChatService:
         self.db_factory = db_factory
         self.registry = registry
         self.ontology = ontology
+        # autonomy_engine kept as an optional arg for backward compat but
+        # cross-module communication now goes through backend.events.
         self.autonomy_engine = autonomy_engine
         self.metacog_controller = metacog_controller
         self.llm = LLMClient()
@@ -29,6 +31,9 @@ class ChatService:
 
     async def handle_chat(self, body: Dict[str, Any]) -> AsyncIterator[str]:
         """The main entry point for a chat turn. Returns an SSE stream."""
+        # Notify autonomy engine (and any other listeners) that the user is active
+        await events.emit("chat_activity")
+
         message = body.get("message", "")
         conversation_id = body.get("conversation_id")
         model_override = body.get("model")

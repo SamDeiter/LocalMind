@@ -23,7 +23,7 @@ from .services.research_service import ResearchService
 from .services.git_coordinator import GitCoordinator
 
 from .config import AUTO_APPROVE_RISKS, BACKOFF_BASE, CHAT_COOLDOWN
-from .utils import log_event
+from .utils import log_event, get_cycle_context
 from .loops.health import run_health_loop
 from .loops.reflection import run_reflection_loop
 from .loops.execution import run_execution_loop
@@ -32,6 +32,8 @@ from .loops.digest import run_digest_loop
 
 from .reflection import run_reflection_cycle
 from .execution import execute_proposal_cycle
+
+from backend import events
 
 logger = logging.getLogger("localmind.autonomy.engine")
 
@@ -132,7 +134,13 @@ class AutonomyEngine:
         """Push a live activity event to all SSE subscribers and persist to file."""
         import uuid
         event_id = id if id else str(uuid.uuid4())
-        
+
+        # Attach cycle tracing context when available
+        cycle_ctx = get_cycle_context()
+        if cycle_ctx is not None:
+            extra.setdefault("cycle_id", cycle_ctx.cycle_id)
+            extra.setdefault("cycle_type", cycle_ctx.cycle_type)
+
         event = {
             "id": event_id,
             "parent_id": self._last_event_id if action != "cycle_start" else None,
@@ -260,6 +268,9 @@ class AutonomyEngine:
     async def start(self):
         logger.info("🚀 Starting Autonomy Engine...")
 
+        # Subscribe to cross-module events via the lightweight event bus
+        events.on("chat_activity", self.notify_chat_activity)
+
         # Initialize the Hive Mind swarm coordinator
         from backend.swarm.coordinator import HiveCoordinator
         self.coordinator = HiveCoordinator(
@@ -285,6 +296,7 @@ class AutonomyEngine:
     async def stop(self):
         """Gracefully cancel all background tasks."""
         logger.info("🛑 Stopping Autonomy Engine...")
+        events.off("chat_activity", self.notify_chat_activity)
         for task in getattr(self, "_tasks", []):
             task.cancel()
         self._tasks = []

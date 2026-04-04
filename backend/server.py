@@ -27,11 +27,21 @@ from backend import notifications, gemini_client, db
 from backend.db import DB_PATH, get_db
 
 # -- Logging --
+from backend.autonomy.utils import get_cycle_context
+
+class _CycleIdFilter(logging.Filter):
+    """Inject cycle_id into every log record so the formatter can display it."""
+    def filter(self, record):
+        ctx = get_cycle_context()
+        record.cycle_id = ctx.cycle_id if ctx is not None else "-"
+        return True
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s [cycle:%(cycle_id)s]: %(message)s",
     datefmt="%H:%M:%S",
 )
+logging.getLogger().addFilter(_CycleIdFilter())
 logger = logging.getLogger("localmind")
 
 # -- RAG Availability Check --
@@ -63,6 +73,10 @@ async def lifespan(app: FastAPI):
     await autonomy_engine.start()
     logger.info("LocalMind server initialized (autonomy engine active)")
     yield
+    # Close the LLMClient's shared httpx session to avoid leaking TCP connections
+    from backend.routes.chat import _chat_service
+    if _chat_service is not None:
+        await _chat_service.llm.close()
     # Stop swarm if running
     if hasattr(autonomy_engine, 'coordinator') and autonomy_engine.coordinator:
         await autonomy_engine.coordinator.stop()
@@ -75,8 +89,7 @@ def _configure_routers():
 
     init_chat_service(
         registry=registry,
-        autonomy_engine=autonomy_engine,
-        metacog_controller=metacog_controller
+        metacog_controller=metacog_controller,
     )
 
     conversations.configure(

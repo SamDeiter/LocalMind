@@ -1,6 +1,13 @@
 /**
  * Shared application state, constants, and DOM references.
  * This module has ZERO external dependencies — it is the root of the import graph.
+ *
+ * State objects are wrapped in Proxy for lightweight pub/sub.
+ * Existing code that mutates state directly (e.g. `state.streaming = true`)
+ * continues to work unchanged. Modules can optionally subscribe to changes:
+ *
+ *   import { state, onStateChange } from "./state.js";
+ *   onStateChange("streaming", (val, old) => console.log("streaming:", old, "→", val));
  */
 
 let apiOrigin = window.location.origin;
@@ -17,7 +24,44 @@ export const MODE_MODELS = {
   auto: "auto",
 };
 
-export const state = {
+// ── Pub/Sub helpers ────────────────────────────────────────────
+const _listeners = new Map();
+
+/**
+ * Subscribe to changes on a specific state property.
+ * @param {string} key   – property name on `state` or `editorState`
+ * @param {Function} cb  – called as cb(newValue, oldValue, key)
+ */
+export function onStateChange(key, cb) {
+  if (!_listeners.has(key)) _listeners.set(key, []);
+  _listeners.get(key).push(cb);
+}
+
+/**
+ * Unsubscribe a previously-registered callback.
+ */
+export function offStateChange(key, cb) {
+  const cbs = _listeners.get(key);
+  if (cbs) _listeners.set(key, cbs.filter(fn => fn !== cb));
+}
+
+function _notify(prop, value, old) {
+  const cbs = _listeners.get(prop);
+  if (cbs && cbs.length) cbs.forEach(cb => cb(value, old, prop));
+}
+
+function _makeReactive(raw) {
+  return new Proxy(raw, {
+    set(target, prop, value) {
+      const old = target[prop];
+      target[prop] = value;
+      if (old !== value) _notify(prop, value, old);
+      return true;
+    },
+  });
+}
+
+export const state = _makeReactive({
   conversations: [],
   currentConvId: null,
   messages: [],
@@ -27,13 +71,13 @@ export const state = {
   voiceEnabled: false,  // Default OFF — user can toggle via speaker button
   capturedImage: null,
   abortController: null,
-};
+});
 
 // Shared mutable editor state (lives here to avoid circular deps between chat ↔ editor)
-export const editorState = {
+export const editorState = _makeReactive({
   monacoEditor: null,
   currentPath: null,
-};
+});
 
 // ── DOM helpers ─────────────────────────────────────────────────
 export const $ = (s) => document.querySelector(s);

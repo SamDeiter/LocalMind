@@ -12,6 +12,7 @@ build/
 # Environment
 .env
 .env.local
+.env.*
 
 # Database
 *.db
@@ -44,8 +45,16 @@ models/
 # Generated API docs (regenerate with: python scripts/generate_docs.py)
 docs/api/
 backend/memory_db/
+memory_db/
 
 # Temp outputs & scratch files
 tmp/
 *.bak
+.bak/
 pytest_out.txt
+
+# RAG / retrieval data
+rag_data/
+
+# Browser automation recordings
+browser_recordings/

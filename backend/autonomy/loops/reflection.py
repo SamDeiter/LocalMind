@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 import json
-from ..utils import log_event, sample_code_snippets
+from ..utils import log_event, sample_code_snippets, set_cycle_context, clear_cycle_context
 
 logger = logging.getLogger("localmind.autonomy.reflection")
 
@@ -26,9 +26,14 @@ async def run_reflection_loop(engine):
                 pass
 
             if engine.enabled and not engine.is_user_active():
-                await engine._run_reflection()
-                engine.status["reflection"]["last_run"] = time.time()
-                
+                ctx = set_cycle_context("reflection")
+                logger.info("Starting reflection cycle [cycle_id=%s]", ctx.cycle_id)
+                try:
+                    await engine._run_reflection()
+                    engine.status["reflection"]["last_run"] = time.time()
+                finally:
+                    clear_cycle_context()
+
         except asyncio.CancelledError:
             break
         except Exception as exc:
