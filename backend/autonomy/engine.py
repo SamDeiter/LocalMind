@@ -22,7 +22,7 @@ from backend.priority_queue import PriorityQueue
 from .services.research_service import ResearchService
 from .services.git_coordinator import GitCoordinator
 
-from .config import *
+from .config import AUTO_APPROVE_RISKS, BACKOFF_BASE, CHAT_COOLDOWN
 from .utils import log_event
 from .loops.health import run_health_loop
 from .loops.reflection import run_reflection_loop
@@ -66,7 +66,8 @@ class AutonomyEngine:
             "execution": {"last_run": None, "proposals_executed": 0, "last_result": None},
             "auto_test": {"last_run": None, "passed": 0, "failed": 0},
             "research": {"last_run": 0},
-            "agent_loop": {"active": False, "current_agent": None}
+            "agent_loop": {"active": False, "current_agent": None},
+            "hardware": {"gpu_util": 0, "vram_used": 0, "vram_total": 0, "vram_pct": 0, "adaptive_status": "safe"}
         }
 
         # Initialize loop task lists to avoid AttributeError
@@ -106,6 +107,7 @@ class AutonomyEngine:
         
         self.AUTO_APPROVE_RISKS = AUTO_APPROVE_RISKS
         self.auto_research_enabled = True
+        self._last_event_id = None
 
     def notify_chat_activity(self):
         """Called by the chat route whenever the user sends a message."""
@@ -126,9 +128,14 @@ class AutonomyEngine:
         if q in self._activity_subscribers:
             self._activity_subscribers.remove(q)
 
-    def _emit_activity(self, action: str, detail: str = "", **extra):
+    def _emit_activity(self, action: str, detail: str = "", id: str = None, **extra):
         """Push a live activity event to all SSE subscribers and persist to file."""
+        import uuid
+        event_id = id if id else str(uuid.uuid4())
+        
         event = {
+            "id": event_id,
+            "parent_id": self._last_event_id if action != "cycle_start" else None,
             "ts": time.time(),
             "time": time.strftime("%H:%M:%S"),
             "action": action,
@@ -138,10 +145,15 @@ class AutonomyEngine:
             "applied": self.status["execution"]["proposals_executed"],
             **extra,
         }
+        
+        # Logic to link nested actions
+        if action in ("reflection_start", "execution_start", "research_start"):
+            self._last_event_id = event_id
+            
         self.status["current_activity"] = event
         self._recent_events.append(event)
-        if len(self._recent_events) > 30:
-            self._recent_events = self._recent_events[-30:]
+        if len(self._recent_events) > 50:
+            self._recent_events = self._recent_events[-50:]
 
         # Persist to permanent log file
         log_event(action, {"detail": detail, **extra})
@@ -200,6 +212,10 @@ class AutonomyEngine:
         logger.info(f"🤖 Autonomy Engine {'enabled' if self.enabled else 'paused'}")
         return self.enabled
 
+    def get_recent_events(self) -> list[dict]:
+        """Return the last 50 activity events."""
+        return self._recent_events
+
     def get_status(self) -> dict:
         """Return the full autonomy status for the API."""
         return {
@@ -247,12 +263,13 @@ class AutonomyEngine:
         # Initialize the Hive Mind swarm coordinator
         from backend.swarm.coordinator import HiveCoordinator
         self.coordinator = HiveCoordinator(
-            max_gpu_workers=3,
+            max_gpu_workers=1,
             max_cpu_workers=16,
             max_io_workers=8,
             ollama_url=self.ollama_url,
             emit_activity=self._emit_activity,
             proposals=self.proposals,
+            get_hw_status=lambda: self.status.get("hardware", {"adaptive_status": "safe"})
         )
         await self.coordinator.start()
 

@@ -4,9 +4,10 @@
  */
 
 let apiOrigin = window.location.origin;
-// If running dev server on a different port locally, force backend port 8000
+// If running a separate dev server locally, override to the backend default port
 if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-  apiOrigin = `http://${window.location.hostname}:8001`;
+  const backendPort = document.querySelector('meta[name="localmind-api-port"]')?.content || "8000";
+  apiOrigin = `http://${window.location.hostname}:${backendPort}`;
 }
 export const API = apiOrigin;
 
@@ -64,9 +65,9 @@ export const removeImageBtn = $("#sidebarRemoveImageBtn");
 export const micBtn = $("#micBtn");
 export const uploadBtn = $("#sidebarUploadBtn");
 export const cameraBtn = $("#sidebarCameraBtn");
-export const editorPanel = document.getElementById("editorPanel");
-export const panelDivider = document.getElementById("panelDivider");
-export const editorToggle = document.getElementById("editorToggle");
+export const getEditorPanel = () => document.getElementById("editorPanel");
+export const getPanelDivider = () => document.getElementById("panelDivider");
+export const getEditorToggle = () => document.getElementById("editorToggle");
 export const priorityInput = document.getElementById("priorityInput");
 export const priorityContainer = $("#priorityList");
 export const addPriorityBtn = document.getElementById("addPriorityBtn");

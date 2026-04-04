@@ -16,29 +16,42 @@ import { initLiveReload } from "./modules/live_reload.js";
 import { initSwarmUI } from "./modules/swarm_ui.js";
 
 async function init() {
-  checkHealth();
+  const safeInit = (fn, name) => {
+    try { fn(); } catch (e) { console.error(`${name} failed:`, e); }
+  };
+
+  // Core init — must succeed for basic functionality
+  try {
+    await checkHealth();
+  } catch (e) { console.error("Health check failed:", e); }
+
   loadModels();
   loadConversations();
-  setTimeout(loadDocuments, 500);
-  loadMemories();
-  populateVoices();
-  initSpeechRecognition();
-  startHwPolling();
   bindEvents();
-  loadVersion();
-  loadProposals();
-  connectActivityFeed();
-  initEditorEnhancements();
-  initDashboardPanels();
-  initResearchPanel();
-  initGlobalSearch();
-  initSettingsUI();
-  initDashboard();
-  initLiveReload();
-  initSwarmUI();
+
+  // Sidebar data — load in background, failures are non-fatal
+  setTimeout(loadDocuments, 500);
+  safeInit(loadMemories, "Load memories");
+  safeInit(loadVersion, "Load version");
+  safeInit(loadProposals, "Load proposals");
+  safeInit(startHwPolling, "HW polling");
+  safeInit(connectActivityFeed, "Activity feed");
+
+  // Media — can fail gracefully (e.g. no mic/speaker)
+  safeInit(populateVoices, "Populate voices");
+  safeInit(initSpeechRecognition, "Speech recognition");
+
+  // Enhancement UIs — wrap each so one failure doesn't block the rest
+  safeInit(initEditorEnhancements, "Editor enhancements");
+  safeInit(initDashboardPanels, "Dashboard panels");
+  safeInit(initResearchPanel, "Research panel");
+  safeInit(initGlobalSearch, "Global search");
+  safeInit(initSettingsUI, "Settings UI");
+  safeInit(initDashboard, "Dashboard");
+  safeInit(initLiveReload, "Live reload");
+  safeInit(initSwarmUI, "Swarm UI");
 
   // Restore editor panel if it was open
-
   if (localStorage.getItem("localmind_editor") === "on") {
     setTimeout(toggleEditorPanel, 500);
   }

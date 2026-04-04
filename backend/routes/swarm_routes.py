@@ -21,6 +21,15 @@ async def swarm_status(request: Request):
     return JSONResponse(coordinator.get_status())
 
 
+@router.get("/history")
+async def swarm_history(request: Request):
+    """Return recent activity events for hydration."""
+    engine = request.app.state.autonomy_engine
+    if not engine:
+        return JSONResponse({"history": []})
+    return JSONResponse({"history": engine.get_recent_events()})
+
+
 @router.get("/agents")
 async def swarm_agents(request: Request):
     """Detailed status for every agent in the swarm."""
@@ -49,7 +58,10 @@ async def trigger_scan(request: Request):
 @router.post("/research")
 async def trigger_research(request: Request):
     """Submit a research query to the swarm."""
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid or missing JSON body"}, status_code=400)
     query = body.get("query", "")
     source = body.get("source", "web")
 
@@ -65,7 +77,10 @@ async def trigger_research(request: Request):
 @router.post("/test")
 async def trigger_test(request: Request):
     """Submit a test/validation task."""
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid or missing JSON body"}, status_code=400)
     mode = body.get("mode", "syntax")
     files = body.get("files", [])
 

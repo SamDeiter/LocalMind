@@ -43,6 +43,7 @@ class HiveCoordinator:
         ollama_url: str = OLLAMA_BASE_URL,
         emit_activity=None,
         proposals=None,
+        **kwargs
     ):
         self.max_gpu_workers = max_gpu_workers
         self.max_cpu_workers = max_cpu_workers
@@ -50,9 +51,11 @@ class HiveCoordinator:
         self.ollama_url = ollama_url
         self._emit_activity = emit_activity or (lambda *a, **k: None)
         self.proposals = proposals
+        self._get_hw_status = kwargs.get("get_hw_status", lambda: {"adaptive_status": "safe"})
 
         # Semaphore gates GPU access
         self.gpu_semaphore = asyncio.Semaphore(max_gpu_workers)
+        self._gpu_slots_in_use = 0
 
         # Task queue
         self.queue = TaskQueue(max_size=512)
@@ -159,12 +162,24 @@ class HiveCoordinator:
         """GPU worker: processes LLM inference tasks (semaphore-gated)."""
         while self._running:
             try:
+                # Adaptive Scaling: if hardware is critical, wait longer or skip
+                hw = self._get_hw_status()
+                if hw.get("adaptive_status") == "critical":
+                    await asyncio.sleep(5.0) # Aggressive backoff
+                    continue
+                elif hw.get("adaptive_status") == "warning":
+                    await asyncio.sleep(2.0) # Mild backoff
+                
                 task = self.queue.pop_gpu()
                 if task is None:
                     await asyncio.sleep(1.0)
                     continue
 
-                result = await agent.run(task)
+                self._gpu_slots_in_use += 1
+                try:
+                    result = await agent.run(task)
+                finally:
+                    self._gpu_slots_in_use -= 1
                 await self._collect_result(result)
 
             except asyncio.CancelledError:
@@ -352,8 +367,8 @@ class HiveCoordinator:
         active_agents = [a for a in all_agents if a.is_running]
         idle_agents = [a for a in all_agents if not a.is_running]
 
-        gpu_available = self.gpu_semaphore._value  # Slots available
-        gpu_in_use = self.max_gpu_workers - gpu_available
+        gpu_in_use = self._gpu_slots_in_use
+        gpu_available = self.max_gpu_workers - gpu_in_use
 
         return {
             "running": self._running,
@@ -374,6 +389,7 @@ class HiveCoordinator:
                     "io": {"total": len(self._io_agents), "active": sum(1 for a in self._io_agents if a.is_running)},
                 },
             },
+            "hardware": self._get_hw_status(),
             "metrics": {
                 "tasks_processed": self._tasks_processed,
                 "tasks_failed": self._tasks_failed,

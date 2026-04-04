@@ -25,16 +25,6 @@ async def agent_chat(
     assistant_name: str = "AI Assistant",
 ) -> AsyncGenerator[dict, None]:
     """
-# Run the agent loop. Yields events for the frontend:
-    - {type: thinking}                     — model is generating
-    - {type: tool_call, tool: {...}}      — model wants to use a tool
-    - {type: tool_result, result: {...}}  — tool execution result
-    - {type: content, content: "..."}     — text content from model
-    - {type: done}                          — agent is finished
-    - {type: error, error: "..."}         — something went wrong
-    - {type: approval_needed, tool: {...}} — needs user approval (when not auto_execute)
-    """
-    """
     Run the agent loop. Yields events for the frontend:
     - {"type": "thinking"}                     — model is generating
     - {"type": "tool_call", "tool": {...}}      — model wants to use a tool
@@ -53,13 +43,13 @@ async def agent_chat(
 
     iteration = 0
 
-    while iteration < MAX_TOOL_ITERATIONS:
-        iteration += 1
-        yield {"type": "thinking", "iteration": iteration}
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+        while iteration < MAX_TOOL_ITERATIONS:
+            iteration += 1
+            yield {"type": "thinking", "iteration": iteration}
 
-        try:
-            # Call Ollama with tools
-            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+            try:
+                # Call Ollama with tools
                 response = await client.post(
                     f"{OLLAMA_BASE_URL}/api/chat",
                     json={
@@ -71,74 +61,74 @@ async def agent_chat(
                 )
                 result = response.json()
 
-        except httpx.HTTPError as e:
-            yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
-            return
-        except Exception as e:
-            yield {"type": "error", "error": f"Failed to connect to Ollama: {e}"}
-            return
-
-        message = result.get("message", {})
-        content = message.get("content", "")
-        tool_calls = message.get("tool_calls", [])
-
-        # If the model returned text content AND no tool calls, we're done
-        if content and not tool_calls:
-            yield {"type": "content", "content": content}
-            yield {"type": "done"}
-            break
-
-        # If the model returned text content WITH tool calls, send text first
-        if content:
-            yield {"type": "content", "content": content}
-
-        # If no tool calls and no content, we're done
-        if not tool_calls:
-            yield {"type": "done"}
-            return
-
-        # Process tool calls
-        # Add the assistant's message (with tool calls) to the conversation
-        if not isinstance(message, dict) or 'role' not in message or 'content' not in message:
-            yield {'type': 'error', 'error': 'Invalid message format'}
-            return
-
-        full_messages.append(message)
-
-        for tool_call in tool_calls:
-            func = tool_call.get("function", {})
-            tool_name = func.get("name", "unknown")
-            tool_args = func.get("arguments", {})
-
-            # Yield tool call event for the frontend
-            tool_event = {
-                "type": "tool_call",
-                "tool": {
-                    "name": tool_name,
-                    "arguments": tool_args,
-                    "iteration": iteration,
-                },
-            }
-            yield tool_event
-
-            # Execute the tool
-            try:
-                tool_result = execute_tool(tool_name, tool_args, working_dir)
+            except httpx.HTTPError as e:
+                yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
+                return
             except Exception as e:
-                yield {"type": "error", "error": f"Failed to execute tool {tool_name}: {e}"}
-                continue
+                yield {"type": "error", "error": f"Failed to connect to Ollama: {e}"}
+                return
 
-            # Yield the result
-            yield {
-                "type": "tool_result",
-                "result": {"name": tool_name, "success": tool_result.get("success", False), "data": tool_result},
-            }
+            message = result.get("message", {})
+            content = message.get("content", "")
+            tool_calls = message.get("tool_calls", [])
 
-            # Add the tool result to the conversation for the next iteration
-            full_messages.append({
-                "role": "tool",
-                "content": json.dumps(tool_result),
-            })
+            # If the model returned text content AND no tool calls, we're done
+            if content and not tool_calls:
+                yield {"type": "content", "content": content}
+                yield {"type": "done"}
+                break
+
+            # If the model returned text content WITH tool calls, send text first
+            if content:
+                yield {"type": "content", "content": content}
+
+            # If no tool calls and no content, we're done
+            if not tool_calls:
+                yield {"type": "done"}
+                return
+
+            # Process tool calls
+            # Add the assistant's message (with tool calls) to the conversation
+            if not isinstance(message, dict) or 'role' not in message or 'content' not in message:
+                yield {'type': 'error', 'error': 'Invalid message format'}
+                return
+
+            full_messages.append(message)
+
+            for tool_call in tool_calls:
+                func = tool_call.get("function", {})
+                tool_name = func.get("name", "unknown")
+                tool_args = func.get("arguments", {})
+
+                # Yield tool call event for the frontend
+                tool_event = {
+                    "type": "tool_call",
+                    "tool": {
+                        "name": tool_name,
+                        "arguments": tool_args,
+                        "iteration": iteration,
+                    },
+                }
+                yield tool_event
+
+                # Execute the tool
+                try:
+                    tool_result = execute_tool(tool_name, tool_args, working_dir)
+                except Exception as e:
+                    yield {"type": "error", "error": f"Failed to execute tool {tool_name}: {e}"}
+                    continue
+
+                # Yield the result
+                yield {
+                    "type": "tool_result",
+                    "result": {"name": tool_name, "success": tool_result.get("success", False), "data": tool_result},
+                }
+
+                # Add the tool result to the conversation for the next iteration
+                full_messages.append({
+                    "role": "tool",
+                    "content": json.dumps(tool_result),
+                })
 
     # If we hit the iteration limit
     yield {
@@ -168,13 +158,13 @@ async def agent_chat_streaming(
 
     iteration = 0
 
-    while iteration < MAX_TOOL_ITERATIONS:
-        iteration += 1
-        yield {"type": "thinking", "iteration": iteration}
+    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
+        while iteration < MAX_TOOL_ITERATIONS:
+            iteration += 1
+            yield {"type": "thinking", "iteration": iteration}
 
-        try:
-            # First, try with tools (non-streaming to get tool calls)
-            async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
+            try:
+                # First, try with tools (non-streaming to get tool calls)
                 response = await client.post(
                     f"{OLLAMA_BASE_URL}/api/chat",
                     json={
@@ -186,28 +176,27 @@ async def agent_chat_streaming(
                 )
                 result = response.json()
 
-        except httpx.HTTPError as e:
-            yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
-            return
-        except Exception as e:
-            yield {"type": "error", "error": f"Failed to connect to Ollama: {e}"}
-            return
-
-        message = result.get("message", {})
-        content = message.get("content", "")
-        tool_calls = message.get("tool_calls", [])
-
-        # No tool calls — stream the final response
-        if not tool_calls:
-            if content:
-                # We already got non-streamed content, send it
-                yield {"type": "content", "content": content}
-                yield {"type": "done"}
+            except httpx.HTTPError as e:
+                yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
+                return
+            except Exception as e:
+                yield {"type": "error", "error": f"Failed to connect to Ollama: {e}"}
                 return
 
-            # Try again without tools to get a streaming response
-            try:
-                async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
+            message = result.get("message", {})
+            content = message.get("content", "")
+            tool_calls = message.get("tool_calls", [])
+
+            # No tool calls — stream the final response
+            if not tool_calls:
+                if content:
+                    # We already got non-streamed content, send it
+                    yield {"type": "content", "content": content}
+                    yield {"type": "done"}
+                    return
+
+                # Try again without tools to get a streaming response
+                try:
                     async with client.stream(
                         "POST",
                         f"{OLLAMA_BASE_URL}/api/chat",
@@ -228,44 +217,44 @@ async def agent_chat_streaming(
                                         break
                                 except json.JSONDecodeError:
                                     continue
-            except httpx.HTTPError as e:
-                yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
-            except Exception as e:
-                yield {"type": "error", "error": str(e)}
-            yield {"type": "done"}
-            return
+                except httpx.HTTPError as e:
+                    yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
+                except Exception as e:
+                    yield {"type": "error", "error": str(e)}
+                yield {"type": "done"}
+                return
 
-        # Process tool calls
-        if content:
-            yield {"type": "content", "content": content}
+            # Process tool calls
+            if content:
+                yield {"type": "content", "content": content}
 
-        full_messages.append(message)
+            full_messages.append(message)
 
-        for tool_call in tool_calls:
-            func = tool_call.get("function", {})
-            tool_name = func.get("name", "unknown")
-            tool_args = func.get("arguments", {})
+            for tool_call in tool_calls:
+                func = tool_call.get("function", {})
+                tool_name = func.get("name", "unknown")
+                tool_args = func.get("arguments", {})
 
-            yield {
-                "type": "tool_call",
-                "tool": {"name": tool_name, "arguments": tool_args, "iteration": iteration},
-            }
+                yield {
+                    "type": "tool_call",
+                    "tool": {"name": tool_name, "arguments": tool_args, "iteration": iteration},
+                }
 
-            try:
-                tool_result = execute_tool(tool_name, tool_args, working_dir)
-            except Exception as e:
-                yield {"type": "error", "error": f"Failed to execute tool {tool_name}: {e}"}
-                continue
+                try:
+                    tool_result = execute_tool(tool_name, tool_args, working_dir)
+                except Exception as e:
+                    yield {"type": "error", "error": f"Failed to execute tool {tool_name}: {e}"}
+                    continue
 
-            yield {
-                "type": "tool_result",
-                "result": {"name": tool_name, "success": tool_result.get("success", False), "data": tool_result},
-            }
+                yield {
+                    "type": "tool_result",
+                    "result": {"name": tool_name, "success": tool_result.get("success", False), "data": tool_result},
+                }
 
-            full_messages.append({
-                "role": "tool",
-                "content": json.dumps(tool_result),
-            })
+                full_messages.append({
+                    "role": "tool",
+                    "content": json.dumps(tool_result),
+                })
 
     yield {
         "type": "content",
