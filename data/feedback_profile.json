@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "created_at": 1775273792.6459723,
+  "last_updated": 1775273794.5753155,
+  "total_approved": 3,
+  "total_denied": 3,
+  "category_approved": {
+    "performance": 2,
+    "feature": 1
+  },
+  "category_denied": {
+    "performance": 2,
+    "feature": 1
+  },
+  "keyword_approved": {
+    "retry": 2,
+    "logic": 2,
+    "ollama": 2,
+    "calls": 4,
+    "wrap": 2,
+    "httpx": 2,
+    "exponential": 2,
+    "backoff": 2,
+    "proposal": 2,
+    "description": 1
+  },
+  "keyword_denied": {
+    "retry": 2,
+    "logic": 2,
+    "ollama": 2,
+    "calls": 4,
+    "wrap": 2,
+    "httpx": 2,
+    "exponential": 2,
+    "backoff": 2,
+    "proposal": 2,
+    "description": 1
+  },
+  "complexity_approved": {
+    "simple": 3
+  },
+  "complexity_denied": {
+    "simple": 3
+  },
+  "effort_approved": {
+    "small": 2,
+    "medium": 1
+  },
+  "effort_denied": {
+    "small": 2,
+    "medium": 1
+  },
+  "recent_feedback": [
+    {
+      "ts": 1775273792.6550741,
+      "outcome": "approved",
+      "title": "Add retry logic to Ollama calls",
+      "category": "performance",
+      "effort": "small",
+      "complexity": "simple"
+    },
+    {
+      "ts": 1775273792.7055702,
+      "outcome": "denied",
+      "title": "Add retry logic to Ollama calls",
+      "category": "performance",
+      "effort": "small",
+      "complexity": "simple"
+    },
+    {
+      "ts": 1775273792.8178105,
+      "outcome": "approved",
+      "title": "Proposal 0",
+      "category": "feature",
+      "effort": "medium",
+      "complexity": "simple"
+    },
+    {
+      "ts": 1775273792.8208745,
+      "outcome": "denied",
+      "title": "Proposal 1",
+      "category": "feature",
+      "effort": "medium",
+      "complexity": "simple"
+    },
+    {
+      "ts": 1775273794.477887,
+      "outcome": "approved",
+      "title": "Add retry logic to Ollama calls",
+      "category": "performance",
+      "effort": "small",
+      "complexity": "simple"
+    },
+    {
+      "ts": 1775273794.5753155,
+      "outcome": "denied",
+      "title": "Add retry logic to Ollama calls",
+      "category": "performance",
+      "effort": "small",
+      "complexity": "simple"
+    }
+  ]
+}

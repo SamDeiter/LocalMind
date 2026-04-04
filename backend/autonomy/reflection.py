@@ -83,6 +83,7 @@ async def run_reflection_cycle(engine) -> bool:
             
             brain_context = engine.self_improver.get_config_for_prompt()
             priority_context = engine.priority_queue.get_prompt_injection()
+            feedback_guidance = engine.feedback_learner.get_reflection_guidance()
             banned_list = engine.self_improver.config.get("banned_patterns", [])
             banned_str = ", ".join(f"'{b}'" for b in banned_list[:10])
 
@@ -90,6 +91,7 @@ async def run_reflection_cycle(engine) -> bool:
                 f"You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                 f"HERE ARE THE ACTUAL FILES:\n{file_list}\n\n"
                 f"{code_snippets}{todo_context}{brain_context}{research_context}{priority_context}"
+                f"{feedback_guidance}"
                 f"REQUIRED CATEGORY: {focus_category}\n{anti_repeat}"
                 f"BANNED TOPICS: {banned_str}\n"
                 "Output JSON: title, category, description, files_affected, effort, priority."
@@ -103,6 +105,7 @@ async def run_reflection_cycle(engine) -> bool:
                     f"You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                     f"HERE ARE THE ACTUAL FILES:\n{file_list}\n\n"
                     f"{code_snippets}{todo_context}{brain_context}{research_context}{priority_context}"
+                    f"{feedback_guidance}"
                     f"REQUIRED CATEGORY: {focus_category}\n{anti_repeat}"
                     f"BANNED TOPICS: {banned_str}\n"
                     "Output JSON: title, category, description, files_affected, effort, priority."

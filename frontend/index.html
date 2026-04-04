@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" />
     <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 
             <script id="tailwind-config">
@@ -240,7 +241,7 @@
                 </div>
 
                 <!-- Swarm Metrics Row -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="swarmMetrics">
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="swarmMetrics">
                     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
                         <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Tasks Done</div>
                         <div class="text-2xl font-bold text-cyan-400 font-mono" id="swarmActiveCount">0</div>
@@ -262,7 +263,42 @@
                     </div>
                     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
                         <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Success Rate</div>
-                        <div class="text-2xl font-bold text-emerald-400 font-mono" id="swarmSuccessRate">--</div>
+                        <div class="text-2xl font-bold text-emerald-400 font-mono" id="swarmSuccessRate">0%</div>
+                    </div>
+
+                    <!-- Hardware Monitoring Card (Pre-rendered by swarm_ui.js) -->
+                    <div id="hardwareStatsContainer">
+                        <div class="bg-slate-900/40 border border-slate-800/40 rounded-xl p-4 flex items-center justify-center">
+                            <div class="text-[10px] text-slate-600 animate-pulse uppercase tracking-widest font-black">Initializing Sensors...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Neural Action Graph Container (New Feature) -->
+                <div class="mt-8 mb-8 bg-slate-950/80 border border-slate-800/80 rounded-2xl p-6 min-h-[404px] relative overflow-hidden group shadow-2xl shadow-cyan-900/10" id="actionGraphContainer">
+                    <div class="flex items-center justify-between mb-4 relative z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 9V3"/><path d="M12 21v-6"/><path d="M9 12H3"/><path d="M21 12h-6"/><path d="M16.24 7.76l4.24-4.24"/><path d="M3.51 20.49l4.24-4.24"/><path d="M16.24 16.24l4.24 4.24"/><path d="M3.51 3.51l4.24 4.24"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-100 tracking-tight">Neural Action Graph</h3>
+                                <p class="text-[10px] text-slate-500 font-medium">Real-time causality map of swarm thought processes</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                             <button id="resetGraphBtn" class="px-2 py-1 text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition-all uppercase font-bold tracking-widest">Reset Graph</button>
+                             <div class="px-2 py-1 text-[9px] bg-cyan-500/10 text-cyan-400 rounded border border-cyan-500/20 font-bold tracking-widest">LIVE</div>
+                        </div>
+                    </div>
+                    
+                    <!-- D3 Canvas will mount here -->
+                    <div id="actionGraphCanvas" class="absolute inset-0 cursor-move"></div>
+                    
+                    <!-- Graph Empty State -->
+                    <div id="graphEmptyState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/20 pointer-events-none transition-opacity duration-500">
+                        <div class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping mb-4"></div>
+                        <div class="text-[10px] text-slate-500 font-mono tracking-widest uppercase opacity-50">Monitoring for Neural Pulses...</div>
                     </div>
                 </div>
 
@@ -654,7 +690,27 @@
     </select>
 </div>
 
-<!-- dashboard.js is now imported as a module in app.js -->
-<script type="module" src="app.js?v=2"></script>
+<!-- D3.js for Neural Action Graph -->
+<!--
+  Frontend loading strategy:
+  - If dist/bundle.js exists (built via `npm run build:frontend`), load it.
+  - Otherwise, fall back to the unbundled ES module entry point.
+-->
+<script type="module">
+  const bundlePath = "dist/bundle.js";
+  try {
+    const resp = await fetch(bundlePath, { method: "HEAD" });
+    if (resp.ok) {
+      await import("./" + bundlePath);
+    } else {
+      await import("./app.js");
+    }
+  } catch {
+    await import("./app.js");
+  }
+</script>
+<!-- Fallback: uncomment below and comment out the script above for debugging.
+<script type="module" src="app.js"></script>
+-->
 </body>
 </html>

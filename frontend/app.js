@@ -3,6 +3,7 @@
  * Thin boot file: imports modules and calls init.
  */
 
+import { initErrorBoundary } from "./modules/errors.js";
 import { checkHealth, loadModels } from "./modules/chat.js";
 import { loadConversations } from "./modules/conversations.js";
 import { populateVoices, initSpeechRecognition } from "./modules/media.js";
@@ -14,8 +15,11 @@ import { initSettingsUI } from "./modules/settings_ui.js";
 import { initDashboard } from "./modules/dashboard.js";
 import { initLiveReload } from "./modules/live_reload.js";
 import { initSwarmUI } from "./modules/swarm_ui.js";
+import { onStatus as onWsStatus, getConnectionStatus, getTransport } from "./modules/ws_client.js";
 
 async function init() {
+  initErrorBoundary();
+
   const safeInit = (fn, name) => {
     try { fn(); } catch (e) { console.error(`${name} failed:`, e); }
   };
@@ -50,6 +54,13 @@ async function init() {
   safeInit(initDashboard, "Dashboard");
   safeInit(initLiveReload, "Live reload");
   safeInit(initSwarmUI, "Swarm UI");
+
+  // Log ws_client transport for diagnostics
+  onWsStatus((status, transport) => {
+    if (status === "connected") {
+      console.info(`Activity feed connected via ${transport}`);
+    }
+  });
 
   // Restore editor panel if it was open
   if (localStorage.getItem("localmind_editor") === "on") {

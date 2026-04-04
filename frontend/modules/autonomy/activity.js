@@ -1,46 +1,55 @@
-import { API } from "../state.js";
 import { escapeHtml, showToast } from "../utils.js";
 import { ACTION_ICONS, MAX_ACTIVITY_ITEMS } from "./constants.js";
 import { updateBrainDashboard, updateSuccessRate } from "./dashboard.js";
+import { onActivity, onStatus, init as initWsClient } from "../ws_client.js";
 
-let activityEventSource = null;
+let _wsClientInitialized = false;
 
+/**
+ * Connect the activity feed via the shared ws_client (WebSocket with SSE fallback).
+ *
+ * Safe to call multiple times -- only the first call initializes the ws_client
+ * and registers the activity handler. Subsequent calls are no-ops.
+ */
 export function connectActivityFeed() {
-  if (activityEventSource) activityEventSource.close();
+  if (_wsClientInitialized) return;
+  _wsClientInitialized = true;
 
-  activityEventSource = new EventSource(`${API}/api/autonomy/activity`);
+  // Register the activity event handler
+  onActivity((event) => {
+    addActivityItem(event);
+    updateActivityBar(event);
+    updateBrainDashboard(event);
 
-  activityEventSource.onmessage = (e) => {
-    try {
-      const event = JSON.parse(e.data);
-      addActivityItem(event);
-      updateActivityBar(event);
-      updateBrainDashboard(event);
-
-      if (event.action === "completed") {
-        showToast(`✨ ${event.detail}`, "info");
-        updateSuccessRate();
-        import("../proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
-      } else if (event.action === "merged") {
-        showToast(`🔀 ${event.detail}`, "info");
-      } else if (event.action === "auto_approved") {
-        showToast(`🔗 ${event.detail}`, "info");
-        import("../proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
-      } else if (event.action === "error" || event.action === "reverted") {
-        showToast(`${ACTION_ICONS[event.action] || "⚠️"} ${event.detail}`, "error");
-        updateSuccessRate();
-      }
-
-    } catch (err) {
-      console.error("Failed to parse SSE event:", err);
+    if (event.action === "completed") {
+      showToast(`\u2728 ${event.detail}`, "info");
+      updateSuccessRate();
+      import("../proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
+    } else if (event.action === "merged") {
+      showToast(`\uD83D\uDD00 ${event.detail}`, "info");
+    } else if (event.action === "auto_approved") {
+      showToast(`\uD83D\uDD17 ${event.detail}`, "info");
+      import("../proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
+    } else if (event.action === "error" || event.action === "reverted") {
+      showToast(`${ACTION_ICONS[event.action] || "\u26A0\uFE0F"} ${event.detail}`, "error");
+      updateSuccessRate();
     }
-  };
+  });
 
-  activityEventSource.onerror = () => {
-    console.warn("Activity feed connection lost, retrying...");
-    activityEventSource.close();
-    setTimeout(connectActivityFeed, 5000);
-  };
+  // Optional: show connection status in the activity bar
+  onStatus((status, transport) => {
+    const bar = document.getElementById("activityBarText");
+    if (!bar) return;
+    if (status === "disconnected") {
+      bar.textContent = "Activity feed disconnected -- reconnecting...";
+    } else if (status === "connecting") {
+      bar.textContent = "Connecting activity feed...";
+    }
+    // When "connected", the next activity event will overwrite this naturally
+  });
+
+  // Start the ws_client connection
+  initWsClient();
 }
 
 export function addActivityItem(event) {

@@ -18,7 +18,21 @@ async def health_check():
             ollama_ok = resp.status_code == 200
     except Exception:
         ollama_ok = False
-    return {"server": True, "ollama": ollama_ok}
+    cache_info = {}
+    try:
+        from backend.routes.chat import _chat_service
+        if _chat_service is not None:
+            stats = _chat_service.response_cache.get_stats()
+            cache_info = {
+                "enabled": stats.get("enabled", False),
+                "available": stats.get("available", False),
+                "entries": stats.get("entry_count", 0),
+                "hit_rate": stats.get("hit_rate", 0.0),
+            }
+    except Exception:
+        pass
+
+    return {"server": True, "ollama": ollama_ok, "cache": cache_info}
 
 @router.get("/version")
 async def get_version():
@@ -75,3 +89,30 @@ async def list_models():
             return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
+
+
+@router.get("/cache/stats")
+async def cache_stats():
+    """Return semantic response cache statistics."""
+    try:
+        from backend.routes.chat import _chat_service
+        if _chat_service is None:
+            return {"error": "Chat service not initialized", "cache": {}}
+        return {"cache": _chat_service.response_cache.get_stats()}
+    except Exception as e:
+        logger.warning("Failed to get cache stats: %s", e)
+        return {"error": str(e), "cache": {}}
+
+
+@router.post("/cache/clear")
+async def cache_clear():
+    """Clear all semantic cache entries."""
+    try:
+        from backend.routes.chat import _chat_service
+        if _chat_service is None:
+            return {"error": "Chat service not initialized", "cleared": 0}
+        cleared = await _chat_service.response_cache.clear()
+        return {"cleared": cleared}
+    except Exception as e:
+        logger.warning("Failed to clear cache: %s", e)
+        return {"error": str(e), "cleared": 0}

@@ -36,6 +36,9 @@ desktop.ini
 node_modules/
 package-lock.json
 
+# Frontend build output
+frontend/dist/
+
 # ChromaDB local data
 chroma_data/
 

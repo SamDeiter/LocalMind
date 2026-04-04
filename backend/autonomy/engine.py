@@ -18,6 +18,7 @@ from backend.research import (
 from backend.self_improver import SelfImprover
 from backend.meta_critic import MetaCritic
 from backend.priority_queue import PriorityQueue
+from backend.feedback_learner import FeedbackLearner
 
 from .services.research_service import ResearchService
 from .services.git_coordinator import GitCoordinator
@@ -83,6 +84,7 @@ class AutonomyEngine:
             emit_activity=self._emit_activity
         )
         self.priority_queue = PriorityQueue()
+        self.feedback_learner = FeedbackLearner()
 
         # Research Pipeline
         self.failure_analyzer = FailureAnalyzer()
@@ -254,12 +256,14 @@ class AutonomyEngine:
         result = self.proposals.approve(proposal_id)
         if result:
             log_event("proposal_approved", {"id": proposal_id, "title": result.get("title", "?")})
+            self.feedback_learner.record_feedback(result, "approved")
         return result
 
     def deny_proposal(self, proposal_id: str):
         result = self.proposals.deny(proposal_id)
         if result:
             log_event("proposal_denied", {"id": proposal_id, "title": result.get("title", "?")})
+            self.feedback_learner.record_feedback(result, "denied")
         return result
 
     def retry_proposal(self, proposal_id: str):

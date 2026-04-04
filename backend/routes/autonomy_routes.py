@@ -303,6 +303,21 @@ async def rollback_proposal(proposal_id: str):
     return {"ok": False, "error": "Proposal not found"}
 
 
+@router.get("/autonomy/preferences")
+async def get_preferences():
+    """Get the current user preference profile learned from proposal feedback.
+
+    Returns category preferences, keyword patterns, complexity/effort preferences,
+    and overall approval statistics.
+    """
+    try:
+        summary = _engine.feedback_learner.get_profile_summary()
+        return {"ok": True, "preferences": summary}
+    except Exception as e:
+        logger.exception("Failed to get preference profile")
+        return {"ok": False, "error": str(e)}
+
+
 @router.get("/autonomy/category-stats")
 async def category_stats():
     """Return per-category success/fail/total counts for dashboard charts."""
