@@ -7,19 +7,34 @@ logger = logging.getLogger("localmind.routes.settings")
 
 @router.get("/settings/notifications")
 async def get_notification_settings():
-    """Return current SMS/Text notification settings."""
-    return notifications.get_settings()
+    """Return current SMS/Text notification settings with secrets redacted."""
+    # Work on a copy to avoid corrupting shared state
+    settings = notifications.get_settings().copy()
+    for key in ["twilio_auth_token", "smtp_pass"]:
+        if settings.get(key):
+            val = settings[key]
+            settings[key] = "*" * (len(val) - 4) + val[-4:] if len(val) > 4 else "****"
+    return settings
 
 @router.post("/settings/notifications")
 async def update_notification_settings(settings: dict):
-    """Update phone, carrier, and enable/disable status."""
-    notifications.save_settings(settings)
-    return {"status": "ok", "settings": settings}
+    """Update phone, carrier, and enable/disable status, preserving masked secrets."""
+    incoming_settings = settings.copy()
+    current = notifications.get_settings()
+
+    # Handle masked fields for security sensitive keys
+    for key in ["twilio_auth_token", "smtp_pass"]:
+        if incoming_settings.get(key, "").startswith("****") and current.get(key):
+            incoming_settings[key] = current[key]
+
+    notifications.save_settings(incoming_settings)
+    return {"status": "ok", "settings": incoming_settings}
 
 @router.get("/settings/cloud")
 async def get_cloud_settings():
-    """Return current cloud configuration (Gemini)."""
-    settings = gemini_client.get_settings()
+    """Return current cloud configuration (Gemini) with secrets redacted."""
+    # Work on a copy to avoid corrupting shared state
+    settings = gemini_client.get_settings().copy()
     if settings.get("api_key"):
         key = settings["api_key"]
         settings["api_key"] = "*" * (len(key) - 4) + key[-4:] if len(key) > 4 else "****"
@@ -27,13 +42,13 @@ async def get_cloud_settings():
 
 @router.post("/settings/cloud")
 async def update_cloud_settings(settings: dict):
-    """Update Gemini API key."""
-    incoming_key = settings.get("api_key", "")
-    if incoming_key.startswith("****"):
+    """Update Gemini API key, preserving masked values."""
+    incoming_settings = settings.copy()
+    if incoming_settings.get("api_key", "").startswith("****"):
         current = gemini_client.get_settings()
         if current.get("api_key"):
-            settings["api_key"] = current["api_key"]
-    gemini_client.save_settings(settings)
+            incoming_settings["api_key"] = current["api_key"]
+    gemini_client.save_settings(incoming_settings)
     return {"status": "ok"}
 
 @router.post("/cloud/test")
