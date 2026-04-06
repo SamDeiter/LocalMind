@@ -9,6 +9,11 @@ from backend.config import OLLAMA_BASE_URL
 router = APIRouter(prefix="/api")
 logger = logging.getLogger("localmind.routes.system")
 
+# ⚡ Bolt: Prime psutil CPU calculation at module load.
+# This allows us to use interval=None in the route handler for non-blocking
+# CPU percentage retrieval, saving ~100ms of event loop block per request.
+psutil.cpu_percent(interval=None)
+
 @router.get("/health")
 async def health_check():
     """Check server and Ollama connectivity."""
@@ -35,7 +40,9 @@ async def get_version():
 @router.get("/hardware")
 async def hardware_status():
     """Get system and Ollama hardware usage."""
-    cpu_pct = psutil.cpu_percent(interval=0.1)
+    # ⚡ Bolt: Use interval=None to avoid blocking the event loop for 100ms.
+    # Returns the average CPU usage since the last call (or module load).
+    cpu_pct = psutil.cpu_percent(interval=None)
     mem = psutil.virtual_memory()
     system = {
         "cpu_percent": cpu_pct,
