@@ -3,6 +3,7 @@ import asyncio
 import logging
 import time
 from ..config import CIRCUIT_BREAKER_THRESHOLD
+from ..utils import set_cycle_context, clear_cycle_context
 
 logger = logging.getLogger("localmind.autonomy.execution")
 
@@ -26,7 +27,12 @@ async def run_execution_loop(engine):
                     continue
 
                 while True:
-                    had_work = await engine._execute_next_proposal()
+                    ctx = set_cycle_context("execution")
+                    logger.info("Starting execution cycle [cycle_id=%s]", ctx.cycle_id)
+                    try:
+                        had_work = await engine._execute_next_proposal()
+                    finally:
+                        clear_cycle_context()
                     if not had_work:
                         break
                     await asyncio.sleep(5)

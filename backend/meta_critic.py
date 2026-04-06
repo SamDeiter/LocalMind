@@ -13,6 +13,9 @@ Flow:
   3. Backtrack - If confidence < threshold, reject with reason
   4. Refine    - If borderline (0.4-0.7), ask AI to fix issues and re-score
   5. Approve   - If confidence >= threshold, pass to proposal pipeline
+
+Integrates AgentFixer validation framework (arXiv:2603.29848) for
+robust JSON parsing and output schema validation.
 """
 
 import json
@@ -23,6 +26,8 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
+
+from backend.validation.robust_parser import parse_json
 
 logger = logging.getLogger("autonomy.meta_critic")
 
@@ -196,20 +201,18 @@ class MetaCritic:
 
                 if resp.status_code == 200:
                     text = resp.json().get("response", "").strip()
-                    if "```" in text:
-                        text = text.split("```")[1]
-                        if text.startswith("json"):
-                            text = text[4:]
-                        text = text.strip()
+                    data = parse_json(text)
 
-                    data = json.loads(text)
-                    return CritiqueResult(
-                        approved=False,  # Not yet - review() decides
-                        confidence=max(0.0, min(1.0, float(data.get("confidence", 0.5)))),
-                        concerns=data.get("concerns", []),
-                    )
+                    if data and isinstance(data, dict):
+                        return CritiqueResult(
+                            approved=False,  # Not yet - review() decides
+                            confidence=max(0.0, min(1.0, float(data.get("confidence", 0.5)))),
+                            concerns=data.get("concerns", []),
+                        )
+                    else:
+                        logger.warning(f"Critique parse failed for '{title}' — robust_parser returned None")
 
-        except (httpx.HTTPError, json.JSONDecodeError, ValueError, KeyError) as e:
+        except (httpx.HTTPError, ValueError, KeyError) as e:
             logger.warning(f"Critique failed for '{title}': {e}")
 
         # If critique itself fails, return a neutral score
@@ -250,18 +253,15 @@ class MetaCritic:
 
                 if resp.status_code == 200:
                     text = resp.json().get("response", "").strip()
-                    if "```" in text:
-                        text = text.split("```")[1]
-                        if text.startswith("json"):
-                            text = text[4:]
-                        text = text.strip()
+                    refined = parse_json(text)
 
-                    refined = json.loads(text)
                     # Ensure required keys exist
-                    if "title" in refined and "description" in refined:
+                    if refined and isinstance(refined, dict) and "title" in refined and "description" in refined:
                         return refined
+                    else:
+                        logger.warning(f"Refine parse failed for '{title}' — robust_parser returned {type(refined)}")
 
-        except (httpx.HTTPError, json.JSONDecodeError, ValueError) as e:
+        except (httpx.HTTPError, ValueError) as e:
             logger.warning(f"Refine failed for '{title}': {e}")
 
         return None

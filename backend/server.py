@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, PROPOSALS_DIR, FRONTEND_URLS
+from backend.middleware import RateLimitMiddleware
 from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
 from backend.tools.registry import ToolRegistry
 from backend.autonomy import AutonomyEngine, PROPOSALS_DIR
@@ -27,11 +28,23 @@ from backend import notifications, gemini_client, db
 from backend.db import DB_PATH, get_db
 
 # -- Logging --
+from backend.autonomy.utils import get_cycle_context
+
+class _CycleIdFilter(logging.Filter):
+    """Inject cycle_id into every log record so the formatter can display it."""
+    def filter(self, record):
+        ctx = get_cycle_context()
+        record.cycle_id = ctx.cycle_id if ctx is not None else "-"
+        return True
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s [cycle:%(cycle_id)s]: %(message)s",
     datefmt="%H:%M:%S",
 )
+# Add filter to handlers (not the logger) so it runs for propagated child-logger records too
+for _h in logging.getLogger().handlers:
+    _h.addFilter(_CycleIdFilter())
 logger = logging.getLogger("localmind")
 
 # -- RAG Availability Check --
@@ -53,8 +66,17 @@ registry = ToolRegistry()
 # -- App Lifecycle --
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database, configure routers, and start autonomy engine."""
+    """Initialize database, run migrations, configure routers, and start autonomy engine."""
     db.init_db()
+
+    # Run ChromaDB schema migrations before anything touches the collections
+    try:
+        from backend.migrations import MigrationManager
+        migration_mgr = MigrationManager()
+        migration_mgr.run_pending()
+    except Exception as exc:
+        logger.warning("Migration check skipped: %s", exc)
+
     _configure_routers()
 
     # Store engine on app.state for route access
@@ -63,6 +85,10 @@ async def lifespan(app: FastAPI):
     await autonomy_engine.start()
     logger.info("LocalMind server initialized (autonomy engine active)")
     yield
+    # Close the LLMClient's shared httpx session to avoid leaking TCP connections
+    from backend.routes.chat import _chat_service
+    if _chat_service is not None:
+        await _chat_service.llm.close()
     # Stop swarm if running
     if hasattr(autonomy_engine, 'coordinator') and autonomy_engine.coordinator:
         await autonomy_engine.coordinator.stop()
@@ -70,13 +96,12 @@ async def lifespan(app: FastAPI):
 
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""
-    from backend.routes import chat, conversations, documents, autonomy_routes
+    from backend.routes import chat, conversations, documents, autonomy_routes, ws_routes
     from backend.routes.chat import init_chat_service
 
     init_chat_service(
         registry=registry,
-        autonomy_engine=autonomy_engine,
-        metacog_controller=metacog_controller
+        metacog_controller=metacog_controller,
     )
 
     conversations.configure(
@@ -101,6 +126,8 @@ def _configure_routers():
         list_indexed_documents_fn=list_indexed_documents if RAG_AVAILABLE else None,
     )
 
+    ws_routes.configure(engine=autonomy_engine)
+
 # -- Create FastAPI App --
 app = FastAPI(title="LocalMind", version="1.0.0", lifespan=lifespan)
 
@@ -111,6 +138,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(RateLimitMiddleware)
 
 @app.middleware("http")
 async def no_cache_static(request: Request, call_next):
@@ -139,6 +168,8 @@ from backend.routes.research_routes import router as research_router
 from backend.routes.system import router as system_router
 from backend.routes.settings import router as settings_router
 from backend.routes.swarm_routes import router as swarm_router
+from backend.routes.validation_routes import router as validation_router
+from backend.routes.ws_routes import router as ws_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -151,6 +182,8 @@ app.include_router(research_router)
 app.include_router(system_router)
 app.include_router(settings_router)
 app.include_router(swarm_router)
+app.include_router(validation_router)
+app.include_router(ws_router)
 
 # -- Static Files --
 frontend_path = Path(__file__).parent.parent / "frontend"

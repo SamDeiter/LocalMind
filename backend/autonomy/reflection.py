@@ -10,6 +10,8 @@ from pathlib import Path
 from backend.todo_harvester import get_todos_for_prompt
 from backend.tools.manage_model import ManageModelTool
 from .utils import log_event, sample_code_snippets
+from backend.validation.robust_parser import parse_json
+from backend.validation.cross_stage_validators import InformationConsistencyValidator, ProposalIntegrityValidator
 
 logger = logging.getLogger("localmind.autonomy.reflection")
 
@@ -81,6 +83,7 @@ async def run_reflection_cycle(engine) -> bool:
             
             brain_context = engine.self_improver.get_config_for_prompt()
             priority_context = engine.priority_queue.get_prompt_injection()
+            feedback_guidance = engine.feedback_learner.get_reflection_guidance()
             banned_list = engine.self_improver.config.get("banned_patterns", [])
             banned_str = ", ".join(f"'{b}'" for b in banned_list[:10])
 
@@ -88,6 +91,7 @@ async def run_reflection_cycle(engine) -> bool:
                 f"You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                 f"HERE ARE THE ACTUAL FILES:\n{file_list}\n\n"
                 f"{code_snippets}{todo_context}{brain_context}{research_context}{priority_context}"
+                f"{feedback_guidance}"
                 f"REQUIRED CATEGORY: {focus_category}\n{anti_repeat}"
                 f"BANNED TOPICS: {banned_str}\n"
                 "Output JSON: title, category, description, files_affected, effort, priority."
@@ -101,6 +105,7 @@ async def run_reflection_cycle(engine) -> bool:
                     f"You are LocalMind, an AI assistant reviewing your OWN codebase.\n\n"
                     f"HERE ARE THE ACTUAL FILES:\n{file_list}\n\n"
                     f"{code_snippets}{todo_context}{brain_context}{research_context}{priority_context}"
+                    f"{feedback_guidance}"
                     f"REQUIRED CATEGORY: {focus_category}\n{anti_repeat}"
                     f"BANNED TOPICS: {banned_str}\n"
                     "Output JSON: title, category, description, files_affected, effort, priority."
@@ -144,19 +149,32 @@ async def run_reflection_cycle(engine) -> bool:
                 response_dict = resp.json()
                 response_text = response_dict.get("message", {}).get("content", "")
 
-            text = response_text.strip()
-            if "```" in text:
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-                text = text.strip()
+            # Robust parsing with 5-layer fallback
+            proposal = parse_json(response_text)
+            if not proposal:
+                err_snippet = response_text[:100] + "..." if len(response_text) > 100 else response_text
+                logger.warning(f"Model returned non-JSON response: {err_snippet}")
+                engine._emit_activity("reflection_error", "❌ Model returned invalid JSON")
+                return False
 
-            try:
-                proposal = json.loads(text)
-            except json.JSONDecodeError as e:
-                err_snippet = text[:100] + "..." if len(text) > 100 else text
-                logger.warning(f"Model returned non-JSON response: {e} — snippet: {err_snippet}")
-                engine._emit_activity("reflection_error", f"❌ Model returned invalid JSON: {str(e)}")
+            # Validation Gate 1: Structural Integrity
+            integrity_val = ProposalIntegrityValidator()
+            i_res = integrity_val.validate({"proposal": proposal, "stage": "reflection"})
+            if not i_res.success:
+                logger.warning(f"Proposal integrity failed: {i_res.error}")
+                engine._emit_activity("reflection_error", f"❌ Integrity: {i_res.error}")
+                return False
+
+            # Validation Gate 2: Information Consistency (hallucination check)
+            consistency_val = InformationConsistencyValidator()
+            c_res = consistency_val.validate({
+                "proposal": proposal,
+                "file_list": real_files,
+                "existing_titles": engine.proposals.get_anti_repeat_titles()
+            })
+            if not c_res.success:
+                logger.warning(f"Proposal consistency check failed: {c_res.error}")
+                engine._emit_activity("reflection_error", f"❌ Consistency: {c_res.error}")
                 return False
 
             try:

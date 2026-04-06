@@ -1,14 +1,16 @@
 /**
  * Shared application state, constants, and DOM references.
  * This module has ZERO external dependencies — it is the root of the import graph.
+ *
+ * State objects are wrapped in Proxy for lightweight pub/sub.
+ * Existing code that mutates state directly (e.g. `state.streaming = true`)
+ * continues to work unchanged. Modules can optionally subscribe to changes:
+ *
+ *   import { state, onStateChange } from "./state.js";
+ *   onStateChange("streaming", (val, old) => console.log("streaming:", old, "→", val));
  */
 
-let apiOrigin = window.location.origin;
-// If running dev server on a different port locally, force backend port 8000
-if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-  apiOrigin = `http://${window.location.hostname}:8001`;
-}
-export const API = apiOrigin;
+export const API = window.location.origin;
 
 export const MODE_MODELS = {
   fast: "qwen2.5-coder:7b",
@@ -16,7 +18,44 @@ export const MODE_MODELS = {
   auto: "auto",
 };
 
-export const state = {
+// ── Pub/Sub helpers ────────────────────────────────────────────
+const _listeners = new Map();
+
+/**
+ * Subscribe to changes on a specific state property.
+ * @param {string} key   – property name on `state` or `editorState`
+ * @param {Function} cb  – called as cb(newValue, oldValue, key)
+ */
+export function onStateChange(key, cb) {
+  if (!_listeners.has(key)) _listeners.set(key, []);
+  _listeners.get(key).push(cb);
+}
+
+/**
+ * Unsubscribe a previously-registered callback.
+ */
+export function offStateChange(key, cb) {
+  const cbs = _listeners.get(key);
+  if (cbs) _listeners.set(key, cbs.filter(fn => fn !== cb));
+}
+
+function _notify(prop, value, old) {
+  const cbs = _listeners.get(prop);
+  if (cbs && cbs.length) cbs.forEach(cb => cb(value, old, prop));
+}
+
+function _makeReactive(raw) {
+  return new Proxy(raw, {
+    set(target, prop, value) {
+      const old = target[prop];
+      target[prop] = value;
+      if (old !== value) _notify(prop, value, old);
+      return true;
+    },
+  });
+}
+
+export const state = _makeReactive({
   conversations: [],
   currentConvId: null,
   messages: [],
@@ -26,13 +65,13 @@ export const state = {
   voiceEnabled: false,  // Default OFF — user can toggle via speaker button
   capturedImage: null,
   abortController: null,
-};
+});
 
 // Shared mutable editor state (lives here to avoid circular deps between chat ↔ editor)
-export const editorState = {
+export const editorState = _makeReactive({
   monacoEditor: null,
   currentPath: null,
-};
+});
 
 // ── DOM helpers ─────────────────────────────────────────────────
 export const $ = (s) => document.querySelector(s);
@@ -64,9 +103,9 @@ export const removeImageBtn = $("#sidebarRemoveImageBtn");
 export const micBtn = $("#micBtn");
 export const uploadBtn = $("#sidebarUploadBtn");
 export const cameraBtn = $("#sidebarCameraBtn");
-export const editorPanel = document.getElementById("editorPanel");
-export const panelDivider = document.getElementById("panelDivider");
-export const editorToggle = document.getElementById("editorToggle");
+export const getEditorPanel = () => document.getElementById("editorPanel");
+export const getPanelDivider = () => document.getElementById("panelDivider");
+export const getEditorToggle = () => document.getElementById("editorToggle");
 export const priorityInput = document.getElementById("priorityInput");
 export const priorityContainer = $("#priorityList");
 export const addPriorityBtn = document.getElementById("addPriorityBtn");

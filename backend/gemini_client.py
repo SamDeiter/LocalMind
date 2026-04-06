@@ -128,6 +128,8 @@ async def _generate_with_retry(client, model, system_instruction, prompt):
         )
         # Assuming async usage since we're using asyncio in the app
         response = await gen_model.generate_content_async(prompt)
+        if not response.text.strip():
+            raise ValueError("Received empty response from Gemini API")
         return response.text
     except httpx.HTTPError as exc:
         logger.error(f"HTTP error occurred: {exc}")

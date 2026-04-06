@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from ..utils import log_event
+from ..utils import log_event, set_cycle_context, clear_cycle_context
 
 logger = logging.getLogger("localmind.autonomy.research")
 
@@ -11,9 +11,14 @@ async def run_auto_research_loop(engine):
     while True:
         try:
             if engine.enabled and not engine.is_user_active():
-                await engine._run_auto_research()
-                engine.status["research"]["last_run"] = time.time()
-            
+                ctx = set_cycle_context("research")
+                logger.info("Starting research cycle [cycle_id=%s]", ctx.cycle_id)
+                try:
+                    await engine._run_auto_research()
+                    engine.status["research"]["last_run"] = time.time()
+                finally:
+                    clear_cycle_context()
+
             await asyncio.sleep(2 * 3600)  # 2 hours
         except asyncio.CancelledError:
             break

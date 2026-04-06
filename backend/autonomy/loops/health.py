@@ -8,13 +8,14 @@ from ..config import CIRCUIT_BREAKER_THRESHOLD
 logger = logging.getLogger("localmind.autonomy.health")
 
 # Track consecutive health failures for auto-recovery
-_health_failures = 0
 _MAX_HEALTH_FAILURES = 3
-_recovery_attempts = 0
 
 async def run_health_loop(engine):
     """Every 30s: ping Ollama, pre-warm model, auto-recover if down."""
-    global _health_failures, _recovery_attempts
+    if not hasattr(engine, '_health_failures'):
+        engine._health_failures = 0
+        engine._health_recovery_attempts = 0
+        engine._last_adaptive_status = "safe"
     await asyncio.sleep(5)
     while True:
         try:
@@ -22,26 +23,27 @@ async def run_health_loop(engine):
                 healthy = await _check_system_health(engine)
 
                 if healthy:
-                    if _health_failures > 0:
+                    if engine._health_failures > 0:
                         engine._emit_activity(
                             "health_recovery",
-                            f"💚 System recovered after {_health_failures} failures"
+                            f"💚 System recovered after {engine._health_failures} failures"
                         )
-                        _health_failures = 0
-                        _recovery_attempts = 0
+                        engine._health_failures = 0
+                        engine._health_recovery_attempts = 0
+                        engine._last_adaptive_status = "safe"
                 else:
-                    _health_failures += 1
+                    engine._health_failures += 1
                     engine._emit_activity(
                         "health_warning",
-                        f"⚠️ Health check failed ({_health_failures}/{_MAX_HEALTH_FAILURES})"
+                        f"⚠️ Health check failed ({engine._health_failures}/{_MAX_HEALTH_FAILURES})"
                     )
 
                     # Auto-recovery: try to restart Ollama
-                    if _health_failures >= _MAX_HEALTH_FAILURES and _recovery_attempts < 3:
-                        _recovery_attempts += 1
+                    if engine._health_failures >= _MAX_HEALTH_FAILURES and engine._health_recovery_attempts < 3:
+                        engine._health_recovery_attempts += 1
                         engine._emit_activity(
                             "health_recovery_attempt",
-                            f"🔄 Auto-recovery attempt {_recovery_attempts}/3 — restarting Ollama..."
+                            f"🔄 Auto-recovery attempt {engine._health_recovery_attempts}/3 — restarting Ollama..."
                         )
                         await _attempt_ollama_recovery(engine)
 
@@ -62,10 +64,42 @@ async def run_health_loop(engine):
             logger.error(f"Health loop error: {exc}")
             await asyncio.sleep(30)
 
+def _get_gpu_stats():
+    """Query nvidia-smi for GPU utilization and VRAM usage."""
+    try:
+        res = subprocess.run(
+            ["nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, check=True, timeout=5
+        )
+        line = res.stdout.strip()
+        if not line:
+            return None
+        parts = [p.strip() for p in line.split(",")]
+        used = float(parts[1])
+        total = float(parts[2])
+        util = float(parts[0])
+        pct = (used / total) * 100
+        
+        status = "safe"
+        if pct > 98 or util > 98:
+            status = "critical"
+        elif pct > 90 or util > 85:
+            status = "warning"
+            
+        return {
+            "gpu_util": util,
+            "vram_used": used,
+            "vram_total": total,
+            "vram_pct": pct,
+            "adaptive_status": status
+        }
+    except Exception:
+        return None
+
 async def _check_system_health(engine):
     """Ping Ollama and check if a model is loaded. Returns True if healthy."""
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(f"{engine.ollama_url}/api/tags")
             ollama_ok = resp.status_code == 200
 
@@ -77,10 +111,36 @@ async def _check_system_health(engine):
                 "last_run": time.time(),
                 "ollama_ok": ollama_ok,
                 "model_loaded": models_loaded,
-                "consecutive_failures": _health_failures,
-                "recovery_attempts": _recovery_attempts,
+                "consecutive_failures": engine._health_failures,
+                "recovery_attempts": engine._health_recovery_attempts,
             }
             engine.status["health"] = "ok" if ollama_ok else "error"
+
+            # Update GPU/VRAM stats
+            stats = _get_gpu_stats()
+            if stats:
+                engine.status["hardware"] = stats
+
+                # Only emit notification on state TRANSITION (edge-triggered)
+                current_status = stats["adaptive_status"]
+
+                if current_status == "critical" and engine._last_adaptive_status != "critical":
+                    engine._emit_activity(
+                        "hardware_critical",
+                        f"🛑 VRAM CRITICAL ({stats['vram_pct']:.1f}%) — Throttling Swarm to prevent crash"
+                    )
+                elif current_status == "warning" and engine._last_adaptive_status == "safe":
+                    engine._emit_activity(
+                        "hardware_warning",
+                        f"⚠️ VRAM High ({stats['vram_pct']:.1f}%) — Enabling adaptive scaling"
+                    )
+                elif current_status == "safe" and engine._last_adaptive_status != "safe":
+                    engine._emit_activity(
+                        "hardware_safe",
+                        "💚 VRAM recovered — All systems safe"
+                    )
+
+                engine._last_adaptive_status = current_status
 
             # Pre-warm model if Ollama is up but no model loaded
             if ollama_ok and not models_loaded:

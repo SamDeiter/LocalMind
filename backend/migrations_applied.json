@@ -1,0 +1,11 @@
+{
+  "applied": [
+    {
+      "version": "1",
+      "description": "Baseline: ensure memories and localmind_docs collections exist",
+      "applied_at": 1775273594.9954147,
+      "success": true,
+      "error": null
+    }
+  ]
+}

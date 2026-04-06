@@ -17,7 +17,20 @@ class LLMClient:
 
     def __init__(self, ollama_base_url: str = config.OLLAMA_BASE_URL):
         self.ollama_url = ollama_base_url.rstrip("/")
-        self.timeout = httpx.Timeout(120.0, connect=10.0)
+        self.timeout = httpx.Timeout(300.0, connect=10.0)
+        self._client: Optional[httpx.AsyncClient] = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        """Return the shared httpx client, creating it lazily if needed."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=self.timeout)
+        return self._client
+
+    async def close(self) -> None:
+        """Close the underlying httpx client, releasing TCP connections."""
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     async def generate_stream(
         self,
@@ -52,46 +65,46 @@ class LLMClient:
         max_retries = 3
         backoff_factor = 1
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            for attempt in range(max_retries):
-                try:
-                    async with client.stream("POST", url, json=payload, timeout=self.timeout) as response:
-                        if response.status_code != 200:
-                            err = await response.aread()
-                            logger.error(f"Ollama stream error: {err.decode()}")
-                            yield {"error": f"Ollama error {response.status_code}"}
-                            return
+        client = self._get_client()
+        for attempt in range(max_retries):
+            try:
+                async with client.stream("POST", url, json=payload, timeout=self.timeout) as response:
+                    if response.status_code != 200:
+                        err = await response.aread()
+                        logger.error(f"Ollama stream error: {err.decode()}")
+                        yield {"error": f"Ollama error {response.status_code}"}
+                        return
 
-                        async for line in response.aiter_lines():
-                            if not line:
-                                continue
-                            try:
-                                data = json.loads(line)
-                                token = ""
-                                if "message" in data:
-                                    token = data["message"].get("content", "")
-                                elif "response" in data:
-                                    token = data.get("response", "")
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                            token = ""
+                            if "message" in data:
+                                token = data["message"].get("content", "")
+                            elif "response" in data:
+                                token = data.get("response", "")
 
-                                yield {
-                                    "token": token,
-                                    "done": data.get("done", False),
-                                    "tool_calls": data.get("message", {}).get("tool_calls", []),
-                                }
-                            except json.JSONDecodeError:
-                                logger.warning(f"Failed to decode JSON: {line[:100]}")
-                                continue
-                    # If we got here, streaming completed successfully
-                    return
+                            yield {
+                                "token": token,
+                                "done": data.get("done", False),
+                                "tool_calls": data.get("message", {}).get("tool_calls", []),
+                            }
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode JSON: {line[:100]}")
+                            continue
+                # If we got here, streaming completed successfully
+                return
 
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        wait_time = backoff_factor * (2 ** attempt)
-                        logger.warning(f"Ollama attempt {attempt+1} failed: {e}. Retrying in {wait_time}s...")
-                        await asyncio.sleep(wait_time)
-                    else:
-                        logger.error(f"Ollama stream failed after {max_retries} attempts: {e}")
-                        yield {"error": str(e)}
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = backoff_factor * (2 ** attempt)
+                    logger.warning(f"Ollama attempt {attempt+1} failed: {e}. Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"Ollama stream failed after {max_retries} attempts: {e}")
+                    yield {"error": str(e)}
 
     async def _stream_gemini(
         self, model: str, messages: List[Dict[str, str]], **kwargs
@@ -130,13 +143,13 @@ class LLMClient:
             payload["options"] = kwargs.pop("options")
         payload.update(kwargs)
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            try:
-                r = await client.post(url, json=payload)
-                data = r.json()
-                return {
-                    "content": data.get("message", {}).get("content", ""),
-                    "tool_calls": data.get("message", {}).get("tool_calls", []),
-                }
-            except Exception as e:
-                return {"error": str(e)}
+        client = self._get_client()
+        try:
+            r = await client.post(url, json=payload)
+            data = r.json()
+            return {
+                "content": data.get("message", {}).get("content", ""),
+                "tool_calls": data.get("message", {}).get("tool_calls", []),
+            }
+        except Exception as e:
+            return {"error": str(e)}

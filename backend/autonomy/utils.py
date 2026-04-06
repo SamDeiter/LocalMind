@@ -2,11 +2,44 @@
 import logging
 import json
 import time
+import uuid
 import subprocess
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
+
 from .config import LOG_FILE
 
 logger = logging.getLogger("localmind.autonomy.utils")
+
+# ---------------------------------------------------------------------------
+# CycleContext — threaded through each autonomy cycle via contextvars
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CycleContext:
+    """Holds tracing metadata for one autonomy cycle (reflection/research/execution)."""
+    cycle_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    cycle_type: str = ""  # "reflection", "research", "execution"
+
+_current_cycle: ContextVar[Optional[CycleContext]] = ContextVar(
+    "current_cycle", default=None
+)
+
+def set_cycle_context(cycle_type: str) -> CycleContext:
+    """Create a new CycleContext, store it in the ContextVar, and return it."""
+    ctx = CycleContext(cycle_type=cycle_type)
+    _current_cycle.set(ctx)
+    return ctx
+
+def get_cycle_context() -> Optional[CycleContext]:
+    """Return the current CycleContext, or None if outside a cycle."""
+    return _current_cycle.get()
+
+def clear_cycle_context() -> None:
+    """Reset the ContextVar after a cycle completes."""
+    _current_cycle.set(None)
 
 def log_event(event: str, data: dict = None):
     try:

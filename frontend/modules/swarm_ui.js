@@ -1,84 +1,118 @@
-/**
- * swarm_ui.js — Hive Mind Dashboard UI Module
- * Real-time visualization of the multi-agent swarm.
- * Polls /api/swarm/status every 3s when visible.
- */
+import { API } from './state.js';
+import { toggleEditorPanel } from './editor.js';
+import { getEditorPanel } from './state.js';
+import { renderHardwareStats } from '../components/HardwareDashboard.js';
+import { ActionGraph } from '../components/ActionGraph.js';
 
-const API_BASE = window.location.origin;
-let swarmPollInterval = null;
+let actionGraph = null;
+
+let swarmPollingInterval = null;
 let swarmVisible = false;
 
-// ── DOM References ──────────────────────────────────────────────
+// Helpers to get fresh DOM refs
 const els = {
     dashBtn: () => document.getElementById('swarmDashBtn'),
     dashView: () => document.getElementById('swarmDashboardView'),
     mainScroll: () => document.getElementById('mainScrollArea'),
+    agentGrid: () => document.getElementById('swarmAgentGrid'),
+    resultsStream: () => document.getElementById('swarmResultStream'),
+    improvementsStream: () => document.getElementById('swarmImprovementsStream'),
+    agentCount: () => document.getElementById('swarmAgentCount'),
     statusBadge: () => document.getElementById('swarmStatusBadge'),
-    activeCount: () => document.getElementById('swarmActiveCount'),
+    uptimeVal: () => document.getElementById('swarmUptime'),
+    tasksVal: () => document.getElementById('swarmTotalTasks'),
+    failedVal: () => document.getElementById('swarmTotalFailed'),
+    activeVal: () => document.getElementById('swarmActiveCount'),
     gpuUsed: () => document.getElementById('swarmGpuUsed'),
     gpuTotal: () => document.getElementById('swarmGpuTotal'),
     queueDepth: () => document.getElementById('swarmQueueDepth'),
-    successRate: () => document.getElementById('swarmSuccessRate'),
-    agentGrid: () => document.getElementById('swarmAgentGrid'),
-    resultStream: () => document.getElementById('swarmResultStream'),
-    improvementsStream: () => document.getElementById('swarmImprovementsStream'),
-    scanBtn: () => document.getElementById('swarmScanBtn'),
-    agentCountBadge: () => document.getElementById('swarmAgentCount'),
-    // Heartbeat row
-    uptime: () => document.getElementById('swarmUptime'),
-    totalTasks: () => document.getElementById('swarmTotalTasks'),
-    totalFailed: () => document.getElementById('swarmTotalFailed'),
-    lastPoll: () => document.getElementById('swarmLastPoll'),
-    heartbeat: () => document.getElementById('swarmHeartbeat'),
     queuePeak: () => document.getElementById('swarmQueuePeak'),
+    successRate: () => document.getElementById('swarmSuccessRate'),
+    pollTime: () => document.getElementById('swarmLastPoll')
 };
 
-// ── Agent Type Icons & Colors ───────────────────────────────────
-const AGENT_STYLES = {
-    scanner: { icon: 'search', color: 'cyan', label: 'Scanner' },
-    tester:  { icon: 'science', color: 'emerald', label: 'Tester' },
-    researcher: { icon: 'travel_explore', color: 'blue', label: 'Researcher' },
-    llm:     { icon: 'psychology', color: 'violet', label: 'LLM' },
-    base:    { icon: 'smart_toy', color: 'slate', label: 'Agent' },
-};
 
-// ── Toggle Dashboard ────────────────────────────────────────────
-export function initSwarmUI() {
-    const btn = els.dashBtn();
-    if (!btn) return;
-
-    btn.addEventListener('click', toggleSwarmDashboard);
-
-    // Scan button
-    const scanBtn = els.scanBtn();
-    if (scanBtn) {
-        scanBtn.addEventListener('click', triggerFullScan);
+async function fetchHistory() {
+    try {
+        const res = await fetch(`${API}/api/swarm/history`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const history = data.history || [];
+        console.log(`Swarm UI: Hydrating ${history.length} historical events...`);
+        
+        // Temporarily enable swarmVisible to allow ActionGraph to process
+        const wasVisible = swarmVisible;
+        swarmVisible = true; 
+        
+        history.forEach(event => {
+            if (actionGraph) actionGraph.addEvent(event);
+        });
+        
+        swarmVisible = wasVisible;
+    } catch (err) {
+        console.error('Swarm UI: History fetch failed:', err);
     }
-
-    // When other sidebar buttons are clicked, close swarm panel
-    const otherNavBtns = ['overviewBtn', 'editorToggle', 'activityToggle', 'memoryToggleBtn'];
-    otherNavBtns.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('click', hideSwarmDashboard);
-    });
-
-    // Start background agent count polling (even when hidden)
-    setInterval(updateAgentCountBadge, 10000);
-    updateAgentCountBadge();
 }
 
-/** Close the swarm dashboard and restore the main view. */
+async function fetchSwarmStatus() {
+    try {
+        const res = await fetch(`${API}/api/swarm/status`);
+        if (!res.ok) throw new Error('Swarm API offline');
+        const data = await res.json();
+        renderSwarmStatus(data);
+    } catch (err) {
+        console.error('Swarm poll error:', err);
+        const badge = els.statusBadge();
+        if (badge) {
+            badge.textContent = 'Disconnected';
+            badge.className = 'text-[9px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full';
+        }
+    }
+}
+
+function startPolling() {
+    if (swarmPollingInterval) return;
+    fetchSwarmStatus();
+    swarmPollingInterval = setInterval(fetchSwarmStatus, 3000);
+}
+
+function stopPolling() {
+    if (swarmPollingInterval) {
+        clearInterval(swarmPollingInterval);
+        swarmPollingInterval = null;
+    }
+}
+
+/** 
+ * robustly hide hive and show main nexus dashboard 
+ * called by sidebar buttons to ensure we don't end up on a blank screen
+ */
 export function hideSwarmDashboard() {
-    if (!swarmVisible) return;
     const view = els.dashView();
     const main = els.mainScroll();
+    
     swarmVisible = false;
+    
+    // Always hide Hive
     if (view) view.classList.add('hidden');
-    if (main) main.classList.remove('hidden');
+    
+    // Always show Nexus Dashboard (clear inline display to let Tailwind own it)
+    if (main) {
+        main.classList.remove('hidden');
+        main.style.display = ''; // Clear any inline override, let CSS/Tailwind handle it
+    }
+    
     stopPolling();
+    
+    // Update sidebar button state
+    const btn = els.dashBtn();
+    if (btn) {
+        btn.classList.remove('bg-amber-500/10', 'text-amber-400', 'border-amber-500/20');
+        btn.classList.add('text-slate-400');
+    }
 }
 
-function toggleSwarmDashboard() {
+export function toggleSwarmDashboard() {
     const view = els.dashView();
     const main = els.mainScroll();
     if (!view) return;
@@ -86,243 +120,250 @@ function toggleSwarmDashboard() {
     swarmVisible = !swarmVisible;
 
     if (swarmVisible) {
-        // Also hide the editor panel if it's open
-        const editorPanel = document.getElementById('editorPanelContainer');
-        if (editorPanel && !editorPanel.classList.contains('hidden')) {
-            editorPanel.classList.add('hidden');
-        }
-
+        // Show hive, Hide Nexus
         view.classList.remove('hidden');
-        if (main) main.classList.add('hidden');
+        if (main) {
+            main.classList.add('hidden');
+            main.style.display = ''; // Clear inline so 'hidden' class works
+        }
+        
+        // Close editor panel if open, to prevent overlap
+        const panel = getEditorPanel();
+        if (panel && panel.classList.contains('visible')) {
+            toggleEditorPanel();
+        }
+        
         startPolling();
-        fetchSwarmStatus(); // Immediate first load
+        
+        // Update sidebar button active state
+        const btn = els.dashBtn();
+        if (btn) {
+            btn.classList.add('bg-amber-500/10', 'text-amber-400', 'border-amber-500/20');
+            btn.classList.remove('text-slate-400');
+        }
     } else {
-        view.classList.add('hidden');
-        if (main) main.classList.remove('hidden');
-        stopPolling();
+        hideSwarmDashboard();
     }
 }
 
-// ── Polling ─────────────────────────────────────────────────────
-function startPolling() {
-    stopPolling();
-    swarmPollInterval = setInterval(fetchSwarmStatus, 3000);
-}
+export function initSwarmUI() {
+    const btn = els.dashBtn();
+    if (!btn) {
+        console.warn('swarmDashBtn not found in DOM');
+        return;
+    }
 
-function stopPolling() {
-    if (swarmPollInterval) {
-        clearInterval(swarmPollInterval);
-        swarmPollInterval = null;
+    // Connect toggle
+    btn.addEventListener('click', () => {
+        toggleSwarmDashboard();
+    });
+
+    // Initialize Neural Action Graph
+    if (!actionGraph) {
+        try {
+            actionGraph = new ActionGraph('actionGraphCanvas');
+            // Hydrate from history immediately
+            fetchHistory();
+            const resetBtn = document.getElementById('resetGraphBtn');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (actionGraph) actionGraph.reset();
+                });
+            }
+        } catch (e) {
+            console.error('Swarm UI: ActionGraph failed to load:', e);
+        }
+    }
+
+    // Other nav buttons should clear the Swarm dashboard to prevent "blank screen" overlaps
+    // NOTE: editorToggle is handled in events.js to avoid triple-binding
+    const otherNavBtns = ['overviewBtn', 'activityToggle', 'memoryToggleBtn', 'newChatBtn'];
+    otherNavBtns.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('click', () => {
+                hideSwarmDashboard();
+            });
+        }
+    });
+
+    // Scan button
+    const scanBtn = document.getElementById('swarmScanBtn');
+    if (scanBtn) {
+        scanBtn.addEventListener('click', async () => {
+            scanBtn.disabled = true;
+            scanBtn.innerHTML = '<span class="material-symbols-outlined text-xs align-middle mr-1 animate-spin">refresh</span> Scanning...';
+            try {
+                await fetch(`${API}/api/swarm/scan`, { method: 'POST' });
+            } finally {
+                setTimeout(() => {
+                    scanBtn.disabled = false;
+                    scanBtn.innerHTML = '<span class="material-symbols-outlined text-xs align-middle mr-1">radar</span> Full Scan';
+                }, 2000);
+            }
+        });
     }
 }
 
-// ── Fetch & Render ──────────────────────────────────────────────
-async function fetchSwarmStatus() {
-    try {
-        const resp = await fetch(`${API_BASE}/api/swarm/status`);
-        if (!resp.ok) return;
-        const data = await resp.json();
-        renderSwarmStatus(data);
-    } catch (err) {
-        console.debug('Swarm status fetch failed:', err);
+/**
+ * Handle a real-time event from the SSE stream for the action graph
+ */
+export function handleSwarmEvent(event) {
+    if (actionGraph && swarmVisible) {
+        actionGraph.addEvent(event);
     }
 }
 
 function renderSwarmStatus(data) {
-    // Flash heartbeat dot to prove live update
-    const hb = els.heartbeat();
-    if (hb) {
-        hb.classList.remove('bg-emerald-400', 'bg-slate-600');
-        hb.classList.add(data.running ? 'bg-emerald-400' : 'bg-slate-600');
-    }
+    if (!data) return;
 
-    // Status badge
-    const badge = els.statusBadge();
-    if (badge) {
-        if (data.running) {
-            badge.textContent = 'ACTIVE';
-            badge.className = badge.className.replace(/bg-\w+-\d+\/\d+/g, '').replace(/text-\w+-\d+/g, '');
-            badge.classList.add('bg-emerald-500/20', 'text-emerald-400');
-        } else {
-            badge.textContent = 'OFFLINE';
-            badge.classList.add('bg-red-500/20', 'text-red-400');
-        }
-    }
-
-    // Heartbeat row
-    const uptime = data.uptime || 0;
-    const mins = Math.floor(uptime / 60);
-    const secs = uptime % 60;
-    setTextSafe(els.uptime(), mins > 0 ? `${mins}m ${secs}s` : `${secs}s`);
-    setTextSafe(els.totalTasks(), data.metrics?.tasks_processed ?? 0);
-    setTextSafe(els.totalFailed(), data.metrics?.tasks_failed ?? 0);
-    setTextSafe(els.lastPoll(), new Date().toLocaleTimeString());
-
-    // Metrics
-    const agents = data.agents || {};
+    // 1. Core Metrics (Mapping from HiveCoordinator.get_status())
     const metrics = data.metrics || {};
     const queue = data.queue || {};
+    // agent_details is a list of objects returned by BaseAgent.get_status()
+    const agents = Array.isArray(data.agent_details) ? data.agent_details : [];
+    
+    // Header Metrics
+    if (els.agentCount()) els.agentCount().textContent = agents.length;
+    const workerTotal = document.getElementById('swarmWorkerTotal');
+    if (workerTotal) workerTotal.textContent = `${agents.length} worker${agents.length !== 1 ? 's' : ''}`;
+    if (els.uptimeVal()) els.uptimeVal().textContent = formatUptime(data.uptime || 0);
+    if (els.tasksVal()) els.tasksVal().textContent = metrics.tasks_processed || 0;
+    if (els.failedVal()) els.failedVal().textContent = metrics.tasks_failed || 0;
+    if (els.activeVal()) els.activeVal().textContent = agents.filter(a => a.is_running).length;
+    
+    // Queue & GPU Slots
+    if (els.gpuUsed()) {
+        const gpuActive = agents.filter(a => a.agent_type === 'llm' && a.is_running).length;
+        els.gpuUsed().textContent = gpuActive;
+    }
+    if (els.gpuTotal()) {
+        els.gpuTotal().textContent = agents.filter(a => a.agent_type === 'llm').length || 0;
+    }
+    
+    if (els.queueDepth()) els.queueDepth().textContent = queue.total_queued || 0;
+    if (els.queuePeak()) els.queuePeak().textContent = queue.peak_depth || 0;
+    
+    if (els.successRate()) {
+        const rate = metrics.success_rate;
+        els.successRate().textContent = (rate !== undefined ? rate : '--') + (rate !== undefined ? '%' : '');
+    }
 
-    setTextSafe(els.activeCount(), data.metrics?.tasks_processed ?? 0);
-    setTextSafe(els.gpuUsed(), agents.by_type?.gpu?.active || 0);
-    setTextSafe(els.gpuTotal(), agents.by_type?.gpu?.total || 3);
-    setTextSafe(els.queueDepth(), queue.total_queued || 0);
-    setTextSafe(els.queuePeak(), queue.peak_depth || 0);
-    setTextSafe(els.successRate(), metrics.success_rate !== null && metrics.success_rate !== undefined ? `${metrics.success_rate}%` : '--');
+    if (els.statusBadge()) {
+        const badge = els.statusBadge();
+        const state = data.running ? 'ACTIVE' : 'IDLE';
+        badge.textContent = state;
+        badge.className = `text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${data.running ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-500/20 text-slate-400'}`;
+    }
 
-    // Agent grid — pass data directly, no second fetch
-    renderAgentGrid(data.agent_details || []);
+    if (els.pollTime()) {
+        els.pollTime().textContent = new Date().toLocaleTimeString();
+    }
 
-    // Recent results
-    renderResultStream(data.recent_results || []);
+    // New: Render Hardware Stats
+    const hwContainer = document.getElementById('hardwareStatsContainer');
+    if (hwContainer) {
+        hwContainer.innerHTML = renderHardwareStats(data);
+    }
 
-    // Recent improvements
-    renderImprovements(data.recent_improvements || []);
-}
-
-function renderAgentGrid(agents) {
+    // 2. Agents Grid (Worker List) — capped with scroll container
     const grid = els.agentGrid();
-    if (!grid) return;
-
-    if (!agents || agents.length === 0) {
-        grid.innerHTML = `<div class="col-span-3 text-xs text-slate-500 italic p-4">No agents registered yet</div>`;
-        return;
-    }
-
-    grid.innerHTML = agents.map(agent => {
-        const style = AGENT_STYLES[agent.agent_type] || AGENT_STYLES.base;
-        const isActive = agent.is_running;
-        const totalDone = agent.tasks_completed + agent.tasks_failed;
-
-        return `
-            <div class="bg-slate-900/40 border ${
-                isActive ? `border-cyan-500/40` : (totalDone > 0 ? 'border-slate-700/50' : 'border-slate-800/30')
-            } rounded-lg p-3 transition-all ${
-                isActive ? `shadow-[0_0_10px_-4px] shadow-cyan-500/30` : ''
-            }">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-${style.color}-400 text-sm">${style.icon}</span>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-300">${style.label}</span>
+    if (grid) {
+        // Apply scrollable max-height to the grid wrapper
+        const gridWrapper = grid.parentElement;
+        if (gridWrapper && !gridWrapper.dataset.scrollApplied) {
+            gridWrapper.style.maxHeight = '320px';
+            gridWrapper.style.overflowY = 'auto';
+            gridWrapper.classList.add('custom-scrollbar');
+            gridWrapper.dataset.scrollApplied = 'true';
+        }
+        if (agents.length === 0) {
+            grid.innerHTML = '<div class="col-span-full text-xs text-slate-500 italic p-4 text-center">No hive workers connected...</div>';
+        } else {
+            grid.innerHTML = agents.map(agent => {
+                const shortId = (agent.agent_id || 'err').slice(-4);
+                const taskText = agent.current_task
+                    ? (agent.current_task.length > 40 ? agent.current_task.slice(0, 37) + '...' : agent.current_task)
+                    : 'Awaiting task queue...';
+                return `
+                <div class="bg-slate-900/40 border border-slate-800/40 rounded-xl p-3 transition-all hover:bg-slate-800/60 group" style="min-height:0">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="w-2 h-2 rounded-full flex-shrink-0 ${agent.is_running ? 'bg-cyan-400 animate-pulse' : 'bg-slate-600'}"></div>
+                            <span class="text-xs font-bold text-slate-200 truncate">Worker_${shortId}</span>
+                        </div>
+                        <span class="text-[9px] font-mono text-slate-500 flex-shrink-0 ml-2">${(agent.agent_type || 'CPU').toUpperCase()}</span>
                     </div>
-                    <span class="w-2 h-2 rounded-full ${
-                        isActive ? `bg-${style.color}-400 animate-pulse` : (totalDone > 0 ? 'bg-slate-500' : 'bg-slate-700')
-                    }"></span>
-                </div>
-                <div class="text-[9px] font-mono text-slate-500 truncate mb-2">${agent.agent_id}</div>
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2 text-[9px]">
-                        <span class="text-emerald-400 font-mono font-bold">${agent.tasks_completed} ✓</span>
-                        ${agent.tasks_failed > 0 ? `<span class="text-red-400 font-mono">${agent.tasks_failed} ✗</span>` : ''}
+                    <div class="space-y-1">
+                        <div class="text-[10px] text-slate-400 truncate" title="${agent.current_task || ''}">${taskText}</div>
+                        <div class="w-full bg-slate-800/50 h-1 rounded-full overflow-hidden">
+                            <div class="bg-cyan-500 h-full transition-all duration-1000" style="width: ${agent.is_running ? '70%' : '0%'}"></div>
+                        </div>
                     </div>
-                    ${agent.current_task ? `<span class="text-[8px] text-amber-400 truncate max-w-[80px]">▶ ${agent.current_task}</span>` : ''}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-
-
-function renderResultStream(results) {
-    const stream = els.resultStream();
-    if (!stream) return;
-
-    if (results.length === 0) {
-        stream.innerHTML = `<div class="text-xs text-slate-500 italic p-4">Waiting for tasks...</div>`;
-        return;
+                </div>`;
+            }).join('');
+        }
     }
 
-    stream.innerHTML = results.reverse().map(r => {
-
-        return `
-            <div class="flex items-center gap-3 px-3 py-2 rounded-lg ${r.success ? 'bg-emerald-500/5' : 'bg-red-500/5'} border border-slate-800/30">
-                <span class="${r.success ? 'text-emerald-400' : 'text-red-400'} text-xs">${r.success ? '✅' : '❌'}</span>
-                <span class="text-[10px] font-mono text-slate-400 w-24 truncate">${r.type}</span>
-                <span class="text-[10px] text-slate-500 w-16">${r.duration}s</span>
-                <span class="text-[10px] font-mono text-slate-600 truncate flex-1">${r.agent || '--'}</span>
-                ${r.error ? `<span class="text-[9px] text-red-400/80 truncate max-w-[200px]">${r.error}</span>` : ''}
-            </div>
-        `;
-    }).join('');
-}
-
-function renderImprovements(improvements) {
-    const stream = els.improvementsStream();
-    if (!stream) return;
-
-    if (!improvements || improvements.length === 0) {
-        stream.innerHTML = `<div class="text-xs text-slate-500 italic p-4">Waiting for improvements to be verified...</div>`;
-        return;
-    }
-
-    // Sort to ensure descending order on the UI even if the backend is already sorted
-    stream.innerHTML = improvements.map(imp => {
-        const cat = (imp.category || 'refactor').toLowerCase();
-        let catColor = 'cyan';
-        if (cat === 'bugfix' || cat === 'fix') catColor = 'red';
-        if (cat === 'feature' || cat === 'add') catColor = 'emerald';
-        
-        const timeStr = imp.completed_at_human ? imp.completed_at_human.split(' ')[1] : '--:--';
-        
-        return `
-            <div class="px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/10 rounded-lg flex flex-col gap-1 transition-all hover:bg-cyan-500/10 group">
-                <div class="flex items-center justify-between">
-                    <span class="text-[9px] font-black uppercase tracking-widest text-${catColor}-400">${cat}</span>
-                    <span class="text-[9px] font-mono text-slate-500">${timeStr}</span>
-                </div>
-                <div class="text-[11px] text-slate-300 font-medium leading-tight group-hover:text-white transition-colors line-clamp-2">${imp.title}</div>
-                <div class="flex items-center justify-between mt-1 pt-1 border-t border-cyan-500/5">
-                    <span class="text-[9px] font-mono text-slate-600 uppercase">ID: ${imp.id}</span>
-                    <div class="flex items-center gap-1">
-                        <span class="w-1 h-1 rounded-full bg-emerald-400"></span>
-                        <span class="text-[8px] text-emerald-400 font-black uppercase tracking-tighter">Verified</span>
+    // 3. Result Stream (Step Execution Log)
+    const results = els.resultsStream();
+    if (results) {
+        const recentResults = data.recent_results || [];
+        if (recentResults.length === 0) {
+            results.innerHTML = '<div class="text-xs text-slate-500 italic p-4 text-center">Waiting for task results...</div>';
+        } else {
+            results.innerHTML = recentResults.map(res => `
+                <div class="flex items-center gap-3 p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                    <span class="material-symbols-outlined text-sm ${res.success ? 'text-emerald-400' : 'text-red-400'}">
+                        ${res.success ? 'check_circle' : 'error'}
+                    </span>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] text-slate-200 truncate font-mono">${res.task_id}</div>
+                        <div class="text-[9px] text-slate-500 font-mono">${res.duration}s - ${res.agent || 'Hive'}</div>
                     </div>
                 </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// ── Actions ─────────────────────────────────────────────────────
-async function triggerFullScan() {
-    const btn = els.scanBtn();
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Scanning...';
+            `).join('');
+        }
     }
-    try {
-        const resp = await fetch(`${API_BASE}/api/swarm/scan`, { method: 'POST' });
-        const data = await resp.json();
-        console.log('Scan submitted:', data);
-    } catch (err) {
-        console.error('Scan trigger failed:', err);
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-symbols-outlined text-xs align-middle mr-1">radar</span> Full Scan';
+
+    // 4. Improvements Stream (Brain Updates)
+    const improvements = data.recent_improvements || [];
+    const impStream = els.improvementsStream();
+    if (impStream) {
+        if (improvements.length === 0) {
+            impStream.innerHTML = '<div class="text-xs text-slate-500 italic p-4 text-center">No brain optimizations verified yet...</div>';
+        } else {
+            impStream.innerHTML = improvements.map(imp => `
+                <div class="p-3 bg-cyan-500/5 border border-cyan-500/10 rounded-lg group">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">${imp.category || 'REFACTOR'}</span>
+                        <span class="text-[9px] font-mono text-slate-500">${formatTimestamp(imp.completed_at || imp.timestamp)}</span>
+                    </div>
+                    <div class="text-xs text-slate-300 leading-relaxed">${imp.description || imp.title}</div>
+                </div>
+            `).join('');
         }
     }
 }
 
-// ── Sidebar Badge ───────────────────────────────────────────────
-async function updateAgentCountBadge() {
-    try {
-        const resp = await fetch(`${API_BASE}/api/swarm/status`);
-        if (!resp.ok) return;
-        const data = await resp.json();
-        const badge = els.agentCountBadge();
-        if (badge) {
-            const active = data.agents?.active || 0;
-            badge.textContent = active;
-            badge.classList.toggle('hidden', active === 0);
-        }
-    } catch {
-        // Silent fail for background polling
-    }
+function formatUptime(sec) {
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+    return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
 }
 
-// ── Helpers ─────────────────────────────────────────────────────
-function setTextSafe(el, val) {
-    if (el) el.textContent = val;
+/** Safely parse timestamps — handles unix epoch (seconds), ms epoch, and ISO strings */
+function formatTimestamp(ts) {
+    if (!ts && ts !== 0) return '--';
+    let d;
+    if (typeof ts === 'number') {
+        // If it looks like seconds (< year 2100 in seconds), multiply to ms
+        d = ts < 1e12 ? new Date(ts * 1000) : new Date(ts);
+    } else if (typeof ts === 'string') {
+        d = new Date(ts);
+    } else {
+        return '--';
+    }
+    return isNaN(d.getTime()) ? '--' : d.toLocaleTimeString();
 }

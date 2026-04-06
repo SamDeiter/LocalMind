@@ -6,10 +6,12 @@ import traceback
 import uuid
 from typing import Optional, List, Dict, Any, AsyncIterator
 
-from backend import config
+from backend import config, events
 from backend.logic.llm_client import LLMClient
 from backend.logic.prompt_factory import PromptFactory
+from backend.logic.response_cache import SemanticCache
 from backend.logic.token_manager import TokenManager
+from backend.logic.complexity_router import classify_complexity
 
 logger = logging.getLogger("localmind.logic.chat_service")
 
@@ -20,24 +22,41 @@ class ChatService:
         self.db_factory = db_factory
         self.registry = registry
         self.ontology = ontology
+        # autonomy_engine kept as an optional arg for backward compat but
+        # cross-module communication now goes through backend.events.
         self.autonomy_engine = autonomy_engine
         self.metacog_controller = metacog_controller
         self.llm = LLMClient()
         self.prompt_factory = PromptFactory()
         self.token_manager = TokenManager()
         self.summarizer = Summarizer(self.llm)
+        self.response_cache = SemanticCache()
 
-    async def handle_chat(self, body: Dict[str, Any]) -> AsyncIterator[str]:
-        """The main entry point for a chat turn. Returns an SSE stream."""
+    async def handle_chat(self, body: Dict[str, Any], auto_route_enabled: bool = True) -> AsyncIterator[str]:
+        """The main entry point for a chat turn. Returns an SSE stream.
+
+        Args:
+            body: The request body with message, conversation_id, model, etc.
+            auto_route_enabled: When True (default) and no explicit model is
+                forced, the complexity router automatically picks the best
+                model from those loaded in Ollama.  Set to False to disable.
+        """
+        # Notify autonomy engine (and any other listeners) that the user is active
+        await events.emit("chat_activity")
+
         message = body.get("message", "")
         conversation_id = body.get("conversation_id")
         model_override = body.get("model")
         system_prompt = body.get("system_prompt")
         learning_enabled = body.get("learning_enabled", True)
+        use_cache = body.get("use_cache", True)
+
+        # Allow per-request opt-out of auto routing
+        auto_route_flag = body.get("auto_route", auto_route_enabled) and config.AUTO_ROUTE_ENABLED
 
         # 1. Estimate Complexity and Route Model
         task_estimate = self._estimate_complexity(message)
-        model, provider = self._route_model(task_estimate, model_override)
+        model, provider = await self._route_model(task_estimate, model_override, auto_route_flag)
         
         # 2. Build or Load Conversation
         if not conversation_id:
@@ -84,11 +103,26 @@ class ChatService:
             summarizer=self.summarizer
         )
 
+        # 7b. Semantic Cache Lookup (skip for image queries or when disabled)
+        if use_cache and not body.get("image"):
+            cached = await self.response_cache.lookup(messages, model=model)
+            if cached:
+                logger.info("Cache HIT (similarity=%.4f, age=%.1fs)", cached["similarity"], cached["cache_age_s"])
+                await self._save_msg(conversation_id, "user", message)
+                await self._save_msg(conversation_id, "assistant", cached["response"])
+                return self._cached_response_stream(conversation_id, model, provider, task_estimate, cached)
+
         # 8. Save User Message
         await self._save_msg(conversation_id, "user", message)
 
         # 9. Return Stream
         return self._agent_loop(conversation_id, model, provider, messages, task_estimate, metacog_decision)
+
+    async def _cached_response_stream(self, conversation_id, model, provider, task_estimate, cached):
+        """Yield a complete SSE stream for a cached response."""
+        yield f"data: {json.dumps({'thinking': {'model': model, 'provider': provider, 'tier': task_estimate['tier'], 'cached': True}})}\n\n"
+        yield f"data: {json.dumps({'token': cached['response'], 'conversation_id': conversation_id, 'cached': True})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'cached': True, 'analytics': {'elapsed': 0.0, 'tokens': cached.get('original_tokens', 0), 'tps': 0, 'cache_similarity': cached['similarity'], 'cache_age_s': cached['cache_age_s']}})}\n\n"
 
     async def _agent_loop(self, conversation_id, model, provider, messages, task_estimate, metacog_decision):
         """The core streaming and tool execution loop."""
@@ -164,8 +198,19 @@ class ChatService:
         await self._save_msg(conversation_id, "assistant", full_response)
         
         elapsed = time.time() - start_time
+        elapsed_ms = elapsed * 1000
         yield f"data: {json.dumps({'done': True, 'analytics': {'elapsed': round(elapsed, 2), 'tokens': total_tokens, 'tps': round(total_tokens/elapsed, 1) if elapsed > 0 else 0}})}\n\n"
-        
+
+        # Store in semantic cache (skip if tool calls were used)
+        if total_tool_calls == 0 and full_response.strip():
+            await self.response_cache.store(
+                messages=messages,
+                response_text=full_response,
+                model=model,
+                token_count=total_tokens,
+                generation_time_ms=elapsed_ms,
+            )
+
         # Background: Auto-save, reflection, etc.
         await self.auto_save_facts(messages[-2]["content"], True)
 
@@ -181,26 +226,91 @@ class ChatService:
 
     # Helper methods ...
     def _estimate_complexity(self, message: str) -> Dict[str, Any]:
-        score = 3
-        if len(message) > 200: score += 2
-        for kw in ["code", "refactor", "bug", "error", "architecture", "design"]:
-            if kw in message.lower(): score += 2
-        
-        tier = "light"
-        if score >= 8: tier = "heavy"
-        elif score >= 5: tier = "medium"
-        return {"score": min(score, 10), "tier": tier}
+        """Estimate task complexity using the heuristic classifier.
 
-    def _route_model(self, estimate: Dict[str, Any], override: str = None) -> (str, str):
+        Returns a dict with 'score' (0-10) and 'tier' (light/medium/heavy)
+        for backward compatibility with the rest of the codebase.
+        """
+        # Use the new classifier for the tier decision
+        complexity = classify_complexity(
+            [{"role": "user", "content": message}],
+        )
+
+        # Map complexity label to legacy tier + approximate score
+        complexity_map = {
+            "simple":   {"tier": "light",  "score": 2},
+            "moderate": {"tier": "medium", "score": 5},
+            "complex":  {"tier": "heavy",  "score": 8},
+        }
+        result = complexity_map.get(complexity, {"tier": "medium", "score": 5})
+
+        # Refine the score with the old heuristics so downstream consumers
+        # (metacog threshold, context-window sizing) still see granularity.
+        score = result["score"]
+        if len(message) > 200:
+            score += 1
+        for kw in ["refactor", "architecture", "design"]:
+            if kw in message.lower():
+                score += 1
+        result["score"] = min(score, 10)
+        return result
+
+    async def _route_model(
+        self,
+        estimate: Dict[str, Any],
+        override: str = None,
+        use_auto_route: bool = True,
+    ) -> tuple:
+        """Select a model and provider.
+
+        Priority order:
+        1. Explicit user override (model != "auto")
+        2. Complexity router (when auto_route is enabled)
+        3. Legacy tier-based fallback from config
+        4. Gemini cloud escalation for heavy tasks
+        """
+        from backend.logic.complexity_router import (
+            route_model as cr_route,
+            get_available_models,
+        )
+
+        # 1. Explicit override always wins
         if override and override != "auto":
+            logger.info("Model override: %s (user-specified)", override)
             return override, "ollama"
-        
-        # Cloud fallback for heavy tasks if available
+
+        # 2. Complexity router — maps the existing tier estimate to a
+        #    complexity level and picks from actually-loaded Ollama models.
+        if use_auto_route:
+            try:
+                tier_to_complexity = {
+                    "light": "simple",
+                    "medium": "moderate",
+                    "heavy": "complex",
+                    "ultra": "complex",
+                }
+                complexity = tier_to_complexity.get(estimate["tier"], "moderate")
+                available = await get_available_models()
+
+                if available:
+                    routed_model, reason = cr_route(complexity, available)
+                    logger.info(
+                        "Complexity router: model=%s  complexity=%s  reason=%s",
+                        routed_model, complexity, reason,
+                    )
+                    return routed_model, "ollama"
+            except Exception as exc:
+                logger.warning("Complexity router failed, falling back: %s", exc)
+
+        # 3. Legacy fallback
+        # Cloud escalation for heavy tasks if Gemini is available
         from backend import gemini_client
         if estimate["tier"] == "heavy" and gemini_client.is_available():
             return "gemini-1.5-pro", "gemini"
-            
-        return config.MODEL_TIERS.get(estimate["tier"], "qwen2.5-coder:7b"), "ollama"
+
+        fallback = config.MODEL_TIERS.get(estimate["tier"], "qwen2.5-coder:7b")
+        logger.info("Legacy fallback: model=%s  tier=%s", fallback, estimate["tier"])
+        return fallback, "ollama"
 
     async def _get_history(self, conversation_id: str):
         db = self.db_factory()
