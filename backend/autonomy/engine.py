@@ -20,6 +20,7 @@ from backend.meta_critic import MetaCritic
 from backend.priority_queue import PriorityQueue
 
 from .services.research_service import ResearchService
+from .services.git_coordinator import GitCoordinator
 
 from .config import *
 from .utils import log_event
@@ -90,6 +91,7 @@ class AutonomyEngine:
         self.academic_researcher = AcademicResearcher()
 
         self.research_service = ResearchService(self)
+        self.git_coordinator = GitCoordinator(self)
 
         self._manual_execution_event = asyncio.Event()
         self._manual_reflection_event = asyncio.Event()
@@ -250,6 +252,7 @@ class AutonomyEngine:
             max_io_workers=8,
             ollama_url=self.ollama_url,
             emit_activity=self._emit_activity,
+            proposals=self.proposals,
         )
         await self.coordinator.start()
 

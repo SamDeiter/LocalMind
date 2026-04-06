@@ -39,8 +39,9 @@ def sample_code_snippets(real_files: list[str], count: int = 3) -> str:
 
     try:
         result = subprocess.run(
-            ["git", "log", "--diff-filter=M", "-5", "--name-only", "--format="],
-            capture_output=True, text=True, cwd=str(project_root), timeout=5
+            'cmd /c "git log --diff-filter=M -5 --name-only --format="',
+            capture_output=True, text=True, cwd=str(project_root), timeout=5,
+            shell=True,
         )
         recent_files = {l.strip() for l in result.stdout.splitlines() if l.strip()}
     except Exception:

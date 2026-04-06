@@ -4,7 +4,7 @@ Supports save_memory and recall_memories with semantic search.
 Learning can be paused via the /api/memory/toggle endpoint.
 """
 
-from backend.config import OLLAMA_BASE_URL_URL
+from backend.config import OLLAMA_BASE_URL
 import time
 import uuid
 
