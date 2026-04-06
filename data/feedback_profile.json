@@ -1,16 +1,17 @@
 {
   "version": 1,
   "created_at": 1775273792.6459723,
-  "last_updated": 1775273794.5753155,
+  "last_updated": 1775478371.4793155,
   "total_approved": 3,
-  "total_denied": 3,
+  "total_denied": 4,
   "category_approved": {
     "performance": 2,
     "feature": 1
   },
   "category_denied": {
     "performance": 2,
-    "feature": 1
+    "feature": 1,
+    "Code Quality": 1
   },
   "keyword_approved": {
     "retry": 2,
@@ -34,13 +35,38 @@
     "exponential": 2,
     "backoff": 2,
     "proposal": 2,
-    "description": 1
+    "description": 1,
+    "type": 3,
+    "checking": 2,
+    "linting": 2,
+    "integrate": 1,
+    "static": 1,
+    "using": 1,
+    "tools": 1,
+    "like": 1,
+    "mypy": 1,
+    "flake": 1,
+    "code": 1,
+    "quality": 1,
+    "help": 1,
+    "catch": 1,
+    "mismatches": 1,
+    "common": 1,
+    "errors": 1,
+    "early": 1,
+    "development": 1,
+    "process": 1,
+    "reducing": 1,
+    "risk": 1,
+    "runtime": 1,
+    "failures": 1
   },
   "complexity_approved": {
     "simple": 3
   },
   "complexity_denied": {
-    "simple": 3
+    "simple": 3,
+    "complex": 1
   },
   "effort_approved": {
     "small": 2,
@@ -48,7 +74,7 @@
   },
   "effort_denied": {
     "small": 2,
-    "medium": 1
+    "medium": 2
   },
   "recent_feedback": [
     {
@@ -98,6 +124,14 @@
       "category": "performance",
       "effort": "small",
       "complexity": "simple"
+    },
+    {
+      "ts": 1775478371.4793155,
+      "outcome": "denied",
+      "title": "Implement Type Checking and Linting",
+      "category": "Code Quality",
+      "effort": "medium",
+      "complexity": "complex"
     }
   ]
 }

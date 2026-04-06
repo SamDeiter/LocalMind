@@ -1,6 +1,10 @@
 import { API } from './state.js';
 import { toggleEditorPanel } from './editor.js';
-import { editorPanel } from './state.js';
+import { getEditorPanel } from './state.js';
+import { renderHardwareStats } from '../components/HardwareDashboard.js';
+import { ActionGraph } from '../components/ActionGraph.js';
+
+let actionGraph = null;
 
 let swarmPollingInterval = null;
 let swarmVisible = false;
@@ -26,6 +30,29 @@ const els = {
     successRate: () => document.getElementById('swarmSuccessRate'),
     pollTime: () => document.getElementById('swarmLastPoll')
 };
+
+
+async function fetchHistory() {
+    try {
+        const res = await fetch(`${API}/api/swarm/history`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const history = data.history || [];
+        console.log(`Swarm UI: Hydrating ${history.length} historical events...`);
+        
+        // Temporarily enable swarmVisible to allow ActionGraph to process
+        const wasVisible = swarmVisible;
+        swarmVisible = true; 
+        
+        history.forEach(event => {
+            if (actionGraph) actionGraph.addEvent(event);
+        });
+        
+        swarmVisible = wasVisible;
+    } catch (err) {
+        console.error('Swarm UI: History fetch failed:', err);
+    }
+}
 
 async function fetchSwarmStatus() {
     try {
@@ -101,7 +128,8 @@ export function toggleSwarmDashboard() {
         }
         
         // Close editor panel if open, to prevent overlap
-        if (editorPanel && editorPanel.classList.contains('visible')) {
+        const panel = getEditorPanel();
+        if (panel && panel.classList.contains('visible')) {
             toggleEditorPanel();
         }
         
@@ -130,6 +158,24 @@ export function initSwarmUI() {
         toggleSwarmDashboard();
     });
 
+    // Initialize Neural Action Graph
+    if (!actionGraph) {
+        try {
+            actionGraph = new ActionGraph('actionGraphCanvas');
+            // Hydrate from history immediately
+            fetchHistory();
+            const resetBtn = document.getElementById('resetGraphBtn');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (actionGraph) actionGraph.reset();
+                });
+            }
+        } catch (e) {
+            console.error('Swarm UI: ActionGraph failed to load:', e);
+        }
+    }
+
     // Other nav buttons should clear the Swarm dashboard to prevent "blank screen" overlaps
     // NOTE: editorToggle is handled in events.js to avoid triple-binding
     const otherNavBtns = ['overviewBtn', 'activityToggle', 'memoryToggleBtn', 'newChatBtn'];
@@ -157,6 +203,15 @@ export function initSwarmUI() {
                 }, 2000);
             }
         });
+    }
+}
+
+/**
+ * Handle a real-time event from the SSE stream for the action graph
+ */
+export function handleSwarmEvent(event) {
+    if (actionGraph && swarmVisible) {
+        actionGraph.addEvent(event);
     }
 }
 
@@ -204,6 +259,12 @@ function renderSwarmStatus(data) {
 
     if (els.pollTime()) {
         els.pollTime().textContent = new Date().toLocaleTimeString();
+    }
+
+    // New: Render Hardware Stats
+    const hwContainer = document.getElementById('hardwareStatsContainer');
+    if (hwContainer) {
+        hwContainer.innerHTML = renderHardwareStats(data);
     }
 
     // 2. Agents Grid (Worker List) — capped with scroll container

@@ -6,13 +6,13 @@
  * API calls always go to the network (no offline AI inference).
  */
 
-const CACHE_NAME = "localmind-v2.1";
+const CACHE_NAME = "localmind-v3.0";
 
 // Files to cache for instant loading
 const SHELL_FILES = [
   "/",
   "/style.css",
-  "/app.js",
+  "/dist/bundle.js",
   "/manifest.json",
 ];
 
@@ -56,20 +56,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static/CDN: Cache-first strategy (Stale-While-Revalidate)
+  // Static/CDN: Network-first with cache fallback
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.ok && event.request.method === "GET") {
-          const cacheCopy = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, cacheCopy);
-          });
-        }
-        return networkResponse;
-      }).catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
+    fetch(event.request).then((networkResponse) => {
+      if (networkResponse && networkResponse.ok && event.request.method === "GET") {
+        const cacheCopy = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, cacheCopy);
+        });
+      }
+      return networkResponse;
+    }).catch(() => {
+      return caches.match(event.request).then((cached) => {
+        return cached || new Response("Offline", { status: 503, statusText: "Service Unavailable" });
+      });
     })
   );
 });

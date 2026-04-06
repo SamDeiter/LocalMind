@@ -2,7 +2,7 @@
  * Monaco code editor — file tree, Run button, Send to AI, drag-drop, resize.
  */
 
-import { API, editorState, editorPanel, panelDivider, editorToggle } from "./state.js";
+import { API, editorState, getEditorPanel, getPanelDivider, getEditorToggle } from "./state.js";
 import { getLang, getFileIcon } from "./utils.js";
 import { sendMessage } from "./chat.js";
 
@@ -167,10 +167,13 @@ function openFileInEditor(path, name) {
 
 // ── Panel Toggle ────────────────────────────────────────────────
 export function toggleEditorPanel() {
-  if (!editorPanel) return;
-  const visible = editorPanel.classList.toggle("visible");
-  if (panelDivider) panelDivider.classList.toggle("visible", visible);
-  if (editorToggle) editorToggle.classList.toggle("active", visible);
+  const panel = getEditorPanel();
+  if (!panel) return;
+  const visible = panel.classList.toggle("visible");
+  const divider = getPanelDivider();
+  if (divider) divider.classList.toggle("visible", visible);
+  const toggle = getEditorToggle();
+  if (toggle) toggle.classList.toggle("active", visible);
   localStorage.setItem("localmind_editor", visible ? "on" : "off");
   if (visible && !editorState.monacoEditor) initMonaco();
 }

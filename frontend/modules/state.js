@@ -10,13 +10,7 @@
  *   onStateChange("streaming", (val, old) => console.log("streaming:", old, "→", val));
  */
 
-let apiOrigin = window.location.origin;
-// If running a separate dev server locally, override to the backend default port
-if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-  const backendPort = document.querySelector('meta[name="localmind-api-port"]')?.content || "8000";
-  apiOrigin = `http://${window.location.hostname}:${backendPort}`;
-}
-export const API = apiOrigin;
+export const API = window.location.origin;
 
 export const MODE_MODELS = {
   fast: "qwen2.5-coder:7b",

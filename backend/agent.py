@@ -76,7 +76,9 @@ async def agent_chat(
             yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
             return
         except Exception as e:
-            yield {"type": "error", "error": f"Failed to connect to Ollama: {e}"}
+            error_message = f"Failed to connect to Ollama: {str(e)}"
+            logging.error(error_message)
+            yield {"type": "error", "error": error_message}
             return
 
         message = result.get("message", {})
