@@ -42,9 +42,11 @@ GENERAL:
 - Be proactive. If you can help more than asked, do it."""
 
 # --- Model Tiers ---
+# Gemma 4 (April 2026) is the default for light/medium tiers.
+# Override any tier via env vars: MODEL_LIGHT, MODEL_MEDIUM, etc.
 MODEL_TIERS = {
-    "light":  os.getenv("MODEL_LIGHT", "qwen2.5-coder:7b"),
-    "medium": os.getenv("MODEL_MEDIUM", "qwen2.5-coder:14b"),
+    "light":  os.getenv("MODEL_LIGHT", "gemma4:e4b"),
+    "medium": os.getenv("MODEL_MEDIUM", "gemma4:26b"),
     "heavy":  os.getenv("MODEL_HEAVY", "qwen2.5-coder:32b"),
     "ultra":  os.getenv("MODEL_ULTRA", "qwen2.5-coder:70b"),
 }
