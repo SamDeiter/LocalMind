@@ -5,10 +5,12 @@ Provides safe shell execution with stderr/stdout capturing.
 
 import asyncio
 import subprocess
+import re
 from typing import Any
 import logging
 from .base import BaseTool
 from .propose_action import ProposeActionTool
+from backend.config import PROJECT_ROOT
 
 logger = logging.getLogger("localmind.tools.terminal")
 
@@ -38,11 +40,14 @@ class TerminalTool(BaseTool):
         }
 
     async def execute(self, **kwargs) -> dict[str, Any]:
-        command = kwargs.get("command")
+        command = kwargs.get("command", "").strip()
         timeout = kwargs.get("timeout", 10)
         
-        # Security check
-        is_dangerous = any(command.startswith(cmd) for cmd in DANGEROUS_COMMANDS)
+        # Security check: detect dangerous commands even if chained or preceded by whitespace
+        # Use regex to find dangerous commands at the start of the string or after shell separators
+        pattern = r"(?:^|[;&|]|\n)\s*\b(" + "|".join(re.escape(cmd) for cmd in DANGEROUS_COMMANDS) + r")\b"
+        is_dangerous = bool(re.search(pattern, command))
+
         if is_dangerous:
             proposer = ProposeActionTool()
             app_req = await proposer.execute(
@@ -60,7 +65,7 @@ class TerminalTool(BaseTool):
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=r"c:\Users\Sam Deiter\Documents\GitHub\LocalMind"
+                cwd=str(PROJECT_ROOT)
             )
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
             out = stdout.decode().strip()
