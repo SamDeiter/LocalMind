@@ -70,7 +70,7 @@
                 <div class="text-lg font-black tracking-tighter text-white font-headline">NEXUS</div>
                 <div class="text-[9px] font-mono text-indigo-400 tracking-widest uppercase mt-1 font-bold opacity-80">Prime v4.0</div>
             </div>
-            <button id="sidebarToggle" class="text-outline hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">menu_open</span></button>
+            <button id="sidebarToggle" aria-label="Toggle Sidebar" title="Toggle Sidebar" class="text-outline hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">menu_open</span></button>
         </div>
         
         <!-- Priority Input -->
@@ -79,15 +79,15 @@
             <div class="relative bg-surface-container-high rounded-lg border border-outline-variant/40 flex flex-col">
                 <div id="sidebarImagePreview" class="hidden p-2 bg-white/5 border-b border-outline-variant/10 relative">
                     <img id="sidebarPreviewImg" class="max-h-24 rounded border border-white/5 mx-auto" alt="Preview"/>
-                    <button id="sidebarRemoveImageBtn" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]">✕</button>
+                    <button id="sidebarRemoveImageBtn" aria-label="Remove Image" title="Remove Image" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]">✕</button>
                 </div>
                 <!-- Clarify this is for background tasks -->
                 <textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline font-body resize-none min-h-[100px] custom-scrollbar" placeholder="Queue background task for AI..."></textarea>
                 <div id="priorityList" class="mt-4 flex flex-wrap gap-2 px-3"></div>
                 <div class="flex items-center justify-between p-2 border-t border-outline-variant/10">
                     <div class="flex gap-0.5">
-                        <button id="sidebarUploadBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">attach_file</span></button>
-                        <button id="sidebarCameraBtn" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
+                        <button id="sidebarUploadBtn" aria-label="Upload File" title="Upload File" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">attach_file</span></button>
+                        <button id="sidebarCameraBtn" aria-label="Open Camera" title="Open Camera" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
                     </div>
                     <button id="addPriorityBtn" class="primary-gradient text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase hover:brightness-110 active:scale-95 transition-all">Execute</button>
                 </div>
@@ -189,7 +189,7 @@
                         <button id="editorRunBtn" class="bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors">Run Script</button>
                         <button id="editorSendToAI" class="bg-surface-variant hover:bg-surface-bright text-on-surface text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors border border-outline-variant/30">Attach to Context</button>
                         <!-- Close Editor Button -->
-                        <button id="editorCloseBtn" onclick="document.getElementById('editorToggle').click()" class="text-outline hover:text-error ml-4"><span class="material-symbols-outlined">close</span></button>
+                        <button id="editorCloseBtn" aria-label="Close Editor" title="Close Editor" onclick="document.getElementById('editorToggle').click()" class="text-outline hover:text-error ml-4"><span class="material-symbols-outlined">close</span></button>
                     </div>
                 </div>
                 <div class="flex-1 flex overflow-hidden">
@@ -417,7 +417,7 @@
                             <span class="material-symbols-outlined text-green-400 text-sm">terminal</span>
                             <span class="font-mono text-xs text-green-400 font-bold uppercase tracking-widest">Agent Shell Output</span>
                         </div>
-                        <button id="closeThinkingTerminalBtn" class="text-gray-400 hover:text-white transition-colors">
+                        <button id="closeThinkingTerminalBtn" aria-label="Close Terminal" title="Close Terminal" class="text-gray-400 hover:text-white transition-colors">
                             <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
                         </button>
                     </div>
@@ -445,7 +445,7 @@
                             <span id="chatIndicator" class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(79,219,200,0.6)]"></span>
                             Prime Session
                         </h2>
-                        <button id="closeChatBtn" class="p-2 text-outline hover:text-error hover:bg-error/10 rounded-xl transition-all">
+                        <button id="closeChatBtn" aria-label="Close Chat" title="Close Chat" class="p-2 text-outline hover:text-error hover:bg-error/10 rounded-xl transition-all">
                             <span class="material-symbols-outlined text-[20px]">close</span>
                         </button>
                     </div>
@@ -459,16 +459,16 @@
                     <div class="p-4 bg-surface-container-low/50 border-t border-outline-variant/10">
                         <div class="bg-background/50 backdrop-blur-md rounded-2xl border border-outline-variant/30 focus-within:border-primary/50 transition-shadow p-2 flex gap-3 shadow-inner">
                             <div class="flex flex-col gap-2 border-r border-outline-variant/20 pr-3">
-                                <button id="micBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
+                                <button id="micBtn" aria-label="Voice Input" title="Voice Input" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
                                     <span class="material-symbols-outlined text-[22px]">mic</span>
                                 </button>
-                                <button id="openCameraBtn" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
+                                <button id="openCameraBtn" aria-label="Open Camera" title="Open Camera" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
                                     <span class="material-symbols-outlined text-[22px]">photo_camera</span>
                                 </button>
                             </div>
-                            <textarea id="messageInput" class="bg-transparent border-none focus:ring-0 text-md flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[56px] py-4" placeholder="Transmit architectural directives or quick queries..." rows="1"></textarea>
+                            <textarea id="messageInput" aria-label="Message Input" class="bg-transparent border-none focus:ring-0 text-md flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[56px] py-4" placeholder="Transmit architectural directives or quick queries..." rows="1"></textarea>
                             <div class="flex items-center gap-1 pl-2">
-                                <button id="sendBtn" class="primary-gradient p-4 rounded-xl text-on-primary hover:brightness-110 transition-all h-full self-end shadow-lg shadow-primary/20">
+                                <button id="sendBtn" aria-label="Send Message" title="Send Message" class="primary-gradient p-4 rounded-xl text-on-primary hover:brightness-110 transition-all h-full self-end shadow-lg shadow-primary/20">
                                     <span class="material-symbols-outlined text-[24px]">send</span>
                                 </button>
                             </div>
@@ -503,8 +503,8 @@
                     </div>
                     <div class="space-y-4">
                         <div class="flex gap-2">
-                            <input id="arxivSearchInput" class="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-lg py-1.5 px-3 text-xs font-medium focus:ring-1 focus:ring-primary focus:outline-none placeholder:text-outline transition-all" placeholder="Query ArXiv..." type="text"/>
-                            <button id="arxivSearchBtn" class="bg-surface-container-high text-primary border border-outline-variant/20 text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-widest hover:bg-primary/10 transition-all flex items-center justify-center shadow-lg shadow-black/20">
+                            <input id="arxivSearchInput" aria-label="ArXiv Search Query" class="flex-1 bg-surface-container-low border border-outline-variant/20 rounded-lg py-1.5 px-3 text-xs font-medium focus:ring-1 focus:ring-primary focus:outline-none placeholder:text-outline transition-all" placeholder="Query ArXiv..." type="text"/>
+                            <button id="arxivSearchBtn" aria-label="Search ArXiv" title="Search ArXiv" class="bg-surface-container-high text-primary border border-outline-variant/20 text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-widest hover:bg-primary/10 transition-all flex items-center justify-center shadow-lg shadow-black/20">
                                 <span class="material-symbols-outlined text-sm">search</span>
                             </button>
                         </div>
@@ -559,7 +559,7 @@
                 <span class="material-symbols-outlined text-primary">notifications_active</span>
                 <h2 class="font-headline font-bold text-xl tracking-tight text-on-background">Notification Settings</h2>
             </div>
-            <button id="closeSettingsBtn" class="text-outline hover:text-error transition-colors p-2 rounded-full hover:bg-white/5">
+            <button id="closeSettingsBtn" aria-label="Close Settings" title="Close Settings" class="text-outline hover:text-error transition-colors p-2 rounded-full hover:bg-white/5">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
@@ -580,20 +580,20 @@
 
                 <div class="grid grid-cols-1 gap-5">
                     <div class="space-y-2">
-                        <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Account SID</label>
+                        <label for="twilioSid" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Account SID</label>
                         <input type="text" id="twilioSid" title="Twilio Account SID" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
                     </div>
                     <div class="space-y-2">
-                        <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Auth Token</label>
+                        <label for="twilioToken" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Auth Token</label>
                         <input type="password" id="twilioToken" title="Twilio Auth Token" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="••••••••••••••••••••••••••••••••">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-2">
-                            <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Twilio Number</label>
+                            <label for="twilioPhone" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Twilio Number</label>
                             <input type="text" id="twilioPhone" title="Twilio Phone Number" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="+15550000000">
                         </div>
                         <div class="space-y-2">
-                            <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Your Phone Number</label>
+                            <label for="targetPhone" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Your Phone Number</label>
                             <input type="text" id="targetPhone" title="Target Phone Number" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="+15559998888">
                         </div>
                     </div>
@@ -611,7 +611,7 @@
                 </div>
                 <div class="space-y-4">
                     <div class="space-y-2">
-                        <label class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Gemini API Key</label>
+                        <label for="geminiKey" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Gemini API Key</label>
                         <div class="relative">
                             <input type="password" id="geminiKey" title="Gemini API Key" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="AIzaSy...">
                             <a href="https://aistudio.google.com/apikey" target="_blank" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-primary hover:underline font-bold">Get Key</a>

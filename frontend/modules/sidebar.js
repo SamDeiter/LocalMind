@@ -13,19 +13,15 @@ import { pollAutonomy } from "./autonomy/index.js";
 
 // Re-export from extracted modules so existing imports still work
 export {
-    pollAutonomy,
-    connectActivityFeed,
-    toggleAutonomyMode,
-    triggerReflection,
-    triggerExecution,
-    initAutonomyUI as initDashboardPanels,
+  pollAutonomy,
+  connectActivityFeed,
+  toggleAutonomyMode,
+  triggerReflection,
+  triggerExecution,
+  initAutonomyUI as initDashboardPanels,
 } from "./autonomy/index.js";
 
-export {
-    loadProposals,
-    toggleProposalList,
-    retryProposal,
-} from "./proposals_ui.js";
+export { loadProposals, toggleProposalList, retryProposal } from "./proposals_ui.js";
 
 // ── Hardware Dashboard ──────────────────────────────────────────
 let hwInterval = null;

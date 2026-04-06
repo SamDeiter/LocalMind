@@ -42,7 +42,10 @@ export async function triggerExecution() {
 }
 
 export function executeDirective() {
-  const input = priorityInput || document.getElementById("priorityDirectiveInput") || document.getElementById("priorityInput");
+  const input =
+    priorityInput ||
+    document.getElementById("priorityDirectiveInput") ||
+    document.getElementById("priorityInput");
   if (!input) return;
   const text = input.value.trim();
   if (!text) return;
@@ -56,15 +59,16 @@ export function executeDirective() {
   // Copy text to message input so sendMessage can use it
   const msgInput = document.getElementById("messageInput");
   if (msgInput) {
-      msgInput.value = text;
-      input.value = "";
-      sendMessage();
+    msgInput.value = text;
+    input.value = "";
+    sendMessage();
   }
 }
 
 /** Toggle the activity feed panel visibility */
 export function toggleActivityFeed() {
-  const feed = document.getElementById("autonomyActivityFeed") || document.getElementById("activityFeed");
+  const feed =
+    document.getElementById("autonomyActivityFeed") || document.getElementById("activityFeed");
   if (feed) feed.classList.toggle("open");
 }
 

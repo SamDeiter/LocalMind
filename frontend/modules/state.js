@@ -23,7 +23,7 @@ export const state = {
   streaming: false,
   model: "auto",
   mode: localStorage.getItem("localmind_mode") || "auto",
-  voiceEnabled: false,  // Default OFF — user can toggle via speaker button
+  voiceEnabled: false, // Default OFF — user can toggle via speaker button
   capturedImage: null,
   abortController: null,
 };
@@ -84,7 +84,10 @@ let _userScrolledUp = false;
 function _isNearBottom() {
   if (!messagesContainer) return true;
   const threshold = 80; // px from bottom
-  return (messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight) < threshold;
+  return (
+    messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight <
+    threshold
+  );
 }
 
 // Track when user scrolls up manually during streaming
@@ -117,4 +120,3 @@ export function autoResize() {
     messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + "px";
   }
 }
-
