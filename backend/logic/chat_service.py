@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any, AsyncIterator
 
 from backend import config
 from backend.logic.llm_client import LLMClient
+from backend.logic.load_monitor import LoadMonitor
 from backend.logic.prompt_factory import PromptFactory
 from backend.logic.token_manager import TokenManager
 
@@ -23,6 +24,7 @@ class ChatService:
         self.autonomy_engine = autonomy_engine
         self.metacog_controller = metacog_controller
         self.llm = LLMClient()
+        self.load_monitor = LoadMonitor()
         self.prompt_factory = PromptFactory()
         self.token_manager = TokenManager()
         self.summarizer = Summarizer(self.llm)
@@ -37,7 +39,7 @@ class ChatService:
 
         # 1. Estimate Complexity and Route Model
         task_estimate = self._estimate_complexity(message)
-        model, provider = self._route_model(task_estimate, model_override)
+        model, provider = await self._route_model(task_estimate, model_override)
         
         # 2. Build or Load Conversation
         if not conversation_id:
@@ -191,16 +193,26 @@ class ChatService:
         elif score >= 5: tier = "medium"
         return {"score": min(score, 10), "tier": tier}
 
-    def _route_model(self, estimate: Dict[str, Any], override: str = None) -> (str, str):
+    async def _route_model(self, estimate: Dict[str, Any], override: str = None) -> (str, str):
         if override and override != "auto":
             return override, "ollama"
+        
+        # Load-aware routing: check what's already in VRAM
+        gpu_state = await self.load_monitor.get_gpu_state()
+        loaded = gpu_state.get("loaded_models", [])
+        
+        if loaded:
+            # Try to reuse a loaded model that can handle this tier
+            reuse = self.load_monitor.pick_best_model(estimate["tier"], loaded)
+            if reuse:
+                return reuse, "ollama"
         
         # Cloud fallback for heavy tasks if available
         from backend import gemini_client
         if estimate["tier"] == "heavy" and gemini_client.is_available():
             return "gemini-1.5-pro", "gemini"
             
-        return config.MODEL_TIERS.get(estimate["tier"], "qwen2.5-coder:7b"), "ollama"
+        return config.MODEL_TIERS.get(estimate["tier"], "gemma4:e4b"), "ollama"
 
     async def _get_history(self, conversation_id: str):
         db = self.db_factory()

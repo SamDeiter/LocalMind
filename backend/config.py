@@ -51,6 +51,28 @@ MODEL_TIERS = {
     "ultra":  os.getenv("MODEL_ULTRA", "qwen2.5-coder:70b"),
 }
 
+# --- GPU Config ---
+GPU_VRAM_GB = int(os.getenv("GPU_VRAM_GB", "10"))  # RTX 3080 = 10GB
+
+# --- Model Capabilities (which tiers each model can handle) ---
+# Used by LoadMonitor to decide if a loaded model can be reused for a request.
+MODEL_CAPABILITIES = {
+    "gemma4:e4b":         ["light"],
+    "gemma4:26b":         ["light", "medium"],
+    "gemma4:31b":         ["light", "medium", "heavy"],
+    "qwen2.5-coder:7b":  ["light"],
+    "qwen2.5-coder:14b": ["light", "medium"],
+    "qwen2.5-coder:32b": ["light", "medium", "heavy"],
+    "qwen2.5-coder:70b": ["light", "medium", "heavy", "ultra"],
+    "llama3.3:70b":       ["light", "medium", "heavy", "ultra"],
+    "gemma3:4b":          ["light"],
+}
+
+# --- Context Windows ---
+MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", "8192"))
+DEFAULT_CONTEXT_WINDOW = int(os.getenv("DEFAULT_CONTEXT_WINDOW", "8192"))
+MAX_AGENT_ITERATIONS = int(os.getenv("MAX_AGENT_ITERATIONS", "5"))
+
 # --- Paths ---
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
