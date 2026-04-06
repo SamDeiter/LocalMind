@@ -52,18 +52,18 @@ export function initAutonomyUI() {
 
   // Wire directive input ENTER key and Execute button
   if (priorityInput) {
-      priorityInput.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              import("./controls.js").then(m => m.executeDirective());
-          }
-      });
+    priorityInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        import("./controls.js").then((m) => m.executeDirective());
+      }
+    });
   }
   const addBtn = document.getElementById("addPriorityBtn");
   if (addBtn) {
-      addBtn.addEventListener("click", () => {
-          import("./controls.js").then(m => m.executeDirective());
-      });
+    addBtn.addEventListener("click", () => {
+      import("./controls.js").then((m) => m.executeDirective());
+    });
   }
 
   // Initial load
@@ -72,7 +72,7 @@ export function initAutonomyUI() {
   updateSuccessRate();
   renderTaskPipeline();
   connectActivityFeed();
-  
+
   // Set up polling
   setInterval(pollAutonomy, 5000);
 }

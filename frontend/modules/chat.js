@@ -176,7 +176,12 @@ export async function sendMessage() {
 
         if (evt.token) {
           fullText += evt.token;
-          console.log("[LocalMind] Token received, fullText length:", fullText.length, "contentEl:", !!contentEl);
+          console.log(
+            "[LocalMind] Token received, fullText length:",
+            fullText.length,
+            "contentEl:",
+            !!contentEl,
+          );
           if (contentEl) {
             contentEl.innerHTML = renderMarkdown(fullText);
             highlightCode();
@@ -355,14 +360,14 @@ export function createMessageEl(role, content) {
   const wrapper = document.createElement("div");
   const isUser = role === "user";
   wrapper.className = `message ${role}-message flex w-full mb-6 ${isUser ? "justify-end" : "justify-start"}`;
-  
+
   const contentDiv = document.createElement("div");
   contentDiv.className = `message-content max-w-[80%] p-4 rounded-2xl ${
-    isUser 
-    ? "bg-[#6366f1]/20 border border-[#6366f1]/30 text-[#e5e2e1] rounded-tr-sm" 
-    : "bg-[#1c1b1b] border border-[#444748]/20 text-[#c4c7c7] rounded-tl-sm shadow-md"
+    isUser
+      ? "bg-[#6366f1]/20 border border-[#6366f1]/30 text-[#e5e2e1] rounded-tr-sm"
+      : "bg-[#1c1b1b] border border-[#444748]/20 text-[#c4c7c7] rounded-tl-sm shadow-md"
   }`;
-  
+
   contentDiv.innerHTML = role === "assistant" ? renderMarkdown(content) : escapeHtml(content);
   wrapper.appendChild(contentDiv);
   if (messagesContainer) messagesContainer.appendChild(wrapper);

@@ -21,7 +21,7 @@ export async function addPriority() {
     const r = await fetch(`${API}/api/autonomy/priorities`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ priority: val })
+      body: JSON.stringify({ priority: val }),
     });
     const d = await r.json();
     if (d.ok) {
@@ -36,9 +36,12 @@ export async function addPriority() {
 
 export async function removePriority(priority) {
   try {
-    const r = await fetch(`${API}/api/autonomy/priorities?priority=${encodeURIComponent(priority)}`, {
-      method: "DELETE"
-    });
+    const r = await fetch(
+      `${API}/api/autonomy/priorities?priority=${encodeURIComponent(priority)}`,
+      {
+        method: "DELETE",
+      },
+    );
     const d = await r.json();
     if (d.ok) {
       renderPriorities(d.priorities);
@@ -51,10 +54,10 @@ export async function removePriority(priority) {
 function renderPriorities(priorities) {
   if (!priorityContainer) return;
   priorityContainer.innerHTML = "";
-  priorities.forEach(p => {
+  priorities.forEach((p) => {
     // Handle both string and object formats
-    const label = typeof p === "string" ? p : (p.description || p.id || String(p));
-    const id = typeof p === "string" ? p : (p.id || p.description || String(p));
+    const label = typeof p === "string" ? p : p.description || p.id || String(p);
+    const id = typeof p === "string" ? p : p.id || p.description || String(p);
     const tag = document.createElement("div");
     tag.className = "priority-tag";
     tag.innerHTML = `
@@ -64,7 +67,7 @@ function renderPriorities(priorities) {
     priorityContainer.appendChild(tag);
   });
 
-  priorityContainer.querySelectorAll(".remove-priority").forEach(btn => {
+  priorityContainer.querySelectorAll(".remove-priority").forEach((btn) => {
     btn.onclick = () => removePriority(btn.dataset.val);
   });
 }

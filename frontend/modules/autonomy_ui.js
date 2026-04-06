@@ -4,7 +4,14 @@
  * Extracted from sidebar.js for maintainability.
  */
 
-import { API, priorityInput, chatScreen, welcomeScreen, brainDigest, insightContent } from "./state.js";
+import {
+  API,
+  priorityInput,
+  chatScreen,
+  welcomeScreen,
+  brainDigest,
+  insightContent,
+} from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 import { loadProposals } from "./proposals_ui.js";
 import { sendMessage } from "./chat.js";
@@ -20,7 +27,7 @@ export async function pollAutonomy() {
       label: document.getElementById("autonomyLabel"),
       loadingBanner: document.getElementById("brainLoadingBanner"),
       pulse: document.getElementById("brainPulse"),
-      codeSnippet: document.getElementById("codeSnippetContainer")
+      codeSnippet: document.getElementById("codeSnippetContainer"),
     };
 
     for (const key in elements) {
@@ -32,39 +39,46 @@ export async function pollAutonomy() {
 
     // Update code snippet display based on current status
     if (elements.codeSnippet) {
-      const highlightedCode = window.Prism.highlight(d.code_snippet || '', window.Prism.languages.javascript, 'javascript');
-      const codeElement = document.createElement('code');
-      codeElement.className = 'language-javascript';
+      const highlightedCode = window.Prism.highlight(
+        d.code_snippet || "",
+        window.Prism.languages.javascript,
+        "javascript",
+      );
+      const codeElement = document.createElement("code");
+      codeElement.className = "language-javascript";
       codeElement.innerHTML = highlightedCode;
-      const preElement = document.createElement('pre');
+      const preElement = document.createElement("pre");
       preElement.appendChild(codeElement);
-      elements.codeSnippet.innerHTML = '';
+      elements.codeSnippet.innerHTML = "";
       elements.codeSnippet.appendChild(preElement);
 
       // Add a button to execute the code snippet
-const execButton = document.createElement('button');
-execButton.textContent = 'Execute';
-execButton.className = 'execute-code-btn';
-execButton.addEventListener('click', () => {
-try {
-eval(d.code_snippet);
-showToast('Code executed successfully!', 'info');
-} catch (error) {
-console.error('Error executing code:', error);
-showToast('Error executing code. Please check the console.', 'error');
-}
-});
+      const execButton = document.createElement("button");
+      execButton.textContent = "Execute";
+      execButton.className = "execute-code-btn";
+      execButton.addEventListener("click", () => {
+        try {
+          eval(d.code_snippet);
+          showToast("Code executed successfully!", "info");
+        } catch (error) {
+          console.error("Error executing code:", error);
+          showToast("Error executing code. Please check the console.", "error");
+        }
+      });
 
-elements.codeSnippet.appendChild(execButton);
+      elements.codeSnippet.appendChild(execButton);
     }
 
     // Model is ready if health_check says so, OR if the engine is actively working
     const healthReady = d.health_check && d.health_check.model_loaded;
-    const engineActive = (d.ideas_generated || 0) > 0 || (d.current_task && d.current_task !== "idle");
+    const engineActive =
+      (d.ideas_generated || 0) > 0 || (d.current_task && d.current_task !== "idle");
     const modelReady = healthReady || engineActive;
 
     if (elements.indicator) {
-      elements.indicator.className = d.enabled ? "autonomy-dot autonomy-active" : "autonomy-dot autonomy-paused";
+      elements.indicator.className = d.enabled
+        ? "autonomy-dot autonomy-active"
+        : "autonomy-dot autonomy-paused";
     }
     if (elements.label) {
       if (!d.enabled) {
@@ -78,7 +92,7 @@ elements.codeSnippet.appendChild(execButton);
 
     // Show/hide loading banner in brain dashboard
     if (elements.loadingBanner) {
-      elements.loadingBanner.style.display = (d.enabled && !modelReady) ? "flex" : "none";
+      elements.loadingBanner.style.display = d.enabled && !modelReady ? "flex" : "none";
     }
 
     // Pulse dot: amber while loading, green when ready
@@ -92,11 +106,15 @@ elements.codeSnippet.appendChild(execButton);
       const autoBtn = document.getElementById("modeAutonomousBtn");
       if (supBtn && autoBtn) {
         if (d.mode === "supervised") {
-          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface border border-outline-variant/20 transition-all";
-          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline hover:text-on-surface border border-transparent transition-all opacity-50";
+          supBtn.className =
+            "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface border border-outline-variant/20 transition-all";
+          autoBtn.className =
+            "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline hover:text-on-surface border border-transparent transition-all opacity-50";
         } else {
-          supBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline hover:text-on-surface border border-transparent transition-all opacity-50";
-          autoBtn.className = "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/30 shadow-[0_0_15px_rgba(79,219,200,0.2)] transition-all";
+          supBtn.className =
+            "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-transparent text-outline hover:text-on-surface border border-transparent transition-all opacity-50";
+          autoBtn.className =
+            "w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-primary/10 text-primary border border-primary/30 shadow-[0_0_15px_rgba(79,219,200,0.2)] transition-all";
         }
       }
       // Also update brain dashboard mode badge
@@ -149,7 +167,8 @@ elements.codeSnippet.appendChild(execButton);
       const feed = document.getElementById("activityFeed");
       if (feed && feed.children.length <= 1) {
         const events = [...d.recent_events].reverse();
-        for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {          const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
+        for (const event of events.slice(0, MAX_ACTIVITY_ITEMS)) {
+          const isActive = !["idle", "completed", "error", "reverted"].includes(event.action);
           const item = document.createElement("div");
           item.className = "group flex gap-3";
           const label = isActive ? event.action.toUpperCase() : "INFO";
@@ -213,17 +232,16 @@ export function connectActivityFeed() {
         showToast(`✨ ${event.detail}`, "info");
         updateSuccessRate();
         // Refresh proposals list in background
-        import("./proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
+        import("./proposals_ui.js").then((m) => m.loadProposals && m.loadProposals());
       } else if (event.action === "merged") {
         showToast(`🔀 ${event.detail}`, "info");
       } else if (event.action === "auto_approved") {
         showToast(`🔗 ${event.detail}`, "info");
-        import("./proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
+        import("./proposals_ui.js").then((m) => m.loadProposals && m.loadProposals());
       } else if (event.action === "error" || event.action === "reverted") {
         showToast(`${ACTION_ICONS[event.action] || "⚠️"} ${event.detail}`, "error");
         updateSuccessRate();
       }
-
     } catch (err) {
       console.error("Failed to parse SSE event:", err);
     }
@@ -255,7 +273,11 @@ function addActivityItem(event) {
   const feed = document.getElementById("aiThinkingFeed");
   if (!feed) return;
   const icon = ACTION_ICONS[event.action] || "📡";
-  const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const ts = new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
   const line = document.createElement("p");
   line.innerHTML = `<span class="text-outline/40">${ts}</span>  ${icon} <span class="text-on-surface-variant">${escapeHtml(event.detail || event.action || "...")}</span>`;
   // Remove placeholder
@@ -308,7 +330,9 @@ function updateBrainDashboard(event) {
   const modelInfoEl = document.getElementById("brainModelInfo");
 
   if (liveSection) {
-    const isExecuting = !["idle", "completed", "error", "reverted", "proposal_created"].includes(event.action);
+    const isExecuting = !["idle", "completed", "error", "reverted", "proposal_created"].includes(
+      event.action,
+    );
     liveSection.style.display = isExecuting ? "block" : "none";
 
     if (isExecuting && currentTaskEl) {
@@ -325,7 +349,7 @@ function updateBrainDashboard(event) {
       } else if (descEl) {
         descEl.style.display = "none";
       }
-      
+
       // Estimate progress based on action type
       if (progressBar) {
         let progress = 10;
@@ -334,11 +358,11 @@ function updateBrainDashboard(event) {
         else if (event.action === "writing") progress = 50;
         else if (event.action === "testing") progress = 70;
         else if (event.action === "committing") progress = 90;
-        
+
         progressBar.style.width = `${progress}%`;
       }
     }
-    
+
     if (modelInfoEl && event.model) {
       modelInfoEl.textContent = event.model;
     }
@@ -384,14 +408,14 @@ export async function setAutonomyMode(mode) {
       if (autonomousBtn) {
         autonomousBtn.classList.toggle("active", mode === "autonomous");
       }
-      
+
       const brainMode = document.getElementById("brainMode");
       if (brainMode) {
         const isAuto = mode === "autonomous";
         brainMode.textContent = isAuto ? "🤖 Autonomous" : "🛡️ Supervised";
         brainMode.classList.toggle("autonomous", isAuto);
       }
-      
+
       console.log(`[LocalMind] Autonomy mode: ${mode}`);
     }
   } catch (e) {
@@ -460,22 +484,39 @@ export async function triggerExecution() {
 
 // Make globally available for onclick handlers
 window.retryProposal = (id) => {
-    fetch(`${API}/api/autonomy/proposals/${id}/retry`, { method: "POST" })
-        .then(r => r.json())
-        .then(d => { if(d.ok) { showToast("🔄 Retrying", "info"); loadProposals(); } else { showToast(`❌ ${d.message || "Retry failed"}`, "error"); } })
-        .catch(() => showToast("❌ Connection error", "error"));
+  fetch(`${API}/api/autonomy/proposals/${id}/retry`, { method: "POST" })
+    .then((r) => r.json())
+    .then((d) => {
+      if (d.ok) {
+        showToast("🔄 Retrying", "info");
+        loadProposals();
+      } else {
+        showToast(`❌ ${d.message || "Retry failed"}`, "error");
+      }
+    })
+    .catch(() => showToast("❌ Connection error", "error"));
 };
 window.triggerReflection = triggerReflection;
 window.triggerExecution = triggerExecution;
 window.approveProposal = (id) => {
-    fetch(`${API}/api/autonomy/proposals/${id}/approve`, { method: "POST" })
-        .then(r => r.json())
-        .then(d => { if(d.ok) { showToast("✅ Approved", "info"); loadProposals(); } });
+  fetch(`${API}/api/autonomy/proposals/${id}/approve`, { method: "POST" })
+    .then((r) => r.json())
+    .then((d) => {
+      if (d.ok) {
+        showToast("✅ Approved", "info");
+        loadProposals();
+      }
+    });
 };
 window.denyProposal = (id) => {
-    fetch(`${API}/api/autonomy/proposals/${id}/deny`, { method: "POST" })
-        .then(r => r.json())
-        .then(d => { if(d.ok) { showToast("❌ Denied", "info"); loadProposals(); } });
+  fetch(`${API}/api/autonomy/proposals/${id}/deny`, { method: "POST" })
+    .then((r) => r.json())
+    .then((d) => {
+      if (d.ok) {
+        showToast("❌ Denied", "info");
+        loadProposals();
+      }
+    });
 };
 
 // ── Priority Queue ──────────────────────────────────────────────
@@ -487,23 +528,30 @@ export async function loadPriorities() {
     if (!listEl) return;
     const priorities = d.priorities || [];
     if (priorities.length === 0) {
-      listEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:4px 0;">No priorities set — AI will self-direct.</div>';
+      listEl.innerHTML =
+        '<div style="font-size:11px;color:var(--text-muted);padding:4px 0;">No priorities set — AI will self-direct.</div>';
       return;
     }
-    listEl.innerHTML = priorities.map(p => `
+    listEl.innerHTML = priorities
+      .map(
+        (p) => `
       <div class="priority-item" data-id="${p.id}">
         <span class="priority-text">⭐ ${escapeHtml(p.description)}</span>
-        <span class="priority-badge ${p.priority || 'medium'}">${p.priority || 'medium'}</span>
+        <span class="priority-badge ${p.priority || "medium"}">${p.priority || "medium"}</span>
         <button class="priority-remove" data-id="${p.id}" title="Remove">✕</button>
       </div>
-    `).join("");
-    listEl.querySelectorAll(".priority-remove").forEach(btn => {
+    `,
+      )
+      .join("");
+    listEl.querySelectorAll(".priority-remove").forEach((btn) => {
       btn.addEventListener("click", async () => {
         await fetch(`${API}/api/autonomy/priorities/${btn.dataset.id}`, { method: "DELETE" });
         loadPriorities();
       });
     });
-  } catch { /* server not ready */ }
+  } catch {
+    /* server not ready */
+  }
 }
 
 export async function addPriority(description) {
@@ -533,7 +581,8 @@ export async function loadDigest() {
     } else if (d.summary) {
       el.textContent = `${d.summary}\n\n✅ Completed: ${d.completed || 0}  ❌ Failed: ${d.failed || 0}  📋 Pending: ${d.pending || 0}`;
     } else {
-      el.textContent = "No digest available yet. The engine will generate one after running for a while.";
+      el.textContent =
+        "No digest available yet. The engine will generate one after running for a while.";
     }
   } catch {
     el.textContent = "Digest unavailable — server not ready.";
@@ -548,8 +597,8 @@ export async function updateSuccessRate() {
     const r = await fetch(`${API}/api/autonomy/proposals`);
     const d = await r.json();
     const proposals = d.proposals || [];
-    const completed = proposals.filter(p => p.status === "completed").length;
-    const failed = proposals.filter(p => p.status === "failed").length;
+    const completed = proposals.filter((p) => p.status === "completed").length;
+    const failed = proposals.filter((p) => p.status === "failed").length;
     const total = completed + failed;
     if (total > 0) {
       const rate = Math.round((completed / total) * 100);
@@ -558,7 +607,9 @@ export async function updateSuccessRate() {
     } else {
       el.textContent = "—";
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 // ── Category Stats Chart ────────────────────────────────────────
@@ -583,8 +634,11 @@ async function loadCategoryStats() {
           </div>
           <span class="cat-stat">${s.completed}/${s.total}</span>
         </div>`;
-      }).join("");
-  } catch { el.textContent = "Error loading stats"; }
+      })
+      .join("");
+  } catch {
+    el.textContent = "Error loading stats";
+  }
 }
 
 // ── Export Digest as Markdown ────────────────────────────────────
@@ -607,7 +661,9 @@ async function exportDigest() {
     a.download = `localmind-digest-${today}.md`;
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) { console.error("Export failed:", e); }
+  } catch (e) {
+    console.error("Export failed:", e);
+  }
 }
 
 // ── Wire Priority + Digest Buttons ──────────────────────────────
@@ -615,8 +671,16 @@ export function initDashboardPanels() {
   const addBtn = document.getElementById("addPriorityBtn");
   const input = document.getElementById("priorityInput");
   if (addBtn && input) {
-    addBtn.addEventListener("click", () => { addPriority(input.value); input.value = ""; });
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { addPriority(input.value); input.value = ""; } });
+    addBtn.addEventListener("click", () => {
+      addPriority(input.value);
+      input.value = "";
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        addPriority(input.value);
+        input.value = "";
+      }
+    });
   }
   const digestBtn = document.getElementById("refreshDigestBtn");
   if (digestBtn) {
@@ -660,7 +724,8 @@ export async function renderTaskPipeline() {
     const proposals = d.proposals || [];
 
     if (proposals.length === 0) {
-      body.innerHTML = '<div class="task-pipeline-empty">No tasks yet — engine will generate proposals soon.</div>';
+      body.innerHTML =
+        '<div class="task-pipeline-empty">No tasks yet — engine will generate proposals soon.</div>';
       if (countEl) countEl.textContent = "0";
       return;
     }
@@ -685,11 +750,11 @@ export async function renderTaskPipeline() {
 
     const statusConfig = {
       in_progress: { icon: "🔧", label: "Processing", cls: "processing", color: "#00eefc" },
-      approved:    { icon: "⏳", label: "Queued",     cls: "queued",     color: "#ffc107" },
-      proposed:    { icon: "📋", label: "Pending",    cls: "pending",    color: "#aaabb2" },
-      failed:      { icon: "❌", label: "Failed",     cls: "failed",     color: "#f44336" },
-      completed:   { icon: "✅", label: "Done",       cls: "done",       color: "#4caf50" },
-      denied:      { icon: "🚫", label: "Denied",     cls: "denied",     color: "#e91e63" },
+      approved: { icon: "⏳", label: "Queued", cls: "queued", color: "#ffc107" },
+      proposed: { icon: "📋", label: "Pending", cls: "pending", color: "#aaabb2" },
+      failed: { icon: "❌", label: "Failed", cls: "failed", color: "#f44336" },
+      completed: { icon: "✅", label: "Done", cls: "done", color: "#4caf50" },
+      denied: { icon: "🚫", label: "Denied", cls: "denied", color: "#e91e63" },
     };
 
     let html = "";
@@ -708,34 +773,42 @@ export async function renderTaskPipeline() {
       const userOverride = _userToggledGroups.has(status);
       const isClosed = userOverride ? !defaultClosed : defaultClosed;
       html += `<div class="pipeline-group pipeline-${config.cls} mb-6">`;
-      html += `<div class="flex items-center justify-between mb-3 px-1 ${isCollapsible ? 'cursor-pointer select-none hover:opacity-80' : ''}" ${isCollapsible ? `data-toggle-group="${status}"` : ''}>`;
+      html += `<div class="flex items-center justify-between mb-3 px-1 ${isCollapsible ? "cursor-pointer select-none hover:opacity-80" : ""}" ${isCollapsible ? `data-toggle-group="${status}"` : ""}>`;
       html += `  <div class="flex items-center gap-2">`;
       html += `    <span class="text-sm">${config.icon}</span>`;
       html += `    <span class="text-[10px] font-bold uppercase tracking-[0.2em]" style="color: ${config.color}">${config.label}</span>`;
       if (isCollapsible) {
-        html += `    <span class="material-symbols-outlined text-xs text-outline/40 chevron-icon transition-transform ${isClosed ? '' : 'rotate-90'}" style="font-size:14px">chevron_right</span>`;
+        html += `    <span class="material-symbols-outlined text-xs text-outline/40 chevron-icon transition-transform ${isClosed ? "" : "rotate-90"}" style="font-size:14px">chevron_right</span>`;
       }
       html += `  </div>`;
       html += `  <span class="text-[9px] font-bold bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-outline">${items.length}</span>`;
       html += `</div>`;
 
-      html += `<div class="space-y-2 ${isClosed ? 'hidden' : ''}">`;
+      html += `<div class="space-y-2 ${isClosed ? "hidden" : ""}">`;
       for (const p of displayItems) {
         const title = escapeHtml(p.title || p.category || "Untitled");
-        const cat = p.category ? `<span class="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">${escapeHtml(p.category)}</span>` : "";
-        const timeAgo = p.created_at ? `<span class="text-[9px] text-outline/60 font-medium">${formatTimeAgo(p.created_at)}</span>` : "";
-        const approveBtn = status === "proposed"
-          ? `<button class="pipeline-approve p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Approve"><span class="material-symbols-outlined text-xs">check</span></button>`
+        const cat = p.category
+          ? `<span class="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">${escapeHtml(p.category)}</span>`
           : "";
-        const denyBtn = status === "proposed"
-          ? `<button class="pipeline-deny p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Deny"><span class="material-symbols-outlined text-xs">close</span></button>`
+        const timeAgo = p.created_at
+          ? `<span class="text-[9px] text-outline/60 font-medium">${formatTimeAgo(p.created_at)}</span>`
           : "";
-        const retryBtn = status === "failed"
-          ? `<button class="pipeline-retry p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Retry"><span class="material-symbols-outlined text-xs">refresh</span></button>`
-          : "";
-        const dismissBtn = status === "failed"
-          ? `<button class="pipeline-dismiss p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Dismiss"><span class="material-symbols-outlined text-xs">close</span></button>`
-          : "";
+        const approveBtn =
+          status === "proposed"
+            ? `<button class="pipeline-approve p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Approve"><span class="material-symbols-outlined text-xs">check</span></button>`
+            : "";
+        const denyBtn =
+          status === "proposed"
+            ? `<button class="pipeline-deny p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Deny"><span class="material-symbols-outlined text-xs">close</span></button>`
+            : "";
+        const retryBtn =
+          status === "failed"
+            ? `<button class="pipeline-retry p-1 hover:text-primary" data-id="${escapeHtml(p.id)}" title="Retry"><span class="material-symbols-outlined text-xs">refresh</span></button>`
+            : "";
+        const dismissBtn =
+          status === "failed"
+            ? `<button class="pipeline-dismiss p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Dismiss"><span class="material-symbols-outlined text-xs">close</span></button>`
+            : "";
 
         html += `<div class="group flex flex-col gap-1 p-3 rounded-lg bg-surface-container-low/40 border border-outline-variant/10 hover:border-primary/30 transition-all">`;
         html += `  <div class="flex justify-between items-start gap-2">`;
@@ -759,9 +832,12 @@ export async function renderTaskPipeline() {
         const model = p.model_used;
         if (dur || tok || model) {
           html += `  <div class="flex items-center gap-3 mt-2 pt-2 border-t border-outline-variant/10">`;
-          if (dur !== null) html += `    <span class="text-[9px] text-outline/60 font-mono">⏱ ${dur}s</span>`;
-          if (tok) html += `    <span class="text-[9px] text-outline/60 font-mono">🎟 ${tok > 999 ? (tok / 1000).toFixed(1) + 'k' : tok} tkns</span>`;
-          if (model) html += `    <span class="text-[9px] text-primary/50 font-mono">${escapeHtml(model)}</span>`;
+          if (dur !== null)
+            html += `    <span class="text-[9px] text-outline/60 font-mono">⏱ ${dur}s</span>`;
+          if (tok)
+            html += `    <span class="text-[9px] text-outline/60 font-mono">🎟 ${tok > 999 ? (tok / 1000).toFixed(1) + "k" : tok} tkns</span>`;
+          if (model)
+            html += `    <span class="text-[9px] text-primary/50 font-mono">${escapeHtml(model)}</span>`;
           html += `  </div>`;
         }
 
@@ -769,7 +845,7 @@ export async function renderTaskPipeline() {
         const desc = p.description;
         if (desc) {
           html += `  <div class="mt-2 pt-2 border-t border-outline-variant/10">`;
-          html += `    <p class="text-[9px] text-outline/70 leading-relaxed italic">${escapeHtml(desc.length > 200 ? desc.slice(0, 200) + '…' : desc)}</p>`;
+          html += `    <p class="text-[9px] text-outline/70 leading-relaxed italic">${escapeHtml(desc.length > 200 ? desc.slice(0, 200) + "…" : desc)}</p>`;
           html += `  </div>`;
         }
 
@@ -778,10 +854,11 @@ export async function renderTaskPipeline() {
         if (filesEdited.length > 0) {
           html += `  <div class="flex flex-wrap gap-1 mt-1">`;
           for (const f of filesEdited.slice(0, 3)) {
-            const basename = f.split('/').pop();
+            const basename = f.split("/").pop();
             html += `<span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-primary/5 text-primary/70 border border-primary/10">${escapeHtml(basename)}</span>`;
           }
-          if (filesEdited.length > 3) html += `<span class="text-[8px] text-outline/40">+${filesEdited.length - 3} more</span>`;
+          if (filesEdited.length > 3)
+            html += `<span class="text-[8px] text-outline/40">+${filesEdited.length - 3} more</span>`;
           html += `  </div>`;
         }
 
@@ -790,8 +867,10 @@ export async function renderTaskPipeline() {
         const err = p.error;
         if (conf !== null || err) {
           html += `  <div class="flex items-center gap-2 mt-1">`;
-          if (conf !== null) html += `<span class="text-[8px] font-mono ${conf >= 50 ? 'text-primary/60' : 'text-tertiary/60'}">⚡ ${conf}% confidence</span>`;
-          if (err) html += `<span class="text-[8px] text-error/70 font-mono truncate max-w-[200px]" title="${escapeHtml(err)}">❌ ${escapeHtml(err.length > 60 ? err.slice(0, 60) + '…' : err)}</span>`;
+          if (conf !== null)
+            html += `<span class="text-[8px] font-mono ${conf >= 50 ? "text-primary/60" : "text-tertiary/60"}">⚡ ${conf}% confidence</span>`;
+          if (err)
+            html += `<span class="text-[8px] text-error/70 font-mono truncate max-w-[200px]" title="${escapeHtml(err)}">❌ ${escapeHtml(err.length > 60 ? err.slice(0, 60) + "…" : err)}</span>`;
           html += `  </div>`;
         }
 
@@ -805,7 +884,7 @@ export async function renderTaskPipeline() {
     body.innerHTML = html;
 
     // Wire collapsible group toggles (using delegation-safe approach)
-    body.querySelectorAll("[data-toggle-group]").forEach(header => {
+    body.querySelectorAll("[data-toggle-group]").forEach((header) => {
       header.addEventListener("click", () => {
         const group = header.dataset.toggleGroup;
         // Toggle the user override
@@ -823,7 +902,7 @@ export async function renderTaskPipeline() {
     });
 
     // Wire retry buttons
-    body.querySelectorAll(".pipeline-retry").forEach(btn => {
+    body.querySelectorAll(".pipeline-retry").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
@@ -833,16 +912,20 @@ export async function renderTaskPipeline() {
           if (d.ok) {
             showToast("🔄 Retrying", "info");
             renderTaskPipeline();
-            updateSuccessRate(); loadCategoryStats(); loadDigest();
+            updateSuccessRate();
+            loadCategoryStats();
+            loadDigest();
           } else {
             showToast(`❌ ${d.message || "Retry failed"}`, "error");
           }
-        } catch { showToast("❌ Retry failed", "error"); }
+        } catch {
+          showToast("❌ Retry failed", "error");
+        }
       });
     });
 
     // Wire approve buttons
-    body.querySelectorAll(".pipeline-approve").forEach(btn => {
+    body.querySelectorAll(".pipeline-approve").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
@@ -852,16 +935,20 @@ export async function renderTaskPipeline() {
           if (d.ok) {
             showToast("✅ Approved", "info");
             renderTaskPipeline();
-            updateSuccessRate(); loadCategoryStats(); loadDigest();
+            updateSuccessRate();
+            loadCategoryStats();
+            loadDigest();
           } else {
             showToast(`❌ ${d.message || "Approval failed"}`, "error");
           }
-        } catch { showToast("❌ Approval failed", "error"); }
+        } catch {
+          showToast("❌ Approval failed", "error");
+        }
       });
     });
 
     // Wire deny buttons
-    body.querySelectorAll(".pipeline-deny").forEach(btn => {
+    body.querySelectorAll(".pipeline-deny").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
@@ -871,16 +958,20 @@ export async function renderTaskPipeline() {
           if (d.ok) {
             showToast("❌ Denied", "info");
             renderTaskPipeline();
-            updateSuccessRate(); loadCategoryStats(); loadDigest();
+            updateSuccessRate();
+            loadCategoryStats();
+            loadDigest();
           } else {
             showToast(`❌ ${d.message || "Deny failed"}`, "error");
           }
-        } catch { showToast("❌ Deny failed", "error"); }
+        } catch {
+          showToast("❌ Deny failed", "error");
+        }
       });
     });
 
     // Wire dismiss buttons
-    body.querySelectorAll(".pipeline-dismiss").forEach(btn => {
+    body.querySelectorAll(".pipeline-dismiss").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
@@ -890,14 +981,17 @@ export async function renderTaskPipeline() {
           if (d.ok) {
             showToast("✅ Dismissed", "info");
             renderTaskPipeline();
-            updateSuccessRate(); loadCategoryStats(); loadDigest();
+            updateSuccessRate();
+            loadCategoryStats();
+            loadDigest();
           } else {
             showToast(`❌ ${d.message || "Dismiss failed"}`, "error");
           }
-        } catch { showToast("❌ Dismiss failed", "error"); }
+        } catch {
+          showToast("❌ Dismiss failed", "error");
+        }
       });
     });
-
   } catch {
     body.innerHTML = '<div class="task-pipeline-empty">Could not load tasks.</div>';
   }
@@ -950,12 +1044,12 @@ export function updateArchitectInsight(text, digest = null) {
 document.addEventListener("DOMContentLoaded", () => {
   const analyzeBtn = document.querySelector("#architectInsight button:first-of-type");
   const dismissBtn = document.querySelector("#architectInsight button:last-of-type");
-  
+
   analyzeBtn?.addEventListener("click", () => {
     // Force a reflection or deeper analysis
     triggerReflection();
   });
-  
+
   dismissBtn?.addEventListener("click", () => {
     updateArchitectInsight(null, null);
   });
@@ -968,7 +1062,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const id = retryBtn.dataset.id;
       window.dispatchEvent(new CustomEvent("task-retry", { detail: { id } }));
     }
-    
+
     const dismissBtn = e.target.closest(".pipeline-dismiss");
     if (dismissBtn) {
       const id = dismissBtn.dataset.id;
@@ -983,4 +1077,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-

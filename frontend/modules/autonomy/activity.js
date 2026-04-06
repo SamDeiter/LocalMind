@@ -20,17 +20,16 @@ export function connectActivityFeed() {
       if (event.action === "completed") {
         showToast(`✨ ${event.detail}`, "info");
         updateSuccessRate();
-        import("../proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
+        import("../proposals_ui.js").then((m) => m.loadProposals && m.loadProposals());
       } else if (event.action === "merged") {
         showToast(`🔀 ${event.detail}`, "info");
       } else if (event.action === "auto_approved") {
         showToast(`🔗 ${event.detail}`, "info");
-        import("../proposals_ui.js").then(m => m.loadProposals && m.loadProposals());
+        import("../proposals_ui.js").then((m) => m.loadProposals && m.loadProposals());
       } else if (event.action === "error" || event.action === "reverted") {
         showToast(`${ACTION_ICONS[event.action] || "⚠️"} ${event.detail}`, "error");
         updateSuccessRate();
       }
-
     } catch (err) {
       console.error("Failed to parse SSE event:", err);
     }
@@ -78,7 +77,7 @@ export function addActivityItem(event) {
       <div class="flex-1">
           <div class="flex justify-between items-center mb-1">
               <span class="text-[10px] font-bold ${textColorClass} uppercase tracking-tight">${label}</span>
-              <span class="text-[9px] font-mono opacity-30">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              <span class="text-[9px] font-mono opacity-30">${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
           </div>
           <p class="text-[11px] text-on-surface-variant leading-snug break-words">${escapeHtml(event.detail || event.action)}</p>
       </div>
@@ -97,18 +96,22 @@ export function addActivityItem(event) {
   const thinkFeed = document.getElementById("aiThinkingFeed");
   if (thinkFeed) {
     const icon = ACTION_ICONS[event.action] || "📡";
-    const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const ts = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
     const line = document.createElement("p");
     line.innerHTML = `<span class="text-outline/40">${ts}</span>  ${icon} <span class="text-on-surface-variant">${escapeHtml(event.detail || event.action || "...")}</span>`;
-    
+
     const placeholder = thinkFeed.querySelector(".italic");
     if (placeholder) placeholder.remove();
-    
+
     thinkFeed.appendChild(line);
     while (thinkFeed.children.length > 20) thinkFeed.removeChild(thinkFeed.firstChild);
     thinkFeed.scrollTop = thinkFeed.scrollHeight;
   }
-  
+
   // Also refresh the task pipeline
   // renderTaskPipeline moved to specific events to avoid flickering
 }
@@ -119,4 +122,3 @@ export function updateActivityBar(event) {
   if (bar) bar.textContent = event.detail || event.action;
   if (icon) icon.textContent = ACTION_ICONS[event.action] || "📋";
 }
-

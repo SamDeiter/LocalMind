@@ -45,7 +45,6 @@ async function updateDashboardMetrics() {
     // Update status badge with model
     const versionBadge = document.getElementById("versionBadge");
     if (versionBadge && modelName !== "No model") versionBadge.textContent = modelName;
-
   } catch {
     // Silently fail — hardware API may not be available
   }
@@ -79,7 +78,9 @@ async function updateStatusBar() {
         const versionEl = document.querySelector(".version-badge");
         if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Ideas count for reasoning grid
     try {
@@ -89,8 +90,9 @@ async function updateStatusBar() {
         const ideasEl = document.getElementById("brainIdeas");
         if (ideasEl) ideasEl.textContent = Array.isArray(memories) ? memories.length : "0";
       }
-    } catch { /* ignore */ }
-
+    } catch {
+      /* ignore */
+    }
   } catch {
     statusFailCount++;
     if (statusFailCount >= OFFLINE_THRESHOLD) {
@@ -119,6 +121,5 @@ function stopDashboard() {
     dashboardInterval = null;
   }
 }
-
 
 export { initDashboard, stopDashboard, updateDashboardMetrics, updateStatusBar };
