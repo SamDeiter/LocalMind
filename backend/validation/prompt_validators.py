@@ -35,8 +35,12 @@ class PromptConsistencyValidator(Validator):
         self.ollama_url = ollama_url
 
     def validate(self, context: dict) -> ValidationResult:
-        """Sync stub — use validate_async() for full check."""
-        return self._pass("Skipped — use validate_async() for LLM-based validation")
+        """Synchronous fallback — logs a warning so callers know to use validate_async()."""
+        logger.warning(
+            "PromptConsistencyValidator.validate() called synchronously — "
+            "LLM-based check skipped. Use validate_async() for full validation."
+        )
+        return self._pass("Skipped — synchronous call, LLM check requires validate_async()")
 
     async def validate_async(self, context: dict) -> ValidationResult:
         """
@@ -109,8 +113,12 @@ class EdgeCaseValidator(Validator):
         self.ollama_url = ollama_url
 
     def validate(self, context: dict) -> ValidationResult:
-        """Sync stub — use validate_async() for full check."""
-        return self._pass("Skipped — use validate_async() for LLM-based validation")
+        """Synchronous fallback — logs a warning so callers know to use validate_async()."""
+        logger.warning(
+            "EdgeCaseValidator.validate() called synchronously — "
+            "LLM-based check skipped. Use validate_async() for full validation."
+        )
+        return self._pass("Skipped — synchronous call, LLM check requires validate_async()")
 
     async def validate_async(self, context: dict) -> ValidationResult:
         """

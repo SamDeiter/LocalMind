@@ -34,13 +34,54 @@ async def chat(request: Request, body: dict = Body(...)):
     except Exception as e:
         logger.error(f"Chat error: {e}")
         logger.error(traceback.format_exc())
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chat/sms")
 async def sms_chat(request: Request, body: dict = Body(...)):
-    """SMS specific endpoint (can be further refactored into ChatService)."""
-    # For now, keeping simple or delegating to a future ChatService method
-    # sender = body.get("from")
-    # message = body.get("text")
-    # ... logic ...
-    return {"status": "unimplemented_in_modular_arch"}
+    """SMS chat endpoint — accepts a sender number + text, returns a plain-text reply.
+
+    Expected body: {"from": "+1234567890", "text": "hello"}
+    Returns: {"reply": "...", "conversation_id": "..."}
+    """
+    if not _chat_service:
+        raise HTTPException(status_code=503, detail="Chat service not initialized")
+
+    sender = body.get("from", "sms_user")
+    message = body.get("text", "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Missing 'text' field")
+
+    try:
+        # Build a chat request compatible with ChatService
+        chat_body = {
+            "model": "auto",
+            "message": message,
+            "conversation_id": body.get("conversation_id"),
+            "sms_sender": sender,
+        }
+        stream = await _chat_service.handle_chat(chat_body)
+
+        # Collect the full streamed response into a single plain-text reply
+        full_reply = ""
+        conv_id = None
+        async for chunk in stream:
+            if not chunk.startswith("data: "):
+                continue
+            raw = chunk[6:].strip()
+            if not raw or raw == "[DONE]":
+                continue
+            try:
+                evt = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if evt.get("token"):
+                full_reply += evt["token"]
+            if evt.get("conversation_id"):
+                conv_id = evt["conversation_id"]
+
+        return {"reply": full_reply.strip(), "conversation_id": conv_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"SMS chat error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

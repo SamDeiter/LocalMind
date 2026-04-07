@@ -1,4 +1,6 @@
+import logging
 import os
+import sys
 
 # --- Network & URLs ---
 OLLAMA_BASE_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
@@ -112,3 +114,54 @@ DIGESTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Performance optimization flag (from PR #12)
 ACTIVE_CACHE_ENABLED = True
+
+
+# ── Startup Validation ──────────────────────────────────────────
+_config_logger = logging.getLogger("localmind.config")
+
+
+def validate_config():
+    """Validate configuration at startup. Logs warnings for bad values,
+    raises SystemExit for values that would cause crashes."""
+    errors = []
+
+    # GPU_VRAM_GB must be positive
+    if GPU_VRAM_GB <= 0:
+        errors.append(f"GPU_VRAM_GB={GPU_VRAM_GB} must be > 0")
+
+    # SERVER_PORT must be in valid range
+    if not (1 <= SERVER_PORT <= 65535):
+        errors.append(f"PORT={SERVER_PORT} outside valid range 1-65535")
+
+    # Context windows must be positive
+    if MAX_CONTEXT_TOKENS <= 0:
+        errors.append(f"MAX_CONTEXT_TOKENS={MAX_CONTEXT_TOKENS} must be > 0")
+    if DEFAULT_CONTEXT_WINDOW <= 0:
+        errors.append(f"DEFAULT_CONTEXT_WINDOW={DEFAULT_CONTEXT_WINDOW} must be > 0")
+    if MAX_AGENT_ITERATIONS <= 0:
+        errors.append(f"MAX_AGENT_ITERATIONS={MAX_AGENT_ITERATIONS} must be > 0")
+
+    # WORKSPACE_ROOT must be writable
+    try:
+        WORKSPACE_ROOT.mkdir(parents=True, exist_ok=True)
+        test_file = WORKSPACE_ROOT / ".config_test"
+        test_file.write_text("ok")
+        test_file.unlink()
+    except PermissionError:
+        errors.append(f"WORKSPACE_DIR={WORKSPACE_ROOT} is not writable")
+    except Exception as e:
+        _config_logger.warning(f"WORKSPACE_DIR write check failed: {e}")
+
+    # OLLAMA_BASE_URL should look like a URL
+    if not OLLAMA_BASE_URL.startswith(("http://", "https://")):
+        _config_logger.warning(f"OLLAMA_URL={OLLAMA_BASE_URL!r} doesn't look like a valid URL")
+
+    if errors:
+        for err in errors:
+            _config_logger.error(f"Config error: {err}")
+        sys.exit(f"Fatal config errors: {'; '.join(errors)}")
+
+    _config_logger.info("Config validated OK")
+
+
+validate_config()

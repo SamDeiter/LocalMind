@@ -70,9 +70,11 @@ class AutonomyEngine:
         }
 
         # Initialize loop task lists to avoid AttributeError
-        self._tasks = []        
+        self._tasks = []
         self.proposals = ProposalManager()
-        assert hasattr(self, '_emit_activity'), 'self._emit_activity must be defined before initializing SelfImprover'
+        # _emit_activity is defined as a method on this class (line ~129), so it's
+        # always available after __init__ starts. The old assert was fragile if
+        # subclasses or monkeypatching reordered things — just use the bound method.
         self.self_improver = SelfImprover(emit_activity=self._emit_activity)
         self.meta_critic = MetaCritic(
             ollama_url=self.ollama_url, 

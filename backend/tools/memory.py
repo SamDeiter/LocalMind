@@ -64,6 +64,7 @@ def get_recent_memories(n: int = 10) -> list[dict]:
     """Load the N most recent memories for context injection."""
     store = _get_fts_store()
     if not store:
+        logger.warning("get_recent_memories: FTS5 store unavailable — returning empty list")
         return []
     try:
         memories = store.get_recent(limit=n)
@@ -187,6 +188,7 @@ class RecallMemoriesTool(BaseTool):
 
         retriever = _get_retriever()
         if not retriever:
+            logger.warning("RecallMemoriesTool: memory store unavailable — returning empty results")
             return {"success": True, "result": "No relevant memories found.", "memories": []}
 
         try:
