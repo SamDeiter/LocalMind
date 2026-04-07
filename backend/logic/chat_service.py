@@ -97,6 +97,7 @@ class ChatService:
         full_response = ""
         total_tokens = 0
         total_tool_calls = 0
+        _escalated = False  # Track whether we've already tried a bigger model
         start_time = time.time()
 
         # Initial Metadata Events
@@ -202,8 +203,21 @@ class ChatService:
                     yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
 
             full_response += chunk_text
-            
+
             if not tool_calls:
+                # If the task needed tools but the model just talked instead of calling them,
+                # escalate to a bigger model and retry this iteration.
+                if task_estimate.get("needs_tools") and iteration == 0 and not _escalated:
+                    bigger = self._escalate_model(model)
+                    if bigger and bigger != model:
+                        logger.warning(f"Model '{model}' failed to call tools — escalating to '{bigger}'")
+                        yield f"data: {json.dumps({'token': f'\\n\\n*Switching to {bigger} for better tool support…*\\n', 'conversation_id': conversation_id})}\n\n"
+                        model = bigger
+                        provider = "ollama"
+                        _escalated = True
+                        full_response = ""
+                        total_tokens = 0
+                        continue  # Re-enter the agent loop with the bigger model
                 break
             
             # Execute Tools
@@ -311,35 +325,74 @@ class ChatService:
     # Helper methods ...
     def _estimate_complexity(self, message: str) -> Dict[str, Any]:
         score = 3
+        msg_lower = message.lower()
         if len(message) > 200: score += 2
         for kw in ["code", "refactor", "bug", "error", "architecture", "design"]:
-            if kw in message.lower(): score += 2
-        
+            if kw in msg_lower: score += 2
+
+        # Tool-use keywords — models need to be larger to reliably call tools
+        tool_keywords = [
+            "emulator", "android", "apk", "avd", "install app",
+            "email", "gmail", "send email", "inbox", "draft",
+            "browse", "navigate", "click", "website",
+            "screenshot", "search the web", "look up",
+            "run code", "execute", "terminal",
+            "git commit", "git status", "git diff",
+        ]
+        needs_tools = any(kw in msg_lower for kw in tool_keywords)
+        if needs_tools:
+            score = max(score, 5)  # Floor at medium — small models can't tool-call
+
         tier = "light"
         if score >= 8: tier = "heavy"
         elif score >= 5: tier = "medium"
-        return {"score": min(score, 10), "tier": tier}
+        return {"score": min(score, 10), "tier": tier, "needs_tools": needs_tools}
 
     async def _route_model(self, estimate: Dict[str, Any], override: str = None) -> (str, str):
         if override and override != "auto":
             return override, "ollama"
-        
+
+        tier = estimate["tier"]
+
         # Load-aware routing: check what's already in VRAM
         gpu_state = await self.load_monitor.get_gpu_state()
         loaded = gpu_state.get("loaded_models", [])
-        
+
         if loaded:
             # Try to reuse a loaded model that can handle this tier
-            reuse = self.load_monitor.pick_best_model(estimate["tier"], loaded)
+            reuse = self.load_monitor.pick_best_model(tier, loaded)
             if reuse:
                 return reuse, "ollama"
-        
+
         # Cloud fallback for heavy tasks if available
         from backend import gemini_client
-        if estimate["tier"] == "heavy" and gemini_client.is_available():
+        if tier == "heavy" and gemini_client.is_available():
             return "gemini-1.5-pro", "gemini"
-            
-        return config.MODEL_TIERS.get(estimate["tier"], "gemma4:e4b"), "ollama"
+
+        return config.MODEL_TIERS.get(tier, "gemma4:e4b"), "ollama"
+
+    @staticmethod
+    def _escalate_model(current_model: str) -> str | None:
+        """Return the next bigger model when the current one can't handle tool calling.
+
+        Walks all known models sorted by capability count (weakest → strongest)
+        and picks the first one that's strictly more capable than current_model.
+        Returns None if already at the strongest.
+        """
+        normalized = current_model.replace(":latest", "")
+
+        # Build a sorted list of models by capability breadth
+        ranked = sorted(
+            config.MODEL_CAPABILITIES.items(),
+            key=lambda kv: len(kv[1]),
+        )
+        current_level = len(config.MODEL_CAPABILITIES.get(normalized, ["light"]))
+
+        for name, caps in ranked:
+            if len(caps) > current_level and name != normalized:
+                return name
+
+        return None  # Already at the top
 
     async def _get_history(self, conversation_id: str):
         db = self.db_factory()

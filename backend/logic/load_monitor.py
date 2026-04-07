@@ -69,9 +69,14 @@ class LoadMonitor:
 
         Uses MODEL_CAPABILITIES from config. If the model isn't in the map,
         we conservatively assume it can only handle 'light'.
+        Handles Ollama name variants like ':latest' suffix.
         """
-        capabilities = config.MODEL_CAPABILITIES.get(model_name, ["light"])
-        return tier in capabilities
+        # Try exact match first, then strip :latest
+        caps = config.MODEL_CAPABILITIES.get(model_name)
+        if caps is None:
+            stripped = model_name.replace(":latest", "")
+            caps = config.MODEL_CAPABILITIES.get(stripped, ["light"])
+        return tier in caps
 
     @staticmethod
     def pick_best_model(
