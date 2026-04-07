@@ -64,6 +64,7 @@ export function initSpeechRecognition() {
     if (micBtn) {
       micBtn.classList.add("mic-active");
       micBtn.title = "Stop listening";
+      micBtn.setAttribute("aria-label", "Stop voice input");
     }
     console.log("[Voice] Listening started");
   };
@@ -93,6 +94,7 @@ export function initSpeechRecognition() {
     if (micBtn) {
       micBtn.classList.remove("mic-active");
       micBtn.title = "Voice input";
+      micBtn.setAttribute("aria-label", "Voice input");
     }
   };
 
@@ -107,6 +109,7 @@ export function initSpeechRecognition() {
     if (micBtn) {
       micBtn.classList.remove("mic-active");
       micBtn.title = "Voice input";
+      micBtn.setAttribute("aria-label", "Voice input");
     }
   };
 }
@@ -135,6 +138,7 @@ export function stopListening() {
   if (micBtn) {
     micBtn.classList.remove("mic-active");
     micBtn.title = "Voice input";
+    micBtn.setAttribute("aria-label", "Voice input");
   }
 }
 
