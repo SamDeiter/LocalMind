@@ -396,6 +396,13 @@ export function createToolCallCard(tc) {
     read_file: "📖",
     write_file: "✏️",
     list_files: "📂",
+    android_emulator: "📱",
+    gmail: "📧",
+    browser: "🌐",
+    take_screenshot: "📸",
+    analyze_image: "👁️",
+    save_memory: "🧠",
+    recall_memories: "🧠",
   };
   const icon = iconMap[tc.name] || "🔧";
 
@@ -428,6 +435,45 @@ export function updateToolResult(container, result) {
     // Show result
     const resultDiv = document.createElement("div");
     resultDiv.className = "tool-result";
+
+    // Handle image results (emulator screenshots, etc.)
+    if (result.image_base64) {
+      const mime = result.mime_type || "image/png";
+      const isEmulator = result.name === "android_emulator";
+      const img = document.createElement("img");
+      img.src = `data:${mime};base64,${result.image_base64}`;
+      img.className = "tool-result-image";
+      img.alt = isEmulator ? "Emulator Screen" : "Screenshot";
+      img.addEventListener("click", () => {
+        const w = window.open();
+        w.document.write(`<img src="${img.src}" style="max-width:100%;background:#111">`);
+        w.document.title = img.alt;
+      });
+
+      if (isEmulator) {
+        // Wrap in a phone frame for emulator screenshots
+        const frame = document.createElement("div");
+        frame.className = "phone-frame";
+        const notch = document.createElement("div");
+        notch.className = "phone-frame-notch";
+        frame.appendChild(notch);
+        frame.appendChild(img);
+        resultDiv.appendChild(frame);
+      } else {
+        resultDiv.appendChild(img);
+      }
+
+      if (result.result) {
+        const caption = document.createElement("div");
+        caption.className = "tool-output";
+        caption.style.cssText = "font-size: 0.85em; opacity: 0.7; margin-top: 4px;";
+        caption.textContent = typeof result.result === "object" ? JSON.stringify(result.result) : String(result.result);
+        resultDiv.appendChild(caption);
+      }
+      card.appendChild(resultDiv);
+      highlightCode();
+      return;
+    }
 
     const output = result.result || result.output || result.error || "";
     const outputStr = typeof output === "object" ? JSON.stringify(output, null, 2) : String(output);

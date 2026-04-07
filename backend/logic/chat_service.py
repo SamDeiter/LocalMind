@@ -291,9 +291,16 @@ class ChatService:
                     res = await self.registry.execute_tool(name, args)
                     res_str = str(res.get("result", res)) if isinstance(res, dict) else str(res)
                 except Exception as e:
+                    res = {"success": False, "error": str(e)}
                     res_str = f"Error: {str(e)}"
 
-                yield f"data: {json.dumps({'tool_result': {'name': name, 'result': res_str}})}\n\n"
+                # Build SSE payload — include image data if the tool returned it
+                tool_result_evt = {"name": name, "result": res_str}
+                if isinstance(res, dict) and res.get("image_base64"):
+                    tool_result_evt["image_base64"] = res["image_base64"]
+                    tool_result_evt["mime_type"] = res.get("mime_type", "image/png")
+
+                yield f"data: {json.dumps({'tool_result': tool_result_evt})}\n\n"
                 total_tool_calls += 1
 
                 messages.append({"role": "assistant", "content": chunk_text, "tool_calls": [tc]})
