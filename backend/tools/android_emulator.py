@@ -266,6 +266,31 @@ class AndroidEmulatorTool(BaseTool):
         apk_path = kwargs.get("apk_path", "")
         if not apk_path:
             return {"success": False, "error": "apk_path is required"}
+
+        # If the path is a URL, download the APK first
+        if apk_path.startswith("http://") or apk_path.startswith("https://"):
+            import tempfile
+            import httpx
+            logger.info(f"Downloading APK from {apk_path}")
+            try:
+                async with httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client:
+                    resp = await client.get(apk_path, headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    })
+                    if resp.status_code != 200:
+                        return {"success": False, "error": f"Download failed: HTTP {resp.status_code}"}
+                    content_type = resp.headers.get("content-type", "")
+                    if "html" in content_type:
+                        return {"success": False, "error": "URL returned a webpage, not an APK file. Provide a direct download link ending in .apk"}
+                    # Save to temp file
+                    tmp = tempfile.NamedTemporaryFile(suffix=".apk", delete=False)
+                    tmp.write(resp.content)
+                    tmp.close()
+                    apk_path = tmp.name
+                    logger.info(f"APK downloaded to {apk_path} ({len(resp.content)} bytes)")
+            except Exception as e:
+                return {"success": False, "error": f"Download failed: {e}"}
+
         return await _run_adb("install", "-r", apk_path, timeout=120)
 
     async def _launch_app(self, kwargs: dict) -> dict:
