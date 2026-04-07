@@ -205,11 +205,14 @@ class ChatService:
 
             full_response += chunk_text
 
+            logger.info(f"Iteration {iteration}: tool_calls={len(tool_calls)}, needs_tools={task_estimate.get('needs_tools')}, escalated={_escalated}, chunk_text_len={len(chunk_text)}")
+
             if not tool_calls:
                 # If the task needed tools but the model just talked, try to extract
                 # the intent from the original user message and call the tool directly.
                 if task_estimate.get("needs_tools") and iteration == 0 and not _escalated:
                     user_msg = messages[-1]["content"] if messages else ""
+                    logger.info(f"No tool calls — trying synthetic. Last msg role={messages[-1].get('role','?') if messages else '?'}, content={user_msg[:80]}")
                     synthetic = self._infer_tool_call(user_msg)
                     if synthetic:
                         logger.info(f"Model didn't call tools — injecting synthetic call: {synthetic['function']['name']}")
