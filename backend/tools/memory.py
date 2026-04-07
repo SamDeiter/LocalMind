@@ -1,20 +1,14 @@
 """
-Memory Tool — Dual-store memory with ChromaDB (semantic) + SQLite FTS5 (keyword).
+Memory Tool — SQLite FTS5 persistent memory.
 
-Writes to both stores so memories are shared between the backend chat system
-and the src.agent ReAct agent. Reads merge results from both for best recall.
+Single unified memory store shared between the backend chat system and the
+src.agent ReAct agent.  Uses full-text search with recency weighting for
+retrieval — zero external dependencies beyond stdlib sqlite3.
 
-ChromaDB provides semantic similarity (finds "automobile" when searching "car").
-FTS5 provides fast keyword search with zero extra dependencies.
+Design informed by arXiv:2512.13564 (Memory in the Age of AI Agents).
 """
 
-from backend.config import OLLAMA_BASE_URL
 import logging
-import time
-import uuid
-
-import chromadb
-import httpx
 
 from .base import BaseTool
 
@@ -22,6 +16,7 @@ logger = logging.getLogger("localmind.tools.memory")
 
 # FTS5 store — lazy-loaded to avoid circular imports
 _fts_store = None
+_retriever = None
 
 
 def _get_fts_store():
@@ -36,7 +31,21 @@ def _get_fts_store():
             logger.warning(f"FTS5 memory store unavailable: {e}")
     return _fts_store
 
-EMBED_MODEL = "nomic-embed-text"
+
+def _get_retriever():
+    """Get or create the MemoryRetriever (singleton)."""
+    global _retriever
+    if _retriever is None:
+        store = _get_fts_store()
+        if store:
+            try:
+                from src.agent.memory.retrieval import MemoryRetriever
+                _retriever = MemoryRetriever(store)
+                logger.info("MemoryRetriever connected")
+            except Exception as e:
+                logger.warning(f"MemoryRetriever unavailable: {e}")
+    return _retriever
+
 
 # Global learning state (toggled via API)
 _learning_enabled = True
@@ -51,62 +60,21 @@ def get_learning_enabled() -> bool:
     return _learning_enabled
 
 
-# Module-level cache for ChromaDB client + collection
-# Avoids re-creating PersistentClient on every memory operation
-_chroma_client = None
-_chroma_collection = None
-
-
-def _get_collection():
-    """Get or create the memories ChromaDB collection (cached singleton)."""
-    global _chroma_client, _chroma_collection
-    if _chroma_collection is None:
-        _chroma_client = chromadb.PersistentClient(path=str(_db_path()))
-        _chroma_collection = _chroma_client.get_or_create_collection(
-            name="memories",
-            metadata={"hnsw:space": "cosine"},
-        )
-    return _chroma_collection
-
-
-def _db_path():
-    from pathlib import Path
-    return Path(__file__).parent.parent / "memory_db"
-
-
-async def _embed(text: str) -> list[float]:
-    """Get embedding vector from Ollama."""
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            f"{OLLAMA_BASE_URL}/api/embed",
-            json={"model": EMBED_MODEL, "input": text},
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        # Ollama returns {"embeddings": [[...]]}
-        return data["embeddings"][0]
-
-
 def get_recent_memories(n: int = 10) -> list[dict]:
     """Load the N most recent memories for context injection."""
+    store = _get_fts_store()
+    if not store:
+        return []
     try:
-        collection = _get_collection()
-        if collection.count() == 0:
-            return []
-        results = collection.get(
-            include=["documents", "metadatas"],
-            limit=n,
-        )
-        memories = []
-        for doc, meta in zip(results["documents"], results["metadatas"]):
-            memories.append({
-                "content": doc,
-                "category": meta.get("category", "general"),
-                "created_at": meta.get("created_at", ""),
-            })
-        # Sort by created_at descending
-        memories.sort(key=lambda m: m.get("created_at", ""), reverse=True)
-        return memories[:n]
+        memories = store.get_recent(limit=n)
+        return [
+            {
+                "content": m.content,
+                "category": m.subcategory or m.category,
+                "created_at": str(m.created_at),
+            }
+            for m in memories
+        ]
     except Exception:
         return []
 
@@ -152,36 +120,23 @@ class SaveMemoryTool(BaseTool):
         if not content.strip():
             return {"success": False, "error": "Content cannot be empty"}
 
-        memory_id = str(uuid.uuid4())
+        retriever = _get_retriever()
+        if not retriever:
+            return {"success": False, "error": "Memory store unavailable"}
 
-        # Write to ChromaDB (semantic search)
         try:
-            embedding = await _embed(content)
-            collection = _get_collection()
-            collection.add(
-                ids=[memory_id],
-                documents=[content],
-                embeddings=[embedding],
-                metadatas=[{
-                    "category": category,
-                    "created_at": str(time.time()),
-                }],
+            subcategory = {"preference": "preference", "fact": "fact",
+                           "instruction": "instruction", "context": "context"
+                           }.get(category, category)
+            memory_id = retriever.save_from_conversation(
+                content=content,
+                category="semantic",
+                subcategory=subcategory,
+                source="backend_chat",
             )
         except Exception as exc:
-            logger.warning(f"ChromaDB save failed (FTS5 fallback): {exc}")
-
-        # Write to FTS5 (keyword search, shared with src.agent)
-        fts = _get_fts_store()
-        if fts:
-            try:
-                # Map backend categories to agent taxonomy
-                subcategory = {"preference": "preference", "fact": "fact",
-                               "instruction": "instruction", "context": "context"
-                               }.get(category, category)
-                fts.save(content=content, category="semantic",
-                         subcategory=subcategory, source="backend_chat")
-            except Exception as exc:
-                logger.warning(f"FTS5 save failed: {exc}")
+            logger.warning(f"Memory save failed: {exc}")
+            return {"success": False, "error": str(exc)}
 
         return {
             "success": True,
@@ -230,57 +185,33 @@ class RecallMemoriesTool(BaseTool):
         if not query.strip():
             return {"success": False, "error": "Query cannot be empty"}
 
-        memories = []
+        retriever = _get_retriever()
+        if not retriever:
+            return {"success": True, "result": "No relevant memories found.", "memories": []}
 
-        # Search ChromaDB (semantic similarity)
         try:
-            embedding = await _embed(query)
-            collection = _get_collection()
+            # Map frontend categories to store categories
+            categories = None
+            if category:
+                categories = ["semantic"]  # All user-facing categories live under "semantic"
+            results = retriever.retrieve_for_query(query, max_memories=limit, categories=categories)
 
-            if collection.count() > 0:
-                where_filter = {"category": category} if category else None
-                results = collection.query(
-                    query_embeddings=[embedding],
-                    n_results=min(limit, collection.count()),
-                    where=where_filter,
-                    include=["documents", "metadatas", "distances"],
-                )
-                for doc, meta, dist in zip(
-                    results["documents"][0],
-                    results["metadatas"][0],
-                    results["distances"][0],
-                ):
-                    memories.append({
-                        "content": doc,
-                        "category": meta.get("category", "general"),
-                        "relevance": round(1 - dist, 3),
-                        "source": "chromadb",
-                    })
+            # Filter by subcategory if a specific frontend category was requested
+            if category:
+                results = [m for m in results if m.subcategory == category] or results
+
+            memories = [
+                {
+                    "content": m.content,
+                    "category": m.subcategory or m.category,
+                    "relevance": round(m.relevance_score, 3),
+                    "source": "fts5",
+                }
+                for m in results
+            ]
         except Exception as exc:
-            logger.warning(f"ChromaDB recall failed (trying FTS5): {exc}")
-
-        # Search FTS5 (keyword match, shared with src.agent)
-        fts = _get_fts_store()
-        if fts:
-            try:
-                fts_category = "semantic" if not category else None
-                fts_results = fts.search(query, category=fts_category, limit=limit)
-                seen_contents = {m["content"] for m in memories}
-                for mem in fts_results:
-                    if mem.content not in seen_contents:
-                        memories.append({
-                            "content": mem.content,
-                            "category": mem.subcategory or mem.category,
-                            "relevance": round(mem.relevance_score, 3),
-                            "source": "fts5",
-                        })
-                        seen_contents.add(mem.content)
-            except Exception as exc:
-                logger.warning(f"FTS5 recall failed: {exc}")
-
-        # Sort by relevance, deduplicated
-        memories.sort(key=lambda m: m["relevance"], reverse=True)
-        memories = memories[:limit]
+            logger.warning(f"Memory recall failed: {exc}")
+            memories = []
 
         if not memories:
             return {"success": True, "result": "No relevant memories found.", "memories": []}

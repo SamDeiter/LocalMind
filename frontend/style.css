@@ -1081,6 +1081,20 @@ body {
 }
 
 /* ── Thinking / Analytics Panel ──────────────────────────────── */
+.agent-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
 .thinking-panel {
   margin-bottom: 10px;
   border-radius: 8px;

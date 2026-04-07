@@ -259,8 +259,14 @@ export async function sendMessage() {
           updateToolResult(contentEl, evt.tool_result);
           scrollToBottom();
         } else if (evt.thinking) {
-          // Thinking/routing info — could display a subtle indicator
           console.log("[LocalMind] Thinking:", evt.thinking);
+          // Show agent mode badge so user knows which engine is handling the request
+          const mode = evt.thinking.provider === "react_agent" ? "Agent" : "Chat";
+          const modeIcon = mode === "Agent" ? "🤖" : "💬";
+          const badge = document.createElement("div");
+          badge.className = "agent-mode-badge";
+          badge.innerHTML = `${modeIcon} <strong>${mode}</strong> &middot; ${evt.thinking.model || "model"} &middot; ${evt.thinking.tier || "auto"}`;
+          if (contentEl) contentEl.prepend(badge);
         } else if (evt.task_estimate) {
           console.log("[LocalMind] Task estimate:", evt.task_estimate);
         } else if (evt.analytics) {

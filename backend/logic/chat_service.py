@@ -93,7 +93,7 @@ class ChatService:
         # 9. Choose loop: ReAct agent for complex multi-step tasks,
         #    standard streaming loop for everything else
         use_react = (
-            task_estimate["score"] >= 7
+            task_estimate["score"] >= 5
             and task_estimate.get("needs_tools")
             and provider == "ollama"
             and body.get("agent_mode") != "disabled"
@@ -402,14 +402,21 @@ class ChatService:
             logger.warning(f"Auto-save facts failed: {e}")
 
     async def auto_save_facts(self, last_user_message: str, enabled: bool):
-        """Automatically saves facts to memory based on user messages if learning is enabled."""
+        """Save an episodic memory of each user interaction for future recall."""
         if not enabled:
             return
-        mem_tool = self.registry.get_tool("save_memory")
-        if mem_tool:
-            # We would ideally extract a fact here using an LLM, but for stability
-            # we just log that we skipped automatic extraction for now, until it's properly wired.
-            pass
+        from backend.tools.memory import _get_retriever
+        retriever = _get_retriever()
+        if retriever:
+            try:
+                retriever.save_from_conversation(
+                    content=last_user_message[:500],
+                    category="episodic",
+                    subcategory="interaction",
+                    source="chat",
+                )
+            except Exception as e:
+                logger.warning(f"Episodic memory save failed: {e}")
 
     # Helper methods ...
     def _estimate_complexity(self, message: str) -> Dict[str, Any]:
@@ -631,14 +638,14 @@ class ChatService:
         except: return None
 
     async def _inject_memory(self, message, sys_prompt, estimate):
+        """Inject relevant memories into the system prompt for every query."""
         try:
-            if estimate["score"] >= 5:
-                mem_tool = self.registry.get_tool("recall_memories")
-                if mem_tool:
-                    res = await mem_tool.execute(query=message, limit=5)
-                    text = res.get("result", "") if isinstance(res, dict) else str(res)
-                    if text and "No memories" not in text:
-                        return sys_prompt + f"\n\n[MEMORIES]\n{text}\n[/MEMORIES]"
+            mem_tool = self.registry.get_tool("recall_memories")
+            if mem_tool:
+                res = await mem_tool.execute(query=message, limit=5)
+                text = res.get("result", "") if isinstance(res, dict) else str(res)
+                if text and "No memories" not in text:
+                    return sys_prompt + f"\n\n[MEMORIES]\n{text}\n[/MEMORIES]"
             return sys_prompt
         except: return sys_prompt
 

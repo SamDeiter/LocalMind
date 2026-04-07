@@ -162,8 +162,8 @@ class CascadingParser:
         """Extract JSON from ```json ... ``` or ``` ... ``` fences."""
         # Try ```json first, then bare ```
         patterns = [
-            r"```json\s*\n(.*?)```",
-            r"```\s*\n(.*?)```",
+            r"```json\s*\n?(.*?)```",
+            r"```\s*\n?(.*?)```",
         ]
         for pattern in patterns:
             match = re.search(pattern, text, re.DOTALL)
