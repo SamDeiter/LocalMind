@@ -14,6 +14,22 @@ logger = logging.getLogger("localmind.routes.system")
 # CPU percentage retrieval, saving ~100ms of event loop block per request.
 psutil.cpu_percent(interval=None)
 
+@router.get("/debug/code-check")
+async def code_check():
+    """Verify the running code has the latest features loaded."""
+    from backend.logic.chat_service import ChatService
+    has_infer = hasattr(ChatService, '_infer_tool_call')
+    has_escalate = hasattr(ChatService, '_escalate_model')
+    # Test synthetic tool call
+    test_result = None
+    if has_infer:
+        test_result = ChatService._infer_tool_call("install the reddit apk")
+    return {
+        "has_infer_tool_call": has_infer,
+        "has_escalate_model": has_escalate,
+        "synthetic_test": str(test_result) if test_result else "N/A",
+    }
+
 @router.get("/health")
 async def health_check():
     """Check server and Ollama connectivity."""

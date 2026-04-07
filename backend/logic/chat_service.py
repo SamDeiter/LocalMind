@@ -416,13 +416,29 @@ class ChatService:
 
         # Android emulator patterns
         if any(kw in msg for kw in ["emulator", "android", "avd", "apk", "install app"]):
+            # Check if an emulator is running — if not, launch one first
+            import shutil as _shutil
+            adb_bin = _shutil.which("adb") or "adb"
+            try:
+                import subprocess as _sp
+                result = _sp.run([adb_bin, "devices"], capture_output=True, text=True, timeout=5)
+                lines = [l for l in result.stdout.strip().splitlines()[1:] if l.strip() and "device" in l]
+                emulator_running = len(lines) > 0
+            except Exception:
+                emulator_running = False
+
+            if not emulator_running:
+                # No emulator running — launch one first
+                logger.info("No emulator running — launching AVD before processing request")
+                return {"function": {"name": "android_emulator", "arguments": {"action": "launch", "avd_name": "Pixel_Fold_API_35"}}}
+
             if any(kw in msg for kw in ["install", "apk"]):
                 # Try to extract APK path from message
                 import re as _re
                 path_match = _re.search(r'["\']?([^\s"\']+\.apk)["\']?', user_message, _re.IGNORECASE)
                 if path_match:
                     return {"function": {"name": "android_emulator", "arguments": {"action": "install", "apk_path": path_match.group(1)}}}
-                # No path given — first check what's on the emulator
+                # No path given — check what's already installed
                 return {"function": {"name": "android_emulator", "arguments": {"action": "list_packages"}}}
             if any(kw in msg for kw in ["screenshot", "screen", "show", "see", "look"]):
                 return {"function": {"name": "android_emulator", "arguments": {"action": "screenshot"}}}
