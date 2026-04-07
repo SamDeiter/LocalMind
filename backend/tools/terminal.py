@@ -4,15 +4,23 @@ Provides safe shell execution with stderr/stdout capturing.
 """
 
 import asyncio
-import subprocess
+import re
 from typing import Any
 import logging
+from backend.config import PROJECT_ROOT
 from .base import BaseTool
 from .propose_action import ProposeActionTool
 
 logger = logging.getLogger("localmind.tools.terminal")
 
-DANGEROUS_COMMANDS = ("rm", "del", "pip install", "npm install", "apt", "cargo install", "format", "curl", "wget", "git push")
+# Security: Block dangerous commands and shell operators.
+# Use word boundaries (\b) to prevent bypasses (e.g. 'army' instead of 'rm').
+DANGEROUS_PATTERN = re.compile(
+    r"\b(rm|del|pip install|npm install|apt|cargo install|format|curl|wget|git push)\b",
+    re.IGNORECASE
+)
+# Shell operator detection to prevent command chaining bypasses.
+SHELL_OPERATORS = re.compile(r"[;&|\n]")
 
 class TerminalTool(BaseTool):
     @property
@@ -38,11 +46,14 @@ class TerminalTool(BaseTool):
         }
 
     async def execute(self, **kwargs) -> dict[str, Any]:
-        command = kwargs.get("command")
+        command = kwargs.get("command", "")
         timeout = kwargs.get("timeout", 10)
         
-        # Security check
-        is_dangerous = any(command.startswith(cmd) for cmd in DANGEROUS_COMMANDS)
+        # Security: Multi-stage check for dangerous patterns and shell chaining.
+        # We split by operators to check EACH command in a chain.
+        commands_to_check = SHELL_OPERATORS.split(command)
+        is_dangerous = any(DANGEROUS_PATTERN.search(cmd) for cmd in commands_to_check)
+
         if is_dangerous:
             proposer = ProposeActionTool()
             app_req = await proposer.execute(
@@ -55,12 +66,13 @@ class TerminalTool(BaseTool):
                 return {"success": False, "error": "User denied execution of dangerous command."}
         
         try:
-            # Use asyncio subprocess for non-blocking execution safely
+            # Use asyncio subprocess for non-blocking execution safely.
+            # Security: Ensure cwd is always within the project root.
             proc = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=r"c:\Users\Sam Deiter\Documents\GitHub\LocalMind"
+                cwd=str(PROJECT_ROOT)
             )
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
             out = stdout.decode().strip()
