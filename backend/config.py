@@ -56,12 +56,16 @@ MODEL_AWARENESS_SUFFIX = "\n\nYou are running as model: {model_name}."
 
 SELF_IMPROVEMENT_SUFFIX = "\n\nYou have self-improvement capabilities. You can propose code edits, reflect on your own behavior, and extend your own tools."
 
+TOOL_CALLING_SUFFIX = """
+
+IMPORTANT: You have tools available. When the user asks you to DO something (install an app, send an email, take a screenshot, search the web, etc.), you MUST call the appropriate tool immediately. Do NOT explain how to do it manually. Do NOT give step-by-step instructions. Just call the tool. The user is asking YOU to do it, not asking for instructions."""
+
 # --- Model Tiers ---
 # Gemma 4 (April 2026) is the default for light/medium tiers.
 # Override any tier via env vars: MODEL_LIGHT, MODEL_MEDIUM, etc.
 MODEL_TIERS = {
     "light":  os.getenv("MODEL_LIGHT", "gemma4:e4b"),
-    "medium": os.getenv("MODEL_MEDIUM", "gemma4:26b"),
+    "medium": os.getenv("MODEL_MEDIUM", "qwen2.5-coder:14b"),
     "heavy":  os.getenv("MODEL_HEAVY", "qwen2.5-coder:32b"),
     "ultra":  os.getenv("MODEL_ULTRA", "qwen2.5-coder:70b"),
 }

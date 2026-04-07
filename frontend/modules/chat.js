@@ -278,9 +278,12 @@ export async function sendMessage() {
             </div>`;
           if (contentEl) contentEl.appendChild(panel);
         } else if (evt.done) {
-          if (evt.conversation_id && !state.currentConvId) {
+          if (evt.conversation_id) {
             state.currentConvId = evt.conversation_id;
           }
+          // Stream is complete — break out of reader loop
+          reader.cancel();
+          break;
         } else if (evt.error) {
           if (contentEl) {
             contentEl.innerHTML = `<div style="color: var(--error)">❌ ${escapeHtml(evt.error)}</div>`;

@@ -55,7 +55,8 @@ class ChatService:
             model_name=model,
             task_tier=task_estimate["tier"],
             editor_context=body.get("editor_context"),
-            rag_context=await self._get_rag_context(message)
+            rag_context=await self._get_rag_context(message),
+            needs_tools=task_estimate.get("needs_tools", False),
         )
 
         # 4. Inject Memory

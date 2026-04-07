@@ -14,7 +14,8 @@ class PromptFactory:
         task_tier: str = "light",
         editor_context: str = None,
         rag_context: str = None,
-        max_context_tokens: int = 2000
+        max_context_tokens: int = 2000,
+        needs_tools: bool = False,
     ) -> str:
         """Assembles a comprehensive system prompt string with strict truncation."""
         prompt = base_prompt if base_prompt else ""
@@ -27,6 +28,10 @@ class PromptFactory:
         # 2. Add task-specific suffix (Coding)
         if task_tier in ("medium", "heavy", "ultra"):
             prompt += config.CODING_PROMPT_SUFFIX
+
+        # 2b. Add tool-calling emphasis when tools are likely needed
+        if needs_tools:
+            prompt += config.TOOL_CALLING_SUFFIX
 
         # 3. Add model self-awareness
         prompt += config.MODEL_AWARENESS_SUFFIX.format(model_name=model_name)
