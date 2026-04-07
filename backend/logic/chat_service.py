@@ -206,20 +206,20 @@ class ChatService:
             full_response += chunk_text
 
             if not tool_calls:
-                # If the task needed tools but the model just talked instead of calling them,
-                # escalate to a bigger model and retry this iteration.
+                # If the task needed tools but the model just talked, try to extract
+                # the intent from the original user message and call the tool directly.
                 if task_estimate.get("needs_tools") and iteration == 0 and not _escalated:
-                    bigger = self._escalate_model(model)
-                    if bigger and bigger != model:
-                        logger.warning(f"Model '{model}' failed to call tools — escalating to '{bigger}'")
-                        yield f"data: {json.dumps({'token': f'\\n\\n*Switching to {bigger} for better tool support…*\\n', 'conversation_id': conversation_id})}\n\n"
-                        model = bigger
-                        provider = "ollama"
+                    user_msg = messages[-1]["content"] if messages else ""
+                    synthetic = self._infer_tool_call(user_msg)
+                    if synthetic:
+                        logger.info(f"Model didn't call tools — injecting synthetic call: {synthetic['function']['name']}")
+                        tool_calls = [synthetic]
                         _escalated = True
-                        full_response = ""
-                        total_tokens = 0
-                        continue  # Re-enter the agent loop with the bigger model
-                break
+                        # Don't break — fall through to tool execution below
+                    else:
+                        break
+                else:
+                    break
             
             # Execute Tools
             # Actions that require user approval before execution
@@ -401,6 +401,56 @@ class ChatService:
                 return name
 
         return None  # Already at the top
+
+    @staticmethod
+    def _infer_tool_call(user_message: str) -> Optional[Dict]:
+        """Infer a tool call from the user's message when the model fails to call tools.
+
+        Pattern-matches common requests to the correct tool+action so the user
+        doesn't have to wait for a model escalation/retry cycle.
+        """
+        msg = user_message.lower()
+
+        # Android emulator patterns
+        if any(kw in msg for kw in ["emulator", "android", "avd"]):
+            if any(kw in msg for kw in ["install", "apk"]):
+                # Try to extract APK path from message
+                import re as _re
+                path_match = _re.search(r'["\']?([^\s"\']+\.apk)["\']?', user_message, _re.IGNORECASE)
+                apk_path = path_match.group(1) if path_match else ""
+                return {"function": {"name": "android_emulator", "arguments": {"action": "install", "apk_path": apk_path}}}
+            if any(kw in msg for kw in ["screenshot", "screen", "show", "see", "look"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "screenshot"}}}
+            if any(kw in msg for kw in ["launch", "start", "boot", "open emulator"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "list_avds"}}}
+            if any(kw in msg for kw in ["kill", "stop", "close", "shut"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "kill"}}}
+            if any(kw in msg for kw in ["list", "what app", "packages"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "list_packages"}}}
+            if "tap" in msg:
+                return {"function": {"name": "android_emulator", "arguments": {"action": "screenshot"}}}
+            # Default: show what's on screen
+            return {"function": {"name": "android_emulator", "arguments": {"action": "screenshot"}}}
+
+        # Gmail patterns
+        if any(kw in msg for kw in ["email", "gmail", "inbox", "mail"]):
+            if any(kw in msg for kw in ["send", "write", "compose"]):
+                return {"function": {"name": "gmail", "arguments": {"action": "draft"}}}
+            if any(kw in msg for kw in ["read", "open", "check"]):
+                return {"function": {"name": "gmail", "arguments": {"action": "list_messages", "max_results": 5}}}
+            if "search" in msg or "find" in msg:
+                return {"function": {"name": "gmail", "arguments": {"action": "list_messages", "max_results": 10}}}
+            return {"function": {"name": "gmail", "arguments": {"action": "list_messages", "max_results": 5}}}
+
+        # Web search patterns
+        if any(kw in msg for kw in ["search", "look up", "google", "find out"]):
+            return {"function": {"name": "web_search", "arguments": {"query": user_message}}}
+
+        # Screenshot
+        if "screenshot" in msg:
+            return {"function": {"name": "take_screenshot", "arguments": {}}}
+
+        return None
 
     async def _get_history(self, conversation_id: str):
         db = self.db_factory()
