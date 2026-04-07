@@ -128,6 +128,8 @@ class ChatService:
             token_buffer = ""
             json_depth = 0
             in_json = False
+            in_string = False
+            escape_next = False
 
             async for chunk in self.llm.generate_stream(model, messages, provider, options=llm_options, tools=ollama_tools):
                 if "error" in chunk:
@@ -145,6 +147,17 @@ class ChatService:
                     # Smart buffering: detect JSON tool call blocks
                     token_buffer += token
                     for ch in token:
+                        if escape_next:
+                            escape_next = False
+                            continue
+                        if ch == '\\' and in_string:
+                            escape_next = True
+                            continue
+                        if ch == '"':
+                            in_string = not in_string
+                            continue
+                        if in_string:
+                            continue
                         if ch == '{':
                             json_depth += 1
                             in_json = True
@@ -157,6 +170,8 @@ class ChatService:
                     elif in_json and json_depth == 0:
                         # JSON block closed — check if it's a tool call
                         in_json = False
+                        in_string = False
+                        escape_next = False
                         parsed = self._parse_text_tools(token_buffer)
                         if parsed:
                             tool_calls.extend(parsed)
