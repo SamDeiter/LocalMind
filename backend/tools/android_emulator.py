@@ -15,8 +15,10 @@ Safety:
 import asyncio
 import base64
 import logging
+import os
 import re
 import shutil
+from pathlib import Path
 from typing import Any
 
 from .base import BaseTool
@@ -34,6 +36,41 @@ _DANGEROUS_PATTERNS = [
 
 _ADB_TIMEOUT = 30
 _EMULATOR_BOOT_TIMEOUT = 120
+
+
+def _find_sdk_tool(tool_name: str) -> str | None:
+    """Find an Android SDK tool, checking PATH first then common install locations."""
+    found = shutil.which(tool_name)
+    if found:
+        return found
+
+    # Common Android SDK locations
+    home = Path.home()
+    candidates = [
+        home / "AppData" / "Local" / "Android" / "Sdk",  # Windows default
+        home / "Library" / "Android" / "sdk",              # macOS default
+        home / "Android" / "Sdk",                          # Linux default
+        Path(os.environ.get("ANDROID_HOME", "")),          # Env var
+        Path(os.environ.get("ANDROID_SDK_ROOT", "")),      # Alt env var
+    ]
+
+    subdirs = {
+        "emulator": "emulator",
+        "adb": "platform-tools",
+        "avdmanager": "cmdline-tools/latest/bin",
+    }
+    subdir = subdirs.get(tool_name, "platform-tools")
+
+    for sdk_path in candidates:
+        if not sdk_path or not sdk_path.exists():
+            continue
+        for ext in ("", ".exe", ".bat"):
+            candidate = sdk_path / subdir / f"{tool_name}{ext}"
+            if candidate.exists():
+                logger.info(f"Found {tool_name} at {candidate}")
+                return str(candidate)
+
+    return None
 
 
 async def _run_cmd(args: list[str], timeout: int = _ADB_TIMEOUT) -> dict:
@@ -63,7 +100,8 @@ async def _run_cmd(args: list[str], timeout: int = _ADB_TIMEOUT) -> dict:
 
 async def _run_adb(*args: str, timeout: int = _ADB_TIMEOUT) -> dict:
     """Convenience wrapper for adb commands."""
-    return await _run_cmd(["adb"] + list(args), timeout=timeout)
+    adb_bin = _find_sdk_tool("adb") or "adb"
+    return await _run_cmd([adb_bin] + list(args), timeout=timeout)
 
 
 class AndroidEmulatorTool(BaseTool):
@@ -183,9 +221,9 @@ class AndroidEmulatorTool(BaseTool):
     # ── Actions ──────────────────────────────────────────────────────
 
     async def _list_avds(self, kwargs: dict) -> dict:
-        emulator_bin = shutil.which("emulator")
+        emulator_bin = _find_sdk_tool("emulator")
         if not emulator_bin:
-            return {"success": False, "error": "emulator not found on PATH. Install Android SDK."}
+            return {"success": False, "error": "emulator not found. Install Android SDK or set ANDROID_HOME."}
         return await _run_cmd([emulator_bin, "-list-avds"])
 
     async def _launch(self, kwargs: dict) -> dict:
@@ -193,9 +231,9 @@ class AndroidEmulatorTool(BaseTool):
         if not avd_name:
             return {"success": False, "error": "avd_name is required"}
 
-        emulator_bin = shutil.which("emulator")
+        emulator_bin = _find_sdk_tool("emulator")
         if not emulator_bin:
-            return {"success": False, "error": "emulator not found on PATH"}
+            return {"success": False, "error": "emulator not found. Install Android SDK or set ANDROID_HOME."}
 
         # Launch in background (don't await — it runs indefinitely)
         self._emulator_proc = await asyncio.create_subprocess_exec(
@@ -265,8 +303,9 @@ class AndroidEmulatorTool(BaseTool):
 
     async def _screenshot(self, kwargs: dict) -> dict:
         """Capture the emulator screen and return as base64 PNG."""
+        adb_bin = _find_sdk_tool("adb") or "adb"
         proc = await asyncio.create_subprocess_exec(
-            "adb", "exec-out", "screencap", "-p",
+            adb_bin, "exec-out", "screencap", "-p",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
