@@ -157,9 +157,9 @@ async def run_reflection_cycle(engine) -> bool:
             # Validation Gate 1: Structural Integrity
             integrity_val = ProposalIntegrityValidator()
             i_res = integrity_val.validate({"proposal": proposal, "stage": "reflection"})
-            if not i_res.success:
-                logger.warning(f"Proposal integrity failed: {i_res.error}")
-                engine._emit_activity("reflection_error", f"❌ Integrity: {i_res.error}")
+            if not i_res.passed:
+                logger.warning(f"Proposal integrity failed: {i_res.message}")
+                engine._emit_activity("reflection_error", f"❌ Integrity: {i_res.message}")
                 return False
 
             # Validation Gate 2: Information Consistency (hallucination check)
@@ -169,9 +169,9 @@ async def run_reflection_cycle(engine) -> bool:
                 "file_list": real_files,
                 "existing_titles": engine.proposals.get_anti_repeat_titles()
             })
-            if not c_res.success:
-                logger.warning(f"Proposal consistency check failed: {c_res.error}")
-                engine._emit_activity("reflection_error", f"❌ Consistency: {c_res.error}")
+            if not c_res.passed:
+                logger.warning(f"Proposal consistency check failed: {c_res.message}")
+                engine._emit_activity("reflection_error", f"❌ Consistency: {c_res.message}")
                 return False
 
             try:
