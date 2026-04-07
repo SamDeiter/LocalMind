@@ -118,26 +118,73 @@ class ChatService:
                 num_ctx = 16384
             
             llm_options = {"num_ctx": num_ctx, "num_gpu": 99}
-            
+
+            # Build Ollama-format tool definitions from the registry
+            ollama_tools = [t.to_ollama_tool() for t in self.registry.tools]
+
             chunk_text = ""
             tool_calls = []
+            # Buffer for detecting JSON tool calls in text output
+            token_buffer = ""
+            json_depth = 0
+            in_json = False
 
-            async for chunk in self.llm.generate_stream(model, messages, provider, options=llm_options):
+            async for chunk in self.llm.generate_stream(model, messages, provider, options=llm_options, tools=ollama_tools):
                 if "error" in chunk:
                     yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
                     return
-                
-                if chunk.get("token"):
-                    chunk_text += chunk["token"]
-                    total_tokens += 1
-                    yield f"data: {json.dumps({'token': chunk['token'], 'conversation_id': conversation_id})}\n\n"
-                
+
                 if chunk.get("tool_calls"):
                     tool_calls.extend(chunk["tool_calls"])
-            
-            # Fallback text-based tool parsing
-            if not tool_calls and provider == "ollama":
-                tool_calls = self._parse_text_tools(chunk_text)
+
+                if chunk.get("token"):
+                    token = chunk["token"]
+                    chunk_text += token
+                    total_tokens += 1
+
+                    # Smart buffering: detect JSON tool call blocks
+                    token_buffer += token
+                    for ch in token:
+                        if ch == '{':
+                            json_depth += 1
+                            in_json = True
+                        elif ch == '}':
+                            json_depth = max(0, json_depth - 1)
+
+                    if in_json and json_depth > 0:
+                        # Inside a JSON block — keep buffering, don't stream yet
+                        continue
+                    elif in_json and json_depth == 0:
+                        # JSON block closed — check if it's a tool call
+                        in_json = False
+                        parsed = self._parse_text_tools(token_buffer)
+                        if parsed:
+                            tool_calls.extend(parsed)
+                            # Strip tool JSON from buffer, stream any remaining text
+                            remaining = self._strip_tool_json(token_buffer)
+                            if remaining.strip():
+                                yield f"data: {json.dumps({'token': remaining, 'conversation_id': conversation_id})}\n\n"
+                            token_buffer = ""
+                            continue
+                        else:
+                            # Not a tool call — flush the entire buffer
+                            yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
+                            token_buffer = ""
+                    else:
+                        # Not in JSON — flush buffer immediately
+                        yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
+                        token_buffer = ""
+
+            # Flush any remaining buffer
+            if token_buffer:
+                parsed = self._parse_text_tools(token_buffer)
+                if parsed:
+                    tool_calls.extend(parsed)
+                    remaining = self._strip_tool_json(token_buffer)
+                    if remaining.strip():
+                        yield f"data: {json.dumps({'token': remaining, 'conversation_id': conversation_id})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
 
             full_response += chunk_text
             
@@ -145,20 +192,80 @@ class ChatService:
                 break
             
             # Execute Tools
+            # Actions that require user approval before execution
+            GATED_ACTIONS = {
+                ("gmail", "send"), ("gmail", "reply"), ("gmail", "draft"),
+            }
+
             for tc in tool_calls:
                 name = tc["function"]["name"]
                 args = tc["function"]["arguments"]
                 yield f"data: {json.dumps({'tool_call': {'name': name, 'arguments': args}})}\n\n"
-                
+
+                # Check if this tool+action needs approval
+                action = args.get("action", "")
+                needs_gate = (name, action) in GATED_ACTIONS
+
+                if needs_gate:
+                    # Build a human-readable preview
+                    if name == "gmail":
+                        preview = f"Send email to {args.get('to', '?')}\nSubject: {args.get('subject', '(none)')}"
+                    else:
+                        preview = f"{name}: {action}"
+
+                    # Emit approval card and wait for decision
+                    from backend.tools.propose_action import resolve_approval, _pending, _decisions, _load_approval_log, _save_approval_log
+                    import asyncio as _asyncio
+                    request_id = str(uuid.uuid4())
+                    event = _asyncio.Event()
+                    _pending[request_id] = event
+
+                    # Log the request so /api/approvals/pending can find it
+                    log_entry = {
+                        "request_id": request_id,
+                        "action_type": "web_submit",
+                        "description": preview,
+                        "reason": f"Tool '{name}' wants to {action}",
+                        "risk_level": "medium",
+                        "decision": "pending",
+                        "requested_at": time.time(),
+                    }
+                    log = _load_approval_log()
+                    log.append(log_entry)
+                    _save_approval_log(log)
+
+                    yield f"data: {json.dumps({'approval_request': {'description': preview, 'action_type': 'web_submit', 'risk_level': 'MEDIUM', 'reason': f'Tool {name} wants to {action}. Review and approve or deny.'}})}\n\n"
+
+                    # Wait for user to click Approve or Deny (5 min timeout)
+                    try:
+                        await _asyncio.wait_for(event.wait(), timeout=300)
+                    except _asyncio.TimeoutError:
+                        _decisions[request_id] = False
+                    finally:
+                        _pending.pop(request_id, None)
+
+                    approved = _decisions.pop(request_id, False)
+                    if not approved:
+                        res_str = f"❌ User denied: {preview}"
+                        yield f"data: {json.dumps({'tool_result': {'name': name, 'result': res_str}})}\n\n"
+                        messages.append({"role": "assistant", "content": chunk_text, "tool_calls": [tc]})
+                        messages.append({"role": "tool", "content": res_str})
+                        total_tool_calls += 1
+                        continue
+
+                # For propose_action, emit the approval card BEFORE blocking
+                if name == "propose_action":
+                    yield f"data: {json.dumps({'approval_request': {'description': args.get('description', ''), 'action_type': args.get('action_type', 'unknown'), 'risk_level': args.get('risk_level', 'MEDIUM'), 'reason': args.get('reason', ''), 'estimated_cost': args.get('estimated_cost', ''), 'alternatives': args.get('alternatives', '')}})}\n\n"
+
                 try:
                     res = await self.registry.execute_tool(name, args)
                     res_str = str(res.get("result", res)) if isinstance(res, dict) else str(res)
                 except Exception as e:
                     res_str = f"Error: {str(e)}"
-                
+
                 yield f"data: {json.dumps({'tool_result': {'name': name, 'result': res_str}})}\n\n"
                 total_tool_calls += 1
-                
+
                 messages.append({"role": "assistant", "content": chunk_text, "tool_calls": [tc]})
                 messages.append({"role": "tool", "content": res_str})
 
@@ -166,10 +273,15 @@ class ChatService:
         await self._save_msg(conversation_id, "assistant", full_response)
         
         elapsed = time.time() - start_time
-        yield f"data: {json.dumps({'done': True, 'analytics': {'elapsed': round(elapsed, 2), 'tokens': total_tokens, 'tps': round(total_tokens/elapsed, 1) if elapsed > 0 else 0}})}\n\n"
+        yield f"data: {json.dumps({'analytics': {'elapsed': round(elapsed, 2), 'tokens': total_tokens, 'tps': round(total_tokens/elapsed, 1) if elapsed > 0 else 0, 'model': model, 'total_tokens': total_tokens, 'tokens_per_sec': round(total_tokens/elapsed, 1) if elapsed > 0 else 0, 'elapsed_sec': round(elapsed, 2), 'tool_calls': total_tool_calls}})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id})}\n\n"
         
         # Background: Auto-save, reflection, etc.
-        await self.auto_save_facts(messages[-2]["content"], True)
+        try:
+            if len(messages) >= 2:
+                await self.auto_save_facts(messages[-2]["content"], True)
+        except Exception as e:
+            logger.warning(f"Auto-save facts failed: {e}")
 
     async def auto_save_facts(self, last_user_message: str, enabled: bool):
         """Automatically saves facts to memory based on user messages if learning is enabled."""
@@ -241,8 +353,13 @@ class ChatService:
 
     async def _get_rag_context(self, message):
         try:
+            import asyncio
             from backend.tools.rag import query_documents
-            res = query_documents(message, n_results=3)
+            loop = asyncio.get_event_loop()
+            res = await asyncio.wait_for(
+                loop.run_in_executor(None, lambda: query_documents(message, n_results=3)),
+                timeout=5.0
+            )
             if not res or not res.get("results"): return None
             return "\n".join([f"[{r['source']}]: {r['content'][:500]}" for r in res["results"]])
         except: return None
@@ -260,13 +377,104 @@ class ChatService:
         except: return sys_prompt
 
     def _parse_text_tools(self, text: str) -> List[Dict[str, Any]]:
+        """Parse tool calls from model text output, handling nested JSON."""
         calls = []
-        pattern = re.compile(r'\{\s*"name"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})\s*\}', re.DOTALL)
-        for m in pattern.finditer(text):
-            name = m.group(1)
-            if any(t.name == name for t in self.registry.tools):
-                try:
-                    args = json.loads(m.group(2))
-                    calls.append({"function": {"name": name, "arguments": args}})
-                except: pass
+        # Find all top-level JSON objects that look like tool calls
+        i = 0
+        while i < len(text):
+            # Look for {"name": pattern
+            idx = text.find('"name"', i)
+            if idx == -1:
+                break
+            # Walk back to find the opening brace
+            start = text.rfind('{', max(0, idx - 10), idx)
+            if start == -1:
+                i = idx + 1
+                continue
+            # Extract balanced JSON from this point
+            obj = self._extract_json_object(text, start)
+            if obj and "name" in obj and "arguments" in obj:
+                name = obj["name"]
+                if any(t.name == name for t in self.registry.tools):
+                    args = obj["arguments"]
+                    if isinstance(args, str):
+                        try:
+                            args = json.loads(args)
+                        except:
+                            pass
+                    if isinstance(args, dict):
+                        calls.append({"function": {"name": name, "arguments": args}})
+            i = idx + 1
         return calls
+
+    def _extract_json_object(self, text: str, start: int) -> Optional[Dict]:
+        """Extract a balanced JSON object starting at position `start`."""
+        depth = 0
+        in_string = False
+        escape = False
+        for i in range(start, len(text)):
+            c = text[i]
+            if escape:
+                escape = False
+                continue
+            if c == '\\' and in_string:
+                escape = True
+                continue
+            if c == '"' and not escape:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[start:i+1])
+                    except:
+                        return None
+        return None
+
+    def _strip_tool_json(self, text: str) -> str:
+        """Remove JSON tool call blocks from text, keeping surrounding prose."""
+        result = text
+        i = 0
+        while i < len(result):
+            idx = result.find('"name"', i)
+            if idx == -1:
+                break
+            start = result.rfind('{', max(0, idx - 10), idx)
+            if start == -1:
+                i = idx + 1
+                continue
+            obj = self._extract_json_object(result, start)
+            if obj and "name" in obj and "arguments" in obj:
+                # Find the end of this JSON block
+                depth = 0
+                in_str = False
+                esc = False
+                for j in range(start, len(result)):
+                    c = result[j]
+                    if esc:
+                        esc = False
+                        continue
+                    if c == '\\' and in_str:
+                        esc = True
+                        continue
+                    if c == '"' and not esc:
+                        in_str = not in_str
+                        continue
+                    if in_str:
+                        continue
+                    if c == '{':
+                        depth += 1
+                    elif c == '}':
+                        depth -= 1
+                        if depth == 0:
+                            result = result[:start] + result[j+1:]
+                            break
+                i = start
+            else:
+                i = idx + 1
+        return result

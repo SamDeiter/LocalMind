@@ -47,10 +47,15 @@ class LLMClient:
         # Merge extra options (num_ctx, num_gpu, etc.)
         if "options" in kwargs:
             payload["options"] = kwargs.pop("options")
+        # Pass tool definitions for native tool calling
+        if "tools" in kwargs:
+            payload["tools"] = kwargs.pop("tools")
         payload.update(kwargs)
 
         max_retries = 3
         backoff_factor = 1
+
+        logger.info(f"Ollama request: model={payload.get('model')}, messages={len(payload.get('messages',[]))}, keys={list(payload.keys())}")
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for attempt in range(max_retries):
@@ -62,9 +67,11 @@ class LLMClient:
                             yield {"error": f"Ollama error {response.status_code}"}
                             return
 
+                        line_count = 0
                         async for line in response.aiter_lines():
                             if not line:
                                 continue
+                            line_count += 1
                             try:
                                 data = json.loads(line)
                                 token = ""
@@ -81,7 +88,7 @@ class LLMClient:
                             except json.JSONDecodeError:
                                 logger.warning(f"Failed to decode JSON: {line[:100]}")
                                 continue
-                    # If we got here, streaming completed successfully
+                    logger.info(f"Ollama stream completed: {line_count} lines received")
                     return
 
                 except Exception as e:

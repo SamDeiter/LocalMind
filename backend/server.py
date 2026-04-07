@@ -140,6 +140,7 @@ from backend.routes.system import router as system_router
 from backend.routes.settings import router as settings_router
 from backend.routes.swarm_routes import router as swarm_router
 from backend.routes.validation_routes import router as validation_router
+from backend.routes.google_auth import router as google_auth_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -153,6 +154,7 @@ app.include_router(system_router)
 app.include_router(settings_router)
 app.include_router(swarm_router)
 app.include_router(validation_router)
+app.include_router(google_auth_router)
 
 # -- Static Files --
 frontend_path = Path(__file__).parent.parent / "frontend"

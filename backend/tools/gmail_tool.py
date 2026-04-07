@@ -167,6 +167,9 @@ class GmailTool(BaseTool):
         action = kwargs.get("action", "")
         loop = asyncio.get_event_loop()
 
+        # Safety for send/reply/draft is handled by the propose_action tool
+        # which gates dangerous actions with an approval card before this runs.
+
         try:
             service = await loop.run_in_executor(None, _get_gmail_service)
         except (RuntimeError, FileNotFoundError) as exc:
@@ -293,10 +296,10 @@ class GmailTool(BaseTool):
 
     def _send(self, service, kwargs: dict) -> dict:
         to = kwargs.get("to", "")
-        subject = kwargs.get("subject", "")
-        body = kwargs.get("body", "")
-        if not to or not body:
-            return {"success": False, "error": "to and body are required for send"}
+        subject = kwargs.get("subject", "") or "Hello from LocalMind"
+        body = kwargs.get("body", "") or "This is a message sent via LocalMind."
+        if not to:
+            return {"success": False, "error": "'to' address is required for send"}
 
         logger.warning(f"Sending email to {to} — subject: {subject}")
 
