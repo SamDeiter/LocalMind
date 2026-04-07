@@ -412,13 +412,15 @@ class ChatService:
         msg = user_message.lower()
 
         # Android emulator patterns
-        if any(kw in msg for kw in ["emulator", "android", "avd"]):
+        if any(kw in msg for kw in ["emulator", "android", "avd", "apk", "install app"]):
             if any(kw in msg for kw in ["install", "apk"]):
                 # Try to extract APK path from message
                 import re as _re
                 path_match = _re.search(r'["\']?([^\s"\']+\.apk)["\']?', user_message, _re.IGNORECASE)
-                apk_path = path_match.group(1) if path_match else ""
-                return {"function": {"name": "android_emulator", "arguments": {"action": "install", "apk_path": apk_path}}}
+                if path_match:
+                    return {"function": {"name": "android_emulator", "arguments": {"action": "install", "apk_path": path_match.group(1)}}}
+                # No path given — first check what's on the emulator
+                return {"function": {"name": "android_emulator", "arguments": {"action": "list_packages"}}}
             if any(kw in msg for kw in ["screenshot", "screen", "show", "see", "look"]):
                 return {"function": {"name": "android_emulator", "arguments": {"action": "screenshot"}}}
             if any(kw in msg for kw in ["launch", "start", "boot", "open emulator"]):
