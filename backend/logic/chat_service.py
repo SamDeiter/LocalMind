@@ -90,8 +90,64 @@ class ChatService:
         # 8. Save User Message
         await self._save_msg(conversation_id, "user", message)
 
-        # 9. Return Stream
+        # 9. Choose loop: ReAct agent for complex multi-step tasks,
+        #    standard streaming loop for everything else
+        use_react = (
+            task_estimate["score"] >= 7
+            and task_estimate.get("needs_tools")
+            and provider == "ollama"
+            and body.get("agent_mode") != "disabled"
+        )
+        if use_react:
+            return self._react_agent_loop(conversation_id, model, message, task_estimate)
+
         return self._agent_loop(conversation_id, model, provider, messages, task_estimate, metacog_decision)
+
+    async def _react_agent_loop(self, conversation_id, model, message, task_estimate):
+        """Run the ReAct agent for complex multi-step tasks, streaming results as SSE.
+
+        The ReAct agent (src.agent.core) handles its own tool calling loop and
+        memory retrieval. We wrap its execution into SSE events so the frontend
+        gets the same streaming contract it expects.
+        """
+        start_time = time.time()
+
+        yield f"data: {json.dumps({'thinking': {'model': model, 'provider': 'react_agent', 'tier': task_estimate['tier']}})}\n\n"
+
+        try:
+            from src.agent.core import Agent
+            from src.agent.adapter import import_backend_tools
+
+            agent = Agent(model=model)
+
+            # Import all backend tools so the agent can use them
+            for adapted in import_backend_tools(self.registry):
+                agent.register_tool(adapted)
+
+            # Also register the agent's own built-in tools
+            agent.register_defaults()
+
+            logger.info(f"ReAct agent started: model={model}, tools={list(agent.tools.keys())}")
+
+            response = await agent.run(message)
+
+            # Stream the response token-by-token (simulate streaming for SSE)
+            chunk_size = 8
+            for i in range(0, len(response), chunk_size):
+                chunk = response[i:i + chunk_size]
+                yield f"data: {json.dumps({'token': chunk, 'conversation_id': conversation_id})}\n\n"
+
+            await self._save_msg(conversation_id, "assistant", response)
+
+        except Exception as e:
+            logger.error(f"ReAct agent failed: {e}", exc_info=True)
+            error_msg = f"Agent encountered an error: {e}"
+            yield f"data: {json.dumps({'token': error_msg, 'conversation_id': conversation_id})}\n\n"
+            await self._save_msg(conversation_id, "assistant", error_msg)
+
+        elapsed = time.time() - start_time
+        yield f"data: {json.dumps({'analytics': {'elapsed': round(elapsed, 2), 'model': model, 'provider': 'react_agent', 'tier': task_estimate['tier']}})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id})}\n\n"
 
     async def _agent_loop(self, conversation_id, model, provider, messages, task_estimate, metacog_decision):
         """The core streaming and tool execution loop."""
@@ -110,6 +166,15 @@ class ChatService:
                 await self._save_msg(conversation_id, "assistant", metacog_decision.clarification_question)
                 yield f"data: {json.dumps({'done': True})}\n\n"
                 return
+
+        # Fast-path: if we can confidently infer the tool call, skip the LLM
+        # entirely so users don't see unhelpful "I can't do that" text first.
+        _pre_synthetic = None
+        if task_estimate.get("needs_tools") and messages:
+            user_msg = messages[-1]["content"] if isinstance(messages[-1].get("content"), str) else ""
+            _pre_synthetic = self._infer_tool_call(user_msg)
+            if _pre_synthetic:
+                logger.info(f"Fast-path synthetic tool call: {_pre_synthetic['function']['name']}({_pre_synthetic['function']['arguments']})")
 
         for iteration in range(config.MAX_AGENT_ITERATIONS):
             logger.info(f"Agent Loop iteration {iteration+1}")
@@ -133,64 +198,72 @@ class ChatService:
             in_string = False
             escape_next = False
 
-            async for chunk in self.llm.generate_stream(model, messages, provider, options=llm_options, tools=ollama_tools):
-                if "error" in chunk:
-                    yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
-                    return
+            # Fast-path: skip the LLM on first iteration when we already know the tool call
+            _fast_path_done = False
+            if _pre_synthetic and iteration == 0:
+                tool_calls = [_pre_synthetic]
+                _pre_synthetic = None  # consumed
+                _escalated = True
+                _fast_path_done = True
+            else:
+                async for chunk in self.llm.generate_stream(model, messages, provider, options=llm_options, tools=ollama_tools):
+                    if "error" in chunk:
+                        yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
+                        return
 
-                if chunk.get("tool_calls"):
-                    tool_calls.extend(chunk["tool_calls"])
+                    if chunk.get("tool_calls"):
+                        tool_calls.extend(chunk["tool_calls"])
 
-                if chunk.get("token"):
-                    token = chunk["token"]
-                    chunk_text += token
-                    total_tokens += 1
+                    if chunk.get("token"):
+                        token = chunk["token"]
+                        chunk_text += token
+                        total_tokens += 1
 
-                    # Smart buffering: detect JSON tool call blocks
-                    token_buffer += token
-                    for ch in token:
-                        if escape_next:
+                        # Smart buffering: detect JSON tool call blocks
+                        token_buffer += token
+                        for ch in token:
+                            if escape_next:
+                                escape_next = False
+                                continue
+                            if ch == '\\' and in_string:
+                                escape_next = True
+                                continue
+                            if ch == '"':
+                                in_string = not in_string
+                                continue
+                            if in_string:
+                                continue
+                            if ch == '{':
+                                json_depth += 1
+                                in_json = True
+                            elif ch == '}':
+                                json_depth = max(0, json_depth - 1)
+
+                        if in_json and json_depth > 0:
+                            # Inside a JSON block — keep buffering, don't stream yet
+                            continue
+                        elif in_json and json_depth == 0:
+                            # JSON block closed — check if it's a tool call
+                            in_json = False
+                            in_string = False
                             escape_next = False
-                            continue
-                        if ch == '\\' and in_string:
-                            escape_next = True
-                            continue
-                        if ch == '"':
-                            in_string = not in_string
-                            continue
-                        if in_string:
-                            continue
-                        if ch == '{':
-                            json_depth += 1
-                            in_json = True
-                        elif ch == '}':
-                            json_depth = max(0, json_depth - 1)
-
-                    if in_json and json_depth > 0:
-                        # Inside a JSON block — keep buffering, don't stream yet
-                        continue
-                    elif in_json and json_depth == 0:
-                        # JSON block closed — check if it's a tool call
-                        in_json = False
-                        in_string = False
-                        escape_next = False
-                        parsed = self._parse_text_tools(token_buffer)
-                        if parsed:
-                            tool_calls.extend(parsed)
-                            # Strip tool JSON from buffer, stream any remaining text
-                            remaining = self._strip_tool_json(token_buffer)
-                            if remaining.strip():
-                                yield f"data: {json.dumps({'token': remaining, 'conversation_id': conversation_id})}\n\n"
-                            token_buffer = ""
-                            continue
+                            parsed = self._parse_text_tools(token_buffer)
+                            if parsed:
+                                tool_calls.extend(parsed)
+                                # Strip tool JSON from buffer, stream any remaining text
+                                remaining = self._strip_tool_json(token_buffer)
+                                if remaining.strip():
+                                    yield f"data: {json.dumps({'token': remaining, 'conversation_id': conversation_id})}\n\n"
+                                token_buffer = ""
+                                continue
+                            else:
+                                # Not a tool call — flush the entire buffer
+                                yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
+                                token_buffer = ""
                         else:
-                            # Not a tool call — flush the entire buffer
+                            # Not in JSON — flush buffer immediately
                             yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
                             token_buffer = ""
-                    else:
-                        # Not in JSON — flush buffer immediately
-                        yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
-                        token_buffer = ""
 
             # Flush any remaining buffer
             if token_buffer:
@@ -309,6 +382,11 @@ class ChatService:
                 messages.append({"role": "assistant", "content": chunk_text, "tool_calls": [tc]})
                 messages.append({"role": "tool", "content": res_str})
 
+            # After a fast-path synthetic call, don't loop back to the LLM —
+            # the tool result is the answer.
+            if _fast_path_done:
+                break
+
         # Finalize
         await self._save_msg(conversation_id, "assistant", full_response)
         
@@ -343,7 +421,7 @@ class ChatService:
 
         # Tool-use keywords — models need to be larger to reliably call tools
         tool_keywords = [
-            "emulator", "android", "apk", "avd", "install app",
+            "emulator", "android", "apk", "avd", "install app", "scroll",
             "email", "gmail", "send email", "inbox", "draft",
             "browse", "navigate", "click", "website",
             "screenshot", "search the web", "look up",
@@ -384,6 +462,18 @@ class ChatService:
             reuse = self.load_monitor.pick_best_model(tier, loaded)
             if reuse:
                 return reuse, "ollama"
+
+        # Hardware-aware selection: use agent config's model registry
+        # to pick the best model that actually fits this machine
+        if estimate.get("needs_tools"):
+            try:
+                from src.agent.config import detect_hardware, select_model
+                hw = detect_hardware()
+                spec = select_model(hw, task_type="tool_calling", prefer_tool_calling=True)
+                logger.info(f"Hardware-aware routing: {spec.name} (tool_score={spec.tool_calling_score})")
+                return spec.name, "ollama"
+            except Exception as e:
+                logger.warning(f"Hardware-aware routing failed, using tier defaults: {e}")
 
         # Cloud fallback for heavy tasks if available
         from backend import gemini_client
@@ -437,6 +527,11 @@ class ChatService:
             except Exception:
                 emulator_running = False
 
+            # List AVDs — handle before the emulator-running gate so it
+            # works even when no device is booted.
+            if any(kw in msg for kw in ["list avd", "list emulator", "available avd", "available emulator"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "list_avds"}}}
+
             if not emulator_running:
                 # No emulator running — launch one first
                 logger.info("No emulator running — launching AVD before processing request")
@@ -450,8 +545,22 @@ class ChatService:
                     return {"function": {"name": "android_emulator", "arguments": {"action": "install", "apk_path": path_match.group(1)}}}
                 # No path given — check what's already installed
                 return {"function": {"name": "android_emulator", "arguments": {"action": "list_packages"}}}
+            if any(kw in msg for kw in ["scroll up", "swipe up"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "scroll_up"}}}
+            if any(kw in msg for kw in ["scroll down", "swipe down"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "scroll_down"}}}
+            if any(kw in msg for kw in ["scroll left", "swipe left"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "scroll_left"}}}
+            if any(kw in msg for kw in ["scroll right", "swipe right"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "scroll_right"}}}
+            if any(kw in msg for kw in ["read screen", "what's on screen", "what is on screen", "read the screen", "what do you see", "describe screen"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "read_screen"}}}
             if any(kw in msg for kw in ["screenshot", "screen", "show", "see", "look"]):
                 return {"function": {"name": "android_emulator", "arguments": {"action": "screenshot"}}}
+            if any(kw in msg for kw in ["go home", "home screen", "press home"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "press_key", "keycode": "KEYCODE_HOME"}}}
+            if any(kw in msg for kw in ["go back", "press back", "back button"]):
+                return {"function": {"name": "android_emulator", "arguments": {"action": "press_key", "keycode": "KEYCODE_BACK"}}}
             if any(kw in msg for kw in ["launch", "start", "boot", "open emulator"]):
                 return {"function": {"name": "android_emulator", "arguments": {"action": "list_avds"}}}
             if any(kw in msg for kw in ["kill", "stop", "close", "shut"]):

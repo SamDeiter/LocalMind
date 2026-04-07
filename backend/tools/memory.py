@@ -1,10 +1,15 @@
 """
-Memory Tool — ChromaDB vector memory with Ollama embeddings.
-Supports save_memory and recall_memories with semantic search.
-Learning can be paused via the /api/memory/toggle endpoint.
+Memory Tool — Dual-store memory with ChromaDB (semantic) + SQLite FTS5 (keyword).
+
+Writes to both stores so memories are shared between the backend chat system
+and the src.agent ReAct agent. Reads merge results from both for best recall.
+
+ChromaDB provides semantic similarity (finds "automobile" when searching "car").
+FTS5 provides fast keyword search with zero extra dependencies.
 """
 
 from backend.config import OLLAMA_BASE_URL
+import logging
 import time
 import uuid
 
@@ -12,6 +17,24 @@ import chromadb
 import httpx
 
 from .base import BaseTool
+
+logger = logging.getLogger("localmind.tools.memory")
+
+# FTS5 store — lazy-loaded to avoid circular imports
+_fts_store = None
+
+
+def _get_fts_store():
+    """Get or create the FTS5 memory store (singleton)."""
+    global _fts_store
+    if _fts_store is None:
+        try:
+            from src.agent.memory.store import MemoryStore
+            _fts_store = MemoryStore()
+            logger.info("FTS5 memory store connected")
+        except Exception as e:
+            logger.warning(f"FTS5 memory store unavailable: {e}")
+    return _fts_store
 
 EMBED_MODEL = "nomic-embed-text"
 
@@ -129,11 +152,12 @@ class SaveMemoryTool(BaseTool):
         if not content.strip():
             return {"success": False, "error": "Content cannot be empty"}
 
+        memory_id = str(uuid.uuid4())
+
+        # Write to ChromaDB (semantic search)
         try:
             embedding = await _embed(content)
             collection = _get_collection()
-
-            memory_id = str(uuid.uuid4())
             collection.add(
                 ids=[memory_id],
                 documents=[content],
@@ -143,14 +167,27 @@ class SaveMemoryTool(BaseTool):
                     "created_at": str(time.time()),
                 }],
             )
-
-            return {
-                "success": True,
-                "result": f"Memory saved [{category}]: {content[:80]}...",
-                "id": memory_id,
-            }
         except Exception as exc:
-            return {"success": False, "error": f"Failed to save memory: {exc}"}
+            logger.warning(f"ChromaDB save failed (FTS5 fallback): {exc}")
+
+        # Write to FTS5 (keyword search, shared with src.agent)
+        fts = _get_fts_store()
+        if fts:
+            try:
+                # Map backend categories to agent taxonomy
+                subcategory = {"preference": "preference", "fact": "fact",
+                               "instruction": "instruction", "context": "context"
+                               }.get(category, category)
+                fts.save(content=content, category="semantic",
+                         subcategory=subcategory, source="backend_chat")
+            except Exception as exc:
+                logger.warning(f"FTS5 save failed: {exc}")
+
+        return {
+            "success": True,
+            "result": f"Memory saved [{category}]: {content[:80]}...",
+            "id": memory_id,
+        }
 
 
 class RecallMemoriesTool(BaseTool):
@@ -193,42 +230,63 @@ class RecallMemoriesTool(BaseTool):
         if not query.strip():
             return {"success": False, "error": "Query cannot be empty"}
 
+        memories = []
+
+        # Search ChromaDB (semantic similarity)
         try:
             embedding = await _embed(query)
             collection = _get_collection()
 
-            if collection.count() == 0:
-                return {"success": True, "result": "No memories stored yet.", "memories": []}
-
-            where_filter = {"category": category} if category else None
-
-            results = collection.query(
-                query_embeddings=[embedding],
-                n_results=min(limit, collection.count()),
-                where=where_filter,
-                include=["documents", "metadatas", "distances"],
-            )
-
-            memories = []
-            for doc, meta, dist in zip(
-                results["documents"][0],
-                results["metadatas"][0],
-                results["distances"][0],
-            ):
-                memories.append({
-                    "content": doc,
-                    "category": meta.get("category", "general"),
-                    "relevance": round(1 - dist, 3),  # cosine similarity
-                })
-
-            if not memories:
-                return {"success": True, "result": "No relevant memories found.", "memories": []}
-
-            formatted = "\n".join(
-                f"- [{m['category']}] ({m['relevance']:.0%} match): {m['content']}"
-                for m in memories
-            )
-            return {"success": True, "result": formatted, "memories": memories}
-
+            if collection.count() > 0:
+                where_filter = {"category": category} if category else None
+                results = collection.query(
+                    query_embeddings=[embedding],
+                    n_results=min(limit, collection.count()),
+                    where=where_filter,
+                    include=["documents", "metadatas", "distances"],
+                )
+                for doc, meta, dist in zip(
+                    results["documents"][0],
+                    results["metadatas"][0],
+                    results["distances"][0],
+                ):
+                    memories.append({
+                        "content": doc,
+                        "category": meta.get("category", "general"),
+                        "relevance": round(1 - dist, 3),
+                        "source": "chromadb",
+                    })
         except Exception as exc:
-            return {"success": False, "error": f"Recall failed: {exc}"}
+            logger.warning(f"ChromaDB recall failed (trying FTS5): {exc}")
+
+        # Search FTS5 (keyword match, shared with src.agent)
+        fts = _get_fts_store()
+        if fts:
+            try:
+                fts_category = "semantic" if not category else None
+                fts_results = fts.search(query, category=fts_category, limit=limit)
+                seen_contents = {m["content"] for m in memories}
+                for mem in fts_results:
+                    if mem.content not in seen_contents:
+                        memories.append({
+                            "content": mem.content,
+                            "category": mem.subcategory or mem.category,
+                            "relevance": round(mem.relevance_score, 3),
+                            "source": "fts5",
+                        })
+                        seen_contents.add(mem.content)
+            except Exception as exc:
+                logger.warning(f"FTS5 recall failed: {exc}")
+
+        # Sort by relevance, deduplicated
+        memories.sort(key=lambda m: m["relevance"], reverse=True)
+        memories = memories[:limit]
+
+        if not memories:
+            return {"success": True, "result": "No relevant memories found.", "memories": []}
+
+        formatted = "\n".join(
+            f"- [{m['category']}] ({m['relevance']:.0%} match): {m['content']}"
+            for m in memories
+        )
+        return {"success": True, "result": formatted, "memories": memories}

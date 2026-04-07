@@ -85,6 +85,7 @@ MODEL_CAPABILITIES = {
     "qwen2.5-coder:70b": ["light", "medium", "heavy", "ultra"],
     "llama3.3:70b":       ["light", "medium", "heavy", "ultra"],
     "gemma3:4b":          ["light"],
+    "phi4-reasoning":     ["light", "medium", "heavy"],
 }
 
 # --- Context Windows ---
