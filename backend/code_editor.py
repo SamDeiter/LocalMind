@@ -447,12 +447,76 @@ def _strip_line_numbers(text: str) -> str:
     return "\n".join(stripped)
 
 
+def _extract_search_replace_fallback(text: str) -> dict | None:
+    """Last-resort extraction of search/replace when JSON is malformed.
+
+    LLMs sometimes produce unescaped quotes inside the code strings, which
+    breaks json.loads and the bracket balancer.  This regex-based extractor
+    finds the "search": "..." and "replace": "..." values by matching from
+    the key to the next key (or closing brace), tolerating inner quotes.
+    """
+    # Strip markdown fences
+    cleaned = re.sub(r"```(?:json)?\s*\n?", "", text)
+    cleaned = cleaned.replace("```", "")
+
+    # Try to find "search": "VALUE" ... "replace": "VALUE"
+    # Strategy: locate key positions, then grab everything between them
+    search_match = re.search(r'"search"\s*:\s*"', cleaned)
+    replace_match = re.search(r'"replace"\s*:\s*"', cleaned)
+    if not search_match or not replace_match:
+        return None
+
+    def _extract_value(text, start_pos):
+        """Extract a string value starting after the opening quote at start_pos."""
+        # Find the content between opening quote and the last quote before
+        # the next key or end of object
+        i = start_pos
+        depth = 0
+        result = []
+        while i < len(text):
+            ch = text[i]
+            if ch == '\\' and i + 1 < len(text):
+                result.append(ch + text[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                # Check if this quote ends the value: next non-space should be , or } or "replace"/"search"
+                rest = text[i + 1:].lstrip()
+                if rest.startswith((',', '}', '"replace"', '"search"', '"file"', '"description"')) or not rest:
+                    return "".join(result), i + 1
+            result.append(ch)
+            i += 1
+        # If we ran out of text, return what we have
+        return "".join(result), i
+
+    search_start = search_match.end()  # position after opening quote
+    search_val, search_end = _extract_value(cleaned, search_start)
+
+    replace_start = replace_match.end()
+    replace_val, _ = _extract_value(cleaned, replace_start)
+
+    if search_val and replace_val is not None:
+        # Unescape standard JSON escapes
+        for old, new in [('\\n', '\n'), ('\\t', '\t'), ('\\"', '"'), ('\\\\', '\\')]:
+            search_val = search_val.replace(old, new)
+            replace_val = replace_val.replace(old, new)
+        return {"search": search_val, "replace": replace_val}
+
+    return None
+
+
 def _parse_diff_response(raw_response: str, relative_path: str, emit_activity=None) -> dict | None:
     """Parse the AI's JSON response using the cascading robust_parser."""
     parsed = parse_json(raw_response)
 
     if isinstance(parsed, dict) and "search" in parsed and "replace" in parsed:
         return parsed
+
+    # Fallback: regex-based extraction for malformed JSON (unescaped quotes in code)
+    fallback = _extract_search_replace_fallback(raw_response)
+    if fallback:
+        logger.info(f"Recovered search/replace via regex fallback for {relative_path}")
+        return fallback
 
     # Determine a useful diagnostic snippet
     snippet = raw_response[:150].replace('\n', ' ').strip()
