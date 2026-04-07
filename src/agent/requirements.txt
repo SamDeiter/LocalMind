@@ -1,0 +1,19 @@
+# LocalMind Agent — Python dependencies
+# Minimal by design: prefer stdlib where possible
+
+# Required: HTTP client for Ollama/llama.cpp communication
+httpx>=0.28.0
+
+# Optional: better search (falls back to DDG HTML scraping if absent)
+# duckduckgo-search>=7.0.0
+
+# Optional: RAM detection (falls back to platform-specific commands)
+# psutil>=5.9.0
+
+# Everything below is stdlib (included with Python 3.10+):
+# - sqlite3: memory store
+# - asyncio: async tool execution
+# - json: tool call parsing
+# - re: text extraction
+# - pathlib: file operations
+# - logging: observability

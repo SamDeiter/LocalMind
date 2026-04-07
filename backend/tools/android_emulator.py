@@ -118,7 +118,7 @@ class AndroidEmulatorTool(BaseTool):
     def description(self) -> str:
         return (
             "Control Android emulators: list/launch/kill AVDs, install APKs, launch apps, "
-            "tap/swipe/type, take screenshots, dump UI trees, run shell commands."
+            "tap/swipe/scroll/type, take screenshots, read screen content, dump UI trees, run shell commands."
         )
 
     @property
@@ -136,11 +136,17 @@ class AndroidEmulatorTool(BaseTool):
                         "launch_app",
                         "tap",
                         "swipe",
+                        "scroll_up",
+                        "scroll_down",
+                        "scroll_left",
+                        "scroll_right",
+                        "read_screen",
                         "type_text",
                         "press_key",
                         "screenshot",
                         "ui_tree",
                         "list_packages",
+                        "check_internet",
                         "shell",
                     ],
                     "description": "Emulator action to perform",
@@ -148,6 +154,10 @@ class AndroidEmulatorTool(BaseTool):
                 "avd_name": {
                     "type": "string",
                     "description": "AVD name (for launch)",
+                },
+                "cold_boot": {
+                    "type": "boolean",
+                    "description": "Force cold boot (no snapshot). Fixes stale network state. Default false.",
                 },
                 "apk_path": {
                     "type": "string",
@@ -185,6 +195,15 @@ class AndroidEmulatorTool(BaseTool):
                     "type": "string",
                     "description": "Shell command (for shell action)",
                 },
+                "duration": {
+                    "type": "integer",
+                    "description": "Duration in ms for swipe/scroll (default 300). Slower = more reliable scrolling.",
+                },
+                "distance": {
+                    "type": "string",
+                    "enum": ["small", "medium", "large"],
+                    "description": "Scroll distance preset (default 'medium'). small=25%, medium=50%, large=75% of screen.",
+                },
             },
             "required": ["action"],
         }
@@ -200,11 +219,17 @@ class AndroidEmulatorTool(BaseTool):
             "launch_app": self._launch_app,
             "tap": self._tap,
             "swipe": self._swipe,
+            "scroll_up": self._scroll_up,
+            "scroll_down": self._scroll_down,
+            "scroll_left": self._scroll_left,
+            "scroll_right": self._scroll_right,
+            "read_screen": self._read_screen,
             "type_text": self._type_text,
             "press_key": self._press_key,
             "screenshot": self._screenshot,
             "ui_tree": self._ui_tree,
             "list_packages": self._list_packages,
+            "check_internet": self._check_internet,
             "shell": self._shell,
         }
 
@@ -235,13 +260,50 @@ class AndroidEmulatorTool(BaseTool):
         if not emulator_bin:
             return {"success": False, "error": "emulator not found. Install Android SDK or set ANDROID_HOME."}
 
-        # Launch in background (don't await — it runs indefinitely)
+        # Verify the AVD exists before trying to launch
+        check = await _run_cmd([emulator_bin, "-list-avds"], timeout=10)
+        if check.get("success"):
+            avds = [a.strip() for a in check["result"].splitlines() if a.strip()]
+            if avd_name not in avds:
+                return {"success": False, "error": f"AVD '{avd_name}' not found. Available: {', '.join(avds)}"}
+
+        # Redirect emulator output to a log file so pipes don't block the
+        # long-running process.  DEVNULL would also work, but a log file
+        # gives us something to inspect if the emulator crashes later.
+        import tempfile
+        self._emu_log = tempfile.NamedTemporaryFile(
+            prefix="emu_", suffix=".log", delete=False, mode="w"
+        )
+        logger.info(f"Emulator log: {self._emu_log.name}")
+
+        launch_args = [
+            emulator_bin, "-avd", avd_name,
+            "-no-audio",
+            "-gpu", "swiftshader_indirect",  # Software rendering — won't fight GPU with other apps
+            "-memory", "2048",               # Cap at 2 GB RAM (default can balloon to 4-8 GB)
+            "-cores", "2",                   # Limit CPU cores
+            "-dns-server", "8.8.8.8,8.8.4.4",
+            "-no-boot-anim",                 # Skip boot animation — faster startup
+        ]
+        if kwargs.get("cold_boot"):
+            launch_args.append("-no-snapshot-load")
+
         self._emulator_proc = await asyncio.create_subprocess_exec(
-            emulator_bin, "-avd", avd_name, "-no-window", "-no-audio",
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
+            *launch_args,
+            stdout=self._emu_log,
+            stderr=self._emu_log,
         )
         logger.info(f"Launched emulator AVD '{avd_name}' (PID: {self._emulator_proc.pid})")
+
+        # Give the process a moment to fail fast (e.g. bad AVD name, missing image)
+        await asyncio.sleep(3)
+        if self._emulator_proc.returncode is not None:
+            self._emu_log.close()
+            try:
+                err_msg = Path(self._emu_log.name).read_text(errors="replace").strip()[-500:]
+            except Exception:
+                err_msg = f"exit code {self._emulator_proc.returncode}"
+            return {"success": False, "error": f"Emulator exited immediately: {err_msg}"}
 
         # Wait for device to come online
         for _ in range(30):
@@ -310,7 +372,126 @@ class AndroidEmulatorTool(BaseTool):
         x2, y2 = kwargs.get("x2"), kwargs.get("y2")
         if None in (x1, y1, x2, y2):
             return {"success": False, "error": "x, y, x2, y2 are all required for swipe"}
-        return await _run_adb("shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2))
+        duration = kwargs.get("duration", 300)
+        return await _run_adb("shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), str(duration))
+
+    async def _get_screen_size(self) -> tuple[int, int]:
+        """Get the emulator screen resolution."""
+        result = await _run_adb("shell", "wm", "size")
+        if result.get("success"):
+            # Output like "Physical size: 1080x1920"
+            match = re.search(r"(\d+)x(\d+)", result["result"])
+            if match:
+                return int(match.group(1)), int(match.group(2))
+        return 1080, 1920  # Fallback to common resolution
+
+    def _scroll_offsets(self, screen_w: int, screen_h: int, direction: str, distance: str) -> tuple[int, int, int, int]:
+        """Calculate swipe start/end coords for a scroll direction and distance."""
+        pct = {"small": 0.25, "medium": 0.50, "large": 0.75}.get(distance, 0.50)
+        cx, cy = screen_w // 2, screen_h // 2
+        dx = int(screen_w * pct / 2)
+        dy = int(screen_h * pct / 2)
+
+        if direction == "up":      # swipe finger upward → content scrolls down
+            return cx, cy + dy, cx, cy - dy
+        elif direction == "down":  # swipe finger downward → content scrolls up
+            return cx, cy - dy, cx, cy + dy
+        elif direction == "left":  # swipe finger left → content scrolls right
+            return cx + dx, cy, cx - dx, cy
+        else:                      # right: swipe finger right → content scrolls left
+            return cx - dx, cy, cx + dx, cy
+
+    async def _scroll(self, kwargs: dict, direction: str) -> dict:
+        screen_w, screen_h = await self._get_screen_size()
+        distance = kwargs.get("distance", "medium")
+        duration = kwargs.get("duration", 300)
+        x1, y1, x2, y2 = self._scroll_offsets(screen_w, screen_h, direction, distance)
+        return await _run_adb("shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), str(duration))
+
+    async def _read_screen(self, kwargs: dict) -> dict:
+        """Read screen content: captures screenshot + UI tree for structured understanding."""
+        # Get UI tree for text content
+        await _run_adb("shell", "uiautomator", "dump", "/sdcard/ui_dump.xml")
+        tree_result = await _run_adb("shell", "cat", "/sdcard/ui_dump.xml")
+
+        elements = []
+        raw_texts = []
+        if tree_result.get("success"):
+            xml_text = tree_result["result"]
+            for match in re.finditer(
+                r'text="([^"]*)"[^>]*resource-id="([^"]*)"[^>]*class="([^"]*)"[^>]*clickable="(true|false)"[^>]*scrollable="(true|false)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',
+                xml_text,
+            ):
+                text, res_id, cls, clickable, scrollable, x1, y1, x2, y2 = match.groups()
+                cx = (int(x1) + int(x2)) // 2
+                cy = (int(y1) + int(y2)) // 2
+                entry = {
+                    "text": text,
+                    "resource_id": res_id,
+                    "class": cls.split(".")[-1],  # Short class name
+                    "clickable": clickable == "true",
+                    "scrollable": scrollable == "true",
+                    "center": {"x": cx, "y": cy},
+                    "bounds": f"[{x1},{y1}][{x2},{y2}]",
+                }
+                elements.append(entry)
+                if text:
+                    raw_texts.append(text)
+
+        # Get current activity/package
+        activity_result = await _run_adb("shell", "dumpsys", "activity", "activities", timeout=10)
+        current_app = ""
+        if activity_result.get("success"):
+            for line in activity_result["result"].splitlines():
+                if "mResumedActivity" in line or "mFocusedActivity" in line:
+                    current_app = line.strip()
+                    break
+
+        # Also capture screenshot for vision
+        screenshot = await self._screenshot(kwargs)
+
+        # Build a readable summary the LLM can reason about
+        summary_lines = []
+        if current_app:
+            summary_lines.append(f"Current app: {current_app}")
+        summary_lines.append(f"Visible elements: {len(elements)}")
+        if raw_texts:
+            summary_lines.append(f"Text on screen: {' | '.join(raw_texts[:30])}")
+
+        scrollable_els = [e for e in elements if e["scrollable"]]
+        clickable_els = [e for e in elements if e["clickable"]]
+        if scrollable_els:
+            summary_lines.append(f"Scrollable areas: {len(scrollable_els)}")
+        summary_lines.append(f"Clickable elements: {len(clickable_els)}")
+
+        result = {
+            "success": True,
+            "result": {
+                "summary": "\n".join(summary_lines),
+                "current_app": current_app,
+                "visible_text": raw_texts[:50],
+                "elements": elements[:60],
+                "element_count": len(elements),
+            },
+        }
+        # Attach screenshot if captured
+        if screenshot.get("image_base64"):
+            result["image_base64"] = screenshot["image_base64"]
+            result["mime_type"] = screenshot.get("mime_type", "image/png")
+
+        return result
+
+    async def _scroll_up(self, kwargs: dict) -> dict:
+        return await self._scroll(kwargs, "up")
+
+    async def _scroll_down(self, kwargs: dict) -> dict:
+        return await self._scroll(kwargs, "down")
+
+    async def _scroll_left(self, kwargs: dict) -> dict:
+        return await self._scroll(kwargs, "left")
+
+    async def _scroll_right(self, kwargs: dict) -> dict:
+        return await self._scroll(kwargs, "right")
 
     async def _type_text(self, kwargs: dict) -> dict:
         text = kwargs.get("text", "")
@@ -387,6 +568,61 @@ class AndroidEmulatorTool(BaseTool):
                 "element_count": len(elements),
                 "elements": elements[:50],  # Cap to avoid huge payloads
                 "raw_xml_length": len(xml_text),
+            },
+        }
+
+    async def _check_internet(self, kwargs: dict) -> dict:
+        """Diagnose internet connectivity on the emulator."""
+        checks = {}
+
+        # 1. Check if Wi-Fi is enabled
+        wifi = await _run_adb("shell", "settings", "get", "global", "wifi_on")
+        checks["wifi_enabled"] = wifi.get("result", "").strip() == "1" if wifi.get("success") else "unknown"
+
+        # 2. Check if airplane mode is off
+        airplane = await _run_adb("shell", "settings", "get", "global", "airplane_mode_on")
+        checks["airplane_mode"] = airplane.get("result", "").strip() == "1" if airplane.get("success") else "unknown"
+
+        # 3. Try DNS resolution
+        dns = await _run_adb("shell", "nslookup", "google.com", timeout=10)
+        checks["dns_works"] = dns.get("success", False) and "Address" in dns.get("result", "")
+
+        # 4. Try pinging Google DNS
+        ping = await _run_adb("shell", "ping", "-c", "1", "-W", "3", "8.8.8.8", timeout=10)
+        checks["ping_works"] = ping.get("success", False) and "1 received" in ping.get("result", "")
+
+        # 5. Try HTTP connectivity
+        http = await _run_adb("shell", "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "5", "http://connectivitycheck.gstatic.com/generate_204", timeout=10)
+        checks["http_works"] = http.get("success", False) and http.get("result", "").strip() in ("204", "200")
+
+        # Build diagnosis
+        issues = []
+        if checks.get("airplane_mode") is True:
+            issues.append("Airplane mode is ON — disable it: adb shell settings put global airplane_mode_on 0")
+        if checks.get("wifi_enabled") is False:
+            issues.append("Wi-Fi is OFF — the emulator uses a virtual ethernet, this may be normal")
+        if not checks.get("dns_works"):
+            issues.append("DNS resolution failed — try restarting emulator or check host firewall")
+        if not checks.get("ping_works"):
+            issues.append("Cannot ping 8.8.8.8 — host network or firewall may be blocking emulator traffic")
+        if not checks.get("http_works"):
+            issues.append("HTTP connectivity failed — proxy or firewall issue")
+
+        all_ok = checks.get("dns_works") and checks.get("ping_works") and checks.get("http_works")
+
+        return {
+            "success": True,
+            "result": {
+                "internet_working": all_ok,
+                "checks": checks,
+                "issues": issues if issues else ["All connectivity checks passed"],
+                "fix_suggestions": [] if all_ok else [
+                    "Try: adb shell svc wifi enable",
+                    "Try: adb shell settings put global airplane_mode_on 0",
+                    "Try relaunching emulator (cold boot clears stale network state)",
+                    "Check Windows Firewall isn't blocking the emulator process",
+                    "If behind a VPN, the emulator may not route through it — try disconnecting VPN",
+                ],
             },
         }
 
