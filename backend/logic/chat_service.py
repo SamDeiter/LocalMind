@@ -360,10 +360,20 @@ class ChatService:
         return {"score": min(score, 10), "tier": tier, "needs_tools": needs_tools}
 
     async def _route_model(self, estimate: Dict[str, Any], override: str = None) -> (str, str):
-        if override and override != "auto":
-            return override, "ollama"
-
         tier = estimate["tier"]
+
+        if override and override != "auto":
+            # If the override is a small model but the task needs tools,
+            # upgrade to at least medium tier — small models can't tool-call reliably
+            if estimate.get("needs_tools"):
+                small_models = {"gemma3:4b", "gemma4:e4b", "qwen2.5-coder:7b"}
+                if override in small_models:
+                    logger.warning(f"Override '{override}' too small for tool calling — upgrading to medium tier")
+                    # Fall through to normal routing below
+                else:
+                    return override, "ollama"
+            else:
+                return override, "ollama"
 
         # Load-aware routing: check what's already in VRAM
         gpu_state = await self.load_monitor.get_gpu_state()
