@@ -103,6 +103,20 @@
                 <span class="material-symbols-outlined mr-4 group-hover:text-primary pointer-events-none">add_comment</span>
                 <span class="text-sm tracking-tight pointer-events-none">New Session</span>
             </button>
+            <button id="jobsBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                <span class="material-symbols-outlined mr-4 group-hover:text-primary pointer-events-none">work</span>
+                <span class="text-sm tracking-tight pointer-events-none">Jobs</span>
+                <span id="jobsRunningBadge" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden">0</span>
+            </button>
+            <button id="templatesBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                <span class="material-symbols-outlined mr-4 group-hover:text-purple-400 pointer-events-none">library_books</span>
+                <span class="text-sm tracking-tight pointer-events-none">Templates</span>
+            </button>
+            <button id="approvalsBtn" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                <span class="material-symbols-outlined mr-4 group-hover:text-emerald-400 pointer-events-none">approval</span>
+                <span class="text-sm tracking-tight pointer-events-none">Approvals</span>
+                <span id="approvalsBadge" class="ml-auto text-[9px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden">0</span>
+            </button>
             <div id="conversationList" class="mt-4 space-y-1 pl-4"></div>
         </nav>
 
@@ -548,6 +562,16 @@
                 </div>
 
             </section>
+
+            <!-- Jobs View (hidden by default) -->
+            <div id="jobsView" class="hidden flex-1 flex flex-col"></div>
+
+            <!-- Templates View (hidden by default) -->
+            <div id="templatesView" class="hidden flex-1 flex flex-col"></div>
+
+            <!-- Approvals View (hidden by default) -->
+            <div id="approvalsView" class="hidden flex-1 flex flex-col"></div>
+
         </div>
     </div>
 </div>

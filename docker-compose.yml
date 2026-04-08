@@ -1,0 +1,39 @@
+version: "3.9"
+services:
+  localmind:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - localmind-data:/data
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - WORKSPACE_DIR=/data/workspace
+      - DB_PATH=/data/localmind.db
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  localmind-data:
+  ollama-models:

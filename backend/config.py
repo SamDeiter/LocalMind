@@ -112,9 +112,53 @@ PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 DIGESTS_DIR.mkdir(parents=True, exist_ok=True)
 
+# --- Inference Config ---
+BEST_OF_N_ENABLED = os.getenv("BEST_OF_N_ENABLED", "false").lower() == "true"
+DEFAULT_BEST_OF_N = int(os.getenv("DEFAULT_BEST_OF_N", "4"))
+PRM_MODEL = os.getenv("PRM_MODEL", "")  # scorer model for best-of-N (LLM-as-judge)
+LORA_ADAPTERS_DIR = WORKSPACE_ROOT / "lora_adapters"
+
+# --- Job Pipeline Paths ---
+JOBS_DIR = WORKSPACE_ROOT / "jobs"
+JOBS_DIR.mkdir(parents=True, exist_ok=True)
+RECYCLE_DIR = WORKSPACE_ROOT / ".recycle"
+RECYCLE_DIR.mkdir(parents=True, exist_ok=True)
+
 # Performance optimization flag (from PR #12)
 ACTIVE_CACHE_ENABLED = True
 
+
+# --- Job Pipeline Config ---
+MAX_NODES_PER_JOB = int(os.getenv("MAX_NODES_PER_JOB", "20"))
+MAX_JOB_TIMEOUT_SEC = int(os.getenv("MAX_JOB_TIMEOUT_SEC", "1800"))  # 30 min
+DEFAULT_NODE_TIMEOUT_SEC = int(os.getenv("DEFAULT_NODE_TIMEOUT_SEC", "300"))  # 5 min
+MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "100"))
+
+# --- Security Config ---
+PROMPT_GUARD_LEVEL = os.getenv("PROMPT_GUARD_LEVEL", "strict")  # strict | moderate | permissive
+DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "hybrid")  # strict-local | hybrid | cloud-assisted
+SECURITY_ALERT_WEBHOOK = os.getenv("SECURITY_ALERT_WEBHOOK", "")
+SECURITY_ALERT_CHANNEL = os.getenv("SECURITY_ALERT_CHANNEL", "")
+
+# --- Slack Config ---
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
+SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN", "")
+SLACK_ENABLED = os.getenv("SLACK_ENABLED", "false").lower() == "true"
+SLACK_ALLOWED_TEAM_IDS = [t.strip() for t in os.getenv("SLACK_ALLOWED_TEAM_IDS", "").split(",") if t.strip()]
+SLACK_ALLOWED_USER_IDS = [u.strip() for u in os.getenv("SLACK_ALLOWED_USER_IDS", "").split(",") if u.strip()]
+
+# --- Recycle Bin Config ---
+RECYCLE_RETENTION_DAYS = int(os.getenv("RECYCLE_RETENTION_DAYS", "30"))
+RECYCLE_MAX_SIZE_GB = float(os.getenv("RECYCLE_MAX_SIZE_GB", "10"))
+
+# --- GC / Data Lifecycle Config ---
+JOB_RETENTION_DAYS = int(os.getenv("JOB_RETENTION_DAYS", "90"))
+MIN_FREE_SPACE_GB = int(os.getenv("MIN_FREE_SPACE_GB", "20"))
+GC_ARCHIVE_DIR = WORKSPACE_ROOT / "archive"
+
+# --- Data Protection Config ---
+PII_SCRUB_PATTERNS = os.getenv("PII_SCRUB_PATTERNS", "")  # JSON list of extra regex strings
+VACUUM_INTERVAL_HOURS = int(os.getenv("VACUUM_INTERVAL_HOURS", "24"))
 
 # ── Startup Validation ──────────────────────────────────────────
 _config_logger = logging.getLogger("localmind.config")
@@ -155,6 +199,14 @@ def validate_config():
     # OLLAMA_BASE_URL should look like a URL
     if not OLLAMA_BASE_URL.startswith(("http://", "https://")):
         _config_logger.warning(f"OLLAMA_URL={OLLAMA_BASE_URL!r} doesn't look like a valid URL")
+
+    # Job pipeline validation
+    if MAX_NODES_PER_JOB <= 0:
+        errors.append(f"MAX_NODES_PER_JOB={MAX_NODES_PER_JOB} must be > 0")
+    if DEPLOYMENT_MODE not in ("strict-local", "hybrid", "cloud-assisted"):
+        _config_logger.warning(f"DEPLOYMENT_MODE={DEPLOYMENT_MODE!r} not recognized, defaulting to hybrid behavior")
+    if PROMPT_GUARD_LEVEL not in ("strict", "moderate", "permissive"):
+        _config_logger.warning(f"PROMPT_GUARD_LEVEL={PROMPT_GUARD_LEVEL!r} not recognized, defaulting to strict")
 
     if errors:
         for err in errors:

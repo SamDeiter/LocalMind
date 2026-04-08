@@ -122,7 +122,7 @@ export function initSwarmUI() {
     });
 
     // Other nav buttons should clear the Swarm dashboard to prevent "blank screen" overlaps
-    const otherNavBtns = ['overviewBtn', 'editorToggle', 'activityToggle', 'memoryToggleBtn', 'newChatBtn'];
+    const otherNavBtns = ['overviewBtn', 'editorToggle', 'activityToggle', 'memoryToggleBtn', 'newChatBtn', 'jobsBtn', 'templatesBtn', 'approvalsBtn'];
     otherNavBtns.forEach(id => {
         const el = document.getElementById(id);
         if (el) {

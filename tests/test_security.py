@@ -8,9 +8,13 @@ import sys
 sys.path.append(os.getcwd())
 
 # Mock modules that are missing in the environment but required for imports
-mock_fastapi = MagicMock()
-sys.modules['fastapi'] = mock_fastapi
-sys.modules['httpx'] = MagicMock()
+# Only mock if the real package isn't installed (avoids corrupting starlette/httpx)
+for _mock_mod in ("fastapi", "httpx"):
+    if _mock_mod not in sys.modules:
+        try:
+            __import__(_mock_mod)
+        except ImportError:
+            sys.modules[_mock_mod] = MagicMock()
 
 from backend.routes.files import PROJECT_ROOT as FILES_PROJECT_ROOT
 from backend.proposals import PROJECT_ROOT as PROPOSALS_PROJECT_ROOT

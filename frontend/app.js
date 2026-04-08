@@ -22,6 +22,9 @@ import { initSettingsUI } from "./modules/settings_ui.js";
 import { initDashboard } from "./modules/dashboard.js";
 import { initLiveReload } from "./modules/live_reload.js";
 import { initSwarmUI } from "./modules/swarm_ui.js";
+import { initJobsUI } from "./modules/jobs_ui.js";
+import { initTemplatesUI } from "./modules/templates_ui.js";
+import { initApprovalsUI } from "./modules/approvals_ui.js";
 
 async function init() {
   checkHealth();
@@ -44,6 +47,9 @@ async function init() {
   initDashboard();
   initLiveReload();
   initSwarmUI();
+  initJobsUI();
+  initTemplatesUI();
+  initApprovalsUI();
 
   // Restore editor panel if it was open
 
