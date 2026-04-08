@@ -2,7 +2,7 @@
 
 > Last updated: April 8, 2026
 
-## Current Version: v0.6.1 — Phase 8 (Enterprise)
+## Current Version: v0.7.0 — Phase 8 (Enterprise Complete)
 
 ---
 
@@ -104,7 +104,7 @@
 
 ---
 
-## 🔧 Phase 8 — Enterprise (In Progress)
+## ✅ Phase 8 — Enterprise (Complete)
 
 | Feature                          | Status      | Notes                                                    |
 | -------------------------------- | ----------- | -------------------------------------------------------- |
@@ -140,9 +140,9 @@
 | Approvals UI                     | ✅ Done     | Human approval workflow interface                        |
 | Docker deployment                | ✅ Done     | Dockerfile + docker-compose                              |
 | Integration tests                | ✅ Done     | 2,000+ tests across all enterprise modules               |
-| LoRA adapter management          | 🔧 Active  | Load/unload task-specific LoRA weights                   |
-| Model selector                   | 🔧 Active  | Optimal model selection by task type                     |
-| Best-of-N generation             | 🔧 Active  | Best-of-N with PRM scoring                               |
+| LoRA adapter management          | ✅ Done     | Load/unload task-specific LoRA weights                   |
+| Model selector                   | ✅ Done     | Optimal model selection by task type                     |
+| Best-of-N generation             | ✅ Done     | Best-of-N with LLM-as-judge (PRM deferred to Phase 9)   |
 | Interactive Onboarding Tutorial  | 📋 Planned | Guided 2-min tour on first launch                        |
 | Voice quality (Piper TTS)        | 📋 Planned | Offline neural voice synthesis                           |
 

@@ -130,11 +130,14 @@
 - [x] docker-compose.yml
 - [x] Integration tests (2,000+ tests)
 
-### In Progress
+### Inference
 
-- [/] LoRA adapter management (load/unload task-specific weights)
-- [/] Model selector (optimal model by task type)
-- [/] Best-of-N generation with PRM scoring
+- [x] LoRA adapter management (load/unload task-specific weights)
+- [x] Model selector (optimal model by task type)
+- [x] Best-of-N generation with LLM-as-judge (PRM deferred to Phase 9)
+
+### Planned
+
 - [ ] Interactive Onboarding Tutorial
 - [ ] Voice quality (Piper TTS)
 - [ ] Brain visualization (memory heatmap / knowledge graph)

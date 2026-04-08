@@ -23,9 +23,7 @@
 
 ## Known Limitations
 
-- ESLint errors persist in `autonomy_ui.js` (pre-existing undefined globals like `d`, `Prism`, `brainPulse`)
-- Monolithic functions remain in `chat.py` and `engine.py` (tech debt)
-- Ollama URLs still hardcoded (should migrate to `.env` → `OLLAMA_BASE_URL`)
-- Google OAuth requires manual credential setup in `backend/config.py` (no admin UI yet)
-- Slack bot requires `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` environment variables
-- LoRA adapter management, model selector, and best-of-N generation are in-progress (not production-ready)
+- Monolithic functions remain in `chat_service.py` and `engine.py` (tech debt — Sprint 2 target)
+- Google OAuth requires manual credential setup (no admin UI yet)
+- Slack bot requires `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` environment variables (documented in `.env.example`)
+- Best-of-N PRM integration is stub-only (LLM-as-judge and heuristic scoring work; PRM deferred to Phase 9)

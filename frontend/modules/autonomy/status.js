@@ -1,6 +1,6 @@
 import { API } from "../state.js";
 import { escapeHtml } from "../utils.js";
-import { ACTION_ICONS, MAX_ACTIVITY_ITEMS } from "./constants.js";
+import { ACTION_ICONS, MAX_ACTIVITY_ITEMS, brainState } from "./constants.js";
 import { updateBrainUptime } from "./dashboard.js";
 
 export async function pollAutonomy() {
@@ -70,12 +70,12 @@ export async function pollAutonomy() {
     if (d.reflection) {
       const ideasEl = document.getElementById("brainIdeas");
       if (ideasEl) ideasEl.textContent = d.reflection.proposals_logged || 0;
-      window.brainProposalCount = d.reflection.proposals_logged || 0;
+      brainState.proposalCount = d.reflection.proposals_logged || 0;
     }
     if (d.execution) {
       const execEl = document.getElementById("brainApplied");
       if (execEl) execEl.textContent = d.execution.proposals_executed || 0;
-      window.brainExecutedCount = d.execution.proposals_executed || 0;
+      brainState.executedCount = d.execution.proposals_executed || 0;
     }
 
     // Sync global counts for sidebar counters
@@ -94,13 +94,13 @@ export async function pollAutonomy() {
 
     // Sync uptime from server start_time
     if (d.start_time) {
-      window._brainBootTime = d.start_time * 1000;
+      brainState.bootTime = d.start_time * 1000;
       updateBrainUptime();
     }
 
     // On first poll, populate brain timeline from recent events
-    if (d.recent_events && d.recent_events.length > 0 && !window._brainCaughtUp) {
-      window._brainCaughtUp = true;
+    if (d.recent_events && d.recent_events.length > 0 && !brainState.caughtUp) {
+      brainState.caughtUp = true;
       populateInitialEvents(d.recent_events);
     }
   } catch {

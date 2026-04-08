@@ -4,7 +4,7 @@
 
 LocalMind is an **enterprise-ready autonomous task worker** (not a chat assistant). It accepts jobs via Slack or the web UI, plans multi-step execution, runs tools, reviews its own output with 3-tier QA, and delivers artifacts back — all on your infrastructure. Powered by [Ollama](https://ollama.com) for local LLMs, [ChromaDB](https://www.trychroma.com) for persistent memory, and a durable **Job Pipeline** with RBAC, policy enforcement, and human approval workflows.
 
-**Current Version:** v0.6.1 · Phase 8 — Enterprise
+**Current Version:** v0.7.0 · Phase 8 — Enterprise (Complete)
 
 ---
 

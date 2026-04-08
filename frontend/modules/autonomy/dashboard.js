@@ -1,4 +1,4 @@
-import { ACTION_ICONS } from "./constants.js";
+import { ACTION_ICONS, brainState } from "./constants.js";
 import { escapeHtml } from "../utils.js";
 
 export function updateBrainDashboard(event) {
@@ -24,9 +24,9 @@ export function updateBrainDashboard(event) {
 
 export function updateBrainUptime() {
   const uptimeEl = document.getElementById("brainUptime");
-  if (!uptimeEl || !window._brainBootTime) return;
+  if (!uptimeEl || !brainState.bootTime) return;
 
-  const diffHrs = (Date.now() - window._brainBootTime) / 3600000;
+  const diffHrs = (Date.now() - brainState.bootTime) / 3600000;
   uptimeEl.textContent = diffHrs.toFixed(1) + "h";
 }
 
@@ -34,8 +34,8 @@ export function updateSuccessRate() {
   const rateEl = document.getElementById("brainSuccessRate");
   if (!rateEl) return;
 
-  const total = window.brainProposalCount || 0;
-  const success = window.brainExecutedCount || 0;
+  const total = brainState.proposalCount || 0;
+  const success = brainState.executedCount || 0;
   if (total === 0) {
     rateEl.textContent = "100%";
     return;
