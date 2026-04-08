@@ -19,19 +19,19 @@ This document outlines the detailed roadmap for addressing technical debt, UI/UX
 ## 🎨 Phase B: UI/UX & Product Polish (Short-term)
 *Goal: Remove friction for new users and surface deeper analytical insights.*
 
-- [ ] **B1. Interactive Onboarding Tutorial**
+- [x] **B1. Interactive Onboarding Tutorial** — DONE in Phase 8
   - Build a lightweight, CSS-driven "2-minute tour" for first-time launch.
   - Highlight key areas: The Action Stream overview, Monaco Editor integration, and Model Selection capabilities.
-- [ ] **B2. Enhanced Daily Digest UI**
+- [x] **B2. Enhanced Daily Digest UI** — DONE in Phase 8
   - Enhance the digest payload with deep metrics (Tokens processed, Models utilized, total execution duration).
   - Render an "Autonomous Value" summary showing total time saved and edit success rates.
 
 ## 🧠 Phase C: Next-Gen Intelligence (Medium-to-Long-term)
 *Goal: Fulfill the definitive LocalMind vision — offline voice and total version control.*
 
-- [ ] **C1. Piper TTS Offline Voice Integration**
+- [x] **C1. Piper TTS Offline Voice Integration** — DONE in Phase 9 Sprint 6
   - Integrate Piper for hyper-fast, offline neural voice synthesis.
   - Build frontend controls to enable/disable TTS for the AI's internal reasoning loop, completing the "JARVIS" feel.
-- [ ] **C2. AI Time Machine (Action Replay Architecture)**
+- [x] **C2. AI Time Machine (Action Replay Architecture)** — DONE in Phase 9 Sprint 4
   - Implement a secondary database or structured log for every distinct code modification the AI makes.
   - Build a "Timeline Slider" UI allowing the user to scrub forward/backward through AI edits and 1-click restore/rollback previous file states.

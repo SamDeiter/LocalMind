@@ -2,7 +2,7 @@
 
 > Last updated: April 8, 2026
 
-## Current Version: v0.9.0 — Phase 9 (In Progress)
+## Current Version: v0.9.1 — Phase 9 (Complete)
 
 ---
 
@@ -148,18 +148,24 @@
 | Enhanced Daily Digest            | ✅ Done     | Token counts, model utilization, execution duration      |
 | ChatService decomposition        | ✅ Done     | Split 753-line monolith into 3 focused modules           |
 | EngineStatus dataclass           | ✅ Done     | Typed dataclasses replace manual dict maintenance        |
-| Voice quality (Piper TTS)        | 📋 Planned | Offline neural voice synthesis                           |
+| Voice quality (Piper TTS)        | ✅ Done     | Implemented in Phase 9 Sprint 6                          |
 
 ---
 
-## 🚧 Phase 9 — Intelligence (In Progress)
+## ✅ Phase 9 — Intelligence (Complete)
 
 | Feature                    | Status     | Notes                                                                        |
 | -------------------------- | ---------- | ---------------------------------------------------------------------------- |
 | AI Time Machine            | ✅ Done    | Action versioning, replay engine, timeline UI, undo integration              |
 | Cross-Project Hub          | ✅ Done    | Project registry, pattern mining, hub UI with insights                      |
-| Self-extending tools       | 📋 Planned | AI writes new tool plugins when it lacks a capability                        |
-| VS Code Extension          | 📋 Planned | LocalMind as a VS Code sidecar                                               |
+| Self-extending tools       | ✅ Done    | AI tool generator, sandboxed execution, generated tool registry              |
+| VS Code Extension          | ✅ Done    | TypeScript sidecar extension scaffold                                        |
+| Piper TTS                  | ✅ Done    | Offline neural voice synthesis service and routes                            |
+| Eval Harness               | ✅ Done    | Case runner, scoring engine, eval UI                                         |
+| PWA + Push                 | ✅ Done    | Offline queue, push notifications, enhanced service worker                   |
+| CI/CD Workflows            | ✅ Done    | GitHub Actions for test and release pipelines                                |
+| Tailscale Security         | ✅ Done    | Remote access authentication module                                          |
+| CI Monitoring UI           | ✅ Done    | Real-time pipeline monitoring dashboard                                      |
 
 ---
 
