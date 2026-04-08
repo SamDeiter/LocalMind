@@ -156,6 +156,34 @@ Complex (5+ nodes) — "Refactor the auth module: add tests, run them, commit th
     "timeout_sec": 60
   }
 ]
+
+Google Workspace (2-3 nodes) — "Research competitors and write a Google Doc report, then upload the raw data to Drive":
+[
+  {
+    "title": "Web research",
+    "instructions": "Search the web for the top five competitors. Collect key data points: pricing, features, market share.",
+    "tools_allowed": ["web_search"],
+    "expected_output": "Raw research notes.",
+    "depends_on": [],
+    "timeout_sec": 180
+  },
+  {
+    "title": "Create report in Google Docs",
+    "instructions": "Using the research notes, create a new Google Doc titled 'Competitor Analysis'. Write a structured report with sections for each competitor.",
+    "tools_allowed": ["google_docs"],
+    "expected_output": "A Google Doc containing the competitor analysis report.",
+    "depends_on": ["Web research"],
+    "timeout_sec": 240
+  },
+  {
+    "title": "Upload raw data to Drive",
+    "instructions": "Upload the raw research notes file to a 'Research' folder in Google Drive for archival.",
+    "tools_allowed": ["google_drive", "write_file"],
+    "expected_output": "Research notes uploaded to Google Drive.",
+    "depends_on": ["Web research"],
+    "timeout_sec": 120
+  }
+]
 """
 
 

@@ -107,8 +107,13 @@ class JobScheduler:
         The shared :class:`GPUManager` instance for VRAM tracking.
     """
 
-    def __init__(self, gpu_manager: GPUManager) -> None:
+    def __init__(
+        self,
+        gpu_manager: GPUManager,
+        model_selector: Any | None = None,
+    ) -> None:
         self._gpu = gpu_manager
+        self._model_selector = model_selector
         # Round-robin workspace cursor — persisted to ``scheduler_state``.
         self._last_workspace_idx: int = 0
         self._restore_state()
@@ -444,13 +449,21 @@ class JobScheduler:
     def _pick_model_for_node(self, node: dict[str, Any]) -> str:
         """Choose a model for *node* based on job priority / node type.
 
-        Uses a simple heuristic:
-          - priority >= 5 or review node → medium tier
-          - priority >= 8 → heavy tier
-          - otherwise → light tier
-
-        Override this with smarter routing as the model registry matures.
+        When a :class:`ModelSelector` is available, delegates to it for
+        richer task-type-aware selection.  Otherwise falls back to the
+        simple priority heuristic.
         """
+        # Delegate to ModelSelector if available
+        if self._model_selector is not None:
+            try:
+                job_dict = {"priority": node.get("priority", 0)}
+                selection = self._model_selector.select_model(node, job_dict)
+                return selection.model_id
+            except Exception as exc:
+                logger.warning(
+                    "ModelSelector failed in scheduler, falling back: %s", exc
+                )
+
         from backend.config import MODEL_TIERS
 
         priority = node.get("priority", 0)

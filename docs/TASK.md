@@ -53,7 +53,7 @@
 - [x] UI generator (dynamic component creation)
 - [x] Revision controller
 
-## 🔧 Phase 7 — Autonomy Engine (Active)
+## ✅ Phase 7 — Autonomy Engine (Complete)
 
 - [x] Autonomy Engine core (reflection, research, execution loops)
 - [x] Proposal lifecycle (create, dedup, approve, deny, execute, archive)
@@ -68,12 +68,78 @@
 - [x] Persistent collapsible UI state
 - [x] Error transparency (diagnostic feedback)
 - [x] Daily digest generation
-- [/] Chat streaming reliability (protecting llm_client from self-edit)
+- [x] Chat streaming reliability (protecting llm_client from self-edit)
+
+## 🔧 Phase 8 — Enterprise (Active)
+
+### Control Plane
+
+- [x] Multi-org/workspace/user identity model with RBAC
+- [x] Enterprise DB schema (orgs, workspaces, OAuth, quotas, secrets)
+- [x] Secret manager (AES-256-GCM encrypted storage)
+- [x] Policy engine (approve/deny/dry-run tool calls)
+- [x] Durable execution (attempt tracking, idempotency, heartbeats)
+- [x] Artifact versioning + provenance chains
+- [x] Evidence tracking (facts linked to source data)
+- [x] Token budgeting & cost tracking
+- [x] Telemetry & audit logging
+- [x] Job scheduling
+- [x] Garbage collection & cleanup
+- [x] GPU resource management
+- [x] Error handling & recovery strategies
+
+### Job Pipeline
+
+- [x] Job/node/artifact data models
+- [x] Plan generation (node graph layout)
+- [x] Node execution, tool dispatch, retry logic
+- [x] SQLite-backed job queue
+- [x] 3-tier QA reviewer (format → LLM critique → human)
+- [x] Worker process lifecycle + heartbeats
+
+### Integrations
+
+- [x] Slack bot (Socket Mode, job creation, status, file delivery)
+- [x] Google Docs tool (read, create, insert, replace, append)
+- [x] Google Drive tool (list, search, upload, download, move, copy)
+- [x] Google Sheets tool — expanded (14 operations)
+- [x] Google Slides tool — expanded (full read/write/edit)
+- [x] Excel tool (local spreadsheet operations)
+- [x] PDF tool (text extraction)
+- [x] PowerPoint tool (PPTX creation/editing)
+- [x] Word tool (DOCX read/write)
+
+### Security
+
+- [x] OAuth + JWT authentication
+- [x] RBAC middleware
+- [x] Path sandboxing (directory traversal prevention)
+- [x] Prompt injection guard
+- [x] Memory encryption
+- [x] Recycle bin (soft-delete + recovery)
+
+### Frontend
+
+- [x] Jobs UI (creation, filtering, status monitoring)
+- [x] Templates UI (saved job templates)
+- [x] Approvals UI (human approval workflows)
+
+### Deployment
+
+- [x] Dockerfile
+- [x] docker-compose.yml
+- [x] Integration tests (2,000+ tests)
+
+### In Progress
+
+- [/] LoRA adapter management (load/unload task-specific weights)
+- [/] Model selector (optimal model by task type)
+- [/] Best-of-N generation with PRM scoring
 - [ ] Interactive Onboarding Tutorial
 - [ ] Voice quality (Piper TTS)
 - [ ] Brain visualization (memory heatmap / knowledge graph)
 
-## 📋 Phase 8 — Intelligence (Planned)
+## 📋 Phase 9 — Intelligence (Planned)
 
 - [ ] AI Time Machine (versioned + replayable actions)
 - [ ] Cross-Project Hub (patterns across projects)

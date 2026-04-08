@@ -878,7 +878,8 @@ class TestGoogleSheetsToolMetadata:
         params = tool.parameters
         assert "action" in params["properties"]
         assert "spreadsheet_id" in params["required"]
-        assert "credentials" in params["required"]
+        # credentials removed from required (self-auth pattern)
+        assert "credentials" not in params["required"]
 
     def test_action_enum(self):
         from backend.tools.google_sheets_tool import GoogleSheetsTool

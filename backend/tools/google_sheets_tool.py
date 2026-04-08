@@ -16,9 +16,9 @@ Capabilities:
 Prerequisites:
   pip install google-api-python-client google-auth
 
-Credentials are passed per-call as a google.oauth2.credentials.Credentials
-object (or compatible). The caller is responsible for OAuth / service-account
-setup; this tool is stateless with respect to auth.
+Credentials are resolved automatically: if the caller passes a credentials
+object it is used directly; otherwise, credentials are auto-loaded from the
+centralized Google auth store (backend.routes.google_auth.get_credentials).
 """
 
 from __future__ import annotations
@@ -52,6 +52,40 @@ def _require_gapi():
             "google-api-python-client is not installed. "
             "Run: pip install google-api-python-client google-auth"
         )
+
+
+# ---------------------------------------------------------------------------
+# Credential helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_credentials():
+    """Load Google credentials from the centralized credential store.
+
+    Returns a credentials object or None if unavailable.
+    Matches the pattern used by gmail_tool.py.
+    """
+    try:
+        from backend.routes.google_auth import get_credentials
+        return get_credentials()
+    except Exception:
+        return None
+
+
+def _resolve_credentials(credentials):
+    """Return *credentials* if provided, otherwise auto-load from the store.
+
+    Raises RuntimeError when no credentials can be obtained.
+    """
+    if credentials is not None:
+        return credentials
+    creds = _get_credentials()
+    if creds is None:
+        raise RuntimeError(
+            "No Google credentials available. Connect Google via Settings "
+            "or pass credentials explicitly."
+        )
+    return creds
 
 
 # ---------------------------------------------------------------------------
@@ -509,11 +543,12 @@ class GoogleSheetsTool(BaseTool):
                     "type": "object",
                     "description": (
                         "Google OAuth2 / service-account credentials object. "
-                        "Passed through from the calling context."
+                        "Optional — if omitted, credentials are auto-loaded "
+                        "from the credential store."
                     ),
                 },
             },
-            "required": ["action", "spreadsheet_id", "credentials"],
+            "required": ["action", "spreadsheet_id"],
         }
 
     async def execute(self, **kwargs) -> dict[str, Any]:
@@ -530,12 +565,16 @@ class GoogleSheetsTool(BaseTool):
         """
         action: str = kwargs.get("action", "")
         spreadsheet_id: str = kwargs.get("spreadsheet_id", "")
-        credentials = kwargs.get("credentials")
 
         if not spreadsheet_id:
             return {"success": False, "error": "spreadsheet_id is required"}
-        if credentials is None:
-            return {"success": False, "error": "credentials are required"}
+
+        # Resolve credentials: use explicit if provided, otherwise auto-load
+        try:
+            credentials = _resolve_credentials(kwargs.get("credentials"))
+        except RuntimeError as exc:
+            return {"success": False, "error": str(exc)}
+        kwargs["credentials"] = credentials
 
         try:
             _require_gapi()
