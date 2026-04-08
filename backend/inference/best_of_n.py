@@ -52,7 +52,12 @@ logger = logging.getLogger("localmind.inference.best_of_n")
 _OLLAMA_CALL_TIMEOUT: float = 120.0
 
 # Maximum concurrent Ollama calls (prevent GPU overload).
-_MAX_CONCURRENT: int = 4
+# Can be overridden via BEST_OF_N_MAX_CONCURRENT env var.
+import os
+_MAX_CONCURRENT: int = int(os.getenv("BEST_OF_N_MAX_CONCURRENT", "4"))
+
+# Early-stopping threshold: if a candidate scores above this, skip remaining.
+_EARLY_STOP_THRESHOLD: float = float(os.getenv("BEST_OF_N_EARLY_STOP", "9.0"))
 
 
 # ---------------------------------------------------------------------------
@@ -198,12 +203,18 @@ class BestOfNSampler:
                 f"All {n} candidate completions failed — no valid response"
             )
 
-        # Score candidates
+        # Score candidates (with early-stopping)
         scored = await self._score_candidates(candidates, messages)
 
         # Pick the best
         scored.sort(key=lambda c: c.score, reverse=True)
         winner = scored[0]
+
+        if winner.score >= _EARLY_STOP_THRESHOLD and len(candidates) > 1:
+            logger.info(
+                "Early stop: winner score=%.2f >= threshold %.1f",
+                winner.score, _EARLY_STOP_THRESHOLD,
+            )
 
         elapsed = int(time.monotonic() * 1000) - start_ms
 

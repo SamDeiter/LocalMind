@@ -115,6 +115,8 @@ DIGESTS_DIR.mkdir(parents=True, exist_ok=True)
 # --- Inference Config ---
 BEST_OF_N_ENABLED = os.getenv("BEST_OF_N_ENABLED", "false").lower() == "true"
 DEFAULT_BEST_OF_N = int(os.getenv("DEFAULT_BEST_OF_N", "4"))
+BEST_OF_N_MAX_CONCURRENT = int(os.getenv("BEST_OF_N_MAX_CONCURRENT", "4"))
+BEST_OF_N_EARLY_STOP = float(os.getenv("BEST_OF_N_EARLY_STOP", "9.0"))
 PRM_MODEL = os.getenv("PRM_MODEL", "")  # scorer model for best-of-N (LLM-as-judge)
 LORA_ADAPTERS_DIR = WORKSPACE_ROOT / "lora_adapters"
 

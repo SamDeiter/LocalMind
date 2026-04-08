@@ -61,7 +61,7 @@ async function updateStatusBar() {
       const s = await r.json();
       statusFailCount = 0; // Reset on success
       if (dot) dot.style.backgroundColor = "#4fdbc8";
-      if (connEl) connEl.textContent = s.status ? `ACTIVE: ${s.status}` : "ONLINE";
+      if (connEl) connEl.textContent = s.status ? `Active: ${s.status}` : "Online";
     } else {
       statusFailCount++;
       if (statusFailCount >= OFFLINE_THRESHOLD) {
@@ -99,7 +99,7 @@ async function updateStatusBar() {
       const dot = document.getElementById("brainPulse");
       const connEl = document.getElementById("brainStatus");
       if (dot) dot.style.backgroundColor = "#ff6b98";
-      if (connEl) connEl.textContent = "OFFLINE";
+      if (connEl) connEl.textContent = "Offline";
     }
   }
 }

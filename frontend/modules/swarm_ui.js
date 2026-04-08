@@ -54,8 +54,8 @@ function stopPolling() {
     }
 }
 
-/** 
- * robustly hide hive and show main nexus dashboard 
+/**
+ * robustly hide worker pool and show main dashboard
  * called by sidebar buttons to ensure we don't end up on a blank screen
  */
 export function hideSwarmDashboard() {
@@ -64,10 +64,10 @@ export function hideSwarmDashboard() {
     
     swarmVisible = false;
     
-    // Always hide Hive
+    // Always hide Worker Pool
     if (view) view.classList.add('hidden');
-    
-    // Always show Nexus Dashboard
+
+    // Always show Main Dashboard
     if (main) {
         main.classList.remove('hidden');
         main.style.display = 'flex'; // Ensure flex layout is restored
@@ -91,7 +91,7 @@ export function toggleSwarmDashboard() {
     swarmVisible = !swarmVisible;
 
     if (swarmVisible) {
-        // Show hive, Hide Nexus
+        // Show Worker Pool, Hide Main Dashboard
         view.classList.remove('hidden');
         if (main) main.classList.add('hidden');
         

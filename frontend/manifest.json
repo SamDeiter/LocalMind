@@ -1,7 +1,7 @@
 {
     "name": "LocalMind",
     "short_name": "LocalMind",
-    "description": "Your private, local AI assistant with tool use, memory, and vision.",
+    "description": "Local-first autonomous task worker with AI tools, memory, and job pipelines.",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0a0e1a",
