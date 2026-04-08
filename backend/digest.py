@@ -50,6 +50,15 @@ def generate_digest(hours: int = 24) -> str:
     skipped = [p for p in proposals if p.get("status") == "skipped"]
     pending = [p for p in proposals if p.get("status") in ("proposed", "approved")]
 
+    # Aggregate execution metrics
+    total_tokens = sum(p.get("total_tokens", 0) for p in proposals)
+    total_duration = sum(p.get("execution_duration", 0) for p in completed + failed)
+    model_counts: dict[str, int] = {}
+    for p in proposals:
+        m = p.get("model_used")
+        if m:
+            model_counts[m] = model_counts.get(m, 0) + 1
+
     lines = [
         f"# Daily Digest — {time.strftime('%Y-%m-%d %H:%M')}",
         "",
@@ -62,7 +71,9 @@ def generate_digest(hours: int = 24) -> str:
         lines.append(f"## ✅ Completed ({len(completed)})")
         for p in completed:
             files = ", ".join(p.get("files_edited", [])[:3])
-            lines.append(f"- **{p['title']}** [{p.get('category', '?')}] — {files}")
+            dur = p.get("execution_duration")
+            dur_str = f" ({dur:.1f}s)" if dur else ""
+            lines.append(f"- **{p['title']}** [{p.get('category', '?')}]{dur_str} — {files}")
         lines.append("")
 
     if failed:
@@ -84,11 +95,22 @@ def generate_digest(hours: int = 24) -> str:
             lines.append(f"- {p['title']} [{p.get('status')}]")
         lines.append("")
 
-    # Success rate
+    # Metrics summary
+    lines.append("## 📊 Metrics")
     total_executed = len(completed) + len(failed)
     if total_executed > 0:
         rate = len(completed) / total_executed * 100
-        lines.append(f"**Success Rate**: {rate:.0f}% ({len(completed)}/{total_executed})")
+        lines.append(f"- **Success Rate**: {rate:.0f}% ({len(completed)}/{total_executed})")
+    if total_duration > 0:
+        lines.append(f"- **Total Execution Time**: {total_duration:.1f}s")
+        if total_executed > 0:
+            lines.append(f"- **Avg Duration**: {total_duration / total_executed:.1f}s")
+    if total_tokens > 0:
+        lines.append(f"- **Tokens Used**: {total_tokens:,}")
+    if model_counts:
+        model_lines = ", ".join(f"{m} ({c})" for m, c in sorted(model_counts.items(), key=lambda x: -x[1]))
+        lines.append(f"- **Models**: {model_lines}")
+    lines.append("")
 
     digest_text = "\n".join(lines)
 

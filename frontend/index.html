@@ -18,6 +18,7 @@
     <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 
             <script id="tailwind-config">
         tailwind.config = {
@@ -523,6 +524,22 @@
                         </p>
                         <div id="brainDigest" class="hidden mt-3 p-2 bg-transparent rounded border border-outline-variant/10 text-[10px] text-outline leading-tight font-mono"></div>
                     </div>
+                </div>
+
+                <!-- Brain Knowledge Graph -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Knowledge Graph</h2>
+                        <span class="material-symbols-outlined text-sm text-tertiary">hub</span>
+                    </div>
+                    <div id="brainGraphContainer" class="bg-surface-container-high rounded-xl border border-outline-variant/20 shadow-lg overflow-hidden" style="height: 240px; position: relative;">
+                        <svg id="brainGraphSvg" width="100%" height="100%"></svg>
+                        <div id="brainGraphEmpty" class="absolute inset-0 flex flex-col items-center justify-center text-outline/30 gap-2">
+                            <span class="material-symbols-outlined text-3xl opacity-20">hub</span>
+                            <p class="text-[9px] uppercase tracking-widest font-bold">Memories will appear here</p>
+                        </div>
+                    </div>
+                    <div id="brainGraphStats" class="flex gap-3 mt-2 text-[9px] text-outline font-mono"></div>
                 </div>
 
                 <!-- Research Intelligence (ArXiv Search) -->

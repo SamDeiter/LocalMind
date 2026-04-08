@@ -27,6 +27,7 @@ import { initTemplatesUI } from "./modules/templates_ui.js";
 import { initApprovalsUI } from "./modules/approvals_ui.js";
 import { initTaskCreation } from "./modules/task_creation.js";
 import { initOnboarding } from "./modules/onboarding.js";
+import { initBrainGraph } from "./modules/brain_graph.js";
 
 async function init() {
   checkHealth();
@@ -54,6 +55,7 @@ async function init() {
   initApprovalsUI();
   initTaskCreation();
   initOnboarding();
+  initBrainGraph();
 
   // Restore editor panel if it was open
 

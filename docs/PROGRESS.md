@@ -2,7 +2,7 @@
 
 > Last updated: April 8, 2026
 
-## Current Version: v0.7.0 — Phase 8 (Enterprise Complete)
+## Current Version: v0.8.0 — Phase 8 (Complete)
 
 ---
 
@@ -143,7 +143,11 @@
 | LoRA adapter management          | ✅ Done     | Load/unload task-specific LoRA weights                   |
 | Model selector                   | ✅ Done     | Optimal model selection by task type                     |
 | Best-of-N generation             | ✅ Done     | Best-of-N with LLM-as-judge (PRM deferred to Phase 9)   |
-| Interactive Onboarding Tutorial  | 📋 Planned | Guided 2-min tour on first launch                        |
+| Interactive Onboarding Tutorial  | ✅ Done     | State machine with spotlight overlays, localStorage       |
+| Brain Knowledge Graph            | ✅ Done     | D3.js force-directed memory visualization                |
+| Enhanced Daily Digest            | ✅ Done     | Token counts, model utilization, execution duration      |
+| ChatService decomposition        | ✅ Done     | Split 753-line monolith into 3 focused modules           |
+| EngineStatus dataclass           | ✅ Done     | Typed dataclasses replace manual dict maintenance        |
 | Voice quality (Piper TTS)        | 📋 Planned | Offline neural voice synthesis                           |
 
 ---
