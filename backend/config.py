@@ -182,6 +182,10 @@ GC_ARCHIVE_DIR = WORKSPACE_ROOT / "archive"
 PII_SCRUB_PATTERNS = os.getenv("PII_SCRUB_PATTERNS", "")  # JSON list of extra regex strings
 VACUUM_INTERVAL_HOURS = int(os.getenv("VACUUM_INTERVAL_HOURS", "24"))
 
+# --- Cloud Brain (CloudBrainSupervisor) Config ---
+CLOUD_BRAIN_ENABLED = os.getenv("CLOUD_BRAIN_ENABLED", "false").lower() == "true"
+CLOUD_BRAIN_MAX_REVIEWS_PER_HOUR = int(os.getenv("CLOUD_BRAIN_MAX_REVIEWS_PER_HOUR", "20"))
+
 # ── Startup Validation ──────────────────────────────────────────
 _config_logger = logging.getLogger("localmind.config")
 

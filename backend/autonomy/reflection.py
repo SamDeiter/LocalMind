@@ -174,6 +174,19 @@ async def run_reflection_cycle(engine) -> bool:
                 engine._emit_activity("reflection_error", f"❌ Consistency: {c_res.message}")
                 return False
 
+            # Validation Gate 3: Cloud Brain Supervisor (optional)
+            from backend.autonomy.cloud_brain import get_cloud_brain
+            cloud = get_cloud_brain()
+            if cloud.is_available:
+                cloud_review = await cloud.review(proposal, context={"files": real_files})
+                if not cloud_review.approved:
+                    logger.info(f"Cloud brain rejected proposal: {cloud_review.reasoning}")
+                    engine._emit_activity("cloud_review", f"☁️ Cloud brain rejected: {cloud_review.reasoning}")
+                    return False
+                if cloud_review.refinement:
+                    proposal = cloud_review.refinement
+                engine._emit_activity("cloud_review", f"☁️ Cloud brain approved (confidence: {cloud_review.confidence:.0%})")
+
             try:
                 critique = await engine.meta_critic.review(proposal, file_list=real_files)
                 if critique.approved:

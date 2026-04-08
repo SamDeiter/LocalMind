@@ -29,6 +29,7 @@ import { loadMemories } from "./sidebar.js";
 import { streamChat } from "./streaming.js";
 import { createToolCallCard, updateToolResult, highlightCode } from "./tools.js";
 import { speakText, isTTSEnabled, renderTTSButton } from "./tts.js";
+import { updateTokenStream, updateTokenAnalytics, resetTokenPanel } from "./token_panel.js";
 
 // Re-export so external consumers that imported from chat.js still work
 export { createToolCallCard, updateToolResult, highlightCode } from "./tools.js";
@@ -110,6 +111,8 @@ export async function sendMessage() {
   if (stopBtn) stopBtn.style.display = "";
   state.abortController = new AbortController();
 
+  resetTokenPanel();
+
   const body = {
     model: resolveModel(),
     message: text,
@@ -153,6 +156,7 @@ export async function sendMessage() {
             contentEl.innerHTML = renderMarkdown(fullText);
             highlightCode();
           }
+          updateTokenStream(fullText.length);
           scrollToBottom();
         },
 
@@ -252,6 +256,7 @@ export async function sendMessage() {
 
         onAnalytics(a) {
           removeTyping();
+          updateTokenAnalytics(a);
           const panel = document.createElement("div");
           panel.className = "thinking-panel";
           panel.innerHTML = `

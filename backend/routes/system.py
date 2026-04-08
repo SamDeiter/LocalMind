@@ -325,6 +325,14 @@ async def metrics_summary():
     }
 
 
+@router.get("/token-estimate")
+async def token_estimate(text: str = "", model: str = ""):
+    """Return a token-count breakdown for the given text using the heuristic estimator."""
+    from backend.core.token_budget import TokenEstimator
+    result = TokenEstimator.estimate_prompt_tokens(input_data=text, model_id=model or None)
+    return result
+
+
 @router.get("/alerts/recent")
 async def alerts_recent():
     """Return recent alerts from the AlertManager threshold checks."""

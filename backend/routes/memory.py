@@ -116,6 +116,22 @@ async def list_memories():
         return {"memories": [], "count": 0, "error": str(e)}
 
 
+@router.get("/memory/session-stats")
+async def session_stats():
+    """Return statistics about the in-process session memory cache.
+
+    This is the ephemeral Tier-1 cache (dual memory architecture).
+    Useful for debugging and monitoring the short-term memory layer.
+    """
+    try:
+        from backend.memory.session_cache import get_session_cache
+        cache = get_session_cache()
+        return cache.stats()
+    except Exception as e:
+        logger.warning(f"Failed to get session stats: {e}")
+        return {"error": str(e)}
+
+
 @router.delete("/memories/{memory_id}")
 async def delete_memory(memory_id: str):
     """Delete a specific memory by its ID.

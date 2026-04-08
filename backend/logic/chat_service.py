@@ -17,6 +17,7 @@ from backend.logic.context_builder import ContextBuilder
 from backend.logic.tool_dispatcher import ToolDispatcher
 from backend.logic.token_manager import TokenManager
 from backend.logic.summarizer import Summarizer
+from backend.memory.session_cache import get_session_cache
 
 logger = logging.getLogger("localmind.logic.chat_service")
 
@@ -103,6 +104,14 @@ class ChatService:
 
         # 7. Save user message
         await self._save_msg(conversation_id, "user", message)
+
+        # 7b. Cache user intent in session memory (Tier 1)
+        try:
+            cache = get_session_cache()
+            intent_key = f"user_intent:{conversation_id}:{int(time.time())}"
+            cache.put(intent_key, message[:500], category="user_intent")
+        except Exception as e:
+            logger.debug("Session cache user_intent save failed (non-fatal): %s", e)
 
         # 8. Choose loop
         use_react = (
@@ -353,6 +362,14 @@ class ChatService:
                 tool_result_evt["mime_type"] = res.get("mime_type", "image/png")
 
             yield f"data: {json.dumps({'tool_result': tool_result_evt})}\n\n"
+
+            # Cache tool result in session memory (Tier 1)
+            try:
+                cache = get_session_cache()
+                tool_key = f"tool_result:{name}:{int(time.time())}"
+                cache.put(tool_key, res_str[:1000], category="tool_result")
+            except Exception as e:
+                logger.debug("Session cache tool_result save failed (non-fatal): %s", e)
 
             messages.append({"role": "assistant", "content": chunk_text, "tool_calls": [tc]})
             messages.append({"role": "tool", "content": res_str})

@@ -1,8 +1,11 @@
 /**
- * Onboarding Tutorial — guided first-run walkthrough.
+ * Onboarding Tutorial — guided first-run walkthrough with AI interview.
  *
  * State machine with spotlight overlays that highlights key UI areas
- * and optionally collects user preferences (name, mode).
+ * and collects a multi-step user profile (name, role, interests,
+ * communication style, tools). The profile is encrypted server-side
+ * via AES-256-GCM and stored as individual MemoryManager preferences.
+ *
  * Persists completion to localStorage so it only shows once.
  */
 
@@ -10,24 +13,95 @@ import { API } from "./state.js";
 
 const LS_KEY = "localmind_onboarding_complete";
 const LS_NAME_KEY = "localmind_user_name";
+const LS_PROFILE_KEY = "localmind_user_profile";
+
+// ── Interview option data ───────────────────────────────────────────
+
+const ROLE_OPTIONS = [
+  "Developer",
+  "Data Scientist",
+  "Designer",
+  "Manager",
+  "Student",
+  "Other",
+];
+
+const INTEREST_OPTIONS = [
+  "AI/ML",
+  "Web Dev",
+  "Data Analysis",
+  "DevOps",
+  "Security",
+  "Research",
+  "Creative",
+  "Other",
+];
+
+const STYLE_OPTIONS = [
+  { value: "concise", label: "Concise & Technical" },
+  { value: "detailed", label: "Detailed & Explanatory" },
+  { value: "casual", label: "Casual & Friendly" },
+];
 
 // ── Step definitions ────────────────────────────────────────────────
 const STEPS = [
   {
     id: "welcome",
     title: "Welcome to LocalMind",
-    body: "Your autonomous AI task worker — running 100% locally on your machine. Let's take a quick tour.",
-    target: null, // no spotlight, centered modal
+    body: "Your autonomous AI task worker — running 100% locally on your machine. Let's get to know you, then take a quick tour.",
+    target: null,
     position: "center",
   },
+  // ── AI Interview Steps ──
   {
     id: "name",
     title: "What should I call you?",
-    body: null, // custom render (input field)
+    body: null,
     target: null,
     position: "center",
-    inputField: true,
+    customRender: "name",
   },
+  {
+    id: "role",
+    title: "What kind of work do you primarily do?",
+    body: null,
+    target: null,
+    position: "center",
+    customRender: "role",
+  },
+  {
+    id: "interests",
+    title: "What topics interest you most?",
+    body: "Pick as many as you like — this helps me tailor suggestions.",
+    target: null,
+    position: "center",
+    customRender: "interests",
+  },
+  {
+    id: "style",
+    title: "How should I communicate with you?",
+    body: null,
+    target: null,
+    position: "center",
+    customRender: "style",
+  },
+  {
+    id: "tools",
+    title: "Any tools or languages you use daily?",
+    body: null,
+    target: null,
+    position: "center",
+    customRender: "tools",
+  },
+  {
+    id: "encrypting",
+    title: "Encrypting your profile...",
+    body: null,
+    target: null,
+    position: "center",
+    customRender: "encrypting",
+  },
+  // ── Tour Steps ──
   {
     id: "task_input",
     title: "Task Input",
@@ -71,6 +145,16 @@ let _overlay = null;
 let _tooltip = null;
 let _userName = "";
 
+// User profile collected during the interview
+let _userProfile = {
+  name: "",
+  role: "",
+  role_other: "",
+  interests: [],
+  communication_style: "",
+  tools: "",
+};
+
 // ── Public API ──────────────────────────────────────────────────────
 
 export function initOnboarding() {
@@ -100,7 +184,7 @@ function _createOverlay() {
   _tooltip.id = "onboardingTooltip";
   _tooltip.className =
     "fixed z-[10000] bg-surface-container border border-primary/30 " +
-    "rounded-2xl shadow-2xl shadow-primary/10 p-6 max-w-sm " +
+    "rounded-2xl shadow-2xl shadow-primary/10 p-6 max-w-md " +
     "transition-all duration-300 ease-out";
 
   document.body.appendChild(_overlay);
@@ -127,33 +211,30 @@ function _renderStep() {
   </div>
   <h3 class="text-lg font-headline font-bold text-white mb-2">${step.title}</h3>`;
 
-  if (step.inputField) {
-    html += `<div class="mb-4">
-      <input id="onboardingNameInput" type="text" maxlength="40"
-        placeholder="Your name (optional)"
-        class="w-full bg-surface-container-high border border-outline-variant/40
-          rounded-lg px-3 py-2 text-sm text-white placeholder:text-outline
-          focus:outline-none focus:ring-1 focus:ring-primary" />
-    </div>`;
+  // Custom interview step renderers
+  if (step.customRender) {
+    html += _renderCustomStep(step);
   } else if (step.body) {
     html += `<p class="text-sm text-slate-400 leading-relaxed mb-4">${step.body}</p>`;
   }
 
-  // Navigation buttons
-  const isFirst = _step === 0;
-  const isLast = _step === STEPS.length - 1;
-  html += `<div class="flex items-center justify-between gap-3">`;
-  if (!isFirst) {
-    html += `<button id="onbBack" class="text-xs text-slate-500 hover:text-white transition-colors">Back</button>`;
-  } else {
-    html += `<button id="onbSkip" class="text-xs text-slate-500 hover:text-white transition-colors">Skip tour</button>`;
+  // Navigation buttons (skip the encrypting step — it auto-advances)
+  if (step.customRender !== "encrypting") {
+    const isFirst = _step === 0;
+    const isLast = _step === STEPS.length - 1;
+    html += `<div class="flex items-center justify-between gap-3">`;
+    if (!isFirst) {
+      html += `<button id="onbBack" class="text-xs text-slate-500 hover:text-white transition-colors">Back</button>`;
+    } else {
+      html += `<button id="onbSkip" class="text-xs text-slate-500 hover:text-white transition-colors">Skip tour</button>`;
+    }
+    html += `<button id="onbNext"
+      class="primary-gradient text-on-primary text-xs font-bold px-5 py-2 rounded-lg
+        hover:brightness-110 active:scale-95 transition-all">
+      ${isLast ? "Get Started" : "Next"}
+    </button>`;
+    html += `</div>`;
   }
-  html += `<button id="onbNext"
-    class="primary-gradient text-on-primary text-xs font-bold px-5 py-2 rounded-lg
-      hover:brightness-110 active:scale-95 transition-all">
-    ${isLast ? "Get Started" : "Next"}
-  </button>`;
-  html += `</div>`;
 
   _tooltip.innerHTML = html;
   _positionTooltip(targetEl, step.position);
@@ -166,14 +247,196 @@ function _renderStep() {
   if (backBtn) backBtn.addEventListener("click", _prev);
   if (skipBtn) skipBtn.addEventListener("click", _finish);
 
-  // Auto-focus name input
-  const nameInput = document.getElementById("onboardingNameInput");
-  if (nameInput) {
-    nameInput.value = _userName;
-    nameInput.focus();
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") _next();
-    });
+  // Post-render hooks for custom steps
+  _bindCustomStep(step);
+}
+
+// ── Custom step renderers ───────────────────────────────────────────
+
+function _renderCustomStep(step) {
+  switch (step.customRender) {
+    case "name":
+      return `<p class="text-sm text-slate-400 mb-3">I'd love to know what to call you.</p>
+        <div class="mb-4">
+          <input id="onboardingNameInput" type="text" maxlength="40"
+            placeholder="Your name (optional)"
+            class="w-full bg-surface-container-high border border-outline-variant/40
+              rounded-lg px-3 py-2 text-sm text-white placeholder:text-outline
+              focus:outline-none focus:ring-1 focus:ring-primary" />
+        </div>`;
+
+    case "role":
+      return `<p class="text-sm text-slate-400 mb-3">This helps me understand the kind of tasks you'll throw my way.</p>
+        <div class="flex flex-wrap gap-2 mb-3" id="onbRoleChips">
+          ${ROLE_OPTIONS.map(
+            (r) =>
+              `<button data-role="${r}"
+                class="onb-role-chip px-3 py-1.5 text-xs rounded-full border transition-all duration-200
+                  ${_userProfile.role === r
+                    ? "bg-primary/20 border-primary text-primary"
+                    : "bg-surface-container-high border-outline-variant/40 text-slate-400 hover:border-primary/50 hover:text-white"
+                  }">${r}</button>`
+          ).join("")}
+        </div>
+        <div id="onbRoleOtherWrap" class="${_userProfile.role === "Other" ? "" : "hidden"} mb-4">
+          <input id="onbRoleOther" type="text" maxlength="60"
+            placeholder="Tell me more..."
+            value="${_userProfile.role_other}"
+            class="w-full bg-surface-container-high border border-outline-variant/40
+              rounded-lg px-3 py-2 text-sm text-white placeholder:text-outline
+              focus:outline-none focus:ring-1 focus:ring-primary" />
+        </div>`;
+
+    case "interests":
+      return `<div class="flex flex-wrap gap-2 mb-4" id="onbInterestChips">
+          ${INTEREST_OPTIONS.map(
+            (t) =>
+              `<button data-interest="${t}"
+                class="onb-interest-chip px-3 py-1.5 text-xs rounded-full border transition-all duration-200 cursor-pointer
+                  ${_userProfile.interests.includes(t)
+                    ? "bg-primary/20 border-primary text-primary"
+                    : "bg-surface-container-high border-outline-variant/40 text-slate-400 hover:border-primary/50 hover:text-white"
+                  }">${t}</button>`
+          ).join("")}
+        </div>`;
+
+    case "style":
+      return `<p class="text-sm text-slate-400 mb-3">Everyone has a preference — pick yours.</p>
+        <div class="flex flex-col gap-2 mb-4" id="onbStyleOptions">
+          ${STYLE_OPTIONS.map(
+            (s) =>
+              `<label data-style="${s.value}"
+                class="onb-style-option flex items-center gap-3 px-4 py-2.5 rounded-xl border cursor-pointer transition-all duration-200
+                  ${_userProfile.communication_style === s.value
+                    ? "bg-primary/20 border-primary"
+                    : "bg-surface-container-high border-outline-variant/40 hover:border-primary/50"
+                  }">
+                <span class="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all
+                  ${_userProfile.communication_style === s.value
+                    ? "border-primary"
+                    : "border-outline-variant"
+                  }">
+                  ${_userProfile.communication_style === s.value
+                    ? '<span class="w-2 h-2 rounded-full bg-primary"></span>'
+                    : ""
+                  }
+                </span>
+                <span class="text-sm ${_userProfile.communication_style === s.value ? "text-white" : "text-slate-400"}">${s.label}</span>
+              </label>`
+          ).join("")}
+        </div>`;
+
+    case "tools":
+      return `<p class="text-sm text-slate-400 mb-3">e.g. Python, VS Code, Docker, React, PostgreSQL...</p>
+        <div class="mb-4">
+          <input id="onbToolsInput" type="text" maxlength="200"
+            placeholder="Comma-separated or free text"
+            value="${_userProfile.tools}"
+            class="w-full bg-surface-container-high border border-outline-variant/40
+              rounded-lg px-3 py-2 text-sm text-white placeholder:text-outline
+              focus:outline-none focus:ring-1 focus:ring-primary" />
+        </div>`;
+
+    case "encrypting":
+      return `<div class="flex flex-col items-center py-6">
+          <div class="relative mb-4">
+            <div class="w-12 h-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
+            <svg class="absolute inset-0 m-auto w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <p class="text-sm text-slate-400">Securely encrypting your profile with AES-256...</p>
+        </div>`;
+
+    default:
+      return "";
+  }
+}
+
+function _bindCustomStep(step) {
+  if (!step.customRender) return;
+
+  switch (step.customRender) {
+    case "name": {
+      const nameInput = document.getElementById("onboardingNameInput");
+      if (nameInput) {
+        nameInput.value = _userProfile.name;
+        nameInput.focus();
+        nameInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") _next();
+        });
+      }
+      break;
+    }
+
+    case "role": {
+      document.querySelectorAll(".onb-role-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const role = chip.dataset.role;
+          _userProfile.role = role;
+          // Re-render to update visual state
+          _renderStep();
+        });
+      });
+      const otherInput = document.getElementById("onbRoleOther");
+      if (otherInput) {
+        otherInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") _next();
+        });
+      }
+      break;
+    }
+
+    case "interests": {
+      document.querySelectorAll(".onb-interest-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const interest = chip.dataset.interest;
+          const idx = _userProfile.interests.indexOf(interest);
+          if (idx >= 0) {
+            _userProfile.interests.splice(idx, 1);
+          } else {
+            _userProfile.interests.push(interest);
+          }
+          // Re-render to update visual state
+          _renderStep();
+        });
+      });
+      break;
+    }
+
+    case "style": {
+      document.querySelectorAll(".onb-style-option").forEach((opt) => {
+        opt.addEventListener("click", () => {
+          _userProfile.communication_style = opt.dataset.style;
+          // Re-render to update visual state
+          _renderStep();
+        });
+      });
+      break;
+    }
+
+    case "tools": {
+      const toolsInput = document.getElementById("onbToolsInput");
+      if (toolsInput) {
+        toolsInput.focus();
+        toolsInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") _next();
+        });
+      }
+      break;
+    }
+
+    case "encrypting": {
+      // Auto-advance after saving profile
+      _saveProfileToBackend().then(() => {
+        setTimeout(() => {
+          _step++;
+          _renderStep();
+        }, 1200);
+      });
+      break;
+    }
   }
 }
 
@@ -226,17 +489,44 @@ function _positionTooltip(targetEl, position) {
   });
 }
 
-function _next() {
-  // Capture name if on the name step
-  const nameInput = document.getElementById("onboardingNameInput");
-  if (nameInput) {
-    _userName = nameInput.value.trim();
+function _captureCurrentStep() {
+  const step = STEPS[_step];
+  if (!step || !step.customRender) return;
+
+  switch (step.customRender) {
+    case "name": {
+      const nameInput = document.getElementById("onboardingNameInput");
+      if (nameInput) {
+        _userProfile.name = nameInput.value.trim();
+        _userName = _userProfile.name;
+      }
+      break;
+    }
+    case "role": {
+      const otherInput = document.getElementById("onbRoleOther");
+      if (otherInput) {
+        _userProfile.role_other = otherInput.value.trim();
+      }
+      break;
+    }
+    case "tools": {
+      const toolsInput = document.getElementById("onbToolsInput");
+      if (toolsInput) {
+        _userProfile.tools = toolsInput.value.trim();
+      }
+      break;
+    }
   }
+}
+
+function _next() {
+  _captureCurrentStep();
   _step++;
   _renderStep();
 }
 
 function _prev() {
+  _captureCurrentStep();
   if (_step > 0) {
     _step--;
     _renderStep();
@@ -249,8 +539,10 @@ function _finish() {
   // Save user name if provided
   if (_userName) {
     localStorage.setItem(LS_NAME_KEY, _userName);
-    _saveNameToMemory(_userName);
   }
+
+  // Persist the whole profile to localStorage for offline access
+  localStorage.setItem(LS_PROFILE_KEY, JSON.stringify(_userProfile));
 
   // Animate out
   if (_overlay) {
@@ -265,18 +557,43 @@ function _finish() {
   }
 }
 
-async function _saveNameToMemory(name) {
+async function _saveProfileToBackend() {
+  const payload = {
+    name: _userProfile.name,
+    role:
+      _userProfile.role === "Other" && _userProfile.role_other
+        ? _userProfile.role_other
+        : _userProfile.role,
+    interests: _userProfile.interests,
+    communication_style: _userProfile.communication_style,
+    tools: _userProfile.tools,
+    user_id: "default",
+  };
+
   try {
-    await fetch(`${API}/api/memories`, {
+    await fetch(`${API}/api/user-profile`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: `The user's name is ${name}.`,
-        category: "user_preference",
-        subcategory: "identity",
-      }),
+      body: JSON.stringify(payload),
     });
   } catch {
-    // Non-critical — silently ignore
+    // Non-critical — profile saves to localStorage as fallback
+  }
+
+  // Also save name to memories for backwards compatibility
+  if (_userProfile.name) {
+    try {
+      await fetch(`${API}/api/memories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: `The user's name is ${_userProfile.name}.`,
+          category: "user_preference",
+          subcategory: "identity",
+        }),
+      });
+    } catch {
+      // Non-critical
+    }
   }
 }

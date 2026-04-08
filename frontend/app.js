@@ -35,6 +35,7 @@ import { initPWA } from "./modules/pwa.js";
 import { initMonitoring } from "./modules/monitoring_ui.js";
 import { initEvalUI } from "./modules/eval_ui.js";
 import { initTTS } from "./modules/tts.js";
+import { initTokenPanel } from "./modules/token_panel.js";
 
 async function init() {
   checkHealth();
@@ -69,6 +70,7 @@ async function init() {
   initPWA();
   initMonitoring();
   initTTS();
+  initTokenPanel();
 
   // Restore editor panel if it was open
 

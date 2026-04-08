@@ -19,6 +19,7 @@ import logging
 from typing import Optional
 
 from .store import Memory, MemoryStore
+from backend.memory.session_cache import get_session_cache
 
 logger = logging.getLogger("agent.memory.retrieval")
 
@@ -71,36 +72,72 @@ class MemoryRetriever:
             return self.store.search(query, limit=max_memories)
 
     def retrieve_passive(self, user_message: str, max_memories: int = 5) -> list[str]:
-        """Auto-retrieve memories for injection into the system prompt.
+        """Two-tier retrieval: session cache first, then long-term FTS5.
 
-        This is the "passive retrieval" pattern from arXiv:2512.13564.
-        Called before each agent turn to provide relevant context.
+        This is the "passive retrieval" pattern from arXiv:2512.13564,
+        extended with an ephemeral session-cache tier for fast recall of
+        recent context, tool results, and user intents.
+
+        Tier 1 (session cache) -- fast, in-process, recent context.
+        Tier 2 (FTS5 store)    -- persistent, long-term memory.
 
         Returns formatted strings ready for injection.
         """
-        memories = self.retrieve_for_query(
-            user_message,
-            max_memories=max_memories,
-            categories=["semantic", "procedural"],
-        )
+        results: list[str] = []
 
-        # Also get any explicit instructions (always-relevant)
-        instructions = self.store.search(
-            user_message,
-            category="semantic",
-            limit=3,
-        )
-        # Merge, deduplicate
-        seen_ids = {m.id for m in memories}
-        for inst in instructions:
-            if inst.id not in seen_ids and inst.subcategory == "instruction":
-                memories.append(inst)
-                seen_ids.add(inst.id)
+        # ── Tier 1: Session cache (fast, recent context) ──────────
+        try:
+            cache = get_session_cache()
+            session_hits = cache.search(user_message, limit=3)
+            for entry in session_hits:
+                results.append(f"[session/{entry.category}] {entry.value}")
+        except Exception as exc:
+            logger.debug("Session cache retrieval failed (non-fatal): %s", exc)
 
-        return [
-            f"[{m.category}/{m.subcategory}] {m.content}"
-            for m in memories[:max_memories]
-        ]
+        # ── Tier 2: Long-term FTS5 store ──────────────────────────
+        remaining = max_memories - len(results)
+        if remaining > 0:
+            memories = self.retrieve_for_query(
+                user_message,
+                max_memories=remaining,
+                categories=["semantic", "procedural"],
+            )
+
+            # Also get any explicit instructions (always-relevant)
+            instructions = self.store.search(
+                user_message,
+                category="semantic",
+                limit=3,
+            )
+            # Merge, deduplicate
+            seen_ids = {m.id for m in memories}
+            for inst in instructions:
+                if inst.id not in seen_ids and inst.subcategory == "instruction":
+                    memories.append(inst)
+                    seen_ids.add(inst.id)
+
+            for m in memories[:remaining]:
+                results.append(f"[{m.category}/{m.subcategory}] {m.content}")
+
+        return results[:max_memories]
+
+    def save_to_session(
+        self,
+        key: str,
+        value: str,
+        category: str = "context",
+        ttl: Optional[float] = None,
+    ) -> None:
+        """Save a value to the session cache (Tier 1 -- ephemeral).
+
+        Use this for transient context that should be quickly retrievable
+        during the current session but does not need long-term persistence.
+        """
+        try:
+            cache = get_session_cache()
+            cache.put(key, value, category, ttl=ttl)
+        except Exception as exc:
+            logger.warning("Session cache save failed: %s", exc)
 
     def save_from_conversation(
         self,
