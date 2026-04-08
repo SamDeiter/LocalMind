@@ -156,7 +156,10 @@ function renderSwarmStatus(data) {
     const metrics = data.metrics || {};
     const agents = Array.isArray(data.agents) ? data.agents : [];
     
-    if (els.agentCount()) els.agentCount().textContent = agents.length;
+    if (els.agentCount()) {
+        els.agentCount().textContent = agents.length;
+        els.agentCount().setAttribute("aria-label", `${agents.length} active worker${agents.length !== 1 ? "s" : ""}`);
+    }
     if (els.uptimeVal()) els.uptimeVal().textContent = formatUptime(status.uptime_seconds || 0);
     if (els.tasksVal()) els.tasksVal().textContent = metrics.total_tasks_completed || 0;
     if (els.failedVal()) els.failedVal().textContent = metrics.total_tasks_failed || 0;
@@ -191,7 +194,8 @@ function renderSwarmStatus(data) {
             <div class="bg-slate-900/40 border border-slate-800/40 rounded-xl p-4 transition-all hover:bg-slate-800/60 group">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full ${agent.status === 'working' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}"></div>
+                        <div class="w-2 h-2 rounded-full ${agent.status === 'working' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}" aria-hidden="true"></div>
+                        <span class="sr-only">${agent.status === 'working' ? 'Active' : 'Idle'}</span>
                         <span class="text-xs font-bold text-slate-200">Worker_${agent.id.slice(0,4)}</span>
                     </div>
                     <span class="text-[9px] font-mono text-slate-500">${agent.type || 'GPT_4o'}</span>
@@ -199,7 +203,7 @@ function renderSwarmStatus(data) {
                 <div class="space-y-1">
                     <div class="text-[10px] text-slate-400 truncate">${agent.current_task || 'Awaiting task queue...'}</div>
                     <div class="w-full bg-slate-800/50 h-1 rounded-full overflow-hidden">
-                        <div class="bg-cyan-500 h-full transition-all duration-1000" style="width: ${agent.status === 'working' ? '70%' : '0%'}"></div>
+                        <div class="bg-cyan-500 h-full transition-all duration-1000" style="width: ${agent.status === 'working' ? '70%' : '0%'}" role="progressbar" aria-valuenow="${agent.status === 'working' ? 70 : 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Worker ${agent.id.slice(0,4)} progress"></div>
                     </div>
                 </div>
             </div>
@@ -214,9 +218,10 @@ function renderSwarmStatus(data) {
         } else {
             results.innerHTML = data.recent_results.map(res => `
                 <div class="flex items-center gap-3 p-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
-                    <span class="material-symbols-outlined text-sm ${res.success ? 'text-emerald-400' : 'text-red-400'}">
+                    <span class="material-symbols-outlined text-sm ${res.success ? 'text-emerald-400' : 'text-red-400'}" aria-hidden="true">
                         ${res.success ? 'check_circle' : 'error'}
                     </span>
+                    <span class="sr-only">${res.success ? 'Success' : 'Failed'}</span>
                     <div class="flex-1 min-w-0">
                         <div class="text-[11px] text-slate-200 truncate">${res.task_id}</div>
                         <div class="text-[9px] text-slate-500 font-mono">${res.duration.toFixed(2)}s - ${res.agent_id}</div>

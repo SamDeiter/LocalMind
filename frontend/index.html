@@ -61,10 +61,12 @@
 </head>
 
 <body class="bg-[#020617] text-slate-300 font-body selection:bg-indigo-500/30 overflow-hidden h-screen flex">
+<!-- Skip to main content link for keyboard navigation -->
+<a href="#mainScrollArea" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">Skip to main content</a>
 <div class="app-container w-full">
 
     <!-- SideNavBar (from Stitch + LocalMind features) -->
-    <aside id="sidebar" class="w-64 flex-shrink-0 flex flex-col bg-[#030712]/95 border-r border-slate-800/60 z-50">
+    <aside id="sidebar" class="w-64 flex-shrink-0 flex flex-col bg-[#030712]/95 border-r border-slate-800/60 z-50" aria-label="Application sidebar">
         <div class="px-6 py-8 flex items-center justify-between">
             <div>
                 <div class="text-lg font-black tracking-tighter text-white font-headline">LocalMind</div>
@@ -94,7 +96,7 @@
             </div>
         </div>
 
-        <nav class="flex-1 space-y-1 overflow-y-auto px-2 custom-scrollbar">
+        <nav class="flex-1 space-y-1 overflow-y-auto px-2 custom-scrollbar" role="navigation" aria-label="Main navigation">
             <button id="overviewBtn" title="View the main dashboard with task pipeline and activity stream" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-100 bg-slate-800/40 border border-slate-700/30 text-xs font-semibold transition-all group">
                 <span class="material-symbols-outlined mr-4 pointer-events-none">terminal</span>
                 <span class="text-sm font-headline tracking-tight pointer-events-none">Main Dashboard</span>
@@ -106,7 +108,7 @@
             <button id="jobsBtn" title="View and manage background jobs and their progress" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
                 <span class="material-symbols-outlined mr-4 group-hover:text-primary pointer-events-none">work</span>
                 <span class="text-sm tracking-tight pointer-events-none">Jobs</span>
-                <span id="jobsRunningBadge" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of currently running jobs">0</span>
+                <span id="jobsRunningBadge" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of currently running jobs" aria-label="0 jobs running">0</span>
             </button>
             <button id="templatesBtn" title="Browse and create reusable job templates" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
                 <span class="material-symbols-outlined mr-4 group-hover:text-purple-400 pointer-events-none">library_books</span>
@@ -115,7 +117,7 @@
             <button id="approvalsBtn" title="Review tasks that need human approval before proceeding" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
                 <span class="material-symbols-outlined mr-4 group-hover:text-emerald-400 pointer-events-none">approval</span>
                 <span class="text-sm tracking-tight pointer-events-none">Approvals</span>
-                <span id="approvalsBadge" class="ml-auto text-[9px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of pending approvals">0</span>
+                <span id="approvalsBadge" class="ml-auto text-[9px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of pending approvals" aria-label="0 approvals pending">0</span>
             </button>
             <div id="conversationList" class="mt-4 space-y-1 pl-4"></div>
         </nav>
@@ -125,7 +127,7 @@
             <div class="pt-4 border-t border-outline-variant/15 space-y-2">
                 <div class="flex items-center justify-between px-2 mb-2">
                     <span class="text-[10px] font-bold uppercase tracking-widest text-outline">Operation Mode</span>
-                    <span id="autonomyIndicator" class="w-2 h-2 rounded-full bg-secondary animate-pulse" title="Current operation mode indicator"></span>
+                    <span id="autonomyIndicator" class="w-2 h-2 rounded-full bg-secondary animate-pulse" title="Current operation mode indicator"></span><span class="sr-only" id="autonomyIndicatorLabel">Active</span>
                 </div>
                 <button id="modeSupervisedBtn" title="AI asks for approval before executing each task step" class="w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface-variant border border-outline-variant/20 hover:text-on-surface">
                     <span class="material-symbols-outlined text-sm">shield</span> Supervised
@@ -142,7 +144,7 @@
                 <button id="swarmDashBtn" title="Monitor the pool of AI worker agents and their task queue" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
                     <span class="material-symbols-outlined text-sm mr-3 group-hover:text-amber-400 pointer-events-none">hive</span>
                     <span class="pointer-events-none">Worker Pool</span>
-                    <span id="swarmAgentCount" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none" title="Number of active worker agents">0</span>
+                    <span id="swarmAgentCount" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none" title="Number of active worker agents" aria-label="0 active workers">0</span>
                 </button>
                 <button id="systemPromptBtn" title="Configure notifications, API keys, and integrations" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
                     <span class="material-symbols-outlined text-sm mr-3">settings</span> Settings
@@ -152,12 +154,12 @@
     </aside>
 
     <!-- Main Content Area -->
-    <div class="main-content flex-1 h-screen flex flex-col relative bg-[radial-gradient(ellipse_at_top,_#0f172a80,_#020617_70%)]">
+    <main class="main-content flex-1 h-screen flex flex-col relative bg-[radial-gradient(ellipse_at_top,_#0f172a80,_#020617_70%)]">
         <!-- TopNavBar -->
         <header class="h-16 z-40 bg-slate-950/60 backdrop-blur-md border-b border-slate-800/60 flex items-center justify-between px-8 flex-shrink-0">
             <div class="flex items-center gap-8">
                 <div class="flex items-center gap-2">
-                    <span id="brainPulse" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" title="Server connection status"></span>
+                    <span id="brainPulse" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" title="Server connection status" aria-hidden="true"></span><span class="sr-only">Connection status:</span>
                     <span id="brainStatus" class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Online</span>
                 </div>
                 <div class="hidden lg:flex items-center gap-6">
@@ -168,19 +170,19 @@
             <div class="flex items-center gap-6">
                 <!-- System Status Indicators -->
                 <div class="flex items-center gap-3">
-                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]" title="Current CPU usage">
+                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]" title="Current CPU usage" role="status" aria-live="polite">
                         <div class="flex items-center gap-2 text-[9px] uppercase tracking-wider font-bold text-slate-500">
                             <span class="material-symbols-outlined text-cyan-400 text-[12px]">memory</span> CPU
                         </div>
                         <div class="text-xs font-bold text-slate-100 tabular-nums font-mono" id="cpuVal">--%</div>
                     </div>
-                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]" title="GPU video memory usage">
+                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]" title="GPU video memory usage" role="status" aria-live="polite">
                         <div class="flex items-center gap-2 text-[9px] uppercase tracking-wider font-bold text-slate-500">
                             <span class="material-symbols-outlined text-violet-400 text-[12px]">storage</span> VRAM
                         </div>
                         <div class="text-xs font-bold text-slate-100 tabular-nums font-mono" id="vramVal">--</div>
                     </div>
-                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]" title="System RAM usage">
+                    <div class="flex flex-col gap-1 p-2.5 px-4 rounded-xl bg-slate-900/40 border border-slate-800/60 min-w-[100px]" title="System RAM usage" role="status" aria-live="polite">
                         <div class="flex items-center gap-2 text-[9px] uppercase tracking-wider font-bold text-slate-500">
                             <span class="material-symbols-outlined text-indigo-400 text-[12px]">monitoring</span> RAM
                         </div>
@@ -189,7 +191,7 @@
                 </div>
 
                 <div class="flex items-center gap-4 text-slate-400">
-                    <span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors" title="View notifications and alerts">notifications_active</span>
+                    <span class="material-symbols-outlined cursor-pointer hover:text-primary transition-colors" title="View notifications and alerts" tabindex="0" role="button" aria-label="View notifications and alerts">notifications_active</span>
                 </div>
             </div>
         </header>
@@ -212,7 +214,7 @@
                         <div id="editorFileList" class="space-y-0.5 text-xs text-outline"></div>
                     </div>
                     <!-- Editor panel divider for resizing -->
-                    <div id="panelDivider" class="w-1 cursor-col-resize bg-outline-variant/10 hover:bg-primary/50 transition-colors z-50" title="Drag to resize the file tree panel"></div>
+                    <div id="panelDivider" class="w-1 cursor-col-resize bg-outline-variant/10 hover:bg-primary/50 transition-colors z-50" title="Drag to resize the file tree panel" tabindex="-1" aria-hidden="true"></div>
                     <div class="flex-1 relative">
                         <div id="monacoContainer" class="absolute inset-0"></div>
                     </div>
@@ -305,6 +307,15 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Swarm Tab Bar -->
+                <div id="swarmTabBar" class="flex gap-2 p-4 border-b border-slate-700"></div>
+
+                <!-- Swarm Tab Panels -->
+                <div id="swarmTreeView" class="hidden p-4"></div>
+                <div id="swarmMemoryView" class="hidden p-4"></div>
+                <div id="swarmMessageLog" class="hidden p-4"></div>
+                <div id="swarmLockStatus" class="hidden p-4"></div>
             </div>
             
             <!-- Primary Workspace (Middle Pane) -->
@@ -332,7 +343,11 @@
                         </div>
                     </div>
 
-                    <!-- Task Pipeline Console (AI Thinking Feed) -->
+                    <!-- Task Creation Area (injected by task_creation.js) -->
+                    <div id="taskCreationArea"></div>
+
+                    <!-- TODO: Add arrow key navigation support for node cards (keyboard accessibility) -->
+        <!-- Task Pipeline Console (AI Thinking Feed) -->
                     <div class="bg-slate-900/30 border border-slate-800/60 rounded-3xl p-6 flex flex-col gap-6 relative overflow-hidden shadow-xl" id="aiThinkingPanel">
                         <div class="absolute inset-0 opacity-5 pointer-events-none">
                             <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,#6366f1,transparent)]"></div>
@@ -353,60 +368,60 @@
                         
                         
                         <!-- Agent Workflow Visualizer -->
-                        <div id="agent-workflow-stepper" class="flex items-center justify-around mb-6 mt-4 px-4 z-10 w-full">
-                            
+                        <div id="agent-workflow-stepper" class="flex items-center justify-around mb-6 mt-4 px-4 z-10 w-full" role="list" aria-label="Agent workflow steps">
+
                             <!-- Step 1: Planner (Active) -->
-                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0">
+                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0" role="listitem" aria-label="Step 1: Planner - active">
                                 <div class="relative">
                                     <div id="step-planner" class="w-11 h-11 rounded-full bg-indigo-500/20 border-2 border-indigo-500 flex items-center justify-center text-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.5)] transition-all duration-300">
                                         <span class="material-symbols-outlined text-[20px]">schema</span>
                                     </div>
-                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-indigo-500 text-[8px] font-black text-white flex items-center justify-center shadow-lg">1</span>
+                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-indigo-500 text-[8px] font-black text-white flex items-center justify-center shadow-lg" aria-hidden="true">1</span>
                                 </div>
                                 <span class="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-400">Planner</span>
                             </div>
-                            
 
-                            
+
+
                             <!-- Step 2: Coder -->
-                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0">
+                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0" role="listitem" aria-label="Step 2: Coder - pending">
                                 <div class="relative">
                                     <div id="step-coder" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
                                         <span class="material-symbols-outlined text-[20px]">code_blocks</span>
                                     </div>
-                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center">2</span>
+                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center" aria-hidden="true">2</span>
                                 </div>
                                 <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Coder</span>
                             </div>
-                            
 
-                            
+
+
                             <!-- Step 3: Execute -->
-                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0">
+                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0" role="listitem" aria-label="Step 3: Execute - pending">
                                 <div class="relative">
                                     <div id="step-execute" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
                                         <span class="material-symbols-outlined text-[20px]">terminal</span>
                                     </div>
-                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center">3</span>
+                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center" aria-hidden="true">3</span>
                                 </div>
                                 <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Execute</span>
                             </div>
-                            
 
-                            
+
+
                             <!-- Step 4: Review -->
-                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0">
+                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0" role="listitem" aria-label="Step 4: Review - pending">
                                 <div class="relative">
                                     <div id="step-reviewer" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
                                         <span class="material-symbols-outlined text-[20px]">verified_user</span>
                                     </div>
-                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center">4</span>
+                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center" aria-hidden="true">4</span>
                                 </div>
                                 <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Review</span>
                             </div>
                         </div>
                         
-                        <div id="aiThinkingFeed" class="flex-1 space-y-4 max-h-[250px] overflow-y-auto custom-scrollbar pr-2 z-10 font-mono text-sm">
+                        <div id="aiThinkingFeed" class="flex-1 space-y-4 max-h-[250px] overflow-y-auto custom-scrollbar pr-2 z-10 font-mono text-sm" aria-live="polite">
                             <p class="opacity-40 italic flex items-center gap-2"><div class="w-6 h-6 rounded-full border border-outline flex items-center justify-center bg-outline/10"><span class="material-symbols-outlined text-xs">hourglass_empty</span></div> Waiting for engine activity...</p>
                         </div>
                     </div>
@@ -536,9 +551,9 @@
                 <div class="flex-1 flex flex-col">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Event Stream</h2>
-                        <span class="material-symbols-outlined text-outline text-lg cursor-pointer hover:text-on-background" title="Filter the event stream by type">filter_list</span>
+                        <span class="material-symbols-outlined text-outline text-lg cursor-pointer hover:text-on-background" title="Filter the event stream by type" tabindex="0" role="button" aria-label="Filter event stream">filter_list</span>
                     </div>
-                    <div class="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar" id="systemLogFeed">
+                    <div class="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar" id="systemLogFeed" aria-live="polite">
                         <!-- Static fake logs from design -->
                         <div class="group flex gap-3">
                             <div class="w-1 h-8 bg-secondary rounded-full mt-1"></div>
@@ -573,11 +588,11 @@
             <div id="approvalsView" class="hidden flex-1 flex flex-col"></div>
 
         </div>
-    </div>
+    </main>
 </div>
 
 <!-- Settings Modal (Notifications / SMS) -->
-<div id="settingsModal" class="hidden fixed inset-0 z-[100] items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+<div id="settingsModal" class="hidden fixed inset-0 z-[100] items-center justify-center bg-black/80 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Settings">
     <div class="glass-panel w-full max-w-lg rounded-2xl border border-outline-variant/30 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
         <div class="p-6 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container-low">
             <div class="flex items-center gap-3">

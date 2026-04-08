@@ -148,6 +148,7 @@ function updateNavBadge() {
   if (!badge) return;
   const count = _approvals.length;
   badge.textContent = count;
+  badge.setAttribute("aria-label", `${count} approval${count !== 1 ? "s" : ""} pending`);
   badge.classList.toggle("hidden", count === 0);
 }
 

@@ -25,6 +25,8 @@ import { initSwarmUI } from "./modules/swarm_ui.js";
 import { initJobsUI } from "./modules/jobs_ui.js";
 import { initTemplatesUI } from "./modules/templates_ui.js";
 import { initApprovalsUI } from "./modules/approvals_ui.js";
+import { initTaskCreation } from "./modules/task_creation.js";
+import { initOnboarding } from "./modules/onboarding.js";
 
 async function init() {
   checkHealth();
@@ -50,6 +52,8 @@ async function init() {
   initJobsUI();
   initTemplatesUI();
   initApprovalsUI();
+  initTaskCreation();
+  initOnboarding();
 
   // Restore editor panel if it was open
 

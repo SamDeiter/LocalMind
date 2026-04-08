@@ -180,3 +180,60 @@ body {
     0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
     40% { transform: scale(1); opacity: 1; }
 }
+
+/* ═══ Accessibility ═══ */
+
+/* Visible focus indicators for keyboard navigation */
+:focus-visible {
+    outline: 2px solid #6366f1 !important;
+    outline-offset: 2px !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 2px solid #6366f1 !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .animate-pulse {
+        animation: none !important;
+    }
+}
+
+/* High contrast support */
+@media (prefers-contrast: more) {
+    .border-slate-800\/60,
+    .border-outline-variant\/20,
+    .border-outline-variant\/30,
+    .border-outline-variant\/40 {
+        border-color: rgba(148, 163, 184, 0.6) !important;
+    }
+    .text-outline,
+    .text-slate-500,
+    .text-slate-400 {
+        color: #cbd5e1 !important;
+    }
+    .bg-slate-900\/60,
+    .bg-slate-900\/30 {
+        background-color: rgba(15, 23, 42, 0.9) !important;
+    }
+}
+
+/* Ensure UI works at 200% zoom */
+@media (min-resolution: 192dpi) {
+    .app-container {
+        min-width: 0;
+    }
+}

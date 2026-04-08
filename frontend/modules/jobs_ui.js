@@ -1261,7 +1261,7 @@ function _renderJobCards() {
         ${showMiniProgress ? `
         <div class="space-y-1" title="${nodeCompleted}/${nodeTotal} nodes complete (${nodePct}%)">
           <div class="w-full bg-slate-800/50 h-1.5 rounded-full overflow-hidden">
-            <div class="jobs-progress-bar ${isRunning ? "jobs-progress-active" : ""} bg-${cfg.color}-500 h-full rounded-full" style="width: ${nodePct}%"></div>
+            <div class="jobs-progress-bar ${isRunning ? "jobs-progress-active" : ""} bg-${cfg.color}-500 h-full rounded-full" style="width: ${nodePct}%" role="progressbar" aria-valuenow="${nodePct}" aria-valuemin="0" aria-valuemax="100" aria-label="Job progress: ${nodePct}%"></div>
           </div>
           <div class="flex items-center justify-between text-[8px] font-mono text-slate-600">
             <span>${nodeCompleted}/${nodeTotal} nodes</span>
@@ -1537,7 +1537,7 @@ function _renderNodes(nodes, jobStatus) {
           </div>
           ${isRunning && node.progress != null ? `
             <div class="mt-2 w-full bg-slate-800/50 h-1 rounded-full overflow-hidden">
-              <div class="jobs-progress-bar jobs-progress-active bg-amber-500 h-full rounded-full" style="width: ${Math.min(100, Math.max(0, node.progress))}%"></div>
+              <div class="jobs-progress-bar jobs-progress-active bg-amber-500 h-full rounded-full" style="width: ${Math.min(100, Math.max(0, node.progress))}%" role="progressbar" aria-valuenow="${Math.min(100, Math.max(0, node.progress))}" aria-valuemin="0" aria-valuemax="100" aria-label="Node progress"></div>
             </div>
           ` : ""}
           ${outputPreview ? `
@@ -1720,6 +1720,7 @@ function _updateRunningBadge() {
     ["pending", "planning", "executing", "reviewing", "cancelling"].includes(j.status),
   ).length;
   badge.textContent = String(running);
+  badge.setAttribute("aria-label", `${running} job${running !== 1 ? "s" : ""} running`);
   if (running > 0) {
     badge.classList.remove("hidden");
   } else {
