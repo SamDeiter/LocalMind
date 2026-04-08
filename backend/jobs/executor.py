@@ -369,6 +369,39 @@ class NodeExecutor:
             content: str = msg.get("content") or ""
             ollama_tool_calls: list[dict] = msg.get("tool_calls") or []
 
+            # ── Text-based tool call fallback ─────────────────────────
+            # Small models sometimes emit tool calls as text instead of
+            # using Ollama's native tool calling.  Parse them out.
+            if not ollama_tool_calls and content.strip():
+                from backend.logic.tool_dispatcher import ToolDispatcher
+                _dispatcher = ToolDispatcher(self._registry)
+                text_calls = _dispatcher.parse_text_tools(content)
+                if text_calls:
+                    ollama_tool_calls = text_calls
+                    content = _dispatcher.strip_tool_json(content)
+                    logger.info(
+                        "Node '%s': parsed %d text-based tool call(s).",
+                        node.id, len(text_calls),
+                    )
+                elif ToolDispatcher._looks_like_tool_template(content):
+                    # Model parroted a format template — suppress and try
+                    # synthetic inference from the job's original request.
+                    logger.warning(
+                        "Node '%s': suppressed template tool output, "
+                        "trying synthetic inference.",
+                        node.id,
+                    )
+                    synthetic = ToolDispatcher.infer_tool_call(
+                        job.title or job.description or ""
+                    )
+                    if synthetic:
+                        ollama_tool_calls = [synthetic]
+                        content = ""
+                        logger.info(
+                            "Node '%s': injected synthetic tool call: %s",
+                            node.id, synthetic["function"]["name"],
+                        )
+
             # ── No tool calls → final output ───────────────────────────
             if not ollama_tool_calls:
                 logger.info(

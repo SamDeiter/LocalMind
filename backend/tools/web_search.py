@@ -1,7 +1,9 @@
 """
 Web Search Tool — Multi-provider with automatic fallback.
-Providers: DuckDuckGo HTML → Google scraper → Brave scraper.
-No API keys needed — all free scraping.
+
+Primary:  ddgs library (DuckDuckGo backend API — reliable, no scraping).
+Fallback: HTTP scrapers for DuckDuckGo HTML, Google, Brave.
+No API keys needed.
 """
 
 import re
@@ -55,7 +57,8 @@ class WebSearchTool(BaseTool):
             return {"success": False, "error": "Query cannot be empty"}
 
         providers = [
-            ("DuckDuckGo", self._search_ddg),
+            ("DuckDuckGo-API", self._search_ddgs_lib),
+            ("DuckDuckGo-HTML", self._search_ddg),
             ("Google", self._search_google),
             ("Brave", self._search_brave),
         ]
@@ -82,28 +85,59 @@ class WebSearchTool(BaseTool):
                 logger.warning(f"{name} failed: {exc}")
                 continue
 
+        logger.error("All search providers failed for query: %s", query)
         return {
             "success": False,
             "error": f"All search providers failed. Last error: {last_error}",
         }
 
-    # ── Provider 1: DuckDuckGo HTML ──────────────────────────────
+    # ── Provider 0: ddgs library (primary) ──────────────────────────
+    async def _search_ddgs_lib(self, query: str) -> list[dict]:
+        """Use the ddgs library for reliable DuckDuckGo access."""
+        import asyncio
+
+        def _sync_search():
+            try:
+                from ddgs import DDGS
+            except ImportError:
+                from duckduckgo_search import DDGS
+            with DDGS() as ddgs:
+                raw = list(ddgs.text(query, max_results=5))
+            return [
+                {
+                    "title": r.get("title", ""),
+                    "snippet": r.get("body", ""),
+                    "url": r.get("href", ""),
+                }
+                for r in raw
+                if r.get("href")
+            ]
+
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_search)
+
+    # ── Provider 1: DuckDuckGo HTML (fallback) ──────────────────────
     async def _search_ddg(self, query: str) -> list[dict]:
         async with httpx.AsyncClient(
             timeout=TIMEOUT,
-            headers={"User-Agent": UA_CHROME},
+            headers={
+                "User-Agent": UA_CHROME,
+                "Accept": "text/html,application/xhtml+xml",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Referer": "https://html.duckduckgo.com/",
+            },
             follow_redirects=True,
         ) as client:
-            resp = await client.get(
+            resp = await client.post(
                 "https://html.duckduckgo.com/html/",
-                params={"q": query},
+                data={"q": query},
             )
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                logger.warning("DuckDuckGo returned HTTP %d", resp.status_code)
+                return []
             return self._parse_ddg(resp.text)
 
     def _parse_ddg(self, html: str) -> list[dict]:
         results = []
-        # DuckDuckGo HTML version uses class="result__a" for links
         link_pat = re.compile(
             r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>',
             re.DOTALL,
@@ -115,7 +149,6 @@ class WebSearchTool(BaseTool):
         links = link_pat.findall(html)
         snippets = snippet_pat.findall(html)
 
-        # Fallback patterns
         if not links:
             link_pat = re.compile(
                 r'<a[^>]+rel="nofollow"[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>',
@@ -124,7 +157,6 @@ class WebSearchTool(BaseTool):
             links = link_pat.findall(html)
 
         for i, (url, title) in enumerate(links[:5]):
-            # DDG wraps URLs in a redirect — extract real URL
             real_url = url
             uddg_match = re.search(r'uddg=([^&]+)', url)
             if uddg_match:
@@ -147,7 +179,9 @@ class WebSearchTool(BaseTool):
             timeout=TIMEOUT,
             headers={
                 "User-Agent": UA_FIREFOX,
+                "Accept": "text/html,application/xhtml+xml",
                 "Accept-Language": "en-US,en;q=0.9",
+                "Referer": "https://www.google.com/",
             },
             follow_redirects=True,
         ) as client:
@@ -155,17 +189,17 @@ class WebSearchTool(BaseTool):
                 "https://www.google.com/search",
                 params={"q": query, "hl": "en", "num": "5"},
             )
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                logger.warning("Google returned HTTP %d", resp.status_code)
+                return []
             return self._parse_google(resp.text)
 
     def _parse_google(self, html: str) -> list[dict]:
         results = []
-        # Google wraps results in <div class="g"> blocks
         block_pat = re.compile(r'<div class="g">(.*?)</div>\s*</div>\s*</div>', re.DOTALL)
         blocks = block_pat.findall(html)
 
         if not blocks:
-            # Fallback: find all href links that look like results
             link_pat = re.compile(
                 r'<a[^>]+href="/url\?q=(https?://[^&"]+)[^"]*"[^>]*>(.*?)</a>',
                 re.DOTALL,
@@ -182,11 +216,8 @@ class WebSearchTool(BaseTool):
             return results
 
         for block in blocks[:5]:
-            # Extract URL
             url_match = re.search(r'href="(https?://[^"]+)"', block)
-            # Extract title (usually in <h3>)
             title_match = re.search(r'<h3[^>]*>(.*?)</h3>', block, re.DOTALL)
-            # Extract snippet
             snippet_match = re.search(
                 r'<span[^>]*class="[^"]*st[^"]*"[^>]*>(.*?)</span>',
                 block, re.DOTALL,
@@ -213,7 +244,8 @@ class WebSearchTool(BaseTool):
             timeout=TIMEOUT,
             headers={
                 "User-Agent": UA_CHROME,
-                "Accept": "text/html",
+                "Accept": "text/html,application/xhtml+xml",
+                "Accept-Language": "en-US,en;q=0.9",
             },
             follow_redirects=True,
         ) as client:
@@ -221,12 +253,13 @@ class WebSearchTool(BaseTool):
                 "https://search.brave.com/search",
                 params={"q": query},
             )
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                logger.warning("Brave returned HTTP %d", resp.status_code)
+                return []
             return self._parse_brave(resp.text)
 
     def _parse_brave(self, html: str) -> list[dict]:
         results = []
-        # Brave uses <a class="result-header" href="...">
         link_pat = re.compile(
             r'<a[^>]+class="[^"]*result-header[^"]*"[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>',
             re.DOTALL,
