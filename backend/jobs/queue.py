@@ -344,13 +344,25 @@ class JobQueue:
             title, instructions, tools_allowed, expected_output,
             input_schema_json, output_schema_json, depends_on,
             timeout_sec, retry_policy_json
+
+        The ``depends_on`` field may contain **title strings** (as produced by
+        the planner) or node UUIDs.  After all nodes are inserted this method
+        resolves any title references to the corresponding node UUIDs so that
+        ``get_next_pending_node`` can look up dependency status by ID.
         """
         now = _now()
         created: list[Node] = []
+        # Pre-assign IDs so we can build the title→ID map before inserting.
+        node_ids: list[str] = [_new_id() for _ in nodes]
+        title_to_id: dict[str, str] = {}
+        for nid, node_def in zip(node_ids, nodes):
+            title = str(node_def.get("title", "")).strip()
+            if title:
+                title_to_id[title] = nid
+
         conn = _get_conn()
         try:
-            for seq, node_def in enumerate(nodes, start=1):
-                node_id = _new_id()
+            for seq, (node_id, node_def) in enumerate(zip(node_ids, nodes), start=1):
                 tools_allowed = node_def.get("tools_allowed", [])
                 tools_allowed_json = (
                     json.dumps(tools_allowed)
@@ -358,11 +370,17 @@ class JobQueue:
                     else tools_allowed
                 )
                 depends_on = node_def.get("depends_on", [])
-                depends_on_json = (
-                    json.dumps(depends_on)
-                    if not isinstance(depends_on, str)
-                    else depends_on
-                )
+                if isinstance(depends_on, str):
+                    try:
+                        depends_on = json.loads(depends_on)
+                    except (json.JSONDecodeError, ValueError):
+                        depends_on = [depends_on] if depends_on else []
+                # Resolve title strings → node UUIDs
+                resolved_deps: list[str] = []
+                for dep in depends_on:
+                    resolved_deps.append(title_to_id.get(dep, dep))
+                depends_on_json = json.dumps(resolved_deps)
+
                 retry_policy_json = node_def.get("retry_policy_json") or RetryPolicy().to_json()
 
                 conn.execute(
