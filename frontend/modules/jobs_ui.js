@@ -279,6 +279,13 @@ function buildShellHTML() {
           <span class="material-symbols-outlined text-sm" aria-hidden="true">cancel</span><span>Cancel</span>
         </button>
         <button
+          id="jobDeleteBtn"
+          aria-label="Delete this job"
+          class="hidden items-center gap-1.5 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+        >
+          <span class="material-symbols-outlined text-sm" aria-hidden="true">delete</span><span>Delete</span>
+        </button>
+        <button
           id="jobSaveTemplateBtn"
           aria-label="Save job as pipeline template"
           class="hidden items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
@@ -624,6 +631,9 @@ export function initJobsUI() {
 
   // Detail view: cancel job
   el("jobCancelBtn")?.addEventListener("click", _cancelCurrentJob);
+
+  // Detail view: delete job
+  el("jobDeleteBtn")?.addEventListener("click", _deleteCurrentJob);
 
   // Detail view: save as template
   el("jobSaveTemplateBtn")?.addEventListener("click", _saveAsTemplate);
@@ -1033,6 +1043,38 @@ async function _cancelCurrentJob() {
 }
 
 // ---------------------------------------------------------------------------
+// API: Delete job
+// ---------------------------------------------------------------------------
+
+async function _deleteCurrentJob() {
+  if (!_selectedJobId) return;
+  if (!confirm("Delete this job? This cannot be undone.")) return;
+
+  const btn = el("jobDeleteBtn");
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch(
+      `${API}/api/jobs/${encodeURIComponent(_selectedJobId)}`,
+      { method: "DELETE" },
+    );
+    if (res.ok) {
+      showToast("Job deleted", "info");
+      _announceStatus("Job deleted");
+      _showListView();
+      _loadJobs();
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      showToast(errData.detail || "Delete failed", "error");
+    }
+  } catch {
+    showToast("Delete request failed", "error");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // API: Review job (approve / reject)
 // ---------------------------------------------------------------------------
 
@@ -1355,6 +1397,18 @@ function _renderJobDetail(job) {
     } else {
       cancelBtn.classList.remove("hidden");
       cancelBtn.classList.add("flex");
+    }
+  }
+
+  // Delete button -- only visible for terminal jobs
+  const deleteBtn = el("jobDeleteBtn");
+  if (deleteBtn) {
+    if (terminalStates.includes(job.status)) {
+      deleteBtn.classList.remove("hidden");
+      deleteBtn.classList.add("flex");
+    } else {
+      deleteBtn.classList.add("hidden");
+      deleteBtn.classList.remove("flex");
     }
   }
 

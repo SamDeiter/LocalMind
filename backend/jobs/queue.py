@@ -252,6 +252,31 @@ class JobQueue:
             self.update_job_status(child_id, JobStatus.CANCELLING.value)
             self._cascade_cancel(child_id)
 
+    def delete_job(self, job_id: str) -> bool:
+        """Hard-delete a job and all its related data (nodes, files, audit log).
+
+        Returns True if the job was found and deleted, False otherwise.
+        Only terminal jobs (done, failed, cancelled) should be deleted —
+        the caller is responsible for checking this.
+        """
+        conn = _get_conn()
+        try:
+            # Check job exists
+            row = conn.execute("SELECT id FROM jobs WHERE id = ?", (job_id,)).fetchone()
+            if not row:
+                return False
+            # Delete related data first (order matters for FK constraints)
+            conn.execute("DELETE FROM job_audit_log WHERE job_id = ?", (job_id,))
+            conn.execute("DELETE FROM job_files WHERE job_id = ?", (job_id,))
+            conn.execute("DELETE FROM job_nodes WHERE job_id = ?", (job_id,))
+            conn.execute("DELETE FROM job_delegation WHERE parent_job_id = ? OR child_job_id = ?", (job_id, job_id))
+            conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+            conn.commit()
+            logger.info("Deleted job %s and all related data.", job_id)
+            return True
+        finally:
+            conn.close()
+
     # ------------------------------------------------------------------
     # Delegation-aware queries
     # ------------------------------------------------------------------
