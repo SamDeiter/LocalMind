@@ -18,7 +18,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, PROPOSALS_DIR, FRONTEND_URLS
+from backend.config import (
+    DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, PROPOSALS_DIR, FRONTEND_URLS,
+    SLACK_ENABLED, GPU_VRAM_GB,
+)
 from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
 from backend.tools.registry import ToolRegistry
 from backend.autonomy import AutonomyEngine, PROPOSALS_DIR
@@ -26,6 +29,9 @@ from backend.metacognition.controller import MetaCognitiveController
 from backend import notifications, gemini_client, db
 from backend.db import DB_PATH, get_db
 from backend.core.schema import init_phase0_schema, ensure_default_tenant
+from backend.core.telemetry import (
+    init_telemetry_schema, health_checker, metrics_collector, alert_manager,
+)
 from backend.jobs.worker import JobWorker
 
 # -- Logging --
@@ -52,22 +58,37 @@ metacog_controller = MetaCognitiveController(
 )
 registry = ToolRegistry()
 job_worker = None  # Initialized in lifespan after schema setup
+gc_worker = None   # GC background worker
+slack_bot = None   # Slack bot (if enabled)
 
 # -- App Lifecycle --
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database, configure routers, and start autonomy engine."""
-    global job_worker
+    """Initialize database, configure routers, and start all background workers."""
+    global job_worker, gc_worker, slack_bot
 
+    import asyncio
+
+    # ── Database & schema ───────────────────────────────────────
     db.init_db()
     init_phase0_schema()
+    init_telemetry_schema()
     ensure_default_tenant()
     _configure_routers()
+
+    # ── Startup secret scan ─────────────────────────────────────
+    try:
+        from backend.core.secret_manager import StartupSecretScanner
+        warnings = StartupSecretScanner.scan_config_files()
+        for w in warnings:
+            logger.warning("Secret scan: %s in %s", w.get("pattern", "unknown"), w.get("file", "unknown"))
+    except Exception:
+        logger.debug("Secret scanner skipped (non-critical)")
 
     # Store engine on app.state for route access
     app.state.autonomy_engine = autonomy_engine
 
-    # Start job worker (enterprise task pipeline)
+    # ── Job worker ──────────────────────────────────────────────
     from backend.routes.jobs import emit_activity
     job_worker = JobWorker(
         tool_registry=registry,
@@ -76,13 +97,45 @@ async def lifespan(app: FastAPI):
     )
     app.state.job_worker = job_worker
 
+    # ── GC worker ───────────────────────────────────────────────
+    try:
+        from backend.core.gc import GCWorker
+        gc_worker = GCWorker()
+        asyncio.create_task(gc_worker.start())
+        logger.info("GC worker started")
+    except Exception as e:
+        logger.warning("GC worker failed to start: %s", e)
+
+    # ── Slack bot ───────────────────────────────────────────────
+    if SLACK_ENABLED:
+        try:
+            from backend.integrations.slack_bot import get_slack_bot
+            slack_bot = get_slack_bot()
+            if slack_bot:
+                await slack_bot.start()
+                logger.info("Slack bot started (Socket Mode)")
+        except Exception as e:
+            logger.warning("Slack bot failed to start: %s", e)
+
+    # ── Memory encryption migration ────────────────────────────
+    try:
+        from backend.security.memory_encryption import ensure_memory_columns
+        ensure_memory_columns()
+    except Exception:
+        logger.debug("Memory encryption migration skipped (non-critical)")
+
+    # ── Start main workers ──────────────────────────────────────
     await autonomy_engine.start()
-    import asyncio
-    _worker_task = asyncio.create_task(job_worker.start())
-    logger.info("LocalMind server initialized (autonomy engine + job worker active)")
+    asyncio.create_task(job_worker.start())
+    logger.info("LocalMind server initialized (autonomy + job worker + GC active)")
     yield
-    # Graceful shutdown
+
+    # ── Graceful shutdown ───────────────────────────────────────
     await job_worker.stop()
+    if gc_worker:
+        await gc_worker.stop()
+    if slack_bot:
+        await slack_bot.stop()
     if hasattr(autonomy_engine, 'coordinator') and autonomy_engine.coordinator:
         await autonomy_engine.coordinator.stop()
     await autonomy_engine.stop()
@@ -178,6 +231,25 @@ app.include_router(validation_router)
 app.include_router(google_auth_router)
 app.include_router(google_auth_legacy_router)
 app.include_router(jobs_router)
+
+# -- Health Check Endpoints --
+@app.get("/health")
+async def health_liveness():
+    """Basic liveness check."""
+    result = await health_checker.check_liveness()
+    return result.to_dict() if hasattr(result, 'to_dict') else {"healthy": result.healthy}
+
+@app.get("/health/ready")
+async def health_readiness():
+    """Readiness check — Ollama reachable, models loaded."""
+    result = await health_checker.check_readiness()
+    return result.to_dict() if hasattr(result, 'to_dict') else {"healthy": result.healthy}
+
+@app.get("/health/deep")
+async def health_deep():
+    """Deep health check — VRAM, queue depth, disk space."""
+    result = await health_checker.check_deep()
+    return result.to_dict() if hasattr(result, 'to_dict') else {"healthy": result.healthy}
 
 # -- Static Files --
 frontend_path = Path(__file__).parent.parent / "frontend"

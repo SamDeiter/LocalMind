@@ -30,7 +30,39 @@ import { toggleActivityFeed } from "./autonomy/index.js";
 import { toggleEditorPanel } from "./editor.js";
 import { toggleSettingsModal } from "./settings_ui.js";
 import { hideSwarmDashboard } from "./swarm_ui.js";
+import { showJobsView } from "./jobs_ui.js";
+import { showTemplatesView } from "./templates_ui.js";
+import { showApprovalsView } from "./approvals_ui.js";
 import { chatScreen, overviewBtn } from "./state.js";
+
+/** Hide all enterprise views and restore the default main scroll area. */
+function hideAllViews() {
+  hideSwarmDashboard();
+  const mainScroll = document.getElementById("mainScrollArea");
+  const jobsView = document.getElementById("jobsView");
+  const templatesView = document.getElementById("templatesView");
+  const approvalsView = document.getElementById("approvalsView");
+  if (mainScroll) { mainScroll.classList.add("hidden"); mainScroll.style.display = "none"; }
+  if (jobsView) jobsView.classList.add("hidden");
+  if (templatesView) templatesView.classList.add("hidden");
+  if (approvalsView) approvalsView.classList.add("hidden");
+}
+
+/** Reset active state on all nav buttons, then highlight the given one. */
+function setActiveNav(activeId) {
+  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn"];
+  navIds.forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    if (id === activeId) {
+      btn.classList.add("text-slate-100", "bg-slate-800/40", "border", "border-slate-700/30");
+      btn.classList.remove("text-slate-400");
+    } else {
+      btn.classList.remove("text-slate-100", "bg-slate-800/40", "border", "border-slate-700/30");
+      btn.classList.add("text-slate-400");
+    }
+  });
+}
 
 export function bindEvents() {
   // Sidebar
@@ -48,12 +80,39 @@ export function bindEvents() {
 
   // Global Overview Button
   overviewBtn?.addEventListener("click", () => {
-    hideSwarmDashboard();
+    hideAllViews();
+    const mainScroll = document.getElementById("mainScrollArea");
+    if (mainScroll) { mainScroll.classList.remove("hidden"); mainScroll.style.display = "flex"; }
     if (chatScreen) {
       chatScreen.classList.add("hidden");
       chatScreen.style.display = "none";
     }
+    setActiveNav("overviewBtn");
     loadConversations();
+  });
+
+  // Enterprise Nav — Jobs
+  document.getElementById("jobsBtn")?.addEventListener("click", () => {
+    hideAllViews();
+    showJobsView();
+    if (chatScreen) { chatScreen.classList.add("hidden"); chatScreen.style.display = "none"; }
+    setActiveNav("jobsBtn");
+  });
+
+  // Enterprise Nav — Templates
+  document.getElementById("templatesBtn")?.addEventListener("click", () => {
+    hideAllViews();
+    showTemplatesView();
+    if (chatScreen) { chatScreen.classList.add("hidden"); chatScreen.style.display = "none"; }
+    setActiveNav("templatesBtn");
+  });
+
+  // Enterprise Nav — Approvals
+  document.getElementById("approvalsBtn")?.addEventListener("click", () => {
+    hideAllViews();
+    showApprovalsView();
+    if (chatScreen) { chatScreen.classList.add("hidden"); chatScreen.style.display = "none"; }
+    setActiveNav("approvalsBtn");
   });
 
   // Close Chat Overlay Button
