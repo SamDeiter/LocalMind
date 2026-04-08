@@ -80,7 +80,7 @@ backend/
 frontend/
 ├── app.js              — Entry point, module init
 ├── index.html          — SPA shell
-├── style.css           — Core styles
+├── styles.css          — Core styles (Tailwind companion)
 ├── manifest.json       — PWA manifest
 ├── sw.js               — Service worker
 └── modules/

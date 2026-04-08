@@ -223,7 +223,7 @@ LocalMind/
 ├── frontend/
 │   ├── index.html             # SPA shell + all UI panels
 │   ├── app.js                 # Entry point, module init
-│   ├── style.css              # Premium dark theme
+│   ├── styles.css             # Core styles (Tailwind companion)
 │   ├── manifest.json          # PWA manifest
 │   ├── sw.js                  # Service worker for offline
 │   └── modules/
