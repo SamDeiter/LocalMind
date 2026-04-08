@@ -83,6 +83,8 @@ const _TW_SAFELIST = [
   "border-l-slate-500","border-l-blue-500","border-l-amber-500",
   "border-l-purple-500","border-l-emerald-500","border-l-red-500",
   "animate-pulse",
+  "bg-slate-500","bg-blue-500","bg-amber-500",
+  "bg-purple-500","bg-emerald-500","bg-red-500",
 ];
 void _TW_SAFELIST; // suppress unused warning
 
@@ -339,6 +341,7 @@ function buildShellHTML() {
       <div id="nodeDetailInstructions" class="text-xs text-slate-400 leading-relaxed"></div>
       <div id="nodeDetailTools" class="flex flex-wrap gap-1.5"></div>
       <div id="nodeDetailOutput" class="hidden bg-slate-950/50 border border-slate-800/40 rounded-lg p-3 text-xs font-mono text-slate-400 max-h-40 overflow-y-auto custom-scrollbar whitespace-pre-wrap"></div>
+      <div id="nodeDetailFiles" class="hidden flex flex-wrap gap-2"></div>
     </div>
 
     <!-- Output Files -->
@@ -1215,10 +1218,24 @@ function _renderJobCards() {
     .map((job, index) => {
       const cfg = STATUS_CFG[job.status] || STATUS_CFG.pending;
       const created = _timeAgo(job.created_at);
-      const fileCount = job.file_count ?? 0;
+      const fileCount = job.file_count ?? (job.files ? job.files.filter((f) => f.file_type === "output").length : 0);
       const isRunning = ["executing", "planning"].includes(job.status);
       const spinClass = isRunning ? "jobs-spin" : "";
       const priorityLabel = _priorityLabel(job.priority);
+
+      // Node progress for mini progress bar
+      const nodes = job.nodes || [];
+      const nodeTotal = job.node_count ?? nodes.length;
+      const nodeCompleted = job.nodes_completed ?? nodes.filter((n) => n.status === "completed").length;
+      const nodePct = nodeTotal > 0 ? Math.round((nodeCompleted / nodeTotal) * 100) : 0;
+      const showMiniProgress = nodeTotal > 0;
+
+      // ETA for actively running jobs
+      let etaStr = "";
+      if (isRunning && nodes.length > 0) {
+        const eta = _estimateETA(nodes);
+        if (eta) etaStr = eta;
+      }
 
       return `
       <div
@@ -1241,6 +1258,17 @@ function _renderJobCards() {
             ? `<p class="text-[11px] text-slate-500 leading-relaxed line-clamp-2">${escapeHtml(job.description.substring(0, 120))}</p>`
             : ""
         }
+        ${showMiniProgress ? `
+        <div class="space-y-1" title="${nodeCompleted}/${nodeTotal} nodes complete (${nodePct}%)">
+          <div class="w-full bg-slate-800/50 h-1.5 rounded-full overflow-hidden">
+            <div class="jobs-progress-bar ${isRunning ? "jobs-progress-active" : ""} bg-${cfg.color}-500 h-full rounded-full" style="width: ${nodePct}%"></div>
+          </div>
+          <div class="flex items-center justify-between text-[8px] font-mono text-slate-600">
+            <span>${nodeCompleted}/${nodeTotal} nodes</span>
+            ${etaStr ? `<span class="text-amber-400/70">${escapeHtml(etaStr)}</span>` : ""}
+          </div>
+        </div>
+        ` : ""}
         <div class="flex items-center gap-3 text-[9px] font-mono text-slate-500 flex-wrap">
           <span class="flex items-center gap-1">
             <span class="material-symbols-outlined text-[11px]" aria-hidden="true">schedule</span>
@@ -1250,7 +1278,7 @@ function _renderJobCards() {
           ${priorityLabel ? `<span class="${priorityLabel.cls}">${escapeHtml(priorityLabel.text)}</span>` : ""}
           ${
             fileCount > 0
-              ? `<span class="flex items-center gap-0.5"><span class="material-symbols-outlined text-[11px]" aria-hidden="true">attach_file</span>${fileCount}</span>`
+              ? `<span class="flex items-center gap-0.5" title="${fileCount} output file${fileCount !== 1 ? "s" : ""}"><span class="material-symbols-outlined text-[11px]" aria-hidden="true">attach_file</span><span class="bg-indigo-500/15 text-indigo-400 px-1 rounded">${fileCount}</span></span>`
               : ""
           }
         </div>
@@ -1382,7 +1410,14 @@ function _renderJobDetail(job) {
     }
   }
   const progressLabel = el("jobProgressLabel");
-  if (progressLabel) progressLabel.textContent = `${completedCount}/${totalCount} nodes (${pct}%)`;
+  if (progressLabel) {
+    let labelText = `${completedCount}/${totalCount} nodes (${pct}%)`;
+    if (isActive && totalCount > 0) {
+      const eta = _estimateETA(nodes);
+      if (eta) labelText += ` \u2014 ${eta}`;
+    }
+    progressLabel.textContent = labelText;
+  }
 
   // Output files
   const outputFiles = (job.files || []).filter((f) => f.file_type === "output");
@@ -1458,17 +1493,27 @@ function _renderNodes(nodes, jobStatus) {
       const isRunning = node.status === "running";
       const spinClass = isRunning ? "jobs-spin" : "";
 
-      // Elapsed time
-      let elapsedStr = "";
-      if (node.created_at && node.updated_at && node.status !== "pending") {
-        const start = new Date(node.created_at).getTime();
-        const end = new Date(node.updated_at).getTime();
-        const diffSec = Math.max(0, Math.round((end - start) / 1000));
-        elapsedStr = _formatDuration(diffSec);
-      }
+      // Elapsed time (uses started_at/completed_at when available)
+      const elapsedStr = _nodeElapsed(node);
 
       // Model info
       const modelStr = node.model || "";
+
+      // Truncated output preview for completed nodes
+      let outputPreview = "";
+      if (node.status === "completed" && node.output_json) {
+        try {
+          const parsed = typeof node.output_json === "string"
+            ? JSON.parse(node.output_json) : node.output_json;
+          const raw = typeof parsed === "string" ? parsed : JSON.stringify(parsed);
+          outputPreview = _truncate(raw, 200);
+        } catch {
+          outputPreview = _truncate(String(node.output_json), 200);
+        }
+      }
+
+      // File links for nodes that produced output files
+      const nodeFiles = node.output_files || [];
 
       return `
       <div class="flex items-center shrink-0 snap-start">
@@ -1487,12 +1532,20 @@ function _renderNodes(nodes, jobStatus) {
           <div class="text-xs font-medium text-slate-200 truncate">${escapeHtml(node.title || "Untitled")}</div>
           <div class="flex items-center gap-2 text-[9px] font-mono text-slate-600 mt-1.5 flex-wrap">
             <span>Step ${node.sequence ?? i + 1}</span>
-            ${elapsedStr ? `<span class="text-slate-500">${escapeHtml(elapsedStr)}</span>` : ""}
+            ${elapsedStr ? `<span class="text-slate-500" title="Elapsed time">${escapeHtml(elapsedStr)}</span>` : ""}
             ${modelStr ? `<span class="text-slate-600 truncate max-w-[80px]" title="${escapeHtml(modelStr)}">${escapeHtml(modelStr)}</span>` : ""}
           </div>
           ${isRunning && node.progress != null ? `
             <div class="mt-2 w-full bg-slate-800/50 h-1 rounded-full overflow-hidden">
               <div class="jobs-progress-bar jobs-progress-active bg-amber-500 h-full rounded-full" style="width: ${Math.min(100, Math.max(0, node.progress))}%"></div>
+            </div>
+          ` : ""}
+          ${outputPreview ? `
+            <div class="mt-2 text-[9px] text-slate-500 leading-relaxed line-clamp-3 break-all" title="Node output preview">${escapeHtml(outputPreview)}</div>
+          ` : ""}
+          ${nodeFiles.length > 0 ? `
+            <div class="mt-2 flex flex-wrap gap-1">
+              ${nodeFiles.map((f) => `<span class="inline-flex items-center gap-0.5 text-[8px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5 truncate max-w-[120px]" title="${escapeHtml(f.filename || f.name || "file")}"><span class="material-symbols-outlined text-[10px]" aria-hidden="true">description</span>${escapeHtml(_truncate(f.filename || f.name || "file", 20))}</span>`).join("")}
             </div>
           ` : ""}
         </div>
@@ -1557,17 +1610,11 @@ function _renderNodeDetail(node) {
     modelEl.textContent = node.model ? `Model: ${node.model}` : "";
   }
 
-  // Elapsed time
+  // Elapsed time (prefer started_at/completed_at)
   const elapsedEl = el("nodeDetailElapsed");
   if (elapsedEl) {
-    if (node.created_at && node.updated_at && node.status !== "pending") {
-      const start = new Date(node.created_at).getTime();
-      const end = new Date(node.updated_at).getTime();
-      const diffSec = Math.max(0, Math.round((end - start) / 1000));
-      elapsedEl.textContent = `Elapsed: ${_formatDuration(diffSec)}`;
-    } else {
-      elapsedEl.textContent = "";
-    }
+    const elapsed = _nodeElapsed(node);
+    elapsedEl.textContent = elapsed ? `Elapsed: ${elapsed}` : "";
   }
 
   // Node progress bar (running nodes)
@@ -1625,6 +1672,35 @@ function _renderNodeDetail(node) {
       outputEl.classList.remove("hidden");
     } else {
       outputEl.classList.add("hidden");
+    }
+  }
+
+  // Node output files
+  const nodeFilesEl = el("nodeDetailFiles");
+  if (nodeFilesEl) {
+    const nFiles = node.output_files || [];
+    if (nFiles.length > 0) {
+      nodeFilesEl.classList.remove("hidden");
+      nodeFilesEl.innerHTML =
+        `<div class="w-full text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Output Files</div>` +
+        nFiles
+          .map(
+            (f) => `
+            <a
+              href="${f.url || "#"}"
+              ${f.url ? `download="${escapeHtml(f.filename || f.name || "file")}"` : ""}
+              class="inline-flex items-center gap-1.5 text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-2.5 py-1.5 hover:bg-indigo-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              title="Download ${escapeHtml(f.filename || f.name || "file")}"
+            >
+              <span class="material-symbols-outlined text-xs" aria-hidden="true">download</span>
+              ${escapeHtml(f.filename || f.name || "file")}
+              ${f.size_bytes ? `<span class="text-slate-600">(${_formatSize(f.size_bytes)})</span>` : ""}
+            </a>`,
+          )
+          .join("");
+    } else {
+      nodeFilesEl.classList.add("hidden");
+      nodeFilesEl.innerHTML = "";
     }
   }
 
@@ -1714,6 +1790,55 @@ function _formatDuration(sec) {
   if (sec < 60) return `${sec}s`;
   if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
   return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+}
+
+/**
+ * Estimate remaining time based on average completed-node duration.
+ * Returns a human-readable string like "~2 min remaining" or null.
+ */
+function _estimateETA(nodes) {
+  const completed = nodes.filter(
+    (n) => n.status === "completed" && n.started_at && n.completed_at,
+  );
+  if (completed.length === 0) return null;
+
+  const totalMs = completed.reduce((sum, n) => {
+    return sum + (new Date(n.completed_at).getTime() - new Date(n.started_at).getTime());
+  }, 0);
+  const avgMs = totalMs / completed.length;
+
+  const remaining = nodes.filter(
+    (n) => !["completed", "failed", "cancelled", "skipped"].includes(n.status),
+  ).length;
+  if (remaining === 0) return null;
+
+  const etaSec = Math.round((avgMs * remaining) / 1000);
+  if (etaSec <= 0) return null;
+  return `~${_formatDuration(etaSec)} remaining`;
+}
+
+/**
+ * Get elapsed time string for a node, using started_at/completed_at when
+ * available, falling back to created_at/updated_at.
+ */
+function _nodeElapsed(node) {
+  const start = node.started_at || node.created_at;
+  const end = node.completed_at || node.updated_at;
+  if (!start || node.status === "pending") return "";
+  // For running nodes, measure from start to now
+  const startMs = new Date(start).getTime();
+  const endMs = node.status === "running" ? Date.now() : (end ? new Date(end).getTime() : Date.now());
+  const diffSec = Math.max(0, Math.round((endMs - startMs) / 1000));
+  return _formatDuration(diffSec);
+}
+
+/**
+ * Truncate a string to maxLen characters, adding ellipsis if needed.
+ */
+function _truncate(str, maxLen) {
+  if (!str) return "";
+  if (str.length <= maxLen) return str;
+  return str.substring(0, maxLen) + "\u2026";
 }
 
 function _formatSize(bytes) {

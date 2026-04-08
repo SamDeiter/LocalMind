@@ -78,7 +78,7 @@ async def execute_proposal_cycle(engine, timeout=300) -> bool:
                 edits_applied=edits_applied,
                 model_used=engine.editing_model,
             )
-            engine.status["execution"]["proposals_executed"] += 1
+            engine.status.execution.proposals_executed += 1
             engine.success_tracker.record_outcome(proposal, success=True)
             engine._emit_activity("completed", f"✅ {proposal['title']}", proposal_id=proposal["id"])
             return True

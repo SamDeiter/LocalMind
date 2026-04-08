@@ -27,7 +27,7 @@ async def run_reflection_loop(engine):
 
             if engine.enabled and not engine.is_user_active():
                 await engine._run_reflection()
-                engine.status["reflection"]["last_run"] = time.time()
+                engine.status.reflection.last_run = time.time()
                 
         except asyncio.CancelledError:
             break

@@ -19,6 +19,7 @@ from backend.self_improver import SelfImprover
 from backend.meta_critic import MetaCritic
 from backend.priority_queue import PriorityQueue
 
+from .models import EngineStatus
 from .services.research_service import ResearchService
 from .services.git_coordinator import GitCoordinator
 
@@ -56,18 +57,7 @@ class AutonomyEngine:
         self._recent_events: list[dict] = []
         self._start_time: float = time.time()
         
-        self.status = {
-            "enabled": True,
-            "mode": "autonomous",
-            "started_at": self._start_time,
-            "current_activity": None,
-            "health_check": {"last_run": None, "ollama_ok": False, "model_loaded": False},
-            "reflection": {"last_run": None, "proposals_logged": 0},
-            "execution": {"last_run": None, "proposals_executed": 0, "last_result": None},
-            "auto_test": {"last_run": None, "passed": 0, "failed": 0},
-            "research": {"last_run": 0},
-            "agent_loop": {"active": False, "current_agent": None}
-        }
+        self.status = EngineStatus(started_at=self._start_time)
 
         # Initialize loop task lists to avoid AttributeError
         self._tasks = []
@@ -136,11 +126,11 @@ class AutonomyEngine:
             "action": action,
             "detail": detail,
             "model": extra.get("model", self.default_model),
-            "ideas": self.status["reflection"]["proposals_logged"],
-            "applied": self.status["execution"]["proposals_executed"],
+            "ideas": self.status.reflection.proposals_logged,
+            "applied": self.status.execution.proposals_executed,
             **extra,
         }
-        self.status["current_activity"] = event
+        self.status.current_activity = event
         self._recent_events.append(event)
         if len(self._recent_events) > 30:
             self._recent_events = self._recent_events[-30:]
@@ -160,7 +150,7 @@ class AutonomyEngine:
             raise ValueError(f"Invalid mode: {mode}")
         
         self.mode = mode
-        self.status["mode"] = mode
+        self.status.mode = mode
         
         if mode == "autonomous":
             self.trigger_reflection()
@@ -197,18 +187,16 @@ class AutonomyEngine:
     def toggle(self) -> bool:
         """Toggle the engine on/off."""
         self.enabled = not self.enabled
-        self.status["enabled"] = self.enabled
+        self.status.enabled = self.enabled
         log_event("engine_toggled", {"enabled": self.enabled})
         logger.info(f"🤖 Autonomy Engine {'enabled' if self.enabled else 'paused'}")
         return self.enabled
 
     def get_status(self) -> dict:
         """Return the full autonomy status for the API."""
-        return {
-            **self.status,
-            "uptime_seconds": round(time.time() - self._start_time)
-            if self._start_time else 0,
-        }
+        d = self.status.to_dict()
+        d["uptime_seconds"] = round(time.time() - self._start_time) if self._start_time else 0
+        return d
 
     def trigger_reflection(self):
         """Manually trigger the reflection cycle."""

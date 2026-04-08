@@ -165,7 +165,7 @@ async def run_reflection_cycle(engine) -> bool:
                     if critique.refinement: proposal = critique.refinement
                     saved = engine.proposals.save(proposal, mode=engine.mode, auto_approve_risks=engine.AUTO_APPROVE_RISKS)
                     if saved:
-                        engine.status["reflection"]["proposals_logged"] += 1
+                        engine.status.reflection.proposals_logged += 1
                         return True
             except Exception as critique_exc:
                 logger.warning(f"Meta-critic/save failed: {critique_exc}\n{traceback.format_exc()}")

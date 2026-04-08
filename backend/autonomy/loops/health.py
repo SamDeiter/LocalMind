@@ -73,14 +73,10 @@ async def _check_system_health(engine):
             ps_data = ps_resp.json()
             models_loaded = len(ps_data.get("models", [])) > 0
 
-            engine.status["health_check"] = {
-                "last_run": time.time(),
-                "ollama_ok": ollama_ok,
-                "model_loaded": models_loaded,
-                "consecutive_failures": _health_failures,
-                "recovery_attempts": _recovery_attempts,
-            }
-            engine.status["health"] = "ok" if ollama_ok else "error"
+            engine.status.health_check.last_run = time.time()
+            engine.status.health_check.ollama_ok = ollama_ok
+            engine.status.health_check.model_loaded = models_loaded
+            engine.status.health = "ok" if ollama_ok else "error"
 
             # Pre-warm model if Ollama is up but no model loaded
             if ollama_ok and not models_loaded:
@@ -90,8 +86,8 @@ async def _check_system_health(engine):
             return ollama_ok
     except Exception as e:
         logger.warning(f"Health check failed: {e}")
-        engine.status["health_check"]["ollama_ok"] = False
-        engine.status["health"] = "error"
+        engine.status.health_check.ollama_ok = False
+        engine.status.health = "error"
         return False
 
 async def _prewarm_model(engine, client):
@@ -107,7 +103,7 @@ async def _prewarm_model(engine, client):
             },
             timeout=60.0,
         )
-        engine.status["health_check"]["model_loaded"] = True
+        engine.status.health_check.model_loaded = True
         logger.info("✅ Model pre-warmed successfully")
     except Exception as e:
         logger.warning(f"Model pre-warm failed: {e}")

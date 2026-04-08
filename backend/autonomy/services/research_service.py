@@ -116,7 +116,7 @@ class ResearchService:
                                     )
                                     logged += 1
                                 if logged:
-                                    self.engine.status["reflection"]["proposals_logged"] += logged
+                                    self.engine.status.reflection.proposals_logged += logged
                                     self.engine._emit_activity(
                                         "research_complete",
                                         f"🔬 Research generated {logged} new proposal(s)"
@@ -145,7 +145,7 @@ class ResearchService:
                                         auto_approve_risks=self.engine.AUTO_APPROVE_RISKS,
                                         emit_activity=self.engine._emit_activity
                                     )
-                                self.engine.status["reflection"]["proposals_logged"] += len(proposals[:2])
+                                self.engine.status.reflection.proposals_logged += len(proposals[:2])
                                 self.engine._emit_activity(
                                     "research_complete",
                                     f"☁️ Gemini fallback generated {len(proposals[:2])} proposal(s)"
@@ -193,7 +193,7 @@ class ResearchService:
             "needs_input",
             f"❓ LocalMind needs your input: {topic}"
         )
-        self.engine.status["reflection"]["proposals_logged"] += 1
+        self.engine.status.reflection.proposals_logged += 1
 
     async def _load_architecture_context(self):
         from backend.config import PROJECT_ROOT

@@ -12,7 +12,7 @@ async def run_auto_research_loop(engine):
         try:
             if engine.enabled and not engine.is_user_active():
                 await engine._run_auto_research()
-                engine.status["research"]["last_run"] = time.time()
+                engine.status.research.last_run = time.time()
             
             await asyncio.sleep(2 * 3600)  # 2 hours
         except asyncio.CancelledError:

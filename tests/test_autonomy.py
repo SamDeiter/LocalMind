@@ -20,7 +20,7 @@ def engine():
         ollama_url="http://localhost:11434",
     )
     eng.enabled = False  # Don't start background loops
-    eng.status["enabled"] = False  # Keep status dict in sync
+    eng.status.enabled = False  # Keep status in sync
     return eng
 
 
@@ -148,7 +148,7 @@ class TestEngineStatus:
         result = engine.toggle()
         assert result is True
         assert engine.enabled is True
-        assert engine.status["enabled"] is True
+        assert engine.status.enabled is True
 
         result = engine.toggle()
         assert result == (False, 0)

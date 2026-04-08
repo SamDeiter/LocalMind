@@ -151,7 +151,7 @@ async def _execute_with_agent(engine, proposal, mode: str) -> bool:
         # Mark success
         proposal["status"] = "completed"
         proposal["result"] = "\n".join(results)[:2000]
-        engine.status["execution"]["proposals_executed"] += 1
+        engine.status.execution.proposals_executed += 1
         engine.success_tracker.record_outcome(proposal, success=True)
         engine._emit_activity(
             "task_complete",
