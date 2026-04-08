@@ -14,11 +14,16 @@
 
 ## Active
 
-- [ ] **2026-03-31T09:13:00** — Chat streaming re-broken by engine self-edit of `llm_client.py`. File re-corrupted with duplicate code blocks. Fixed again + verified BLOCKED_NAMES protection exists. **Requires server restart.**
-- [ ] **2026-03-31T09:12:00** — "Done" section shows "+N more records archived" but cards don't render. Root cause: `displayItems = items.slice(-3)` artificially limits visible cards. Fixed by showing all items when expanded.
+*(No active bugs)*
+
+## Recently Fixed (v0.6.1)
+
+- [x] **2026-03-31T09:13:00** — ~~Chat streaming re-broken by engine self-edit of `llm_client.py`~~ **FIXED v0.6.1** — File re-corrupted with duplicate code blocks. Fixed + `llm_client.py` added to BLOCKED_NAMES.
+- [x] **2026-03-31T09:12:00** — ~~"Done" section cards not rendering~~ **FIXED v0.6.1** — `displayItems = items.slice(-3)` limit removed; shows all items when expanded.
 
 ## Known Limitations
 
-- ESLint errors persist in `autonomy_ui.js` (pre-existing undefined globals like `d`, `Prism`, `brainPulse`)
-- Monolithic functions remain in `chat.py` and `engine.py` (tech debt)
-- Ollama URLs still hardcoded (should migrate to `.env` → `OLLAMA_BASE_URL`)
+- Monolithic functions remain in `chat_service.py` and `engine.py` (tech debt — Sprint 2 target)
+- Google OAuth requires manual credential setup (no admin UI yet)
+- Slack bot requires `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` environment variables (documented in `.env.example`)
+- Best-of-N PRM integration is stub-only (LLM-as-judge and heuristic scoring work; PRM deferred to Phase 9)

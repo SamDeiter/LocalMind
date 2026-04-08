@@ -14,7 +14,9 @@ Capabilities:
 Prerequisites:
   pip install google-api-python-client google-auth
 
-Google OAuth credentials are provided by the caller (handled elsewhere).
+Credentials are resolved automatically: if the caller passes a credentials
+object it is used directly; otherwise, credentials are auto-loaded from the
+centralized Google auth store (backend.routes.google_auth.get_credentials).
 """
 
 from __future__ import annotations
@@ -49,6 +51,35 @@ def _require_google_api():
             "google-api-python-client is not installed. "
             "Run: pip install google-api-python-client google-auth"
         )
+
+
+def _get_credentials():
+    """Load Google credentials from the centralized credential store.
+
+    Returns a credentials object or None if unavailable.
+    Matches the pattern used by gmail_tool.py.
+    """
+    try:
+        from backend.routes.google_auth import get_credentials
+        return get_credentials()
+    except Exception:
+        return None
+
+
+def _resolve_credentials(credentials):
+    """Return *credentials* if provided, otherwise auto-load from the store.
+
+    Raises RuntimeError when no credentials can be obtained.
+    """
+    if credentials is not None:
+        return credentials
+    creds = _get_credentials()
+    if creds is None:
+        raise RuntimeError(
+            "No Google credentials available. Connect Google via Settings "
+            "or pass credentials explicitly."
+        )
+    return creds
 
 
 def _build_slides_service(credentials):
@@ -693,8 +724,8 @@ class GoogleSlidesTool(BaseTool):
                 "credentials": {
                     "type": "object",
                     "description": (
-                        "Google OAuth credentials object. Typically provided "
-                        "automatically by the credential manager."
+                        "Google OAuth credentials object. Optional — if omitted, "
+                        "credentials are auto-loaded from the credential store."
                     ),
                 },
             },
@@ -737,15 +768,11 @@ class GoogleSlidesTool(BaseTool):
     # ── Action handlers ──────────────────────────────────────────────────
 
     def _read_presentation(self, kwargs: dict) -> dict:
-        credentials = kwargs.get("credentials")
-        if not credentials:
-            return {"success": False, "error": "credentials are required"}
+        credentials = _resolve_credentials(kwargs.get("credentials"))
         return _do_read_presentation(kwargs["presentation_id"], credentials)
 
     def _get_slide(self, kwargs: dict) -> dict:
-        credentials = kwargs.get("credentials")
-        if not credentials:
-            return {"success": False, "error": "credentials are required"}
+        credentials = _resolve_credentials(kwargs.get("credentials"))
         slide_index = kwargs.get("slide_index")
         if slide_index is None:
             return {
@@ -757,9 +784,7 @@ class GoogleSlidesTool(BaseTool):
         )
 
     def _get_slide_text(self, kwargs: dict) -> dict:
-        credentials = kwargs.get("credentials")
-        if not credentials:
-            return {"success": False, "error": "credentials are required"}
+        credentials = _resolve_credentials(kwargs.get("credentials"))
         slide_index = kwargs.get("slide_index")
         if slide_index is None:
             return {
@@ -771,9 +796,7 @@ class GoogleSlidesTool(BaseTool):
         )
 
     def _update_text(self, kwargs: dict) -> dict:
-        credentials = kwargs.get("credentials")
-        if not credentials:
-            return {"success": False, "error": "credentials are required"}
+        credentials = _resolve_credentials(kwargs.get("credentials"))
         shape_id = kwargs.get("shape_id")
         if not shape_id:
             return {
@@ -791,9 +814,7 @@ class GoogleSlidesTool(BaseTool):
         )
 
     def _add_slide(self, kwargs: dict) -> dict:
-        credentials = kwargs.get("credentials")
-        if not credentials:
-            return {"success": False, "error": "credentials are required"}
+        credentials = _resolve_credentials(kwargs.get("credentials"))
         layout = kwargs.get("layout", "BLANK")
         insert_at = kwargs.get("insert_at")
         return _do_add_slide(
@@ -801,9 +822,7 @@ class GoogleSlidesTool(BaseTool):
         )
 
     def _delete_slide(self, kwargs: dict) -> dict:
-        credentials = kwargs.get("credentials")
-        if not credentials:
-            return {"success": False, "error": "credentials are required"}
+        credentials = _resolve_credentials(kwargs.get("credentials"))
         slide_id = kwargs.get("slide_id")
         if not slide_id:
             return {
@@ -815,9 +834,7 @@ class GoogleSlidesTool(BaseTool):
         )
 
     def _duplicate_slide(self, kwargs: dict) -> dict:
-        credentials = kwargs.get("credentials")
-        if not credentials:
-            return {"success": False, "error": "credentials are required"}
+        credentials = _resolve_credentials(kwargs.get("credentials"))
         slide_id = kwargs.get("slide_id")
         if not slide_id:
             return {
@@ -830,9 +847,7 @@ class GoogleSlidesTool(BaseTool):
         )
 
     def _download_as_pptx(self, kwargs: dict) -> dict:
-        credentials = kwargs.get("credentials")
-        if not credentials:
-            return {"success": False, "error": "credentials are required"}
+        credentials = _resolve_credentials(kwargs.get("credentials"))
         output_path = kwargs.get("output_path")
         if not output_path:
             return {

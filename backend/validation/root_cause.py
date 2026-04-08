@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from .base import ValidationResult, ValidationReport
+from backend.config import OLLAMA_BASE_URL
 
 logger = logging.getLogger("localmind.validation.root_cause")
 
@@ -28,7 +29,7 @@ class FailureTrace:
 class TraceAnalyzer:
     """Analyzes a sequence of validation failures to find the 'root cause'."""
 
-    def __init__(self, ollama_url: str = "http://localhost:11434"):
+    def __init__(self, ollama_url: str = OLLAMA_BASE_URL):
         self.ollama_url = ollama_url
         self.trace_history: List[FailureTrace] = []
 

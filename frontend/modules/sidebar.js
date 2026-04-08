@@ -3,7 +3,7 @@
  * Version badge.
  *
  * Autonomy UI and Proposals UI have been extracted into their own modules:
- *   - autonomy_ui.js  (SSE, brain dashboard, status, triggers)
+ *   - autonomy/  (SSE, brain dashboard, status, triggers)
  *   - proposals_ui.js (proposals dashboard, approve/deny/retry)
  */
 

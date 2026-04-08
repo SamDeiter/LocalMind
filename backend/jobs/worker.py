@@ -75,10 +75,17 @@ class JobWorker:
         tool_registry: Any,
         ollama_url: str | None = None,
         activity_callback: Callable[[str, dict[str, Any]], Awaitable[None]] | None = None,
+        model_selector: Any | None = None,
+        best_of_n_sampler: Any | None = None,
     ) -> None:
         self.queue = JobQueue()
         self.planner = JobPlanner(tool_registry)
-        self.executor = NodeExecutor(tool_registry, ollama_url or OLLAMA_BASE_URL)
+        self.executor = NodeExecutor(
+            tool_registry,
+            ollama_url or OLLAMA_BASE_URL,
+            model_selector=model_selector,
+            best_of_n_sampler=best_of_n_sampler,
+        )
         self.reviewer = JobReviewer(tool_registry)
         self._activity_callback = activity_callback
 

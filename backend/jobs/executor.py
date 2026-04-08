@@ -24,7 +24,10 @@ from typing import Any, Callable, Awaitable
 
 import httpx
 
-from backend.config import OLLAMA_BASE_URL, JOBS_DIR, PROMPT_GUARD_LEVEL, DEPLOYMENT_MODE
+from backend.config import (
+    OLLAMA_BASE_URL, JOBS_DIR, PROMPT_GUARD_LEVEL, DEPLOYMENT_MODE,
+    BEST_OF_N_ENABLED,
+)
 from backend.jobs.models import Job, Node, NodeStatus
 from backend.core.policy import PolicyContext, PolicyEngine, PolicyResult
 from backend.security.prompt_guard import PromptGuard
@@ -73,11 +76,19 @@ class NodeExecutor:
         Base URL for the Ollama API.  Defaults to ``config.OLLAMA_BASE_URL``.
     """
 
-    def __init__(self, tool_registry: Any, ollama_url: str | None = None) -> None:
+    def __init__(
+        self,
+        tool_registry: Any,
+        ollama_url: str | None = None,
+        model_selector: Any | None = None,
+        best_of_n_sampler: Any | None = None,
+    ) -> None:
         self._registry = tool_registry
         self._ollama_url = (ollama_url or OLLAMA_BASE_URL).rstrip("/")
         self._policy_engine = PolicyEngine()
         self._prompt_guard = PromptGuard(level=PROMPT_GUARD_LEVEL)
+        self._model_selector = model_selector
+        self._best_of_n_sampler = best_of_n_sampler
 
     # ------------------------------------------------------------------
     # Public API
@@ -147,10 +158,42 @@ class NodeExecutor:
     ) -> NodeResult:
         """Core execution logic without timeout."""
 
-        # Determine model: prefer node-specific model hint in instructions,
-        # fall back to the medium-tier default from config.
-        from backend.config import MODEL_TIERS
-        model = MODEL_TIERS.get("medium", "qwen2.5-coder:14b")
+        # Determine model via ModelSelector (if available) or fall back to
+        # the medium-tier default from config.
+        best_of_n = 1
+        if self._model_selector is not None:
+            try:
+                node_dict = {
+                    "title": node.title,
+                    "instructions": node.instructions,
+                    "tools_allowed": node.tools_allowed,
+                    "output_schema_json": getattr(node, "output_schema_json", None),
+                    "depends_on": getattr(node, "depends_on", None),
+                }
+                job_dict = {
+                    "priority": job.priority,
+                }
+                selection = self._model_selector.select_model(node_dict, job_dict)
+                model = selection.model_id
+                best_of_n = selection.best_of_n
+                logger.info(
+                    "ModelSelector chose '%s' for node '%s' "
+                    "(lora=%s, best_of_n=%d, reason=%s).",
+                    model, node.id,
+                    selection.lora_id or "none",
+                    best_of_n,
+                    selection.reasoning,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "ModelSelector failed for node '%s', falling back to default: %s",
+                    node.id, exc,
+                )
+                from backend.config import MODEL_TIERS
+                model = MODEL_TIERS.get("medium", "qwen2.5-coder:14b")
+        else:
+            from backend.config import MODEL_TIERS
+            model = MODEL_TIERS.get("medium", "qwen2.5-coder:14b")
 
         logger.info(
             "Executing node '%s' [seq=%d] of job '%s' with model '%s'.",
@@ -187,6 +230,7 @@ class NodeExecutor:
                 job=job,
                 progress_callback=progress_callback,
                 model=model,
+                best_of_n=best_of_n,
             )
         except Exception as exc:
             elapsed = _now_ms() - start_ms
@@ -263,12 +307,18 @@ class NodeExecutor:
         job: Job,
         progress_callback: Callable[[str, dict], Awaitable[None]] | None,
         model: str,
+        best_of_n: int = 1,
     ) -> dict[str, Any]:
         """Core agentic loop.
 
         Calls Ollama, executes tool calls (with policy + prompt-guard checks),
         appends results, then loops until the LLM produces a final text response
         (no more tool_calls) or we hit ``_MAX_ITERATIONS``.
+
+        When ``best_of_n > 1`` and :data:`BEST_OF_N_ENABLED` is True, the
+        final iteration (the one that produces the text output, not tool
+        calls) uses :class:`BestOfNSampler` to generate multiple candidates
+        and select the best.
 
         Returns a dict::
 
@@ -325,6 +375,55 @@ class NodeExecutor:
                     "Node '%s' produced final output after %d iteration(s).",
                     node.id, iteration + 1,
                 )
+
+                # Best-of-N sampling: if enabled and best_of_n > 1, re-generate
+                # N candidates from the current message state and pick the best.
+                # This only applies to the FINAL iteration (text output), not
+                # intermediate tool-call iterations.
+                use_best_of_n = (
+                    best_of_n > 1
+                    and BEST_OF_N_ENABLED
+                    and self._best_of_n_sampler is not None
+                )
+                if use_best_of_n:
+                    try:
+                        logger.info(
+                            "Node '%s': using best-of-%d sampling for final output.",
+                            node.id, best_of_n,
+                        )
+                        await _emit(progress_callback, "best_of_n_start", {
+                            "node_id": node.id,
+                            "n": best_of_n,
+                        })
+                        sample_result = await self._best_of_n_sampler.sample(
+                            messages=messages,
+                            tools=None,  # No tools for final output
+                            model=model,
+                            n=best_of_n,
+                            temperature=0.7,
+                        )
+                        content = sample_result.response
+                        tokens_in_total += sample_result.tokens_in
+                        tokens_out_total += sample_result.tokens_out
+                        logger.info(
+                            "Node '%s': best-of-%d selected (score=%.2f, %dms).",
+                            node.id, best_of_n,
+                            sample_result.score, sample_result.duration_ms,
+                        )
+                        await _emit(progress_callback, "best_of_n_complete", {
+                            "node_id": node.id,
+                            "n": best_of_n,
+                            "n_generated": sample_result.n_generated,
+                            "score": sample_result.score,
+                            "duration_ms": sample_result.duration_ms,
+                        })
+                    except Exception as exc:
+                        logger.warning(
+                            "Best-of-N sampling failed for node '%s', "
+                            "using single-pass output: %s",
+                            node.id, exc,
+                        )
+                        # Fall through to use the original single-pass content.
 
                 # Anomaly check on the output text.
                 anomaly = self._prompt_guard.check_anomaly(
@@ -496,6 +595,25 @@ class NodeExecutor:
                     continue
 
                 # ── Execute tool ───────────────────────────────────────
+                # Auto-inject Google credentials for google_* tools
+                # (belt-and-suspenders: tools self-auth, but we also try here)
+                if tool_name.startswith("google_") or tool_name == "gmail":
+                    if "credentials" not in tool_args:
+                        try:
+                            from backend.routes.google_auth import get_credentials
+                            _creds = get_credentials()
+                            if _creds is not None:
+                                tool_args["credentials"] = _creds
+                                logger.debug(
+                                    "Injected Google credentials for tool '%s'.",
+                                    tool_name,
+                                )
+                        except Exception as _cred_exc:
+                            logger.warning(
+                                "Could not inject Google credentials for tool '%s': %s",
+                                tool_name, _cred_exc,
+                            )
+
                 logger.info(
                     "Executing tool '%s' (node='%s', job='%s').",
                     tool_name, node.id, job.id,
