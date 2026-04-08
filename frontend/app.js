@@ -29,6 +29,8 @@ import { initTaskCreation } from "./modules/task_creation.js";
 import { initOnboarding } from "./modules/onboarding.js";
 import { initBrainGraph } from "./modules/brain_graph.js";
 import { initTimeMachine } from "./modules/time_machine.js";
+import { initHub } from "./modules/hub.js";
+import { initPWA } from "./modules/pwa.js";
 
 async function init() {
   checkHealth();
@@ -58,6 +60,7 @@ async function init() {
   initOnboarding();
   initBrainGraph();
   initTimeMachine();
+  initHub();
 
   // Restore editor panel if it was open
 

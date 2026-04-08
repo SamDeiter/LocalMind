@@ -157,7 +157,7 @@
 | Feature                    | Status     | Notes                                                                        |
 | -------------------------- | ---------- | ---------------------------------------------------------------------------- |
 | AI Time Machine            | ✅ Done    | Action versioning, replay engine, timeline UI, undo integration              |
-| Cross-Project Hub          | 📋 Planned | AI remembers patterns across ALL your projects                              |
+| Cross-Project Hub          | ✅ Done    | Project registry, pattern mining, hub UI with insights                      |
 | Self-extending tools       | 📋 Planned | AI writes new tool plugins when it lacks a capability                        |
 | VS Code Extension          | 📋 Planned | LocalMind as a VS Code sidecar                                               |
 

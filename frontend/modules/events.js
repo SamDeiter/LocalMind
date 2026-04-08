@@ -32,6 +32,7 @@ import { hideSwarmDashboard } from "./swarm_ui.js";
 import { showJobsView } from "./jobs_ui.js";
 import { showTemplatesView } from "./templates_ui.js";
 import { showApprovalsView } from "./approvals_ui.js";
+import { loadHub } from "./hub.js";
 import { chatScreen, overviewBtn } from "./state.js";
 
 /** Hide all views and restore the default main scroll area. */
@@ -42,16 +43,18 @@ function hideAllViews() {
   const templatesView = document.getElementById("templatesView");
   const approvalsView = document.getElementById("approvalsView");
   const chat = document.getElementById("chatScreen");
+  const hubView = document.getElementById("crossProjectHub");
   if (mainScroll) { mainScroll.classList.add("hidden"); mainScroll.style.display = "none"; }
   if (jobsView) jobsView.classList.add("hidden");
   if (templatesView) templatesView.classList.add("hidden");
   if (approvalsView) approvalsView.classList.add("hidden");
+  if (hubView) hubView.classList.add("hidden");
   if (chat) { chat.classList.add("hidden"); chat.style.display = "none"; }
 }
 
 /** Reset active state on all nav buttons, then highlight the given one. */
 function setActiveNav(activeId) {
-  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn", "chatBtn"];
+  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn", "hubBtn", "chatBtn"];
   navIds.forEach((id) => {
     const btn = document.getElementById(id);
     if (!btn) return;
@@ -96,6 +99,15 @@ export function bindEvents() {
     hideAllViews();
     showApprovalsView();
     setActiveNav("approvalsBtn");
+  });
+
+  // Nav — Hub
+  document.getElementById("hubBtn")?.addEventListener("click", () => {
+    hideAllViews();
+    const hubView = document.getElementById("crossProjectHub");
+    if (hubView) hubView.classList.remove("hidden");
+    loadHub();
+    setActiveNav("hubBtn");
   });
 
   // Nav — Chat

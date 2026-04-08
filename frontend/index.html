@@ -115,6 +115,10 @@
                 <span class="text-sm tracking-tight pointer-events-none">Approvals</span>
                 <span id="approvalsBadge" class="ml-auto text-[9px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of pending approvals" aria-label="0 approvals pending">0</span>
             </button>
+            <button id="hubBtn" title="Cross-project hub for patterns and insights" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                <span class="material-symbols-outlined mr-4 group-hover:text-indigo-400 pointer-events-none">hub</span>
+                <span class="text-sm tracking-tight pointer-events-none">Hub</span>
+            </button>
             <button id="chatBtn" title="Open a conversation with the AI assistant" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
                 <span class="material-symbols-outlined mr-4 group-hover:text-cyan-400 pointer-events-none">chat</span>
                 <span class="text-sm tracking-tight pointer-events-none">Chat</span>
@@ -300,6 +304,9 @@
                 <div id="swarmMessageLog" class="hidden p-4"></div>
                 <div id="swarmLockStatus" class="hidden p-4"></div>
             </div>
+
+            <!-- Cross-Project Hub View (hidden by default, managed by hub.js) -->
+            <div id="crossProjectHub" class="hidden flex-1 flex flex-col overflow-y-auto custom-scrollbar"></div>
 
             <!-- ── Dashboard View (default) ───────────────────────── -->
             <section class="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-8" id="mainScrollArea">
