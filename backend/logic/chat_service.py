@@ -261,6 +261,11 @@ class ChatService:
                                 token_buffer = ""
                                 continue
                             else:
+                                # Suppress template/placeholder tool call output
+                                if self.tools._looks_like_tool_template(token_buffer):
+                                    logger.warning("Suppressed template tool call output from model")
+                                    token_buffer = ""
+                                    continue
                                 yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
                                 token_buffer = ""
                         else:
@@ -275,8 +280,10 @@ class ChatService:
                     remaining = self.tools.strip_tool_json(token_buffer)
                     if remaining.strip():
                         yield f"data: {json.dumps({'token': remaining, 'conversation_id': conversation_id})}\n\n"
-                else:
+                elif not self.tools._looks_like_tool_template(token_buffer):
                     yield f"data: {json.dumps({'token': token_buffer, 'conversation_id': conversation_id})}\n\n"
+                else:
+                    logger.warning("Suppressed template tool call in flush buffer")
 
             full_response += chunk_text
 

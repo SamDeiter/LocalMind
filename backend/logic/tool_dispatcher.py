@@ -90,7 +90,12 @@ class ToolDispatcher:
             return {"function": {"name": "gmail", "arguments": {"action": "list_messages", "max_results": 5}}}
 
         # Web search patterns
-        if any(kw in msg for kw in ["search", "look up", "google", "find out"]):
+        if any(kw in msg for kw in [
+            "search", "look up", "look into", "look over", "look at what",
+            "google", "find out", "research", "what do people say",
+            "what people say", "what are people saying", "opinions on",
+            "reviews of", "browse for", "check out what",
+        ]):
             return {"function": {"name": "web_search", "arguments": {"query": user_message}}}
 
         # Screenshot
@@ -103,8 +108,39 @@ class ToolDispatcher:
     # Text-based tool call parsing
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _looks_like_tool_template(text: str) -> bool:
+        """Detect when the model outputs a format template instead of a real tool call."""
+        if '"name"' not in text and "'name'" not in text:
+            return False
+        indicators = [
+            "<function-name>", "<function_name>", "<tool-name>", "<tool_name>",
+            "// Arguments", "// arguments", "// JSON", "// json",
+            '"<', "function-name", "tool-name",
+        ]
+        return any(ind in text for ind in indicators)
+
+    @staticmethod
+    def _strip_markdown_fences(text: str) -> str:
+        """Remove markdown code fences (```json ... ```) wrapping tool calls."""
+        return re.sub(r'```(?:json)?\s*', '', text)
+
+    @staticmethod
+    def _is_template_placeholder(obj: dict) -> bool:
+        """Reject tool calls that are format templates, not real calls."""
+        name = obj.get("name", "")
+        if "<" in name or "function" in name.lower():
+            return True
+        args = obj.get("arguments", {})
+        if isinstance(args, dict):
+            for v in args.values():
+                if isinstance(v, str) and ("//" in v or "<" in v):
+                    return True
+        return False
+
     def parse_text_tools(self, text: str) -> List[Dict[str, Any]]:
         """Parse tool calls from model text output, handling nested JSON."""
+        text = self._strip_markdown_fences(text)
         calls = []
         i = 0
         while i < len(text):
@@ -117,6 +153,9 @@ class ToolDispatcher:
                 continue
             obj = self.extract_json_object(text, start)
             if obj and "name" in obj and "arguments" in obj:
+                if self._is_template_placeholder(obj):
+                    i = idx + 1
+                    continue
                 name = obj["name"]
                 if any(t.name == name for t in self.registry.tools):
                     args = obj["arguments"]
@@ -161,8 +200,13 @@ class ToolDispatcher:
         return None
 
     def strip_tool_json(self, text: str) -> str:
-        """Remove JSON tool call blocks from text, keeping surrounding prose."""
-        result = text
+        """Remove JSON tool call blocks (including markdown fences) from text."""
+        # Strip markdown code fences wrapping tool call JSON
+        result = re.sub(
+            r'```(?:json)?\s*\{[^}]*"name"[^}]*"arguments".*?\}\s*```',
+            '', text, flags=re.DOTALL
+        )
+        # Also strip bare JSON tool call objects
         i = 0
         while i < len(result):
             idx = result.find('"name"', i)
