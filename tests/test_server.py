@@ -56,12 +56,10 @@ class TestHealthCheck:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
 
-        with patch("backend.server.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get.return_value = mock_resp
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=False)
-            MockClient.return_value = instance
+        with patch("backend.routes.system.get_httpx_client") as MockGetClient:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_resp
+            MockGetClient.return_value = mock_client
 
             r = client.get("/api/health")
             assert r.status_code == 200
@@ -71,12 +69,10 @@ class TestHealthCheck:
 
     def test_health_ollama_down(self, client):
         """Health check returns ollama=False when Ollama is unreachable."""
-        with patch("backend.server.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get.side_effect = httpx.ConnectError("Connection refused")
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=False)
-            MockClient.return_value = instance
+        with patch("backend.routes.system.get_httpx_client") as MockGetClient:
+            mock_client = AsyncMock()
+            mock_client.get.side_effect = httpx.ConnectError("Connection refused")
+            MockGetClient.return_value = mock_client
 
             r = client.get("/api/health")
             data = r.json()
@@ -93,12 +89,10 @@ class TestModels:
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_ollama_tags
 
-        with patch("backend.server.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get.return_value = mock_resp
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=False)
-            MockClient.return_value = instance
+        with patch("backend.routes.system.get_httpx_client") as MockGetClient:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_resp
+            MockGetClient.return_value = mock_client
 
             r = client.get("/api/models")
             data = r.json()
@@ -107,12 +101,10 @@ class TestModels:
 
     def test_list_models_ollama_down(self, client):
         """List models returns empty list when Ollama is down."""
-        with patch("backend.server.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get.side_effect = Exception("Connection refused")
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=False)
-            MockClient.return_value = instance
+        with patch("backend.routes.system.get_httpx_client") as MockGetClient:
+            mock_client = AsyncMock()
+            mock_client.get.side_effect = Exception("Connection refused")
+            MockGetClient.return_value = mock_client
 
             r = client.get("/api/models")
             data = r.json()
