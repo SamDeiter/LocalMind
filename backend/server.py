@@ -345,6 +345,8 @@ from backend.routes.tts import router as tts_router
 from backend.routes.eval_routes import router as eval_router
 from backend.routes.push import router as push_router
 from backend.routes.tools_generated import router as tools_generated_router
+from backend.routes.self_discovery import router as self_discovery_router
+from backend.routes.skill_learning import router as skill_learning_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -369,6 +371,8 @@ app.include_router(tts_router)
 app.include_router(eval_router)
 app.include_router(push_router)
 app.include_router(tools_generated_router)
+app.include_router(self_discovery_router)
+app.include_router(skill_learning_router)
 
 # -- Health Check Endpoints --
 @app.get("/health")

@@ -36,6 +36,8 @@ import { initMonitoring } from "./modules/monitoring_ui.js";
 import { initEvalUI } from "./modules/eval_ui.js";
 import { initTTS } from "./modules/tts.js";
 import { initTokenPanel } from "./modules/token_panel.js";
+import { initLearningUI } from "./modules/learning_ui.js";
+import { initAIProfile } from "./modules/ai_profile.js";
 
 async function init() {
   checkHealth();
@@ -71,6 +73,8 @@ async function init() {
   initMonitoring();
   initTTS();
   initTokenPanel();
+  initLearningUI();
+  initAIProfile();
 
   // Restore editor panel if it was open
 

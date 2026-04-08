@@ -33,6 +33,8 @@ import { showJobsView } from "./jobs_ui.js";
 import { showTemplatesView } from "./templates_ui.js";
 import { showApprovalsView } from "./approvals_ui.js";
 import { loadHub } from "./hub.js";
+import { loadLearningData } from "./learning_ui.js";
+import { loadProfile } from "./ai_profile.js";
 import { chatScreen, overviewBtn } from "./state.js";
 
 /** Hide all views and restore the default main scroll area. */
@@ -44,17 +46,21 @@ function hideAllViews() {
   const approvalsView = document.getElementById("approvalsView");
   const chat = document.getElementById("chatScreen");
   const hubView = document.getElementById("crossProjectHub");
+  const learningPage = document.getElementById("learningPage");
+  const aiProfileView = document.getElementById("aiProfileView");
   if (mainScroll) { mainScroll.classList.add("hidden"); mainScroll.style.display = "none"; }
   if (jobsView) jobsView.classList.add("hidden");
   if (templatesView) templatesView.classList.add("hidden");
   if (approvalsView) approvalsView.classList.add("hidden");
   if (hubView) hubView.classList.add("hidden");
+  if (learningPage) learningPage.classList.add("hidden");
+  if (aiProfileView) aiProfileView.classList.add("hidden");
   if (chat) { chat.classList.add("hidden"); chat.style.display = "none"; }
 }
 
 /** Reset active state on all nav buttons, then highlight the given one. */
 function setActiveNav(activeId) {
-  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn", "hubBtn", "chatBtn"];
+  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn", "hubBtn", "aiProfileBtn", "chatBtn", "learningBtn"];
   navIds.forEach((id) => {
     const btn = document.getElementById(id);
     if (!btn) return;
@@ -110,12 +116,30 @@ export function bindEvents() {
     setActiveNav("hubBtn");
   });
 
+  // Nav — AI Profile
+  document.getElementById("aiProfileBtn")?.addEventListener("click", () => {
+    hideAllViews();
+    const aiProfileView = document.getElementById("aiProfileView");
+    if (aiProfileView) aiProfileView.classList.remove("hidden");
+    loadProfile();
+    setActiveNav("aiProfileBtn");
+  });
+
   // Nav — Chat
   document.getElementById("chatBtn")?.addEventListener("click", () => {
     hideAllViews();
     const chat = document.getElementById("chatScreen");
     if (chat) { chat.classList.remove("hidden"); chat.style.display = "flex"; }
     setActiveNav("chatBtn");
+  });
+
+  // Nav — Learning Lab
+  document.getElementById("learningBtn")?.addEventListener("click", () => {
+    hideAllViews();
+    const learningPage = document.getElementById("learningPage");
+    if (learningPage) learningPage.classList.remove("hidden");
+    loadLearningData();
+    setActiveNav("learningBtn");
   });
 
   // Unified Main Input: Always use sendMessage which switches to Chat Mode

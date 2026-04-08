@@ -2,7 +2,7 @@
 
 > Last updated: April 8, 2026
 
-## Current Version: v0.9.1 — Phase 9 (Complete)
+## Current Version: v0.9.3 — Sprint 8 (Complete)
 
 ---
 
@@ -166,6 +166,26 @@
 | CI/CD Workflows            | ✅ Done    | GitHub Actions for test and release pipelines                                |
 | Tailscale Security         | ✅ Done    | Remote access authentication module                                          |
 | CI Monitoring UI           | ✅ Done    | Real-time pipeline monitoring dashboard                                      |
+
+---
+
+## ✅ Sprint 7 — Perception & Memory (Complete)
+
+| Feature                    | Status     | Notes                                                                        |
+| -------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| Token Visualization Panel  | ✅ Done    | Live counter, speed sparkline, prompt breakdown bar, session stats           |
+| Encrypted Onboarding Flow  | ✅ Done    | 5-step AI interview, AES-256-GCM profile encryption, preference propagation |
+| Dual Memory Architecture   | ✅ Done    | LRU session cache with TTL, two-tier retrieval (session → FTS5)             |
+| Cloud AI as Brain          | ✅ Done    | Optional CloudBrainSupervisor in reflection pipeline (Gemini, PII-scrubbed) |
+
+---
+
+## ✅ Sprint 8 — Digital Life (Complete)
+
+| Feature                    | Status     | Notes                                                                        |
+| -------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| AI Self-Discovery          | ✅ Done    | Web research self-profile, capability introspection, CSS avatar, profile UI  |
+| AI Internet Learning       | ✅ Done    | Skill gap analysis, web research, tool generation, learning journal + UI     |
 
 ---
 
