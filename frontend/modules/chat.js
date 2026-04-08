@@ -28,6 +28,7 @@ import { clearCapturedImage } from "./media.js";
 import { loadMemories } from "./sidebar.js";
 import { streamChat } from "./streaming.js";
 import { createToolCallCard, updateToolResult, highlightCode } from "./tools.js";
+import { speakText, isTTSEnabled, renderTTSButton } from "./tts.js";
 
 // Re-export so external consumers that imported from chat.js still work
 export { createToolCallCard, updateToolResult, highlightCode } from "./tools.js";
@@ -289,8 +290,14 @@ export async function sendMessage() {
 
     state.messages.push({ role: "assistant", content: fullText });
 
-    // TTS disabled by default — uncomment to re-enable voice responses
-    // if (state.voiceEnabled && fullText) speak(fullText);
+    // Auto-play TTS for new AI responses when enabled
+    if (isTTSEnabled() && fullText) speakText(fullText);
+
+    // Append per-message TTS play button to the assistant bubble
+    const ttsHtml = renderTTSButton(fullText);
+    if (ttsHtml && contentEl) {
+      contentEl.insertAdjacentHTML("beforeend", ttsHtml);
+    }
 
     // Sync conversation state without clearing the visible streamed content.
     // loadConversation + renderMessages would wipe the DOM and re-render,
@@ -366,6 +373,13 @@ export function createMessageEl(role, content) {
   }`;
 
   contentDiv.innerHTML = role === "assistant" ? renderMarkdown(content) : escapeHtml(content);
+
+  // Add per-message TTS play button to assistant messages
+  if (role === "assistant" && content) {
+    const ttsBtn = renderTTSButton(content);
+    if (ttsBtn) contentDiv.insertAdjacentHTML("beforeend", ttsBtn);
+  }
+
   wrapper.appendChild(contentDiv);
   if (messagesContainer) messagesContainer.appendChild(wrapper);
   return wrapper;

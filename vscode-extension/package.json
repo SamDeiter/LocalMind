@@ -1,0 +1,80 @@
+{
+  "name": "localmind",
+  "displayName": "LocalMind",
+  "description": "LocalMind AI assistant — connect to your local AI task worker",
+  "version": "0.1.0",
+  "publisher": "localmind",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "localmind.sendSelection",
+        "title": "LocalMind: Send Selection to AI"
+      },
+      {
+        "command": "localmind.askQuestion",
+        "title": "LocalMind: Ask a Question"
+      },
+      {
+        "command": "localmind.registerProject",
+        "title": "LocalMind: Register Current Project"
+      },
+      {
+        "command": "localmind.showStatus",
+        "title": "LocalMind: Show Status"
+      }
+    ],
+    "configuration": {
+      "title": "LocalMind",
+      "properties": {
+        "localmind.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "LocalMind server URL"
+        },
+        "localmind.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-connect to LocalMind on startup"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "localmind.sendSelection",
+        "key": "ctrl+shift+l",
+        "mac": "cmd+shift+l",
+        "when": "editorHasSelection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "localmind.sendSelection",
+          "when": "editorHasSelection",
+          "group": "localmind"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}

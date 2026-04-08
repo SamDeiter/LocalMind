@@ -308,6 +308,12 @@
             <!-- Cross-Project Hub View (hidden by default, managed by hub.js) -->
             <div id="crossProjectHub" class="hidden flex-1 flex flex-col overflow-y-auto custom-scrollbar"></div>
 
+            <!-- Eval Runner View (hidden by default, managed by eval_ui.js) -->
+            <div id="evalView" class="hidden flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-6"></div>
+
+            <!-- Monitoring View (hidden by default, managed by monitoring_ui.js) -->
+            <div id="monitoringView" class="hidden flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-6"></div>
+
             <!-- ── Dashboard View (default) ───────────────────────── -->
             <section class="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-8" id="mainScrollArea">
                 <div id="welcomeScreen" class="flex flex-col gap-6">
@@ -412,6 +418,11 @@
                             <!-- Populated by JS -->
                         </div>
                     </div>
+
+                    <!-- Generated Tools -->
+                    <div class="mb-8">
+                        <div id="generatedToolsPanel"></div>
+                    </div>
                 </div>
             </section>
 
@@ -442,6 +453,9 @@
                             </button>
                             <button id="openCameraBtn" aria-label="Open Camera" title="Take a photo to include in your message" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
                                 <span class="material-symbols-outlined text-[22px]">photo_camera</span>
+                            </button>
+                            <button id="ttsToggleBtn" aria-label="Toggle TTS" title="Toggle text-to-speech" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
+                                <span class="material-symbols-outlined text-[22px]">volume_up</span>
                             </button>
                         </div>
                         <textarea id="messageInput" aria-label="Message Input" title="Type your message here" class="bg-transparent border-none focus:ring-0 text-md flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[56px] py-4" placeholder="Ask a question or describe what you need..." rows="1"></textarea>

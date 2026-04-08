@@ -30,7 +30,11 @@ import { initOnboarding } from "./modules/onboarding.js";
 import { initBrainGraph } from "./modules/brain_graph.js";
 import { initTimeMachine } from "./modules/time_machine.js";
 import { initHub } from "./modules/hub.js";
+import { initGeneratedTools } from "./modules/tools_generated.js";
 import { initPWA } from "./modules/pwa.js";
+import { initMonitoring } from "./modules/monitoring_ui.js";
+import { initEvalUI } from "./modules/eval_ui.js";
+import { initTTS } from "./modules/tts.js";
 
 async function init() {
   checkHealth();
@@ -61,6 +65,10 @@ async function init() {
   initBrainGraph();
   initTimeMachine();
   initHub();
+  initGeneratedTools();
+  initPWA();
+  initMonitoring();
+  initTTS();
 
   // Restore editor panel if it was open
 

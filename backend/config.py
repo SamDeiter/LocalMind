@@ -156,6 +156,19 @@ SLACK_ENABLED = os.getenv("SLACK_ENABLED", "false").lower() == "true"
 SLACK_ALLOWED_TEAM_IDS = [t.strip() for t in os.getenv("SLACK_ALLOWED_TEAM_IDS", "").split(",") if t.strip()]
 SLACK_ALLOWED_USER_IDS = [u.strip() for u in os.getenv("SLACK_ALLOWED_USER_IDS", "").split(",") if u.strip()]
 
+# --- Web Push (VAPID) Config ---
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
+VAPID_CLAIMS_EMAIL = os.getenv("VAPID_CLAIMS_EMAIL", "mailto:admin@localmind.local")
+
+# --- Tailscale Remote Access ---
+TAILSCALE_AUTH_ENABLED = os.getenv("TAILSCALE_AUTH_ENABLED", "false").lower() == "true"
+TAILSCALE_DEFAULT_ROLE = os.getenv("TAILSCALE_DEFAULT_ROLE", "operator")
+
+# --- TTS Config ---
+# TTS env vars (TTS_ENABLED, TTS_MAX_CHARS, TTS_DEFAULT_VOICE, PIPER_BIN,
+# PIPER_VOICES_DIR) are read directly in backend.tts.piper_service.
+
 # --- Recycle Bin Config ---
 RECYCLE_RETENTION_DAYS = int(os.getenv("RECYCLE_RETENTION_DAYS", "30"))
 RECYCLE_MAX_SIZE_GB = float(os.getenv("RECYCLE_MAX_SIZE_GB", "10"))

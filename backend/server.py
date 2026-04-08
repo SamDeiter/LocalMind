@@ -268,7 +268,7 @@ _AUTH_SKIP_PREFIXES = (
     "/openapi.json",
     "/static/",
 )
-_AUTH_SKIP_EXACT = {"/", "/health", "/health/ready", "/health/deep", "/docs", "/openapi.json"}
+_AUTH_SKIP_EXACT = {"/", "/health", "/health/ready", "/health/deep", "/docs", "/openapi.json", "/sw.js"}
 
 
 @app.middleware("http")
@@ -341,6 +341,10 @@ from backend.routes.admin import router as admin_router
 from backend.routes.knowledge_graph import router as knowledge_graph_router
 from backend.routes.time_machine import router as time_machine_router
 from backend.routes.hub import router as hub_router
+from backend.routes.tts import router as tts_router
+from backend.routes.eval_routes import router as eval_router
+from backend.routes.push import router as push_router
+from backend.routes.tools_generated import router as tools_generated_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -361,6 +365,10 @@ app.include_router(admin_router)
 app.include_router(knowledge_graph_router)
 app.include_router(time_machine_router)
 app.include_router(hub_router)
+app.include_router(tts_router)
+app.include_router(eval_router)
+app.include_router(push_router)
+app.include_router(tools_generated_router)
 
 # -- Health Check Endpoints --
 @app.get("/health")

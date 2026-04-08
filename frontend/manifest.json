@@ -2,17 +2,61 @@
     "name": "LocalMind",
     "short_name": "LocalMind",
     "description": "Local-first autonomous task worker with AI tools, memory, and job pipelines.",
+    "id": "/",
     "start_url": "/",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#0a0e1a",
-    "theme_color": "#0a0e1a",
     "orientation": "any",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "categories": ["productivity", "developer-tools"],
     "icons": [
         {
             "src": "icon.png",
             "sizes": "1024x1024",
             "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
             "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "screenshots": [],
+    "shortcuts": [
+        {
+            "name": "New Job",
+            "short_name": "New Job",
+            "url": "/?action=new-job",
+            "description": "Create a new autonomous job",
+            "icons": [
+                {
+                    "src": "icon.png",
+                    "sizes": "1024x1024",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Dashboard",
+            "short_name": "Dashboard",
+            "url": "/?view=dashboard",
+            "description": "View the LocalMind dashboard",
+            "icons": [
+                {
+                    "src": "icon.png",
+                    "sizes": "1024x1024",
+                    "type": "image/png"
+                }
+            ]
         }
     ]
 }

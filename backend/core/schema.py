@@ -690,6 +690,32 @@ def init_phase0_schema():
         CREATE INDEX IF NOT EXISTS idx_patterns_source ON cross_project_patterns(source_project_id);
     """)
 
+    # ── Self-Extending Tools: Generated Plugin Registry ────────────
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS generated_tools (
+            id TEXT PRIMARY KEY,
+            tool_name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            file_path TEXT NOT NULL,
+            code_hash TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            requested_by TEXT DEFAULT 'system',
+            created_at REAL NOT NULL,
+            last_loaded_at REAL,
+            error_log TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_gen_tools_name ON generated_tools(tool_name);
+        CREATE INDEX IF NOT EXISTS idx_gen_tools_status ON generated_tools(status);
+    """)
+
+    # ── Migrations: add columns to existing tables ──────────────
+    # eval_runs: add token tracking columns
+    _eval_cols = {r[1] for r in conn.execute("PRAGMA table_info(eval_runs)").fetchall()}
+    if "tokens_in" not in _eval_cols:
+        conn.execute("ALTER TABLE eval_runs ADD COLUMN tokens_in INTEGER DEFAULT 0")
+    if "tokens_out" not in _eval_cols:
+        conn.execute("ALTER TABLE eval_runs ADD COLUMN tokens_out INTEGER DEFAULT 0")
+
     conn.commit()
     conn.close()
     logger.info("Phase 0 enterprise schema initialized")
