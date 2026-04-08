@@ -4,3 +4,7 @@
 ## 2025-05-15 - Non-blocking System Metrics in FastAPI
 **Learning:** Using `psutil.cpu_percent(interval=0.1)` in an async FastAPI route blocks the entire event loop for 100ms. This significantly increases latency for all concurrent requests.
 **Action:** Always prime `psutil.cpu_percent(interval=None)` at module load or startup and use `interval=None` in async handlers to retrieve metrics instantly without blocking.
+
+## 2025-05-20 - Singleton HTTP Client for Connection Pooling
+**Learning:** Instantiating `httpx.AsyncClient` inside a request handler adds overhead for every call. Module-level instantiation can cause `RuntimeError: Attached to a different loop` in certain environments (like test suites).
+**Action:** Use a singleton pattern (e.g., `get_httpx_client()` function) to ensure the client is bound to the correct event loop while still benefiting from connection pooling.
