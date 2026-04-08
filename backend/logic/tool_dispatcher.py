@@ -96,7 +96,8 @@ class ToolDispatcher:
             "what people say", "what are people saying", "opinions on",
             "reviews of", "browse for", "check out what",
         ]):
-            return {"function": {"name": "web_search", "arguments": {"query": user_message}}}
+            query = _extract_search_query(user_message)
+            return {"function": {"name": "web_search", "arguments": {"query": query}}}
 
         # Screenshot
         if "screenshot" in msg:
@@ -199,6 +200,11 @@ class ToolDispatcher:
                         return None
         return None
 
+    @staticmethod
+    def extract_search_query(user_message: str) -> str:
+        """Public wrapper around ``_extract_search_query``."""
+        return _extract_search_query(user_message)
+
     def strip_tool_json(self, text: str) -> str:
         """Remove JSON tool call blocks (including markdown fences) from text."""
         # Strip markdown code fences wrapping tool call JSON
@@ -245,3 +251,68 @@ class ToolDispatcher:
             else:
                 i = idx + 1
         return result
+
+
+# ------------------------------------------------------------------
+# Search query extraction
+# ------------------------------------------------------------------
+
+# Phrases that trigger web search but should NOT be part of the query.
+_SEARCH_PREFIXES = re.compile(
+    r"^(?:"
+    r"search\s+(?:for|about|on|the\s+web\s+for)?\s*"
+    r"|look\s+(?:up|into|over|at\s+what)\s*"
+    r"|google\s*"
+    r"|find\s+out\s+(?:about|what)?\s*"
+    r"|research\s*"
+    r"|what\s+(?:do\s+)?people\s+(?:say|think)\s+(?:about)?\s*"
+    r"|what\s+are\s+people\s+saying\s+(?:about)?\s*"
+    r"|opinions?\s+on\s*"
+    r"|reviews?\s+(?:of|for)\s*"
+    r"|browse\s+for\s*"
+    r"|check\s+out\s+what\s*"
+    r")+",
+    re.IGNORECASE,
+)
+
+# Trailing noise that often leaks in from system prompt / task wrappers.
+_TRAILING_NOISE = re.compile(
+    r"\s*[.,;:!?]*\s*$"
+    r"|\s+(?:work\s+)?autonomously.*$"
+    r"|\s+verify\s+your\s+results.*$"
+    r"|\s+and\s+report\s+what\s+was\s+done.*$",
+    re.IGNORECASE,
+)
+
+
+def _extract_search_query(raw_message: str) -> str:
+    """Strip trigger prefixes and trailing noise to produce a clean search query.
+
+    Examples
+    --------
+    >>> _extract_search_query("look over what people say about UE5")
+    'UE5'
+    >>> _extract_search_query("search for Python web frameworks")
+    'Python web frameworks'
+    >>> _extract_search_query("what do people say about React vs Vue")
+    'React vs Vue'
+    """
+    query = raw_message.strip()
+
+    # Remove trigger prefix.
+    query = _SEARCH_PREFIXES.sub("", query).strip()
+
+    # Remove trailing task-wrapper noise.
+    query = _TRAILING_NOISE.sub("", query).strip()
+
+    # If stripping removed everything, fall back to the original (minus
+    # the most obvious prefix words only).
+    if not query:
+        query = re.sub(
+            r"^(?:search|look\s+up|google|find|research)\s+",
+            "",
+            raw_message.strip(),
+            flags=re.IGNORECASE,
+        ).strip()
+
+    return query or raw_message.strip()
