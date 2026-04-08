@@ -112,6 +112,12 @@ PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 DIGESTS_DIR.mkdir(parents=True, exist_ok=True)
 
+# --- Inference Config ---
+BEST_OF_N_ENABLED = os.getenv("BEST_OF_N_ENABLED", "false").lower() == "true"
+DEFAULT_BEST_OF_N = int(os.getenv("DEFAULT_BEST_OF_N", "4"))
+PRM_MODEL = os.getenv("PRM_MODEL", "")  # scorer model for best-of-N (LLM-as-judge)
+LORA_ADAPTERS_DIR = WORKSPACE_ROOT / "lora_adapters"
+
 # --- Job Pipeline Paths ---
 JOBS_DIR = WORKSPACE_ROOT / "jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
@@ -131,6 +137,8 @@ MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "100"))
 # --- Security Config ---
 PROMPT_GUARD_LEVEL = os.getenv("PROMPT_GUARD_LEVEL", "strict")  # strict | moderate | permissive
 DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "hybrid")  # strict-local | hybrid | cloud-assisted
+SECURITY_ALERT_WEBHOOK = os.getenv("SECURITY_ALERT_WEBHOOK", "")
+SECURITY_ALERT_CHANNEL = os.getenv("SECURITY_ALERT_CHANNEL", "")
 
 # --- Slack Config ---
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
@@ -147,6 +155,10 @@ RECYCLE_MAX_SIZE_GB = float(os.getenv("RECYCLE_MAX_SIZE_GB", "10"))
 JOB_RETENTION_DAYS = int(os.getenv("JOB_RETENTION_DAYS", "90"))
 MIN_FREE_SPACE_GB = int(os.getenv("MIN_FREE_SPACE_GB", "20"))
 GC_ARCHIVE_DIR = WORKSPACE_ROOT / "archive"
+
+# --- Data Protection Config ---
+PII_SCRUB_PATTERNS = os.getenv("PII_SCRUB_PATTERNS", "")  # JSON list of extra regex strings
+VACUUM_INTERVAL_HOURS = int(os.getenv("VACUUM_INTERVAL_HOURS", "24"))
 
 # ── Startup Validation ──────────────────────────────────────────
 _config_logger = logging.getLogger("localmind.config")

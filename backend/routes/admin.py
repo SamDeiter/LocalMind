@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.config import DB_PATH
+from backend.core.audit import get_audit_logger
 from backend.security.auth import APIKeyManager
 from backend.security.rbac import require_admin
 
@@ -143,51 +144,23 @@ async def revoke_key(key_id: str):
 @router.get("/audit", dependencies=[Depends(require_admin)])
 async def query_audit_log(
     action: Optional[str] = Query(None, description="Filter by action type"),
+    actor: Optional[str] = Query(None, description="Filter by actor"),
+    job_id: Optional[str] = Query(None, description="Filter by job ID"),
     since: Optional[str] = Query(None, description="ISO timestamp — return entries after this time"),
     limit: int = Query(100, ge=1, le=1000, description="Max entries to return"),
 ):
     """Query the job audit log (admin only).
 
-    Returns the most recent audit entries, optionally filtered by action
-    and/or timestamp.
+    Returns the most recent audit entries, optionally filtered by action,
+    actor, job_id, and/or timestamp.  Delegates to
+    :class:`backend.core.audit.AuditLogger` for consistent query logic.
     """
-    clauses: list[str] = []
-    params: list[object] = []
-
-    if action:
-        clauses.append("action = ?")
-        params.append(action)
-    if since:
-        clauses.append("timestamp >= ?")
-        params.append(since)
-
-    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"""
-        SELECT id, job_id, node_id, action, detail, actor, timestamp
-        FROM job_audit_log
-        {where}
-        ORDER BY timestamp DESC
-        LIMIT ?
-    """
-    params.append(limit)
-
-    conn = _get_conn()
-    try:
-        rows = conn.execute(sql, params).fetchall()
-    finally:
-        conn.close()
-
-    entries = [
-        {
-            "id": r["id"],
-            "job_id": r["job_id"],
-            "node_id": r["node_id"],
-            "action": r["action"],
-            "detail": r["detail"],
-            "actor": r["actor"],
-            "timestamp": r["timestamp"],
-        }
-        for r in rows
-    ]
-
+    al = get_audit_logger()
+    entries = al.query(
+        action=action,
+        actor=actor,
+        since=since,
+        job_id=job_id,
+        limit=limit,
+    )
     return {"entries": entries, "count": len(entries)}

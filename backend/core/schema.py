@@ -488,15 +488,17 @@ def init_phase0_schema():
 
         CREATE TABLE IF NOT EXISTS job_audit_log (
             id TEXT PRIMARY KEY,
-            job_id TEXT NOT NULL REFERENCES jobs(id),
+            job_id TEXT,
             node_id TEXT,
             action TEXT NOT NULL,
             detail TEXT,
             actor TEXT,
+            source_ip TEXT,
             timestamp TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_audit_job ON job_audit_log(job_id);
         CREATE INDEX IF NOT EXISTS idx_audit_time ON job_audit_log(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_audit_action ON job_audit_log(action);
 
         CREATE TABLE IF NOT EXISTS pipeline_templates (
             id TEXT PRIMARY KEY,
@@ -552,6 +554,24 @@ def init_phase0_schema():
             revoked_at TEXT
         );
     """)
+
+    # ── Migrations for existing databases ─────────────────────────
+    # Add source_ip column to job_audit_log if missing (Section 26).
+    try:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(job_audit_log)").fetchall()}
+        if "source_ip" not in cols:
+            conn.execute("ALTER TABLE job_audit_log ADD COLUMN source_ip TEXT")
+            logger.info("Migration: added source_ip to job_audit_log")
+    except Exception as e:
+        logger.debug("job_audit_log migration skipped: %s", e)
+
+    # Make job_id nullable for system-wide audit events.  SQLite cannot
+    # ALTER COLUMN, but the CREATE TABLE IF NOT EXISTS above already uses
+    # the nullable definition for fresh installs.  For existing DBs with
+    # NOT NULL, we tolerate the constraint by inserting empty-string job_id
+    # when no job context exists.
+
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_action ON job_audit_log(action)")
 
     conn.commit()
     conn.close()

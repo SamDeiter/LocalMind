@@ -20,7 +20,9 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.config import (
     DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, PROPOSALS_DIR, FRONTEND_URLS,
-    SLACK_ENABLED, GPU_VRAM_GB,
+    SLACK_ENABLED, GPU_VRAM_GB, VACUUM_INTERVAL_HOURS, JOB_RETENTION_DAYS,
+    WORKSPACE_ROOT, BEST_OF_N_ENABLED, PRM_MODEL, LORA_ADAPTERS_DIR,
+    MODEL_TIERS,
 )
 from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
 from backend.tools.registry import ToolRegistry
@@ -33,6 +35,11 @@ from backend.core.telemetry import (
     init_telemetry_schema, health_checker, metrics_collector, alert_manager,
 )
 from backend.jobs.worker import JobWorker
+from backend.core.audit import audit_event as _audit_event, get_audit_logger, get_alert_manager
+from backend.security.redact import install_redacting_filter
+from backend.security.data_protection import (
+    harden_db_permissions, schedule_vacuum, daily_purge_loop,
+)
 
 # -- Logging --
 logging.basicConfig(
@@ -69,12 +76,32 @@ async def lifespan(app: FastAPI):
 
     import asyncio
 
+    # ── Log redaction (install BEFORE any logging) ─────────────
+    install_redacting_filter()
+
     # ── Database & schema ───────────────────────────────────────
     db.init_db()
     init_phase0_schema()
     init_telemetry_schema()
     ensure_default_tenant()
     _configure_routers()
+
+    # ── Audit & monitoring (Section 26) ──────────────────────────
+    _al = get_audit_logger()
+    _am = get_alert_manager()
+    try:
+        import json as _json
+        _version_file = Path(__file__).parent.parent / "version.json"
+        _version_info = _json.loads(_version_file.read_text()) if _version_file.exists() else {}
+        await _audit_event("system", "server_started", {
+            "version": _version_info.get("version", "unknown"),
+            "build": _version_info.get("build", 0),
+        })
+    except Exception:
+        logger.debug("Startup audit event failed (non-critical)")
+
+    # ── Data-at-rest hardening ─────────────────────────────────
+    harden_db_permissions(DB_PATH)
 
     # ── Startup secret scan ─────────────────────────────────────
     try:
@@ -87,6 +114,35 @@ async def lifespan(app: FastAPI):
 
     # Store engine on app.state for route access
     app.state.autonomy_engine = autonomy_engine
+
+    # ── Inference dependencies (ModelSelector, LoRA, BestOfN) ───
+    model_selector = None
+    best_of_n_sampler = None
+    try:
+        from backend.inference.lora_manager import LoRAManager
+        from backend.inference.model_selector import ModelSelector
+        lora_manager = LoRAManager(adapters_dir=str(LORA_ADAPTERS_DIR))
+        model_selector = ModelSelector(
+            model_tiers=MODEL_TIERS,
+            lora_manager=lora_manager,
+        )
+        logger.info("ModelSelector initialised (tiers=%s)", list(MODEL_TIERS.keys()))
+    except Exception as e:
+        logger.warning("ModelSelector init failed (falling back to defaults): %s", e)
+
+    if BEST_OF_N_ENABLED:
+        try:
+            from backend.inference.best_of_n import BestOfNSampler
+            best_of_n_sampler = BestOfNSampler(
+                ollama_url=OLLAMA_BASE_URL,
+                scorer_model=PRM_MODEL or None,
+            )
+            logger.info(
+                "BestOfNSampler initialised (scorer=%s)",
+                PRM_MODEL or "heuristic",
+            )
+        except Exception as e:
+            logger.warning("BestOfNSampler init failed (best-of-N disabled): %s", e)
 
     # ── Job worker ──────────────────────────────────────────────
     from backend.routes.jobs import emit_activity
@@ -106,6 +162,8 @@ async def lifespan(app: FastAPI):
         tool_registry=registry,
         ollama_url=OLLAMA_BASE_URL,
         activity_callback=_activity_multiplex,
+        model_selector=model_selector,
+        best_of_n_sampler=best_of_n_sampler,
     )
     app.state.job_worker = job_worker
 
@@ -135,6 +193,12 @@ async def lifespan(app: FastAPI):
         ensure_memory_columns()
     except Exception:
         logger.debug("Memory encryption migration skipped (non-critical)")
+
+    # ── Data protection background tasks ─────────────────────────
+    asyncio.create_task(schedule_vacuum(DB_PATH, interval_hours=VACUUM_INTERVAL_HOURS))
+    asyncio.create_task(daily_purge_loop(WORKSPACE_ROOT, retention_days=JOB_RETENTION_DAYS))
+    logger.info("Data protection tasks started (VACUUM every %dh, purge retention %dd)",
+                VACUUM_INTERVAL_HOURS, JOB_RETENTION_DAYS)
 
     # ── Start main workers ──────────────────────────────────────
     await autonomy_engine.start()
