@@ -6,6 +6,7 @@
 
 import { API } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
+import { showListSkeletons } from "./ui_components.js";
 
 // ── State ──────────────────────────────────────────────────────
 let _approvals = [];
@@ -809,6 +810,12 @@ export function showApprovalsView() {
   view.classList.remove("hidden");
   view.style.display = "";
   _visible = true;
+
+  // Show skeletons while data loads
+  if (_approvals.length === 0) {
+    const listEl = document.getElementById("approvalsList");
+    if (listEl) showListSkeletons(listEl, 4);
+  }
 
   // Ensure we have current data
   poll();

@@ -24,6 +24,24 @@ body {
 /* Firefox */
 .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #1e293b transparent; }
 
+/* ── Skeleton Loading ─────────────────────────────────────────── */
+.skeleton-card {
+    animation: skeleton-fade 1.2s ease-in-out infinite;
+}
+.skeleton-line {
+    background: linear-gradient(90deg, rgba(30, 41, 59, 0.6) 25%, rgba(51, 65, 85, 0.4) 50%, rgba(30, 41, 59, 0.6) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+@keyframes skeleton-fade {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 0.4; }
+}
+
 /* ── Icon defaults ────────────────────────────────────────────── */
 .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;

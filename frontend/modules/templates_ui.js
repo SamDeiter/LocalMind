@@ -9,6 +9,7 @@
 
 import { API } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
+import { showCardSkeletons, viewHeader, card, cardGrid, emptyState, badge } from "./ui_components.js";
 
 // ---------------------------------------------------------------------------
 // Known tools -- static catalogue used for the node editor checkboxes.
@@ -191,6 +192,11 @@ export function showTemplatesView() {
   _editingNodes = null;
   _isEditing = false;
 
+  // Show skeleton while loading
+  const hdr = viewHeader({ icon: "dashboard_customize", iconColor: "indigo", title: "Template", count: null, actionBtn: "" });
+  view.innerHTML = `<div class="flex-1 flex flex-col p-5 lg:p-7 overflow-y-auto custom-scrollbar gap-5">${hdr}<div id="tplSkeletonGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div></div>`;
+  showCardSkeletons(view.querySelector("#tplSkeletonGrid"), 6);
+
   _fetchTemplates().then(() => _renderList());
 }
 
@@ -206,35 +212,28 @@ function _renderList() {
   const view = _el("templatesView");
   if (!view) return;
 
-  const headerHtml = `
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <span class="material-symbols-outlined text-indigo-400 text-2xl" aria-hidden="true">dashboard_customize</span>
-        <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">Template Library</h2>
-        <span class="text-[11px] font-bold uppercase tracking-widest bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full">${_templates.length} template${_templates.length !== 1 ? "s" : ""}</span>
-      </div>
-      <button id="tplRefreshBtn" class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20"
-              aria-label="Refresh template list">
-        <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">refresh</span> Refresh
-      </button>
-    </div>`;
+  const refreshBtn = `<button id="tplRefreshBtn" class="btn-base btn-ghost" aria-label="Refresh template list">
+    <span class="material-symbols-outlined text-xs" aria-hidden="true">refresh</span> Refresh
+  </button>`;
+  const headerHtml = viewHeader({ icon: "dashboard_customize", iconColor: "indigo", title: "Template", count: _templates.length, actionBtn: refreshBtn });
 
   if (_templates.length === 0) {
-    view.innerHTML = `
+    view.innerHTML = `<div class="flex-1 flex flex-col p-5 lg:p-7 overflow-y-auto custom-scrollbar gap-5">
       ${headerHtml}
-      <div class="flex flex-col items-center justify-center py-20 gap-4" role="status">
-        <span class="material-symbols-outlined text-5xl text-slate-700" aria-hidden="true">layers</span>
-        <p class="text-slate-500 text-sm text-center max-w-md">No templates yet -- complete a job and save it as a template to see it here.</p>
-      </div>`;
+      ${emptyState({ icon: "layers", message: "No templates yet — complete a job and save it as a template to see it here." })}
+    </div>`;
     _wireRefreshBtn();
     return;
   }
 
   const cardsHtml = _templates.map((t, idx) => {
     const nodeCount = Array.isArray(t.nodes) ? t.nodes.length : 0;
-    return `
-      <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-5 transition-all hover:bg-slate-800/40 hover:border-indigo-500/30 group focus-within:ring-2 focus-within:ring-indigo-500/40"
-           data-tpl-id="${escapeHtml(t.id)}" role="article" aria-label="Template: ${escapeHtml(t.name)}">
+    return card({
+      id: t.id,
+      dataAttr: "tpl-id",
+      hoverColor: "indigo",
+      ariaLabel: `Template: ${t.name}`,
+      innerHTML: `
         <div class="flex items-start justify-between mb-3">
           <div class="flex-1 min-w-0">
             <h3 class="text-sm font-bold text-slate-100 truncate group-hover:text-indigo-300 transition-colors">${escapeHtml(t.name)}</h3>
@@ -242,7 +241,6 @@ function _renderList() {
           </div>
           <span class="text-[11px] font-mono text-slate-600 ml-3 whitespace-nowrap">${escapeHtml(t.id.slice(0, 8))}</span>
         </div>
-
         <div class="flex items-center gap-4 text-xs text-slate-500 font-mono mb-4">
           <span class="flex items-center gap-1" title="Number of pipeline nodes">
             <span class="material-symbols-outlined text-xs text-indigo-400" aria-hidden="true">account_tree</span>
@@ -257,25 +255,21 @@ function _renderList() {
             ${_relativeTime(t.updated_at)}
           </span>
         </div>
-
         <div class="flex items-center gap-2">
-          <button class="tpl-run-btn flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold py-2 rounded-lg uppercase tracking-wider transition-colors border border-emerald-500/20"
-                  data-idx="${idx}" aria-label="Run template ${escapeHtml(t.name)}">
-            <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">play_arrow</span> Run This
+          <button class="tpl-run-btn btn-base btn-success flex-1 justify-center" data-idx="${idx}" aria-label="Run template ${escapeHtml(t.name)}">
+            <span class="material-symbols-outlined text-xs" aria-hidden="true">play_arrow</span> Run This
           </button>
-          <button class="tpl-preview-btn flex-1 bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-xs font-bold py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
-                  data-idx="${idx}" aria-label="Preview template ${escapeHtml(t.name)}">
-            <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">visibility</span> Preview
+          <button class="tpl-preview-btn btn-base btn-ghost flex-1 justify-center" data-idx="${idx}" aria-label="Preview template ${escapeHtml(t.name)}">
+            <span class="material-symbols-outlined text-xs" aria-hidden="true">visibility</span> Preview
           </button>
-        </div>
-      </div>`;
+        </div>`,
+    });
   }).join("");
 
-  view.innerHTML = `
+  view.innerHTML = `<div class="flex-1 flex flex-col p-5 lg:p-7 overflow-y-auto custom-scrollbar gap-5">
     ${headerHtml}
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" role="list" aria-label="Templates">
-      ${cardsHtml}
-    </div>`;
+    ${cardGrid({ ariaLabel: "Templates", innerHTML: cardsHtml })}
+  </div>`;
 
   // Wire events
   _wireRefreshBtn();

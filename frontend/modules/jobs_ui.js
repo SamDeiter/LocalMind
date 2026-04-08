@@ -18,6 +18,7 @@
 
 import { API } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
+import { showCardSkeletons } from "./ui_components.js";
 
 // ---------------------------------------------------------------------------
 // State
@@ -228,7 +229,6 @@ function buildShellHTML() {
 
     <!-- Job Cards Grid -->
     <div id="jobsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" role="list" aria-live="polite" aria-label="Job list">
-      <div class="text-sm text-slate-500 italic col-span-full py-8 text-center">Loading jobs...</div>
     </div>
   </div>
 
@@ -685,6 +685,9 @@ export function showJobsView() {
     view.style.display = "";
   }
   _showListView();
+  // Show skeletons while data loads
+  const grid = el("jobsGrid");
+  if (grid && _jobs.length === 0) showCardSkeletons(grid, 6);
   _loadJobs();
   _startPolling();
   _updateRunningBadge();

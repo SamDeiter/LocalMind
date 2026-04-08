@@ -7,6 +7,7 @@
 
 import { API } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
+import { showCardSkeletons, showStatSkeletons } from "./ui_components.js";
 
 // ── State ──────────────────────────────────────────────────────
 let _journal = [];
@@ -25,6 +26,12 @@ export function initLearningUI() {
 export async function loadLearningData() {
   const container = document.getElementById("learningPage");
   if (!container) return;
+
+  // Show skeletons during fetch
+  const statsEl = document.getElementById("learningStats");
+  const suggestionsEl = document.getElementById("learningSuggestions");
+  if (statsEl && !_stats.total_topics) showStatSkeletons(statsEl, 3);
+  if (suggestionsEl && _suggestions.length === 0) showCardSkeletons(suggestionsEl, 6);
 
   try {
     const [journalRes, statsRes, suggestionsRes] = await Promise.all([
