@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -196,19 +196,65 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# -- Auth & RBAC Middleware --
+# Paths that skip authentication entirely (health, docs, static, frontend).
+_AUTH_SKIP_PREFIXES = (
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/static/",
+)
+_AUTH_SKIP_EXACT = {"/", "/health", "/health/ready", "/health/deep", "/docs", "/openapi.json"}
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """Authenticate API requests and enforce RBAC permissions.
+
+    Skips auth for health checks, OpenAPI docs, static assets, and the
+    frontend root.  All ``/api/`` routes require a valid API key (unless
+    the system is in bootstrap mode with no keys).
+    """
+    from fastapi.responses import JSONResponse as _JSONResponse
+    path = request.url.path
+
+    # Skip auth for non-API routes
+    if path in _AUTH_SKIP_EXACT or any(path.startswith(p) for p in _AUTH_SKIP_PREFIXES):
+        return await call_next(request)
+
+    # Only enforce auth on /api/ routes
+    if path.startswith("/api/"):
+        try:
+            from backend.security.auth import authenticate_request
+            from backend.security.rbac import check_permission
+
+            user = authenticate_request(request)
+            check_permission(user["role"], request.method, path)
+
+            # Stash user context on request.state for route handlers
+            request.state.user = user
+        except HTTPException as exc:
+            return _JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail},
+            )
+
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def no_cache_static(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path
-    
+
     is_local = request.url.hostname in ["localhost", "127.0.0.1"]
     is_static = path.endswith((".js", ".css", ".html")) or path == "/"
-    
-    # We want Service Worker to handle caching for stability, 
+
+    # We want Service Worker to handle caching for stability,
     # but still allow browser to check for updates during dev.
     if is_static and is_local:
         response.headers["Cache-Control"] = "no-cache"
-    
+
     return response
 
 # -- Register Routers --
@@ -227,6 +273,7 @@ from backend.routes.validation_routes import router as validation_router
 from backend.routes.google_auth import router as google_auth_router
 from backend.routes.google_auth import _legacy_router as google_auth_legacy_router
 from backend.routes.jobs import router as jobs_router
+from backend.routes.admin import router as admin_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -243,6 +290,7 @@ app.include_router(validation_router)
 app.include_router(google_auth_router)
 app.include_router(google_auth_legacy_router)
 app.include_router(jobs_router)
+app.include_router(admin_router)
 
 # -- Health Check Endpoints --
 @app.get("/health")
