@@ -23,9 +23,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Mock heavy optional deps before importing backend modules
+# Only mock if the real package isn't installed (avoids corrupting starlette/httpx)
 for _mod in ("fastapi", "httpx"):
     if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
+        try:
+            __import__(_mod)
+        except ImportError:
+            sys.modules[_mod] = MagicMock()
 
 # ---------------------------------------------------------------------------
 # Imports under test

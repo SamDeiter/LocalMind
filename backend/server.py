@@ -90,10 +90,22 @@ async def lifespan(app: FastAPI):
 
     # ── Job worker ──────────────────────────────────────────────
     from backend.routes.jobs import emit_activity
+
+    async def _activity_multiplex(event_type: str, data: dict):
+        """Fan-out worker events to SSE subscribers and Slack."""
+        await emit_activity(event_type, data)
+        from backend.integrations.slack_bot import get_slack_bot
+        bot = get_slack_bot()
+        if bot:
+            try:
+                await bot.handle_worker_event(event_type, data)
+            except Exception as e:
+                logger.debug("Slack notification failed (non-fatal): %s", e)
+
     job_worker = JobWorker(
         tool_registry=registry,
         ollama_url=OLLAMA_BASE_URL,
-        activity_callback=emit_activity,
+        activity_callback=_activity_multiplex,
     )
     app.state.job_worker = job_worker
 

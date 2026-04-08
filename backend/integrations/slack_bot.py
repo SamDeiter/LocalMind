@@ -252,7 +252,7 @@ class SlackBot:
             description=text,
             source="slack",
             requester=user_id,
-            source_ref=thread_ts or channel,
+            source_ref=f"{channel}:{thread_ts}" if thread_ts else channel,
         )
 
         _record_event(
@@ -448,15 +448,18 @@ class SlackBot:
             .get("thread_ts", "")
         ) or ""
 
+        # Match both new format (channel:thread_ts) and legacy (thread_ts or channel)
+        source_ref_new = f"{channel_id}:{thread_ts}" if thread_ts else channel_id
         conn = _get_conn()
         try:
             row = conn.execute(
                 """
                 SELECT id FROM jobs
-                WHERE source = 'slack' AND (source_ref = ? OR source_ref = ?)
+                WHERE source = 'slack'
+                  AND (source_ref = ? OR source_ref = ? OR source_ref = ?)
                 ORDER BY created_at DESC LIMIT 1
                 """,
-                (thread_ts, channel_id),
+                (source_ref_new, thread_ts, channel_id),
             ).fetchone()
         finally:
             conn.close()
@@ -874,6 +877,124 @@ class SlackBot:
             )
         except Exception:
             logger.exception("Failed to post job_failed for %s", job.id)
+
+    # ------------------------------------------------------------------
+    # Worker event bridge
+    # ------------------------------------------------------------------
+
+    async def handle_worker_event(self, event_type: str, data: dict) -> None:
+        """Route a JobWorker lifecycle event to the appropriate Slack notification.
+
+        This is the single bridge between the worker's ``activity_callback``
+        and the Slack notification helpers above.  Only jobs with
+        ``source='slack'`` are handled; all others are silently ignored.
+
+        Parameters
+        ----------
+        event_type : str
+            One of the worker event types (``job_planning``, ``job_done``, etc.).
+        data : dict
+            Payload emitted by the worker (always contains ``job_id``).
+        """
+        job_id = data.get("job_id")
+        if not job_id:
+            return
+
+        from backend.jobs.queue import JobQueue
+
+        queue = JobQueue()
+        job = queue.get_job(job_id)
+        if job is None or job.source != "slack":
+            return
+
+        # Parse channel and thread_ts from source_ref ("channel:thread_ts")
+        source_ref = job.source_ref or ""
+        if ":" not in source_ref:
+            # Legacy or malformed source_ref — can't route to Slack
+            logger.debug(
+                "Slack job %s has unparseable source_ref=%r — skipping notification",
+                job_id, source_ref,
+            )
+            return
+
+        channel, thread_ts = source_ref.split(":", 1)
+        if not channel or not thread_ts:
+            return
+
+        # ---- Dispatch based on event_type ----
+
+        if event_type == "job_planning":
+            await self.post_job_started(channel, thread_ts, job)
+
+        elif event_type == "job_progress":
+            # For progress updates we need a tracker message.  We use the
+            # thread_ts itself as the message_ts for chat_update, which
+            # effectively updates the latest bot message in the thread.
+            # A dedicated progress message_ts could be tracked in memory
+            # but for simplicity we post an update into the thread.
+            progress = data.get("progress", {})
+            current_title = progress.get("current_node")
+            if current_title:
+                # Build a lightweight node-like object for update_progress
+                from types import SimpleNamespace
+                current_node = SimpleNamespace(title=current_title)
+            else:
+                current_node = None
+            # post_job_started returns a message_ts we could track, but
+            # since we don't persist it across events, we post a new
+            # threaded progress message instead of updating one.
+            completed = progress.get("completed", 0)
+            total = progress.get("total", 0)
+            bar = _progress_bar(completed, total)
+            text = (
+                f"\U0001f682 *{job.title}*\n"
+                f"`{bar}` ({completed}/{total})"
+            )
+            if current_title:
+                text += f"\nCurrent: _{current_title}_"
+            try:
+                await self._app.client.chat_postMessage(
+                    channel=channel,
+                    thread_ts=thread_ts,
+                    text=text,
+                )
+            except Exception:
+                logger.debug("Failed to post progress for job %s", job_id)
+
+        elif event_type == "node_completed":
+            node_id = data.get("node_id")
+            if node_id:
+                node = queue.get_node(node_id)
+                if node:
+                    await self.post_node_complete(channel, thread_ts, node)
+
+        elif event_type == "job_reviewing":
+            # Post a review gate notification if the job needs human review.
+            # We need the current node for the review gate UI.
+            nodes = queue.get_nodes(job_id)
+            last_completed = None
+            for n in reversed(nodes):
+                if n.status in ("completed", "running"):
+                    last_completed = n
+                    break
+            if last_completed:
+                await self.post_review_gate(channel, thread_ts, job, last_completed)
+
+        elif event_type == "job_done":
+            output_files = queue.get_files(job_id, file_type="output")
+            # Refresh job to get result_summary populated by the worker
+            job = queue.get_job(job_id) or job
+            await self.post_job_complete(
+                channel, thread_ts, job, output_files=output_files or None,
+            )
+
+        elif event_type == "job_failed":
+            error = data.get("error", "Unknown error")
+            await self.post_job_failed(channel, thread_ts, job, error)
+
+        # Other event types (job_executing, job_nodes_created, job_cancelled,
+        # job_resuming, job_replanning, job_review_result, worker_circuit_open,
+        # node_failed) are intentionally not forwarded to Slack to avoid noise.
 
     # ------------------------------------------------------------------
     # File handling
