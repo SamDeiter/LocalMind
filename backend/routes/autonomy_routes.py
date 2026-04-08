@@ -62,8 +62,10 @@ async def autonomy_status():
     # Add global counts for sidebar synchronization
     memories_count = 0
     try:
-        from backend.tools.memory import _get_collection
-        memories_count = _get_collection().count()
+        from backend.tools.memory import _get_fts_store
+        store = _get_fts_store()
+        if store:
+            memories_count = store.count()
     except Exception:
         pass
 

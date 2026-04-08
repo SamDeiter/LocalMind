@@ -3,10 +3,10 @@ routes/memory.py — Memory Management Router
 =============================================
 Handles all memory-related API endpoints:
 - Toggle learning mode (save vs read-only)
-- List stored memories from ChromaDB
+- List stored memories from FTS5 store
 - Delete specific memories
 
-Memories are vector-embedded facts about the user stored in ChromaDB.
+Memories are stored in SQLite with FTS5 full-text search.
 They're used to personalize AI responses across conversations.
 The "learning" toggle lets users pause memory saving while still
 allowing the AI to recall existing memories.
@@ -86,31 +86,31 @@ async def list_memories():
     The frontend displays these in the Memory Viewer panel.
     """
     try:
-        from backend.tools.memory import _get_collection
-        collection = _get_collection()
-        if collection.count() == 0:
+        from backend.tools.memory import _get_fts_store
+        store = _get_fts_store()
+        if not store:
             return {"memories": [], "count": 0}
 
-        results = collection.get(include=["documents", "metadatas"])
+        total = store.count()
+        if total == 0:
+            return {"memories": [], "count": 0}
+
+        recent = store.get_recent(limit=200)
         memories = []
-        for doc_id, doc, meta in zip(results["ids"], results["documents"], results["metadatas"]):
-            # Convert Unix timestamp to human-readable format
-            ts = meta.get("created_at", "0")
+        for m in recent:
             try:
-                dt = datetime.datetime.fromtimestamp(float(ts)).strftime("%Y-%m-%d %H:%M")
+                dt = datetime.datetime.fromtimestamp(m.created_at).strftime("%Y-%m-%d %H:%M")
             except (ValueError, OSError):
                 dt = "unknown"
 
             memories.append({
-                "id": doc_id,
-                "content": doc,
-                "category": meta.get("category", "general"),
+                "id": m.id,
+                "content": m.content,
+                "category": m.subcategory or m.category,
                 "created_at": dt,
             })
 
-        # Sort newest first so the most recent memories appear at top
-        memories.sort(key=lambda m: m.get("created_at", ""), reverse=True)
-        return {"memories": memories, "count": len(memories)}
+        return {"memories": memories, "count": total}
     except Exception as e:
         logger.warning(f"Failed to list memories: {e}")
         return {"memories": [], "count": 0, "error": str(e)}
@@ -118,16 +118,18 @@ async def list_memories():
 
 @router.delete("/memories/{memory_id}")
 async def delete_memory(memory_id: str):
-    """Delete a specific memory by its ChromaDB document ID.
-    
+    """Delete a specific memory by its ID.
+
     Users can delete memories from the Memory Viewer panel.
     This is important for privacy — users should always be able
     to remove any information the AI has stored about them.
     """
     try:
-        from backend.tools.memory import _get_collection
-        collection = _get_collection()
-        collection.delete(ids=[memory_id])
+        from backend.tools.memory import _get_fts_store
+        store = _get_fts_store()
+        if not store:
+            return {"success": False, "error": "Memory store unavailable"}
+        store.delete(int(memory_id))
         logger.info(f"Deleted memory: {memory_id}")
         return {"success": True, "deleted": memory_id}
     except Exception as e:
