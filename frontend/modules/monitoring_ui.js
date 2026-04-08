@@ -120,14 +120,14 @@ function buildShellHTML() {
       <span class="material-symbols-outlined text-indigo-400 text-2xl" aria-hidden="true">monitoring</span>
       <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">System Monitor</h2>
       <span id="monHealthBadge"
-            class="text-[9px] font-bold uppercase tracking-widest bg-slate-500/20 text-slate-400 px-2.5 py-1 rounded-full">
+            class="text-[11px] font-bold uppercase tracking-widest bg-slate-500/20 text-slate-400 px-2.5 py-1 rounded-full">
         Loading...
       </span>
     </div>
     <div class="flex items-center gap-3">
-      <span id="monLastPoll" class="text-[9px] font-mono text-slate-500"></span>
+      <span id="monLastPoll" class="text-[11px] font-mono text-slate-500"></span>
       <button id="monRefreshBtn"
-              class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               aria-label="Refresh monitoring data">
         <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">refresh</span> Refresh
       </button>
@@ -162,7 +162,7 @@ function buildShellHTML() {
       <div class="flex items-center gap-2 p-4 pb-2 border-b border-slate-700/50">
         <span class="material-symbols-outlined text-amber-400 text-lg" aria-hidden="true">notifications_active</span>
         <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Recent Alerts</h3>
-        <span id="monAlertCount" class="ml-auto text-[9px] font-bold uppercase tracking-widest bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full">0</span>
+        <span id="monAlertCount" class="ml-auto text-[11px] font-bold uppercase tracking-widest bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full">0</span>
       </div>
       <div id="monAlertLog"
            class="flex-1 overflow-y-auto custom-scrollbar p-2"
@@ -179,7 +179,7 @@ function buildHealthCardPlaceholders() {
   const cards = ["CPU", "Memory", "Disk", "Ollama", "DB Size", "Uptime"];
   return cards.map(label => `
     <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col gap-2">
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">${label}</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500">${label}</div>
       <div class="text-2xl font-bold text-slate-600 tabular-nums">--</div>
       <div class="w-full bg-slate-700/50 h-1.5 rounded-full overflow-hidden">
         <div class="h-full rounded-full bg-slate-600 transition-all duration-700" style="width: 0%"></div>
@@ -193,7 +193,7 @@ function buildMetricPlaceholders() {
   return items.map(label => `
     <div class="bg-slate-900/40 border border-slate-700/50 rounded-lg p-4 text-center">
       <div class="text-2xl font-bold text-slate-600 tabular-nums mb-1">--</div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">${label}</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500">${label}</div>
     </div>
   `).join("");
 }
@@ -269,7 +269,7 @@ function renderHealthCards(data) {
   if (badge) {
     const isHealthy = overallStatus === "healthy" || overallStatus === "ok";
     badge.textContent = overallStatus.charAt(0).toUpperCase() + overallStatus.slice(1);
-    badge.className = `text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${
+    badge.className = `text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${
       isHealthy
         ? "bg-emerald-500/20 text-emerald-400"
         : "bg-red-500/20 text-red-400"
@@ -295,7 +295,7 @@ function healthCard(label, valueText, pct, icon) {
   return `
     <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col gap-2 hover:border-slate-600 transition-colors">
       <div class="flex items-center justify-between">
-        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">${label}</div>
+        <div class="text-xs font-bold uppercase tracking-widest text-slate-500">${label}</div>
         <span class="material-symbols-outlined text-sm text-${color}-400" aria-hidden="true">${icon}</span>
       </div>
       <div class="text-2xl font-bold text-${color}-400 tabular-nums">${valueText}</div>
@@ -315,14 +315,14 @@ function ollamaCard(isUp, statusText) {
   return `
     <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col gap-2 hover:border-slate-600 transition-colors">
       <div class="flex items-center justify-between">
-        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Ollama</div>
+        <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Ollama</div>
         <span class="material-symbols-outlined text-sm text-${color}-400" aria-hidden="true">smart_toy</span>
       </div>
       <div class="flex items-center gap-2">
         <div class="w-2.5 h-2.5 rounded-full bg-${color}-400 ${isUp ? "animate-pulse" : ""}" aria-hidden="true"></div>
         <span class="text-lg font-bold text-${color}-400">${label}</span>
       </div>
-      <div class="text-[9px] text-slate-500 font-mono">LLM inference engine</div>
+      <div class="text-[11px] text-slate-500 font-mono">LLM inference engine</div>
     </div>
   `;
 }
@@ -331,7 +331,7 @@ function statCard(label, value, icon, color) {
   return `
     <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col gap-2 hover:border-slate-600 transition-colors">
       <div class="flex items-center justify-between">
-        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">${label}</div>
+        <div class="text-xs font-bold uppercase tracking-widest text-slate-500">${label}</div>
         <span class="material-symbols-outlined text-sm text-${color}-400" aria-hidden="true">${icon}</span>
       </div>
       <div class="text-2xl font-bold text-${color}-400 tabular-nums">${value}</div>
@@ -345,11 +345,11 @@ function uptimeCard(sec) {
   return `
     <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col gap-2 hover:border-slate-600 transition-colors">
       <div class="flex items-center justify-between">
-        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Uptime</div>
+        <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Uptime</div>
         <span class="material-symbols-outlined text-sm text-blue-400" aria-hidden="true">schedule</span>
       </div>
       <div class="text-2xl font-bold text-blue-400 tabular-nums">${text}</div>
-      <div class="text-[9px] text-slate-500 font-mono">System runtime</div>
+      <div class="text-[11px] text-slate-500 font-mono">System runtime</div>
     </div>
   `;
 }
@@ -358,7 +358,7 @@ function renderHealthOffline() {
   const badge = el("monHealthBadge");
   if (badge) {
     badge.textContent = "Offline";
-    badge.className = "text-[9px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full";
+    badge.className = "text-[11px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full";
   }
 }
 
@@ -376,19 +376,19 @@ function renderMetricsPanel(data) {
   grid.innerHTML = `
     <div class="bg-slate-900/40 border border-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-900/60 transition-colors">
       <div class="text-2xl font-bold text-indigo-400 tabular-nums mb-1">${jobsDone != null ? formatNumber(jobsDone) : "--"}</div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Jobs Completed</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Jobs Completed</div>
     </div>
     <div class="bg-slate-900/40 border border-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-900/60 transition-colors">
       <div class="text-2xl font-bold text-cyan-400 tabular-nums mb-1">${avgDur != null ? formatDuration(avgDur) : "--"}</div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Avg Duration</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Avg Duration</div>
     </div>
     <div class="bg-slate-900/40 border border-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-900/60 transition-colors">
       <div class="text-2xl font-bold text-${errColor}-400 tabular-nums mb-1">${errRate != null ? `${errRate.toFixed(1)}%` : "--"}</div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Error Rate</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Error Rate</div>
     </div>
     <div class="bg-slate-900/40 border border-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-900/60 transition-colors">
       <div class="text-2xl font-bold text-purple-400 tabular-nums mb-1">${tokens != null ? formatNumber(tokens) : "--"}</div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tokens Used</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Tokens Used</div>
     </div>
   `;
 }
@@ -428,8 +428,8 @@ function renderAlertLog(alerts) {
         <div class="flex-1 min-w-0">
           <div class="text-[11px] text-slate-200 leading-relaxed">${msg}</div>
           <div class="flex items-center gap-2 mt-1">
-            <span class="text-[9px] font-bold uppercase tracking-widest text-${color}-400">${(alert.level || "info").toUpperCase()}</span>
-            <span class="text-[9px] font-mono text-slate-500">${ts}</span>
+            <span class="text-[11px] font-bold uppercase tracking-widest text-${color}-400">${(alert.level || "info").toUpperCase()}</span>
+            <span class="text-[11px] font-mono text-slate-500">${ts}</span>
           </div>
         </div>
       </div>

@@ -97,7 +97,7 @@ function _buildHTML() {
     </div>
     <div>
       <h2 class="font-headline font-bold text-lg text-white">New Task</h2>
-      <span class="text-[10px] font-mono text-outline">Describe what you need done</span>
+      <span class="text-xs font-mono text-outline">Describe what you need done</span>
     </div>
   </div>
 
@@ -151,7 +151,7 @@ function _buildHTML() {
     <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-2">
-          <label for="tcTemplateSelect" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Template</label>
+          <label for="tcTemplateSelect" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Template</label>
           <select
             id="tcTemplateSelect"
             class="bg-surface-container-low border border-outline-variant/30 rounded-lg text-xs text-slate-300 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -161,7 +161,7 @@ function _buildHTML() {
           </select>
         </div>
         <div class="flex items-center gap-2">
-          <label for="tcPriorityRange" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Priority</label>
+          <label for="tcPriorityRange" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Priority</label>
           <input
             type="range"
             id="tcPriorityRange"
@@ -176,7 +176,7 @@ function _buildHTML() {
       </div>
       <button
         id="tcAddNodeBtn"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-bold uppercase tracking-widest hover:bg-slate-700 active:scale-95 transition-all"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold uppercase tracking-widest hover:bg-slate-700 active:scale-95 transition-all"
         title="Add another step to the pipeline"
       >
         <span class="material-symbols-outlined text-sm">add</span> Add Step
@@ -211,7 +211,7 @@ function _buildNodeCard(index, node) {
     return `
       <label class="flex items-center gap-1 cursor-pointer" title="Allow this step to use the ${TOOL_LABELS[t]} tool">
         <input type="checkbox" class="tc-node-tool accent-indigo-500 rounded" data-node="${index}" data-tool="${t}" ${checked} />
-        <span class="text-[10px] text-slate-400">${TOOL_LABELS[t]}</span>
+        <span class="text-xs text-slate-400">${TOOL_LABELS[t]}</span>
       </label>`;
   }).join("");
 
@@ -221,7 +221,7 @@ function _buildNodeCard(index, node) {
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class="material-symbols-outlined text-sm text-slate-600 cursor-grab" title="Drag to reorder this step (visual indicator)">drag_indicator</span>
-      <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-[10px] font-bold">${index + 1}</span>
+      <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold">${index + 1}</span>
     </div>
     <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline">
       <span class="material-symbols-outlined text-sm pointer-events-none">close</span>
@@ -249,7 +249,7 @@ function _buildNodeCard(index, node) {
 
   <!-- Tool checkboxes -->
   <div class="border-t border-slate-700/30 pt-2">
-    <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Allowed Tools</div>
+    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Allowed Tools</div>
     <div class="grid grid-cols-2 gap-x-2 gap-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-1">
       ${toolCheckboxes}
     </div>
@@ -277,7 +277,7 @@ function _renderFilePreview() {
   preview.innerHTML = _droppedFiles
     .map(
       (f, i) => `
-    <div class="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/40 rounded-lg px-2.5 py-1.5 text-[10px] text-slate-300">
+    <div class="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/40 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
       <span class="material-symbols-outlined text-xs text-slate-500">description</span>
       <span class="max-w-[120px] truncate" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
       <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file">

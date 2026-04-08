@@ -36,7 +36,7 @@ function reviewTypeBadge(type) {
     approval_gate: { label: "Approval Gate", cls: "bg-amber-500/20 text-amber-400" },
   };
   const info = map[type] || { label: type || "Review", cls: "bg-slate-500/20 text-slate-400" };
-  return `<span class="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${info.cls}">${escapeHtml(info.label)}</span>`;
+  return `<span class="text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${info.cls}">${escapeHtml(info.label)}</span>`;
 }
 
 function correctionStatusBadge(status) {
@@ -46,7 +46,7 @@ function correctionStatusBadge(status) {
     dismissed: "bg-slate-500/20 text-slate-500",
   };
   const cls = map[status] || "bg-slate-500/20 text-slate-400";
-  return `<span class="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${cls}">${escapeHtml(status || "pending")}</span>`;
+  return `<span class="text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${cls}">${escapeHtml(status || "pending")}</span>`;
 }
 
 function isImage(filename) {
@@ -206,11 +206,11 @@ function buildShell() {
       <div class="flex items-center gap-3">
         <span class="material-symbols-outlined text-indigo-400 text-2xl">approval</span>
         <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">Approval Queue</h2>
-        <span id="approvalsLiveCount" class="text-[9px] font-bold uppercase tracking-widest bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full">0 pending</span>
+        <span id="approvalsLiveCount" class="text-[11px] font-bold uppercase tracking-widest bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full">0 pending</span>
       </div>
       <div class="flex items-center gap-2">
         <button id="approvalsRefreshBtn"
-                class="bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
+                class="bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
                 aria-label="Refresh approval queue">
           <span class="material-symbols-outlined text-xs align-middle mr-1">refresh</span> Refresh
         </button>
@@ -220,11 +220,11 @@ function buildShell() {
     <!-- Tabs -->
     <div class="flex items-center gap-1 px-8 mb-4 flex-shrink-0" role="tablist" aria-label="Approvals tabs">
       <button id="tabQueue" role="tab" aria-selected="true" aria-controls="panelQueue"
-              class="approvals-tab text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+              class="approvals-tab text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
         Queue
       </button>
       <button id="tabHistory" role="tab" aria-selected="false" aria-controls="panelHistory"
-              class="approvals-tab text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors text-slate-500 hover:text-slate-300 border border-transparent">
+              class="approvals-tab text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors text-slate-500 hover:text-slate-300 border border-transparent">
         Corrections History
       </button>
     </div>
@@ -282,8 +282,8 @@ function wireShellEvents(view) {
   const panelQueue = view.querySelector("#panelQueue");
   const panelHistory = view.querySelector("#panelHistory");
 
-  const TAB_ACTIVE = "approvals-tab text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors bg-indigo-500/15 text-indigo-400 border border-indigo-500/30";
-  const TAB_INACTIVE = "approvals-tab text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors text-slate-500 hover:text-slate-300 border border-transparent";
+  const TAB_ACTIVE = "approvals-tab text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors bg-indigo-500/15 text-indigo-400 border border-indigo-500/30";
+  const TAB_INACTIVE = "approvals-tab text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors text-slate-500 hover:text-slate-300 border border-transparent";
 
   if (tabQueue) {
     tabQueue.addEventListener("click", () => {
@@ -361,7 +361,7 @@ function renderQueue() {
           <span class="material-symbols-outlined text-[12px] align-middle mr-1">account_tree</span>
           ${escapeHtml(node)}
         </div>
-        <div class="flex items-center justify-between text-[10px] text-slate-500">
+        <div class="flex items-center justify-between text-xs text-slate-500">
           <span class="flex items-center gap-1">
             <span class="material-symbols-outlined text-[11px]">person</span>
             ${escapeHtml(requester)}
@@ -420,7 +420,7 @@ function renderReviewPanel() {
         <h3 class="text-sm font-bold text-slate-100 font-headline">${escapeHtml(title)}</h3>
         ${reviewTypeBadge(reviewType)}
       </div>
-      <div class="flex items-center gap-4 text-[10px] text-slate-500">
+      <div class="flex items-center gap-4 text-xs text-slate-500">
         <span class="flex items-center gap-1">
           <span class="material-symbols-outlined text-[11px]">account_tree</span>
           ${escapeHtml(node)}
@@ -453,13 +453,13 @@ function renderReviewPanel() {
       <!-- Change request form (hidden by default) -->
       <div id="changeRequestForm" class="hidden space-y-3 p-4 bg-slate-950/60 border border-amber-500/20 rounded-xl" aria-label="Change request form">
         <div class="flex items-center justify-between">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-amber-400">Request Changes</span>
+          <span class="text-xs font-bold uppercase tracking-widest text-amber-400">Request Changes</span>
           <button id="closeChangeForm" class="text-slate-500 hover:text-slate-300 transition-colors" aria-label="Close change request form">
             <span class="material-symbols-outlined text-sm">close</span>
           </button>
         </div>
         <div>
-          <label for="correctionType" class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1 block">What's wrong</label>
+          <label for="correctionType" class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1 block">What's wrong</label>
           <select id="correctionType"
                   class="w-full bg-slate-900 border border-slate-700/60 rounded-lg text-xs text-slate-300 px-3 py-2 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-colors">
             <option value="factual">Factual error</option>
@@ -469,22 +469,22 @@ function renderReviewPanel() {
           </select>
         </div>
         <div>
-          <label for="correctionTarget" class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1 block">Target location</label>
+          <label for="correctionTarget" class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1 block">Target location</label>
           <input id="correctionTarget" type="text" placeholder='e.g. slide 7, title'
                  class="w-full bg-slate-900 border border-slate-700/60 rounded-lg text-xs text-slate-300 px-3 py-2 placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-colors" />
         </div>
         <div>
-          <label for="correctionValue" class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1 block">Corrected value</label>
+          <label for="correctionValue" class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1 block">Corrected value</label>
           <input id="correctionValue" type="text" placeholder="What it should say..."
                  class="w-full bg-slate-900 border border-slate-700/60 rounded-lg text-xs text-slate-300 px-3 py-2 placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-colors" />
         </div>
         <div>
-          <label for="correctionNotes" class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1 block">Additional notes</label>
+          <label for="correctionNotes" class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1 block">Additional notes</label>
           <textarea id="correctionNotes" rows="2" placeholder="Any extra context..."
                     class="w-full bg-slate-900 border border-slate-700/60 rounded-lg text-xs text-slate-300 px-3 py-2 placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-colors resize-none"></textarea>
         </div>
         <button id="submitChangeRequest"
-                class="w-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[10px] font-bold px-4 py-2.5 rounded-lg uppercase tracking-wider transition-colors border border-amber-500/30">
+                class="w-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold px-4 py-2.5 rounded-lg uppercase tracking-wider transition-colors border border-amber-500/30">
           <span class="material-symbols-outlined text-xs align-middle mr-1">send</span> Submit Change Request
         </button>
       </div>
@@ -492,17 +492,17 @@ function renderReviewPanel() {
       <!-- Primary actions -->
       <div id="reviewActions" class="flex items-center gap-3">
         <button id="btnApprove"
-                class="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[10px] font-bold px-4 py-3 rounded-xl uppercase tracking-wider transition-all border border-emerald-500/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                class="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold px-4 py-3 rounded-xl uppercase tracking-wider transition-all border border-emerald-500/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                 aria-label="Approve and continue pipeline">
           <span class="material-symbols-outlined text-sm align-middle mr-1">check_circle</span> Approve
         </button>
         <button id="btnRequestChanges"
-                class="flex-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-[10px] font-bold px-4 py-3 rounded-xl uppercase tracking-wider transition-all border border-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                class="flex-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-xs font-bold px-4 py-3 rounded-xl uppercase tracking-wider transition-all border border-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
                 aria-label="Request changes and pause pipeline">
           <span class="material-symbols-outlined text-sm align-middle mr-1">edit_note</span> Request Changes
         </button>
         <button id="btnReject"
-                class="flex-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-[10px] font-bold px-4 py-3 rounded-xl uppercase tracking-wider transition-all border border-red-500/30 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                class="flex-1 bg-red-500/15 hover:bg-red-500/25 text-red-400 text-xs font-bold px-4 py-3 rounded-xl uppercase tracking-wider transition-all border border-red-500/30 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                 aria-label="Reject and cancel the job">
           <span class="material-symbols-outlined text-sm align-middle mr-1">cancel</span> Reject
         </button>
@@ -519,10 +519,10 @@ function renderOutputPreview(output) {
   const display = truncated ? text.slice(0, 3000) : text;
   return `
     <div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Output Preview</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Output Preview</div>
       <div class="bg-slate-950/60 border border-slate-800/40 rounded-lg p-4 max-h-[300px] overflow-y-auto custom-scrollbar">
         <pre class="text-xs text-slate-300 whitespace-pre-wrap break-words font-mono leading-relaxed">${escapeHtml(display)}</pre>
-        ${truncated ? '<div class="text-[10px] text-slate-500 mt-2 italic">Content truncated -- full output available after approval</div>' : ""}
+        ${truncated ? '<div class="text-xs text-slate-500 mt-2 italic">Content truncated -- full output available after approval</div>' : ""}
       </div>
     </div>`;
 }
@@ -534,18 +534,18 @@ function renderFileSection(filePath, fileName) {
 
   return `
     <div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">File Output</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">File Output</div>
       <div class="bg-slate-950/60 border border-slate-800/40 rounded-lg p-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <span class="material-symbols-outlined text-indigo-400">description</span>
           <div>
             <div class="text-xs text-slate-200 font-medium">${escapeHtml(fileName)}</div>
-            <div class="text-[10px] text-slate-500">${escapeHtml(filePath)}</div>
+            <div class="text-xs text-slate-500">${escapeHtml(filePath)}</div>
           </div>
         </div>
         <a href="${API}/api/files/${encodeURIComponent(filePath)}?download=1"
            download="${escapeHtml(fileName)}"
-           class="bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 text-[10px] font-bold px-3 py-2 rounded-lg transition-colors border border-indigo-500/30"
+           class="bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 text-xs font-bold px-3 py-2 rounded-lg transition-colors border border-indigo-500/30"
            aria-label="Download ${escapeHtml(fileName)}">
           <span class="material-symbols-outlined text-xs align-middle mr-1">download</span> Download
         </a>
@@ -581,14 +581,14 @@ function renderDiffView(before, after) {
 
   return `
     <div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Changes (diff)</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Changes (diff)</div>
       <div class="grid grid-cols-2 gap-2">
         <div class="bg-slate-950/60 border border-red-500/20 rounded-lg overflow-hidden">
-          <div class="px-3 py-1.5 bg-red-500/10 border-b border-red-500/20 text-[9px] font-bold uppercase tracking-widest text-red-400">Before</div>
+          <div class="px-3 py-1.5 bg-red-500/10 border-b border-red-500/20 text-[11px] font-bold uppercase tracking-widest text-red-400">Before</div>
           <div class="p-2 max-h-[250px] overflow-y-auto custom-scrollbar font-mono text-[11px] leading-relaxed">${beforeHtml}</div>
         </div>
         <div class="bg-slate-950/60 border border-emerald-500/20 rounded-lg overflow-hidden">
-          <div class="px-3 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 text-[9px] font-bold uppercase tracking-widest text-emerald-400">After</div>
+          <div class="px-3 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 text-[11px] font-bold uppercase tracking-widest text-emerald-400">After</div>
           <div class="p-2 max-h-[250px] overflow-y-auto custom-scrollbar font-mono text-[11px] leading-relaxed">${afterHtml}</div>
         </div>
       </div>
@@ -737,28 +737,28 @@ function renderHistory() {
       <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-5 transition-all hover:bg-slate-800/30" role="listitem">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-3">
-            <span class="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400">${escapeHtml(typeLabels[type] || type)}</span>
+            <span class="text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400">${escapeHtml(typeLabels[type] || type)}</span>
             ${correctionStatusBadge(status)}
           </div>
-          <span class="text-[10px] text-slate-500 flex items-center gap-1">
+          <span class="text-xs text-slate-500 flex items-center gap-1">
             <span class="material-symbols-outlined text-[11px]">schedule</span>
             ${timeAgo(ts)}
           </span>
         </div>
 
         <div class="text-xs text-slate-400 mb-3">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Target:</span>
+          <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Target:</span>
           <span class="ml-2">${escapeHtml(target)}</span>
         </div>
 
         ${original || corrected ? `
           <div class="grid grid-cols-2 gap-3 mb-3">
             <div class="bg-slate-950/60 border border-red-500/10 rounded-lg p-3">
-              <div class="text-[9px] font-bold uppercase tracking-widest text-red-400 mb-1">Original</div>
+              <div class="text-[11px] font-bold uppercase tracking-widest text-red-400 mb-1">Original</div>
               <div class="text-xs text-slate-400 whitespace-pre-wrap break-words max-h-[100px] overflow-y-auto custom-scrollbar">${original ? escapeHtml(original.length > 500 ? original.slice(0, 500) + "..." : original) : '<span class="italic text-slate-600">--</span>'}</div>
             </div>
             <div class="bg-slate-950/60 border border-emerald-500/10 rounded-lg p-3">
-              <div class="text-[9px] font-bold uppercase tracking-widest text-emerald-400 mb-1">Corrected</div>
+              <div class="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-1">Corrected</div>
               <div class="text-xs text-slate-300 whitespace-pre-wrap break-words max-h-[100px] overflow-y-auto custom-scrollbar">${corrected ? escapeHtml(corrected.length > 500 ? corrected.slice(0, 500) + "..." : corrected) : '<span class="italic text-slate-600">--</span>'}</div>
             </div>
           </div>` : ""}
@@ -768,7 +768,7 @@ function renderHistory() {
 
         ${status === "pending" ? `
           <div class="flex items-center gap-2">
-            <button class="promote-btn bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors border border-emerald-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+            <button class="promote-btn bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border border-emerald-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                     data-correction-id="${escapeHtml(String(id))}"
                     aria-label="Promote correction to workspace memory">
               <span class="material-symbols-outlined text-xs align-middle mr-1">psychology</span> Promote to Memory

@@ -58,7 +58,7 @@ export function initTokenPanel() {
       "hover:bg-primary/20 hover:border-primary/40 transition-all cursor-pointer select-none";
     _toggleBtn.innerHTML =
       '<span class="material-symbols-outlined text-amber-400 text-[12px]">token</span>' +
-      '<span class="text-[9px] font-bold uppercase tracking-wider text-slate-500">Tokens</span>';
+      '<span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tokens</span>';
     _toggleBtn.addEventListener("click", _togglePanel);
     metricsArea.appendChild(_toggleBtn);
   }
@@ -93,10 +93,10 @@ export function initTokenPanel() {
         <div class="flex items-baseline gap-2">
           <span id="tokenLiveCount" class="text-3xl font-headline font-bold tabular-nums text-white transition-all duration-150"
             style="text-shadow: 0 0 20px rgba(99,102,241,0.3)">0</span>
-          <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">tokens</span>
+          <span class="text-xs uppercase tracking-widest text-slate-500 font-bold">tokens</span>
         </div>
         <span id="tokenModelBadge"
-          class="text-[9px] font-mono font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/20 px-2 py-0.5 rounded-full max-w-[140px] truncate">
+          class="text-[11px] font-mono font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/20 px-2 py-0.5 rounded-full max-w-[140px] truncate">
           --
         </span>
       </div>
@@ -106,7 +106,7 @@ export function initTokenPanel() {
     <div class="px-4 py-2 flex items-center gap-3">
       <div class="flex items-baseline gap-1.5">
         <span id="tokenSpeedValue" class="text-lg font-headline font-bold tabular-nums text-emerald-400">0.0</span>
-        <span class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">tok/s</span>
+        <span class="text-[11px] uppercase tracking-widest text-slate-500 font-bold">tok/s</span>
       </div>
       <svg id="tokenSparkline" class="flex-1 h-6" viewBox="0 0 120 24" preserveAspectRatio="none">
         <polyline fill="none" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
@@ -116,30 +116,30 @@ export function initTokenPanel() {
 
     <!-- Breakdown Bar -->
     <div class="px-4 py-2">
-      <div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">Prompt Breakdown</div>
+      <div class="text-[11px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">Prompt Breakdown</div>
       <div id="tokenBreakdownBar" class="flex h-3 rounded-full overflow-hidden bg-slate-800/60 border border-slate-700/30">
         <!-- segments injected dynamically -->
       </div>
-      <div id="tokenBreakdownLegend" class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[9px] text-slate-400">
+      <div id="tokenBreakdownLegend" class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-slate-400">
         <!-- legend items injected dynamically -->
       </div>
     </div>
 
     <!-- Session Totals -->
     <div class="px-4 py-3 mt-1 border-t border-[#334155]/40 bg-[#0f172a]/40 flex items-center justify-between">
-      <div class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Session</div>
+      <div class="text-[11px] uppercase tracking-widest text-slate-500 font-bold">Session</div>
       <div class="flex items-center gap-4">
         <div class="text-right">
           <span id="tokenSessionTotal" class="text-sm font-headline font-bold tabular-nums text-slate-200">0</span>
-          <span class="text-[8px] uppercase tracking-wider text-slate-500 ml-1">total</span>
+          <span class="text-xs uppercase tracking-wider text-slate-500 ml-1">total</span>
         </div>
         <div class="text-right">
           <span id="tokenSessionMsgs" class="text-sm font-headline font-bold tabular-nums text-slate-200">0</span>
-          <span class="text-[8px] uppercase tracking-wider text-slate-500 ml-1">msgs</span>
+          <span class="text-xs uppercase tracking-wider text-slate-500 ml-1">msgs</span>
         </div>
         <div class="text-right">
           <span id="tokenSessionAvgSpeed" class="text-sm font-headline font-bold tabular-nums text-emerald-400">0.0</span>
-          <span class="text-[8px] uppercase tracking-wider text-slate-500 ml-1">avg tok/s</span>
+          <span class="text-xs uppercase tracking-wider text-slate-500 ml-1">avg tok/s</span>
         </div>
       </div>
     </div>

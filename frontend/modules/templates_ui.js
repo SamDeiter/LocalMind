@@ -211,9 +211,9 @@ function _renderList() {
       <div class="flex items-center gap-3">
         <span class="material-symbols-outlined text-indigo-400 text-2xl" aria-hidden="true">dashboard_customize</span>
         <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">Template Library</h2>
-        <span class="text-[9px] font-bold uppercase tracking-widest bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full">${_templates.length} template${_templates.length !== 1 ? "s" : ""}</span>
+        <span class="text-[11px] font-bold uppercase tracking-widest bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full">${_templates.length} template${_templates.length !== 1 ? "s" : ""}</span>
       </div>
-      <button id="tplRefreshBtn" class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20"
+      <button id="tplRefreshBtn" class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20"
               aria-label="Refresh template list">
         <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">refresh</span> Refresh
       </button>
@@ -240,10 +240,10 @@ function _renderList() {
             <h3 class="text-sm font-bold text-slate-100 truncate group-hover:text-indigo-300 transition-colors">${escapeHtml(t.name)}</h3>
             <p class="text-[11px] text-slate-500 mt-1 line-clamp-2">${escapeHtml(t.description || "No description")}</p>
           </div>
-          <span class="text-[9px] font-mono text-slate-600 ml-3 whitespace-nowrap">${escapeHtml(t.id.slice(0, 8))}</span>
+          <span class="text-[11px] font-mono text-slate-600 ml-3 whitespace-nowrap">${escapeHtml(t.id.slice(0, 8))}</span>
         </div>
 
-        <div class="flex items-center gap-4 text-[10px] text-slate-500 font-mono mb-4">
+        <div class="flex items-center gap-4 text-xs text-slate-500 font-mono mb-4">
           <span class="flex items-center gap-1" title="Number of pipeline nodes">
             <span class="material-symbols-outlined text-xs text-indigo-400" aria-hidden="true">account_tree</span>
             ${nodeCount} node${nodeCount !== 1 ? "s" : ""}
@@ -259,11 +259,11 @@ function _renderList() {
         </div>
 
         <div class="flex items-center gap-2">
-          <button class="tpl-run-btn flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold py-2 rounded-lg uppercase tracking-wider transition-colors border border-emerald-500/20"
+          <button class="tpl-run-btn flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold py-2 rounded-lg uppercase tracking-wider transition-colors border border-emerald-500/20"
                   data-idx="${idx}" aria-label="Run template ${escapeHtml(t.name)}">
             <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">play_arrow</span> Run This
           </button>
-          <button class="tpl-preview-btn flex-1 bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-[10px] font-bold py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
+          <button class="tpl-preview-btn flex-1 bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-xs font-bold py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
                   data-idx="${idx}" aria-label="Preview template ${escapeHtml(t.name)}">
             <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">visibility</span> Preview
           </button>
@@ -346,20 +346,20 @@ function _renderDetail() {
       </div>
       <div class="flex gap-2">
         ${_isEditing ? `
-          <button id="tplCancelEditBtn" class="bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
+          <button id="tplCancelEditBtn" class="bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
                   aria-label="Cancel editing">
             Cancel
           </button>
-          <button id="tplSaveBtn" class="bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/30"
+          <button id="tplSaveBtn" class="bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/30"
                   aria-label="Save template changes">
             <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">save</span> Save
           </button>
         ` : `
-          <button id="tplEditBtn" class="bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
+          <button id="tplEditBtn" class="bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
                   aria-label="Edit template">
             <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">edit</span> Edit
           </button>
-          <button id="tplRunDetailBtn" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-emerald-500/20"
+          <button id="tplRunDetailBtn" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-emerald-500/20"
                   aria-label="Run this template">
             <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">play_arrow</span> Run
           </button>
@@ -476,19 +476,19 @@ function _renderDetail() {
 function _renderPipelinePreview(nodes) {
   const cards = nodes.map((n, i) => {
     const tools = (n.tools_allowed || []).map((t) =>
-      `<span class="inline-block bg-indigo-500/10 text-indigo-400 text-[9px] font-mono px-1.5 py-0.5 rounded border border-indigo-500/20" title="${escapeHtml(_toolTip(t))}">${escapeHtml(t)}</span>`
+      `<span class="inline-block bg-indigo-500/10 text-indigo-400 text-[11px] font-mono px-1.5 py-0.5 rounded border border-indigo-500/20" title="${escapeHtml(_toolTip(t))}">${escapeHtml(t)}</span>`
     ).join(" ");
 
     return `
       <div class="flex-shrink-0 w-72 bg-slate-900/40 border border-slate-800/60 rounded-xl p-4 snap-start" role="listitem" aria-label="Node ${i + 1}: ${escapeHtml(n.title || "")}">
         <div class="flex items-center gap-2 mb-2">
-          <span class="text-[9px] font-bold bg-indigo-500/20 text-indigo-400 w-5 h-5 flex items-center justify-center rounded-full" aria-hidden="true">${i + 1}</span>
+          <span class="text-[11px] font-bold bg-indigo-500/20 text-indigo-400 w-5 h-5 flex items-center justify-center rounded-full" aria-hidden="true">${i + 1}</span>
           <h4 class="text-xs font-bold text-slate-200 truncate flex-1">${escapeHtml(n.title || "Untitled")}</h4>
         </div>
-        <p class="text-[10px] text-slate-400 leading-relaxed mb-3 line-clamp-3">${escapeHtml(n.instructions || "")}</p>
+        <p class="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-3">${escapeHtml(n.instructions || "")}</p>
         ${tools ? `<div class="flex flex-wrap gap-1 mb-3" aria-label="Allowed tools">${tools}</div>` : ""}
         ${n.expected_output ? `
-          <div class="text-[9px] text-slate-500 border-t border-slate-800/40 pt-2 mt-auto">
+          <div class="text-[11px] text-slate-500 border-t border-slate-800/40 pt-2 mt-auto">
             <span class="text-emerald-500 font-bold uppercase tracking-widest" aria-hidden="true">Output:</span>
             <span class="ml-1">${escapeHtml(n.expected_output)}</span>
           </div>` : ""}
@@ -523,7 +523,7 @@ function _renderNodeCard(node, index) {
       <label class="flex items-center gap-1.5 cursor-pointer group/tool" for="${cbId}" title="${escapeHtml(t.desc)}">
         <input type="checkbox" id="${cbId}" class="node-tool-cb rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/40 w-3.5 h-3.5"
                data-tool="${escapeHtml(t.name)}" ${checked} aria-label="${escapeHtml(t.name)}: ${escapeHtml(t.desc)}">
-        <span class="text-[9px] text-slate-400 group-hover/tool:text-slate-200 transition-colors font-mono">${escapeHtml(t.name)}</span>
+        <span class="text-[11px] text-slate-400 group-hover/tool:text-slate-200 transition-colors font-mono">${escapeHtml(t.name)}</span>
       </label>`;
   }).join("");
 
@@ -536,7 +536,7 @@ function _renderNodeCard(node, index) {
              role="button" aria-roledescription="sortable">
           <span class="material-symbols-outlined text-base" aria-hidden="true">drag_indicator</span>
         </div>
-        <span class="text-[9px] font-bold bg-indigo-500/20 text-indigo-400 w-5 h-5 flex items-center justify-center rounded-full" aria-hidden="true">${index + 1}</span>
+        <span class="text-[11px] font-bold bg-indigo-500/20 text-indigo-400 w-5 h-5 flex items-center justify-center rounded-full" aria-hidden="true">${index + 1}</span>
         <input type="text" class="node-title-input flex-1 bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500/40 outline-none"
                value="${escapeHtml(node.title || "")}" placeholder="Node title" aria-label="Title for node ${index + 1}">
         <button class="node-delete-btn text-slate-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-500/10"
@@ -547,20 +547,20 @@ function _renderNodeCard(node, index) {
 
       <div class="space-y-3">
         <div>
-          <label class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1" for="instr_${index}">Instructions</label>
+          <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1" for="instr_${index}">Instructions</label>
           <textarea id="instr_${index}" class="node-instructions-input w-full bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-2 text-[11px] text-slate-300 placeholder-slate-600 focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500/40 outline-none resize-y min-h-[60px]"
                     rows="3" placeholder="Step-by-step instructions for this node..." aria-label="Instructions for node ${index + 1}">${escapeHtml(node.instructions || "")}</textarea>
         </div>
 
         <div>
-          <span class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1.5" id="tools_label_${index}">Allowed Tools</span>
+          <span class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1.5" id="tools_label_${index}">Allowed Tools</span>
           <div class="flex flex-wrap gap-x-3 gap-y-1.5" role="group" aria-labelledby="tools_label_${index}">
             ${toolCheckboxes}
           </div>
         </div>
 
         <div>
-          <label class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1" for="output_${index}">Expected Output</label>
+          <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1" for="output_${index}">Expected Output</label>
           <input type="text" id="output_${index}" class="node-output-input w-full bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-1.5 text-[11px] text-slate-300 placeholder-slate-600 focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500/40 outline-none"
                  value="${escapeHtml(node.expected_output || "")}" placeholder="Describe the expected output of this node" aria-label="Expected output for node ${index + 1}">
         </div>

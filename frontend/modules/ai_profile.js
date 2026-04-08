@@ -131,10 +131,10 @@ function renderProfile(profile) {
               ${_esc(identity.tagline || "")}
             </p>
             <div class="flex flex-wrap items-center gap-3 justify-center md:justify-start mt-2">
-              <span class="text-[10px] font-bold uppercase tracking-widest bg-primary/20 text-primary px-3 py-1 rounded-full border border-primary/30">
+              <span class="text-xs font-bold uppercase tracking-widest bg-primary/20 text-primary px-3 py-1 rounded-full border border-primary/30">
                 v${_esc(identity.version || "0.0.0")}
               </span>
-              <span class="text-[10px] font-mono text-slate-500">
+              <span class="text-xs font-mono text-slate-500">
                 Last updated: ${_esc(lastUpdated)}
               </span>
             </div>
@@ -166,16 +166,16 @@ function renderProfile(profile) {
         <div class="flex items-center gap-2">
           <span class="material-symbols-outlined text-indigo-400">build</span>
           <h2 class="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Capabilities</h2>
-          <span class="text-[10px] text-slate-600 font-mono ml-2">${capabilities.length} tools</span>
+          <span class="text-xs text-slate-600 font-mono ml-2">${capabilities.length} tools</span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           ${capabilities.map((c) => {
             const iconName = _capabilityIcon(c.name || c.type || "");
             const typeBadge = c.type === "built_in"
-              ? '<span class="text-[8px] font-bold uppercase tracking-widest bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded-full">built-in</span>'
+              ? '<span class="text-xs font-bold uppercase tracking-widest bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded-full">built-in</span>'
               : c.type === "generated"
-                ? '<span class="text-[8px] font-bold uppercase tracking-widest bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded-full">generated</span>'
-                : '<span class="text-[8px] font-bold uppercase tracking-widest bg-slate-500/15 text-slate-400 px-1.5 py-0.5 rounded-full">' + _esc(c.type || "tool") + '</span>';
+                ? '<span class="text-xs font-bold uppercase tracking-widest bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded-full">generated</span>'
+                : '<span class="text-xs font-bold uppercase tracking-widest bg-slate-500/15 text-slate-400 px-1.5 py-0.5 rounded-full">' + _esc(c.type || "tool") + '</span>';
             return `
               <div class="ai-profile-cap-card flex items-start gap-3 p-4 rounded-xl bg-surface-container/60 border border-outline-variant/30 backdrop-blur-sm hover:border-primary/40 transition-all group">
                 <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">

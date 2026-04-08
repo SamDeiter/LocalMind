@@ -70,7 +70,7 @@
         <div class="px-6 py-8 flex items-center justify-between">
             <div>
                 <div class="text-lg font-black tracking-tighter text-white font-headline">LocalMind</div>
-                <div class="text-[9px] font-mono text-indigo-400 tracking-widest uppercase mt-1 font-bold opacity-80 version-badge" title="Application version">v0.0.0</div>
+                <div class="text-[11px] font-mono text-indigo-400 tracking-widest uppercase mt-1 font-bold opacity-80 version-badge" title="Application version">v0.0.0</div>
             </div>
             <button id="sidebarToggle" aria-label="Toggle Sidebar" title="Collapse or expand the sidebar" class="text-outline hover:text-primary transition-colors"><span class="material-symbols-outlined text-sm">menu_open</span></button>
         </div>
@@ -81,7 +81,7 @@
             <div class="relative bg-surface-container-high rounded-lg border border-outline-variant/40 flex flex-col">
                 <div id="sidebarImagePreview" class="hidden p-2 bg-white/5 border-b border-outline-variant/10 relative">
                     <img id="sidebarPreviewImg" class="max-h-24 rounded border border-white/5 mx-auto" alt="Attached file preview"/>
-                    <button id="sidebarRemoveImageBtn" aria-label="Remove attached file" title="Remove attached file" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-[10px]">&#10005;</button>
+                    <button id="sidebarRemoveImageBtn" aria-label="Remove attached file" title="Remove attached file" class="absolute top-1 right-1 bg-black/60 p-1 rounded-full text-white text-xs">&#10005;</button>
                 </div>
                 <textarea id="priorityInput" class="w-full bg-transparent border-none focus:ring-0 text-xs p-3 placeholder:text-outline font-body resize-none min-h-[100px] custom-scrollbar" placeholder="Describe a task to run in the background..." title="Describe a task for the AI to execute autonomously"></textarea>
                 <div id="priorityList" class="mt-4 flex flex-wrap gap-2 px-3"></div>
@@ -90,62 +90,84 @@
                         <button id="sidebarUploadBtn" aria-label="Attach a file" title="Attach a file to this task" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">attach_file</span></button>
                         <button id="sidebarCameraBtn" aria-label="Take a photo" title="Take a photo to attach to this task" class="p-1.5 text-outline hover:text-primary transition-colors rounded"><span class="material-symbols-outlined text-sm">camera_enhance</span></button>
                     </div>
-                    <button id="addPriorityBtn" title="Submit this task for the AI to process" class="primary-gradient text-on-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase hover:brightness-110 active:scale-95 transition-all">Execute</button>
+                    <button id="addPriorityBtn" title="Submit this task for the AI to process" class="primary-gradient text-on-primary text-xs font-bold px-3 py-1.5 rounded uppercase hover:brightness-110 active:scale-95 transition-all">Execute</button>
                 </div>
             </div>
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 space-y-1 overflow-y-auto px-2 custom-scrollbar" role="navigation" aria-label="Main navigation">
-            <button id="overviewBtn" title="View the main dashboard with task pipeline and activity" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-100 bg-slate-800/40 border border-slate-700/30 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 pointer-events-none">dashboard</span>
-                <span class="text-sm font-headline tracking-tight pointer-events-none">Dashboard</span>
-            </button>
-            <button id="jobsBtn" title="View and manage background jobs and their progress" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 group-hover:text-primary pointer-events-none">work</span>
-                <span class="text-sm tracking-tight pointer-events-none">Jobs</span>
-                <span id="jobsRunningBadge" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of currently running jobs" aria-label="0 jobs running">0</span>
-            </button>
-            <button id="templatesBtn" title="Browse and create reusable job templates" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 group-hover:text-purple-400 pointer-events-none">library_books</span>
-                <span class="text-sm tracking-tight pointer-events-none">Templates</span>
-            </button>
-            <button id="approvalsBtn" title="Review tasks that need human approval before proceeding" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 group-hover:text-emerald-400 pointer-events-none">approval</span>
-                <span class="text-sm tracking-tight pointer-events-none">Approvals</span>
-                <span id="approvalsBadge" class="ml-auto text-[9px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of pending approvals" aria-label="0 approvals pending">0</span>
-            </button>
-            <button id="hubBtn" title="Cross-project hub for patterns and insights" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 group-hover:text-indigo-400 pointer-events-none">hub</span>
-                <span class="text-sm tracking-tight pointer-events-none">Hub</span>
-            </button>
-            <button id="aiProfileBtn" title="View the AI's self-discovered identity profile" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 group-hover:text-purple-400 pointer-events-none">auto_awesome</span>
-                <span class="text-sm tracking-tight pointer-events-none">AI Profile</span>
-            </button>
-            <button id="chatBtn" title="Open a conversation with the AI assistant" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 group-hover:text-cyan-400 pointer-events-none">chat</span>
-                <span class="text-sm tracking-tight pointer-events-none">Chat</span>
-            </button>
-            <button id="learningBtn" title="AI Learning Lab — browse what the AI has learned and trigger new learning" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                <span class="material-symbols-outlined mr-4 group-hover:text-violet-400 pointer-events-none">school</span>
-                <span class="text-sm tracking-tight pointer-events-none">Learning</span>
-            </button>
+        <nav class="flex-1 overflow-y-auto px-3 custom-scrollbar" role="navigation" aria-label="Main navigation">
+            <!-- Core -->
+            <div class="mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-widest text-slate-600 px-3 mb-2 mt-2 block">Core</span>
+                <div class="space-y-0.5">
+                    <button id="overviewBtn" title="View the main dashboard with task pipeline and activity" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-100 bg-slate-800/40 border border-slate-700/30 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg pointer-events-none">dashboard</span>
+                        <span class="text-sm font-headline tracking-tight pointer-events-none">Dashboard</span>
+                    </button>
+                    <button id="chatBtn" title="Open a conversation with the AI assistant" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg group-hover:text-cyan-400 pointer-events-none">chat</span>
+                        <span class="text-sm tracking-tight pointer-events-none">Chat</span>
+                    </button>
+                    <button id="jobsBtn" title="View and manage background jobs and their progress" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg group-hover:text-primary pointer-events-none">work</span>
+                        <span class="text-sm tracking-tight pointer-events-none">Jobs</span>
+                        <span id="jobsRunningBadge" class="ml-auto text-[11px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of currently running jobs" aria-label="0 jobs running">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Automation -->
+            <div class="mb-1 pt-3 border-t border-slate-800/30">
+                <span class="text-[11px] font-bold uppercase tracking-widest text-slate-600 px-3 mb-2 block">Automation</span>
+                <div class="space-y-0.5">
+                    <button id="templatesBtn" title="Browse and create reusable job templates" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg group-hover:text-purple-400 pointer-events-none">library_books</span>
+                        <span class="text-sm tracking-tight pointer-events-none">Templates</span>
+                    </button>
+                    <button id="approvalsBtn" title="Review tasks that need human approval before proceeding" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg group-hover:text-emerald-400 pointer-events-none">approval</span>
+                        <span class="text-sm tracking-tight pointer-events-none">Approvals</span>
+                        <span id="approvalsBadge" class="ml-auto text-[11px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full pointer-events-none hidden" title="Number of pending approvals" aria-label="0 approvals pending">0</span>
+                    </button>
+                    <button id="swarmDashBtn" title="Monitor the pool of AI worker agents" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg group-hover:text-amber-400 pointer-events-none">hive</span>
+                        <span class="text-sm tracking-tight pointer-events-none">Worker Pool</span>
+                        <span id="swarmAgentCount" class="ml-auto text-[11px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none" title="Number of active worker agents" aria-label="0 active workers">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Intelligence -->
+            <div class="mb-1 pt-3 border-t border-slate-800/30">
+                <span class="text-[11px] font-bold uppercase tracking-widest text-slate-600 px-3 mb-2 block">Intelligence</span>
+                <div class="space-y-0.5">
+                    <button id="learningBtn" title="AI Learning Lab — browse what the AI has learned and trigger new learning" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg group-hover:text-violet-400 pointer-events-none">school</span>
+                        <span class="text-sm tracking-tight pointer-events-none">Learning</span>
+                    </button>
+                    <button id="aiProfileBtn" title="View the AI's self-discovered identity profile" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg group-hover:text-purple-400 pointer-events-none">auto_awesome</span>
+                        <span class="text-sm tracking-tight pointer-events-none">AI Profile</span>
+                    </button>
+                    <button id="hubBtn" title="Cross-project hub for patterns and insights" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
+                        <span class="material-symbols-outlined text-lg group-hover:text-indigo-400 pointer-events-none">hub</span>
+                        <span class="text-sm tracking-tight pointer-events-none">Hub</span>
+                    </button>
+                </div>
+            </div>
         </nav>
 
         <!-- Bottom Controls -->
-        <div class="px-4 mt-auto mb-4 space-y-4">
-            <div class="pt-4 border-t border-outline-variant/15 space-y-2">
-                <button id="editorToggle" title="Open the built-in code editor" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
-                    <span class="material-symbols-outlined text-sm mr-3">code</span> Code Editor
+        <div class="px-4 mt-auto mb-4 space-y-2">
+            <div class="pt-4 border-t border-slate-800/30 space-y-0.5">
+                <button id="editorToggle" title="Open the built-in code editor" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
+                    <span class="material-symbols-outlined text-lg">code</span>
+                    <span class="text-sm tracking-tight">Code Editor</span>
                 </button>
-                <button id="swarmDashBtn" title="Monitor the pool of AI worker agents" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all group">
-                    <span class="material-symbols-outlined text-sm mr-3 group-hover:text-amber-400 pointer-events-none">hive</span>
-                    <span class="pointer-events-none">Worker Pool</span>
-                    <span id="swarmAgentCount" class="ml-auto text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full pointer-events-none" title="Number of active worker agents" aria-label="0 active workers">0</span>
-                </button>
-                <button id="systemPromptBtn" title="Configure notifications, API keys, and integrations" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
-                    <span class="material-symbols-outlined text-sm mr-3">settings</span> Settings
+                <button id="systemPromptBtn" title="Configure notifications, API keys, and integrations" class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
+                    <span class="material-symbols-outlined text-lg">settings</span>
+                    <span class="text-sm tracking-tight">Settings</span>
                 </button>
             </div>
         </div>
@@ -160,9 +182,9 @@
             <div class="flex items-center gap-6">
                 <div class="flex items-center gap-2">
                     <span id="brainPulse" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" title="Server connection status" aria-hidden="true"></span><span class="sr-only">Connection status:</span>
-                    <span id="brainStatus" class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">Online</span>
+                    <span id="brainStatus" class="text-xs font-black uppercase tracking-[0.15em] text-slate-400">Online</span>
                 </div>
-                <span class="text-primary font-mono text-[10px] tracking-widest uppercase border border-primary/20 bg-primary/5 px-2 py-0.5 rounded-full hidden lg:inline-block" id="tokenCounter" title="Tokens used in current conversation context">0 / 16384 TX</span>
+                <span class="text-primary font-mono text-xs tracking-widest uppercase border border-primary/20 bg-primary/5 px-2 py-0.5 rounded-full hidden lg:inline-block" id="tokenCounter" title="Tokens used in current conversation context">0 / 16384 TX</span>
             </div>
 
             <div class="flex items-center gap-4">
@@ -170,17 +192,17 @@
                 <div class="hidden md:flex items-center gap-3">
                     <div class="flex items-center gap-2 p-2 px-3 rounded-lg bg-slate-900/40 border border-slate-800/60" title="Current CPU usage" role="status" aria-live="polite">
                         <span class="material-symbols-outlined text-cyan-400 text-[12px]">memory</span>
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-500">CPU</span>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">CPU</span>
                         <span class="text-xs font-bold text-slate-100 tabular-nums font-mono" id="cpuVal">--%</span>
                     </div>
                     <div class="flex items-center gap-2 p-2 px-3 rounded-lg bg-slate-900/40 border border-slate-800/60" title="GPU video memory usage" role="status" aria-live="polite">
                         <span class="material-symbols-outlined text-violet-400 text-[12px]">storage</span>
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-500">VRAM</span>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">VRAM</span>
                         <span class="text-xs font-bold text-slate-100 tabular-nums font-mono" id="vramVal">--</span>
                     </div>
                     <div class="flex items-center gap-2 p-2 px-3 rounded-lg bg-slate-900/40 border border-slate-800/60" title="System RAM usage" role="status" aria-live="polite">
                         <span class="material-symbols-outlined text-indigo-400 text-[12px]">monitoring</span>
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-500">RAM</span>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">RAM</span>
                         <span class="text-xs font-bold text-slate-100 tabular-nums font-mono" id="ramVal">--</span>
                     </div>
                     <!-- Token Panel toggle is injected here by token_panel.js initTokenPanel() -->
@@ -194,8 +216,8 @@
                 <div class="flex items-center justify-between p-3 border-b border-outline-variant/20 bg-surface-container-low">
                     <span class="text-xs font-headline tracking-widest text-[#c0c1ff]">Code Editor</span>
                     <div class="flex gap-2">
-                        <button id="editorRunBtn" title="Execute the current Python script" class="bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors">Run Script</button>
-                        <button id="editorSendToAI" title="Send the current file to the AI as context" class="bg-surface-variant hover:bg-surface-bright text-on-surface text-[10px] font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors border border-outline-variant/30">Attach to Context</button>
+                        <button id="editorRunBtn" title="Execute the current Python script" class="bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors">Run Script</button>
+                        <button id="editorSendToAI" title="Send the current file to the AI as context" class="bg-surface-variant hover:bg-surface-bright text-on-surface text-xs font-bold px-3 py-1.5 rounded uppercase tracking-wider transition-colors border border-outline-variant/30">Attach to Context</button>
                         <button id="editorCloseBtn" aria-label="Close Editor" title="Close Editor" onclick="document.getElementById('editorToggle').click()" class="text-outline hover:text-error ml-4"><span class="material-symbols-outlined">close</span></button>
                     </div>
                 </div>
@@ -208,7 +230,7 @@
                         <div id="monacoContainer" class="absolute inset-0"></div>
                     </div>
                 </div>
-                <div id="editorStatus" class="p-2 border-t border-outline-variant/20 bg-transparent text-[9px] text-outline uppercase tracking-widest flex justify-between">
+                <div id="editorStatus" class="p-2 border-t border-outline-variant/20 bg-transparent text-[11px] text-outline uppercase tracking-widest flex justify-between">
                     <span id="editorPath">No file open</span>
                     <span id="editorLang">plaintext</span>
                 </div>
@@ -224,17 +246,17 @@
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-outlined text-amber-400 text-2xl">hive</span>
                         <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">Worker Pool</h2>
-                        <span id="swarmStatusBadge" class="text-[9px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full">Initializing</span>
+                        <span id="swarmStatusBadge" class="text-[11px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full">Initializing</span>
                     </div>
                     <div class="flex gap-2">
-                        <button id="swarmScanBtn" title="Scan for available worker agents" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-amber-500/20">
+                        <button id="swarmScanBtn" title="Scan for available worker agents" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-amber-500/20">
                             <span class="material-symbols-outlined text-xs align-middle mr-1">radar</span> Full Scan
                         </button>
                     </div>
                 </div>
 
                 <!-- Live Heartbeat -->
-                <div class="flex items-center gap-4 text-[10px] text-slate-500 font-mono">
+                <div class="flex items-center gap-4 text-xs text-slate-500 font-mono">
                     <span class="flex items-center gap-1.5">
                         <span id="swarmHeartbeat" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                         Uptime: <span id="swarmUptime" class="text-slate-400">0s</span>
@@ -247,11 +269,11 @@
                 <!-- Metrics -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="swarmMetrics">
                     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Tasks Done</div>
+                        <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Tasks Done</div>
                         <div class="text-2xl font-bold text-cyan-400 font-mono" id="swarmActiveCount">0</div>
                     </div>
                     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">GPU Slots</div>
+                        <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">GPU Slots</div>
                         <div class="text-2xl font-bold font-mono">
                             <span id="swarmGpuUsed" class="text-violet-400">0</span>
                             <span class="text-slate-600">/</span>
@@ -259,33 +281,33 @@
                         </div>
                     </div>
                     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1 flex justify-between">
+                        <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1 flex justify-between">
                             Queue Depth
-                            <span class="text-[8px] text-amber-500/50">PEAK: <span id="swarmQueuePeak">0</span></span>
+                            <span class="text-xs text-amber-500/50">PEAK: <span id="swarmQueuePeak">0</span></span>
                         </div>
                         <div class="text-2xl font-bold text-amber-400 font-mono" id="swarmQueueDepth">0</div>
                     </div>
                     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                        <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Success Rate</div>
+                        <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Success Rate</div>
                         <div class="text-2xl font-bold text-emerald-400 font-mono" id="swarmSuccessRate">--</div>
                     </div>
                 </div>
 
                 <!-- Agent Grid -->
                 <div>
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Agent Pool</div>
+                    <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Agent Pool</div>
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="swarmAgentGrid"></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div>
-                        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Recent Task Results</div>
+                        <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Recent Task Results</div>
                         <div class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar" id="swarmResultStream">
                             <div class="text-xs text-slate-500 italic p-4">Waiting for tasks...</div>
                         </div>
                     </div>
                     <div>
-                        <div class="text-[10px] font-bold uppercase tracking-widest text-cyan-500 mb-3">Recent Improvements (Verified)</div>
+                        <div class="text-xs font-bold uppercase tracking-widest text-cyan-500 mb-3">Recent Improvements (Verified)</div>
                         <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar" id="swarmImprovementsStream">
                             <div class="text-xs text-slate-500 italic p-4">No verified improvements merged yet...</div>
                         </div>
@@ -313,26 +335,26 @@
             <div id="monitoringView" class="hidden flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-6"></div>
 
             <!-- ── Dashboard View (default) ───────────────────────── -->
-            <section class="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-8" id="mainScrollArea">
-                <div id="welcomeScreen" class="flex flex-col gap-6">
+            <section class="flex-1 flex flex-col p-10 overflow-y-auto custom-scrollbar gap-10" id="mainScrollArea">
+                <div id="welcomeScreen" class="flex flex-col gap-8">
 
                     <!-- Dashboard Header -->
                     <div class="flex items-center justify-between">
                         <div>
-                            <h1 class="text-2xl font-black text-white tracking-tight font-headline">Dashboard</h1>
-                            <p class="text-outline text-sm mt-1">Status: <span class="text-secondary font-medium">Operational</span></p>
+                            <h1 class="text-3xl font-black text-white tracking-tight font-headline">Dashboard</h1>
+                            <p class="text-slate-500 text-sm mt-2">Status: <span class="text-emerald-400 font-medium">Operational</span></p>
                         </div>
                         <div class="flex items-center gap-3">
-                            <div class="flex items-center gap-3 px-3 py-1.5 bg-surface-container-low rounded-lg border border-outline-variant/20 text-[10px] font-bold text-outline uppercase tracking-widest">
-                                <span title="Time since the engine started">&#9201; <span id="brainUptime">0m</span></span>
-                                <span class="text-outline-variant/30">|</span>
-                                <span title="Total tasks completed by the engine">Tasks: <span id="brainApplied" class="text-primary">0</span></span>
+                            <div class="flex items-center gap-4 px-4 py-2 bg-slate-900/60 rounded-xl border border-slate-800/40 text-xs font-semibold text-slate-400">
+                                <span class="flex items-center gap-1.5" title="Time since the engine started"><span class="material-symbols-outlined text-sm text-slate-500">schedule</span> <span id="brainUptime">0m</span></span>
+                                <span class="w-px h-4 bg-slate-700/50"></span>
+                                <span title="Total tasks completed by the engine">Tasks: <span id="brainApplied" class="text-primary font-bold">0</span></span>
                             </div>
-                            <button id="brainReflectBtn" title="Trigger the AI to analyze its own performance and suggest improvements" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-[10px] font-black text-slate-200 hover:bg-slate-700 transition-all uppercase tracking-widest shadow-lg">
-                                <span class="material-symbols-outlined text-sm">psychology</span> Reflect
+                            <button id="brainReflectBtn" title="Trigger the AI to analyze its own performance and suggest improvements" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/50 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all">
+                                <span class="material-symbols-outlined text-base">psychology</span> Reflect
                             </button>
-                            <button id="brainExecuteBtn" title="Trigger the AI to execute pending tasks immediately" class="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-[10px] font-black text-white hover:shadow-2xl hover:shadow-indigo-500/30 transition-all uppercase tracking-widest">
-                                <span class="material-symbols-outlined text-sm">bolt</span> Execute
+                            <button id="brainExecuteBtn" title="Trigger the AI to execute pending tasks immediately" class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-xs font-bold text-white hover:shadow-xl hover:shadow-indigo-500/20 transition-all">
+                                <span class="material-symbols-outlined text-base">bolt</span> Execute
                             </button>
                         </div>
                     </div>
@@ -341,78 +363,68 @@
                     <div id="taskCreationArea"></div>
 
                     <!-- Task Pipeline Console -->
-                    <div class="bg-slate-900/30 border border-slate-800/60 rounded-2xl p-6 flex flex-col gap-6 relative overflow-hidden shadow-xl" id="aiThinkingPanel">
-                        <div class="absolute inset-0 opacity-5 pointer-events-none">
+                    <div class="bg-slate-900/40 border border-slate-800/50 rounded-2xl p-8 flex flex-col gap-8 relative overflow-hidden" id="aiThinkingPanel">
+                        <div class="absolute inset-0 opacity-[0.03] pointer-events-none">
                             <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,#6366f1,transparent)]"></div>
                         </div>
 
                         <div class="flex items-center justify-between z-10">
-                            <div class="flex items-center gap-3">
-                                <div class="p-2 bg-primary/10 rounded-lg">
-                                    <span class="material-symbols-outlined text-primary">alt_route</span>
+                            <div class="flex items-center gap-4">
+                                <div class="p-2.5 bg-primary/10 rounded-xl">
+                                    <span class="material-symbols-outlined text-primary text-xl">alt_route</span>
                                 </div>
                                 <div>
-                                    <h2 class="font-headline font-bold text-lg">Task Pipeline</h2>
-                                    <span class="text-[10px] font-mono text-outline">Live task execution activity</span>
+                                    <h2 class="font-headline font-bold text-xl tracking-tight">Task Pipeline</h2>
+                                    <span class="text-sm text-slate-500">Live task execution activity</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Workflow Stepper -->
-                        <div id="agent-workflow-stepper" class="flex items-center justify-around px-4 z-10 w-full" role="list" aria-label="Agent workflow steps">
-                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0" role="listitem" aria-label="Step 1: Planner">
-                                <div class="relative">
-                                    <div id="step-planner" class="w-11 h-11 rounded-full bg-indigo-500/20 border-2 border-indigo-500 flex items-center justify-center text-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.5)] transition-all duration-300">
-                                        <span class="material-symbols-outlined text-[20px]">schema</span>
-                                    </div>
-                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-indigo-500 text-[8px] font-black text-white flex items-center justify-center shadow-lg" aria-hidden="true">1</span>
+                        <!-- Workflow Stepper — horizontal track -->
+                        <div id="agent-workflow-stepper" class="flex items-center z-10 w-full px-2" role="list" aria-label="Agent workflow steps">
+                            <div class="flex items-center gap-3 flex-1" role="listitem" aria-label="Step 1: Planner">
+                                <div id="step-planner" class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-indigo-500/15 border border-indigo-500/40 transition-all duration-300">
+                                    <span class="material-symbols-outlined text-indigo-400 text-lg">schema</span>
+                                    <span class="text-sm font-bold text-indigo-400">Planner</span>
                                 </div>
-                                <span class="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-400">Planner</span>
                             </div>
-
-                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0" role="listitem" aria-label="Step 2: Coder">
-                                <div class="relative">
-                                    <div id="step-coder" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
-                                        <span class="material-symbols-outlined text-[20px]">code_blocks</span>
-                                    </div>
-                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center" aria-hidden="true">2</span>
+                            <div class="w-8 h-px bg-slate-700/60 flex-shrink-0" aria-hidden="true"></div>
+                            <div class="flex items-center gap-3 flex-1" role="listitem" aria-label="Step 2: Coder">
+                                <div id="step-coder" class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
+                                    <span class="material-symbols-outlined text-slate-500 text-lg">code_blocks</span>
+                                    <span class="text-sm font-bold text-slate-500">Coder</span>
                                 </div>
-                                <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Coder</span>
                             </div>
-
-                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0" role="listitem" aria-label="Step 3: Execute">
-                                <div class="relative">
-                                    <div id="step-execute" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
-                                        <span class="material-symbols-outlined text-[20px]">terminal</span>
-                                    </div>
-                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center" aria-hidden="true">3</span>
+                            <div class="w-8 h-px bg-slate-700/60 flex-shrink-0" aria-hidden="true"></div>
+                            <div class="flex items-center gap-3 flex-1" role="listitem" aria-label="Step 3: Execute">
+                                <div id="step-execute" class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
+                                    <span class="material-symbols-outlined text-slate-500 text-lg">terminal</span>
+                                    <span class="text-sm font-bold text-slate-500">Execute</span>
                                 </div>
-                                <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Execute</span>
                             </div>
-
-                            <div class="flex flex-col items-center gap-2.5 z-10 flex-shrink-0" role="listitem" aria-label="Step 4: Review">
-                                <div class="relative">
-                                    <div id="step-reviewer" class="w-11 h-11 rounded-full bg-slate-800/80 border-2 border-slate-700/60 flex items-center justify-center text-slate-500 transition-all duration-300 hover:border-slate-600">
-                                        <span class="material-symbols-outlined text-[20px]">verified_user</span>
-                                    </div>
-                                    <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-[8px] font-black text-slate-400 flex items-center justify-center" aria-hidden="true">4</span>
+                            <div class="w-8 h-px bg-slate-700/60 flex-shrink-0" aria-hidden="true"></div>
+                            <div class="flex items-center gap-3 flex-1" role="listitem" aria-label="Step 4: Review">
+                                <div id="step-reviewer" class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
+                                    <span class="material-symbols-outlined text-slate-500 text-lg">verified_user</span>
+                                    <span class="text-sm font-bold text-slate-500">Review</span>
                                 </div>
-                                <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Review</span>
                             </div>
                         </div>
 
-                        <div id="aiThinkingFeed" class="flex-1 space-y-4 max-h-[250px] overflow-y-auto custom-scrollbar pr-2 z-10 font-mono text-sm" aria-live="polite">
-                            <p class="opacity-40 italic flex items-center gap-2"><span class="w-6 h-6 rounded-full border border-outline flex items-center justify-center bg-outline/10"><span class="material-symbols-outlined text-xs">hourglass_empty</span></span> Waiting for engine activity...</p>
+                        <div id="aiThinkingFeed" class="flex-1 space-y-3 max-h-[280px] overflow-y-auto custom-scrollbar pr-2 z-10 text-sm" aria-live="polite">
+                            <p class="opacity-40 italic flex items-center gap-3 text-slate-500"><span class="material-symbols-outlined text-base">hourglass_empty</span> Waiting for engine activity...</p>
                         </div>
                     </div>
 
                     <!-- Action Stream -->
                     <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]"></span> Action Stream</h3>
-                            <span class="text-[10px] font-bold text-secondary uppercase tracking-widest" id="taskPipelineCount">0 Active Tasks</span>
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-sm font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2.5">
+                                <span class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]"></span> Action Stream
+                            </h3>
+                            <span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full" id="taskPipelineCount">0 Active Tasks</span>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="taskPipelineBody">
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="taskPipelineBody">
                             <!-- Populated by JS -->
                         </div>
                     </div>
@@ -432,34 +444,34 @@
                         <span id="chatIndicator" class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]"></span>
                         Chat
                     </h2>
-                    <div class="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
+                    <div class="flex items-center gap-2 text-xs text-slate-500 font-mono">
                         <span id="chatModelLabel">auto</span>
                     </div>
                 </div>
 
                 <!-- Messages -->
-                <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
+                <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar px-10 py-8 space-y-4">
                     <!-- Messages populated by JS -->
                 </div>
 
                 <!-- Chat Input -->
-                <div class="p-4 bg-slate-950/50 border-t border-slate-800/40">
-                    <div class="max-w-4xl mx-auto bg-surface-container/50 backdrop-blur-md rounded-2xl border border-outline-variant/30 focus-within:border-primary/50 transition-shadow p-2 flex gap-3 shadow-inner">
-                        <div class="flex flex-col gap-2 border-r border-outline-variant/20 pr-3">
-                            <button id="micBtn" aria-label="Voice Input" title="Use voice input to dictate your message" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
-                                <span class="material-symbols-outlined text-[22px]">mic</span>
+                <div class="p-5 bg-slate-950/60 border-t border-slate-800/30">
+                    <div class="max-w-4xl mx-auto bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-800/40 focus-within:border-primary/40 transition-shadow p-3 flex gap-3">
+                        <div class="flex flex-col gap-1 border-r border-slate-800/30 pr-3">
+                            <button id="micBtn" aria-label="Voice Input" title="Use voice input to dictate your message" class="p-3 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-xl">
+                                <span class="material-symbols-outlined text-xl">mic</span>
                             </button>
-                            <button id="openCameraBtn" aria-label="Open Camera" title="Take a photo to include in your message" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
-                                <span class="material-symbols-outlined text-[22px]">photo_camera</span>
+                            <button id="openCameraBtn" aria-label="Open Camera" title="Take a photo to include in your message" class="p-3 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-xl">
+                                <span class="material-symbols-outlined text-xl">photo_camera</span>
                             </button>
-                            <button id="ttsToggleBtn" aria-label="Toggle TTS" title="Toggle text-to-speech" class="p-2.5 text-outline hover:text-primary transition-colors hover:bg-surface-variant/50 rounded-xl">
-                                <span class="material-symbols-outlined text-[22px]">volume_up</span>
+                            <button id="ttsToggleBtn" aria-label="Toggle TTS" title="Toggle text-to-speech" class="p-3 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-xl">
+                                <span class="material-symbols-outlined text-xl">volume_up</span>
                             </button>
                         </div>
-                        <textarea id="messageInput" aria-label="Message Input" title="Type your message here" class="bg-transparent border-none focus:ring-0 text-md flex-1 placeholder:text-outline font-body resize-none overflow-y-auto min-h-[56px] py-4" placeholder="Ask a question or describe what you need..." rows="1"></textarea>
-                        <div class="flex items-center gap-1 pl-2">
-                            <button id="sendBtn" aria-label="Send Message" title="Send this message" class="primary-gradient p-4 rounded-xl text-on-primary hover:brightness-110 transition-all h-full self-end shadow-lg shadow-primary/20">
-                                <span class="material-symbols-outlined text-[24px]">send</span>
+                        <textarea id="messageInput" aria-label="Message Input" title="Type your message here" class="bg-transparent border-none focus:ring-0 text-base flex-1 placeholder:text-slate-600 font-body resize-none overflow-y-auto min-h-[56px] py-4" placeholder="Ask a question or describe what you need..." rows="1"></textarea>
+                        <div class="flex items-center pl-2">
+                            <button id="sendBtn" aria-label="Send Message" title="Send this message" class="primary-gradient p-4 rounded-xl text-on-primary hover:brightness-110 transition-all self-end shadow-lg shadow-primary/20">
+                                <span class="material-symbols-outlined text-xl">send</span>
                             </button>
                         </div>
                     </div>
@@ -493,15 +505,15 @@
             </div>
 
             <div id="mini-stepper" class="flex items-center gap-4 px-6 py-2 bg-slate-900/80 border-b border-slate-800/50">
-                <span class="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Current Step:</span>
+                <span class="text-xs uppercase font-bold text-slate-500 tracking-widest">Current Step:</span>
                 <div class="flex items-center gap-3">
-                    <span class="text-[10px] uppercase font-bold text-primary animate-pulse flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">schema</span> Planner</span>
+                    <span class="text-xs uppercase font-bold text-primary animate-pulse flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">schema</span> Planner</span>
                     <span class="text-slate-700">&rarr;</span>
-                    <span class="text-[10px] uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">code</span> Coder</span>
+                    <span class="text-xs uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">code</span> Coder</span>
                     <span class="text-slate-700">&rarr;</span>
-                    <span class="text-[10px] uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">terminal</span> Sandbox</span>
+                    <span class="text-xs uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">terminal</span> Sandbox</span>
                     <span class="text-slate-700">&rarr;</span>
-                    <span class="text-[10px] uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">rule</span> Review</span>
+                    <span class="text-xs uppercase font-bold text-gray-500 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">rule</span> Review</span>
                 </div>
             </div>
 
@@ -541,20 +553,20 @@
 
                 <div class="grid grid-cols-1 gap-5">
                     <div class="space-y-2">
-                        <label for="twilioSid" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Account SID</label>
+                        <label for="twilioSid" class="text-xs font-bold uppercase tracking-widest text-outline ml-1">Account SID</label>
                         <input type="text" id="twilioSid" title="Twilio Account SID" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
                     </div>
                     <div class="space-y-2">
-                        <label for="twilioToken" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Auth Token</label>
+                        <label for="twilioToken" class="text-xs font-bold uppercase tracking-widest text-outline ml-1">Auth Token</label>
                         <input type="password" id="twilioToken" title="Twilio Auth Token" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="••••••••••••••••••••••••••••••••">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-2">
-                            <label for="twilioPhone" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Twilio Number</label>
+                            <label for="twilioPhone" class="text-xs font-bold uppercase tracking-widest text-outline ml-1">Twilio Number</label>
                             <input type="text" id="twilioPhone" title="Twilio Phone Number" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="+15550000000">
                         </div>
                         <div class="space-y-2">
-                            <label for="targetPhone" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Your Phone Number</label>
+                            <label for="targetPhone" class="text-xs font-bold uppercase tracking-widest text-outline ml-1">Your Phone Number</label>
                             <input type="text" id="targetPhone" title="Target Phone Number" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="+15559998888">
                         </div>
                     </div>
@@ -571,12 +583,12 @@
                 </div>
                 <div class="space-y-4">
                     <div class="space-y-2">
-                        <label for="geminiKey" class="text-[10px] font-bold uppercase tracking-widest text-outline ml-1">Gemini API Key</label>
+                        <label for="geminiKey" class="text-xs font-bold uppercase tracking-widest text-outline ml-1">Gemini API Key</label>
                         <div class="relative">
                             <input type="password" id="geminiKey" title="Gemini API Key" class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder:text-outline/30" placeholder="AIzaSy...">
                         </div>
                     </div>
-                    <button id="testGeminiBtn" title="Test the connection to the Gemini API" class="w-full py-2 bg-surface-variant/50 hover:bg-surface-variant text-[10px] font-bold rounded-lg uppercase tracking-widest transition-all border border-outline-variant/20 flex items-center justify-center gap-2">
+                    <button id="testGeminiBtn" title="Test the connection to the Gemini API" class="w-full py-2 bg-surface-variant/50 hover:bg-surface-variant text-xs font-bold rounded-lg uppercase tracking-widest transition-all border border-outline-variant/20 flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-xs">analytics</span> Verify Connection
                     </button>
                 </div>

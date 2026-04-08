@@ -58,18 +58,18 @@ function buildShellHTML() {
       <span class="material-symbols-outlined text-indigo-400 text-2xl" aria-hidden="true">labs</span>
       <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">Evaluations</h2>
       <span id="evalStatusBadge"
-            class="text-[9px] font-bold uppercase tracking-widest bg-slate-500/20 text-slate-400 px-2.5 py-1 rounded-full">
+            class="text-[11px] font-bold uppercase tracking-widest bg-slate-500/20 text-slate-400 px-2.5 py-1 rounded-full">
         Ready
       </span>
     </div>
     <div class="flex items-center gap-3">
       <button id="evalRunBtn"
-              class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-400"
               aria-label="Run all evaluations">
         <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">play_arrow</span> Run Evals
       </button>
       <button id="evalRefreshBtn"
-              class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               aria-label="Refresh eval data">
         <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">refresh</span> Refresh
       </button>
@@ -95,7 +95,7 @@ function buildShellHTML() {
     <div class="flex items-center gap-2 p-4 pb-2 border-b border-slate-700/50">
       <span class="material-symbols-outlined text-amber-400 text-lg" aria-hidden="true">checklist</span>
       <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Eval Cases</h3>
-      <span id="evalCaseCount" class="ml-auto text-[9px] font-bold uppercase tracking-widest bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full">0</span>
+      <span id="evalCaseCount" class="ml-auto text-[11px] font-bold uppercase tracking-widest bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full">0</span>
     </div>
     <div id="evalCasesContent" class="overflow-x-auto custom-scrollbar">
       <div class="text-xs text-slate-500 italic p-6 text-center">Loading cases...</div>
@@ -110,7 +110,7 @@ function buildShellHTML() {
       <div class="flex items-center gap-2 p-4 pb-2 border-b border-slate-700/50">
         <span class="material-symbols-outlined text-indigo-400 text-lg" aria-hidden="true">assignment_turned_in</span>
         <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Latest Results</h3>
-        <span id="evalResultSummary" class="ml-auto text-[9px] font-bold uppercase tracking-widest bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full">--</span>
+        <span id="evalResultSummary" class="ml-auto text-[11px] font-bold uppercase tracking-widest bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full">--</span>
       </div>
       <div id="evalResultsContent" class="overflow-y-auto custom-scrollbar max-h-[400px] p-2">
         <div class="flex flex-col items-center justify-center py-8 gap-2">
@@ -165,7 +165,7 @@ function initEvalTabs() {
 }
 
 function tabClass(active) {
-  const base = "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors";
+  const base = "px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors";
   return active
     ? `${base} bg-indigo-500/20 text-indigo-400 border border-indigo-500/30`
     : `${base} text-slate-500 hover:text-slate-300 hover:bg-slate-800/40 border border-transparent`;
@@ -230,7 +230,7 @@ async function runEvals() {
   }
   if (badge) {
     badge.textContent = "Running";
-    badge.className = "text-[9px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-full animate-pulse";
+    badge.className = "text-[11px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-full animate-pulse";
   }
 
   // Show progress placeholder
@@ -254,7 +254,7 @@ async function runEvals() {
     if (badge) {
       const allPassed = data.fail_count === 0;
       badge.textContent = allPassed ? "All Passed" : `${data.fail_count} Failed`;
-      badge.className = `text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${
+      badge.className = `text-[11px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${
         allPassed
           ? "bg-emerald-500/20 text-emerald-400"
           : "bg-red-500/20 text-red-400"
@@ -275,7 +275,7 @@ async function runEvals() {
     }
     if (badge) {
       badge.textContent = "Error";
-      badge.className = "text-[9px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full";
+      badge.className = "text-[11px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full";
     }
   } finally {
     _running = false;
@@ -342,10 +342,10 @@ function renderCasesTable(cases) {
     <table class="w-full text-left">
       <thead>
         <tr class="border-b border-slate-700/50">
-          <th class="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-4 py-3">Name</th>
-          <th class="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-4 py-3">Tags</th>
-          <th class="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-4 py-3">Input</th>
-          <th class="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-4 py-3">Expected</th>
+          <th class="text-xs font-bold uppercase tracking-widest text-slate-500 px-4 py-3">Name</th>
+          <th class="text-xs font-bold uppercase tracking-widest text-slate-500 px-4 py-3">Tags</th>
+          <th class="text-xs font-bold uppercase tracking-widest text-slate-500 px-4 py-3">Input</th>
+          <th class="text-xs font-bold uppercase tracking-widest text-slate-500 px-4 py-3">Expected</th>
         </tr>
       </thead>
       <tbody>
@@ -357,7 +357,7 @@ function renderCasesTable(cases) {
             <td class="px-4 py-3">
               <div class="flex flex-wrap gap-1">
                 ${(c.tags || []).map(t => `
-                  <span class="text-[9px] font-bold uppercase tracking-widest bg-indigo-500/15 text-indigo-400 px-2 py-0.5 rounded-full">${escapeHTML(t)}</span>
+                  <span class="text-[11px] font-bold uppercase tracking-widest bg-indigo-500/15 text-indigo-400 px-2 py-0.5 rounded-full">${escapeHTML(t)}</span>
                 `).join("")}
               </div>
             </td>
@@ -381,7 +381,7 @@ function renderResults(data) {
   if (summary) {
     summary.textContent = `${data.pass_count || 0}/${data.total_cases || 0} passed`;
     const allPassed = data.fail_count === 0 && data.total_cases > 0;
-    summary.className = `ml-auto text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
+    summary.className = `ml-auto text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
       allPassed
         ? "bg-emerald-500/20 text-emerald-400"
         : "bg-red-500/20 text-red-400"
@@ -411,15 +411,15 @@ function renderResults(data) {
     <div class="grid grid-cols-3 gap-3 p-3 mb-2">
       <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 text-center">
         <div class="text-xl font-bold text-emerald-400 tabular-nums">${data.pass_count || 0}</div>
-        <div class="text-[10px] font-bold uppercase tracking-widest text-emerald-500/70">Passed</div>
+        <div class="text-xs font-bold uppercase tracking-widest text-emerald-500/70">Passed</div>
       </div>
       <div class="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-center">
         <div class="text-xl font-bold text-red-400 tabular-nums">${data.fail_count || 0}</div>
-        <div class="text-[10px] font-bold uppercase tracking-widest text-red-500/70">Failed</div>
+        <div class="text-xs font-bold uppercase tracking-widest text-red-500/70">Failed</div>
       </div>
       <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-3 text-center">
         <div class="text-xl font-bold text-indigo-400 tabular-nums">${passRate}%</div>
-        <div class="text-[10px] font-bold uppercase tracking-widest text-indigo-500/70">Pass Rate</div>
+        <div class="text-xs font-bold uppercase tracking-widest text-indigo-500/70">Pass Rate</div>
       </div>
     </div>
 
@@ -436,13 +436,13 @@ function renderResults(data) {
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
               <div class="text-[11px] font-bold text-slate-200">${escapeHTML(r.case_name || r.name || r.case_id || "--")}</div>
-              ${score != null ? `<span class="text-[9px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">${typeof score === "number" ? score.toFixed(2) : score}</span>` : ""}
+              ${score != null ? `<span class="text-[11px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">${typeof score === "number" ? score.toFixed(2) : score}</span>` : ""}
             </div>
             ${r.reason || r.message || r.output ? `
-              <div class="text-[10px] text-slate-400 mt-1 leading-relaxed font-mono truncate">${escapeHTML((r.reason || r.message || r.output || "").slice(0, 120))}</div>
+              <div class="text-xs text-slate-400 mt-1 leading-relaxed font-mono truncate">${escapeHTML((r.reason || r.message || r.output || "").slice(0, 120))}</div>
             ` : ""}
           </div>
-          <span class="text-[9px] font-bold uppercase tracking-widest text-${color}-400 flex-shrink-0">${passed ? "PASS" : "FAIL"}</span>
+          <span class="text-[11px] font-bold uppercase tracking-widest text-${color}-400 flex-shrink-0">${passed ? "PASS" : "FAIL"}</span>
         </div>
       `;
     }).join("")}
@@ -476,15 +476,15 @@ function renderRunsList(runs) {
       <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-700/30 transition-colors border-l-2 border-l-${color}-500 mb-1">
         <div class="flex-shrink-0">
           <div class="w-8 h-8 rounded-full bg-${color}-500/15 border border-${color}-500/20 flex items-center justify-center">
-            <span class="text-[10px] font-bold text-${color}-400 tabular-nums">${passRate}%</span>
+            <span class="text-xs font-bold text-${color}-400 tabular-nums">${passRate}%</span>
           </div>
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
             <span class="text-[11px] font-bold text-slate-200">${passCount}/${total} passed</span>
-            ${failCount > 0 ? `<span class="text-[9px] font-bold text-red-400">${failCount} failed</span>` : ""}
+            ${failCount > 0 ? `<span class="text-[11px] font-bold text-red-400">${failCount} failed</span>` : ""}
           </div>
-          <div class="text-[9px] font-mono text-slate-500 mt-0.5">${ts ? timeAgo(ts) : "--"}</div>
+          <div class="text-[11px] font-mono text-slate-500 mt-0.5">${ts ? timeAgo(ts) : "--"}</div>
         </div>
       </div>
     `;
@@ -518,7 +518,7 @@ function renderTrend(points) {
 
         return `
           <div class="flex-1 flex flex-col items-center gap-1 group relative" style="min-width: 0">
-            <div class="text-[8px] font-mono text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-4">
+            <div class="text-xs font-mono text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity absolute -top-4">
               ${rate.toFixed(0)}%
             </div>
             <div class="w-full bg-${color}-400/80 rounded-t transition-all duration-500 hover:bg-${color}-400"
@@ -530,8 +530,8 @@ function renderTrend(points) {
       }).join("")}
     </div>
     <div class="flex items-center justify-between mt-2">
-      <span class="text-[9px] font-mono text-slate-500">${escapeHTML(points[0]?.date || points[0]?.label || "oldest")}</span>
-      <span class="text-[9px] font-mono text-slate-500">${escapeHTML(points[points.length - 1]?.date || points[points.length - 1]?.label || "latest")}</span>
+      <span class="text-[11px] font-mono text-slate-500">${escapeHTML(points[0]?.date || points[0]?.label || "oldest")}</span>
+      <span class="text-[11px] font-mono text-slate-500">${escapeHTML(points[points.length - 1]?.date || points[points.length - 1]?.label || "latest")}</span>
     </div>
   `;
 }

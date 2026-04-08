@@ -109,10 +109,10 @@ function buildShellHTML() {
       <div class="flex items-center gap-3">
         <span class="material-symbols-outlined text-indigo-400 text-2xl" aria-hidden="true">work</span>
         <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">Jobs</h2>
-        <span id="jobsTotalBadge" class="text-[9px] font-bold uppercase tracking-widest bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full">0 jobs</span>
+        <span id="jobsTotalBadge" class="text-[11px] font-bold uppercase tracking-widest bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full">0 jobs</span>
       </div>
       <button id="jobsRefreshBtn"
-              class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              class="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-indigo-500/20 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               aria-label="Refresh job list">
         <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">refresh</span> Refresh
       </button>
@@ -131,7 +131,7 @@ function buildShellHTML() {
 
       <!-- Description (progressive disclosure) -->
       <div id="jobDescSection" class="hidden">
-        <label for="jobDescInput" class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Description (optional)</label>
+        <label for="jobDescInput" class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Description (optional)</label>
         <textarea
           id="jobDescInput"
           rows="3"
@@ -160,7 +160,7 @@ function buildShellHTML() {
         <div class="flex gap-4 flex-wrap">
           <!-- Mode Selector -->
           <div class="flex-1 min-w-[140px]">
-            <label for="jobModeSelect" class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Mode</label>
+            <label for="jobModeSelect" class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Mode</label>
             <select id="jobModeSelect" class="w-full bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer" aria-label="Job execution mode">
               <option value="quick">Quick (default)</option>
               <option value="pipeline">Pipeline (template)</option>
@@ -168,14 +168,14 @@ function buildShellHTML() {
           </div>
           <!-- Template Dropdown (shown when pipeline selected) -->
           <div id="jobTemplateGroup" class="flex-1 min-w-[180px] hidden">
-            <label for="jobTemplateSelect" class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Template</label>
+            <label for="jobTemplateSelect" class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Template</label>
             <select id="jobTemplateSelect" class="w-full bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer" aria-label="Pipeline template">
               <option value="">-- Select a template --</option>
             </select>
           </div>
           <!-- Priority Selector -->
           <div class="flex-1 min-w-[120px]">
-            <label for="jobPrioritySelect" class="block text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Priority</label>
+            <label for="jobPrioritySelect" class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Priority</label>
             <select id="jobPrioritySelect" class="w-full bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer" aria-label="Job priority">
               <option value="-1">Low</option>
               <option value="0" selected>Normal</option>
@@ -201,7 +201,7 @@ function buildShellHTML() {
         >
           <span class="material-symbols-outlined text-sm" aria-hidden="true">tune</span> <span id="customizeBtnLabel">Customize Plan</span>
         </button>
-        <div id="jobSSEIndicator" class="ml-auto flex items-center gap-1.5 text-[9px] font-mono text-slate-600" title="SSE connection status">
+        <div id="jobSSEIndicator" class="ml-auto flex items-center gap-1.5 text-[11px] font-mono text-slate-600" title="SSE connection status">
           <span id="jobSSEDot" class="w-1.5 h-1.5 rounded-full bg-slate-600" aria-hidden="true"></span>
           <span id="jobSSELabel">Offline</span>
         </div>
@@ -217,8 +217,8 @@ function buildShellHTML() {
         <button data-filter="failed"     role="tab" aria-selected="false" class="jobs-filter-btn">Failed</button>
       </div>
       <div class="flex items-center gap-2">
-        <label for="jobsSortSelect" class="text-[9px] font-bold uppercase tracking-widest text-slate-600">Sort:</label>
-        <select id="jobsSortSelect" class="bg-slate-900/40 border border-slate-800/60 rounded-lg px-2 py-1 text-[10px] text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer" aria-label="Sort jobs">
+        <label for="jobsSortSelect" class="text-[11px] font-bold uppercase tracking-widest text-slate-600">Sort:</label>
+        <select id="jobsSortSelect" class="bg-slate-900/40 border border-slate-800/60 rounded-lg px-2 py-1 text-xs text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer" aria-label="Sort jobs">
           <option value="recent">Most Recent</option>
           <option value="priority">Priority</option>
           <option value="status">Status</option>
@@ -249,10 +249,10 @@ function buildShellHTML() {
       <div class="flex-1 min-w-0">
         <h2 id="jobDetailTitle" class="text-lg font-headline font-bold text-slate-100 truncate"></h2>
         <div class="flex items-center gap-3 mt-1 flex-wrap">
-          <span id="jobDetailStatus" class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full"></span>
-          <span id="jobDetailPriority" class="text-[10px] font-mono text-slate-500"></span>
-          <span id="jobDetailCreated" class="text-[10px] font-mono text-slate-500"></span>
-          <span id="jobDetailMode" class="text-[10px] font-mono text-slate-500 uppercase"></span>
+          <span id="jobDetailStatus" class="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full"></span>
+          <span id="jobDetailPriority" class="text-xs font-mono text-slate-500"></span>
+          <span id="jobDetailCreated" class="text-xs font-mono text-slate-500"></span>
+          <span id="jobDetailMode" class="text-xs font-mono text-slate-500 uppercase"></span>
         </div>
       </div>
       <div class="flex gap-2 shrink-0 flex-wrap">
@@ -260,28 +260,28 @@ function buildShellHTML() {
         <button
           id="jobApproveBtn"
           aria-label="Approve this job"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          class="hidden items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           <span class="material-symbols-outlined text-sm" aria-hidden="true">check_circle</span><span>Approve</span>
         </button>
         <button
           id="jobRejectBtn"
           aria-label="Reject this job"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+          class="hidden items-center gap-1.5 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
         >
           <span class="material-symbols-outlined text-sm" aria-hidden="true">cancel</span><span>Reject</span>
         </button>
         <button
           id="jobCancelBtn"
           aria-label="Cancel this job"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+          class="hidden items-center gap-1.5 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
         >
           <span class="material-symbols-outlined text-sm" aria-hidden="true">cancel</span><span>Cancel</span>
         </button>
         <button
           id="jobSaveTemplateBtn"
           aria-label="Save job as pipeline template"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          class="hidden items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           <span class="material-symbols-outlined text-sm" aria-hidden="true">bookmark_add</span><span>Save as Template</span>
         </button>
@@ -294,7 +294,7 @@ function buildShellHTML() {
     <!-- Progress Bar -->
     <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-4">
       <div class="flex items-center justify-between mb-2">
-        <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Pipeline Progress</span>
+        <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Pipeline Progress</span>
         <span id="jobProgressLabel" class="text-xs font-mono text-slate-400">0/0 nodes</span>
       </div>
       <div class="w-full bg-slate-800/50 h-2 rounded-full overflow-hidden">
@@ -313,7 +313,7 @@ function buildShellHTML() {
 
     <!-- Node Pipeline Timeline -->
     <div>
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Node Pipeline</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Node Pipeline</div>
       <div id="jobNodesContainer" class="flex gap-3 overflow-x-auto pb-2 custom-scrollbar snap-x snap-mandatory" role="list" aria-label="Pipeline nodes"></div>
     </div>
 
@@ -326,9 +326,9 @@ function buildShellHTML() {
         </button>
       </div>
       <div class="flex items-center gap-3 flex-wrap">
-        <div id="nodeDetailStatus" class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"></div>
-        <div id="nodeDetailModel" class="text-[9px] font-mono text-slate-600"></div>
-        <div id="nodeDetailElapsed" class="text-[9px] font-mono text-slate-600"></div>
+        <div id="nodeDetailStatus" class="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"></div>
+        <div id="nodeDetailModel" class="text-[11px] font-mono text-slate-600"></div>
+        <div id="nodeDetailElapsed" class="text-[11px] font-mono text-slate-600"></div>
       </div>
       <!-- Node Progress Bar (for running nodes) -->
       <div id="nodeProgressSection" class="hidden">
@@ -336,7 +336,7 @@ function buildShellHTML() {
           <div id="nodeProgressBar" class="jobs-progress-bar bg-amber-500 h-full rounded-full" style="width: 0%"
                role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Node progress"></div>
         </div>
-        <div id="nodeProgressText" class="text-[9px] font-mono text-slate-600 mt-1"></div>
+        <div id="nodeProgressText" class="text-[11px] font-mono text-slate-600 mt-1"></div>
       </div>
       <div id="nodeDetailInstructions" class="text-xs text-slate-400 leading-relaxed"></div>
       <div id="nodeDetailTools" class="flex flex-wrap gap-1.5"></div>
@@ -346,13 +346,13 @@ function buildShellHTML() {
 
     <!-- Output Files -->
     <div id="jobFilesSection" class="hidden">
-      <div class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Output Files</div>
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Output Files</div>
       <div id="jobFilesList" class="space-y-2" role="list" aria-label="Job output files"></div>
     </div>
 
     <!-- Audit Trail -->
     <details class="group">
-      <summary class="text-[10px] font-bold uppercase tracking-widest text-slate-500 cursor-pointer hover:text-slate-400 transition-colors flex items-center gap-1 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded">
+      <summary class="text-xs font-bold uppercase tracking-widest text-slate-500 cursor-pointer hover:text-slate-400 transition-colors flex items-center gap-1 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded">
         <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-90" aria-hidden="true">chevron_right</span>
         Audit Trail
       </summary>
@@ -855,7 +855,7 @@ function _updateSSEIndicator(status) {
   const label = el("jobSSELabel");
   if (!container || !dot || !label) return;
 
-  container.className = "ml-auto flex items-center gap-1.5 text-[9px] font-mono";
+  container.className = "ml-auto flex items-center gap-1.5 text-[11px] font-mono";
   dot.className = "w-1.5 h-1.5 rounded-full jobs-sse-dot";
 
   if (status === "connected") {
@@ -1144,7 +1144,7 @@ function _renderFilePreview() {
       <div class="flex items-center gap-2 bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-1.5 text-xs text-slate-300">
         <span class="material-symbols-outlined text-sm text-slate-500" aria-hidden="true">description</span>
         <span class="truncate max-w-[150px]">${escapeHtml(f.name)}</span>
-        <span class="text-[9px] text-slate-500 font-mono">${_formatSize(f.size)}</span>
+        <span class="text-[11px] text-slate-500 font-mono">${_formatSize(f.size)}</span>
         <button
           data-file-idx="${i}"
           aria-label="Remove file ${escapeHtml(f.name)}"
@@ -1239,7 +1239,7 @@ function _renderJobCards() {
 
       return `
       <div
-        class="job-card-link bg-slate-900/40 border border-slate-800/60 rounded-xl p-4 space-y-3 cursor-pointer hover:bg-slate-800/40 hover:border-${cfg.color}-500/30 transition-all group"
+        class="job-card-link bg-slate-900/40 border border-slate-800/50 rounded-xl p-5 space-y-3 cursor-pointer hover:bg-slate-800/40 hover:border-${cfg.color}-500/30 transition-all group"
         role="listitem"
         tabindex="0"
         data-job-id="${escapeHtml(job.id)}"
@@ -1248,7 +1248,7 @@ function _renderJobCards() {
       >
         <div class="flex items-start justify-between gap-2">
           <h3 class="text-sm font-bold text-slate-200 group-hover:text-white transition-colors truncate flex-1">${escapeHtml(job.title)}</h3>
-          <span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 bg-${cfg.color}-500/15 text-${cfg.color}-400 border border-${cfg.color}-500/20">
+          <span class="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 bg-${cfg.color}-500/15 text-${cfg.color}-400 border border-${cfg.color}-500/20">
             <span class="material-symbols-outlined text-[11px] ${spinClass}" aria-hidden="true">${isRunning ? "progress_activity" : cfg.icon}</span>
             ${cfg.label}
           </span>
@@ -1263,13 +1263,13 @@ function _renderJobCards() {
           <div class="w-full bg-slate-800/50 h-1.5 rounded-full overflow-hidden">
             <div class="jobs-progress-bar ${isRunning ? "jobs-progress-active" : ""} bg-${cfg.color}-500 h-full rounded-full" style="width: ${nodePct}%" role="progressbar" aria-valuenow="${nodePct}" aria-valuemin="0" aria-valuemax="100" aria-label="Job progress: ${nodePct}%"></div>
           </div>
-          <div class="flex items-center justify-between text-[8px] font-mono text-slate-600">
+          <div class="flex items-center justify-between text-xs font-mono text-slate-600">
             <span>${nodeCompleted}/${nodeTotal} nodes</span>
             ${etaStr ? `<span class="text-amber-400/70">${escapeHtml(etaStr)}</span>` : ""}
           </div>
         </div>
         ` : ""}
-        <div class="flex items-center gap-3 text-[9px] font-mono text-slate-500 flex-wrap">
+        <div class="flex items-center gap-3 text-[11px] font-mono text-slate-500 flex-wrap">
           <span class="flex items-center gap-1">
             <span class="material-symbols-outlined text-[11px]" aria-hidden="true">schedule</span>
             ${escapeHtml(created)}
@@ -1315,7 +1315,7 @@ function _renderJobDetail(job) {
   if (statusEl) {
     const isRunning = ["executing", "planning"].includes(job.status);
     const spinClass = isRunning ? "jobs-spin" : "";
-    statusEl.className = `inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-${cfg.color}-500/15 text-${cfg.color}-400 border border-${cfg.color}-500/20`;
+    statusEl.className = `inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-${cfg.color}-500/15 text-${cfg.color}-400 border border-${cfg.color}-500/20`;
     statusEl.innerHTML = `<span class="material-symbols-outlined text-xs ${spinClass}" aria-hidden="true">${isRunning ? "progress_activity" : cfg.icon}</span> ${cfg.label}`;
   }
 
@@ -1324,7 +1324,7 @@ function _renderJobDetail(job) {
   if (priorityEl) {
     const pl = _priorityLabel(job.priority);
     priorityEl.textContent = pl ? pl.text : "";
-    priorityEl.className = `text-[10px] font-mono ${pl ? pl.cls : "text-slate-500"}`;
+    priorityEl.className = `text-xs font-mono ${pl ? pl.cls : "text-slate-500"}`;
   }
 
   // Meta
@@ -1439,7 +1439,7 @@ function _renderJobDetail(job) {
             <span class="material-symbols-outlined text-indigo-400 group-hover:text-indigo-300" aria-hidden="true">download</span>
             <div class="flex-1 min-w-0">
               <div class="text-xs font-medium text-slate-200 truncate">${escapeHtml(f.filename)}</div>
-              <div class="text-[9px] font-mono text-slate-500">${f.mime_type || "unknown"}${f.size_bytes ? " - " + _formatSize(f.size_bytes) : ""}</div>
+              <div class="text-[11px] font-mono text-slate-500">${f.mime_type || "unknown"}${f.size_bytes ? " - " + _formatSize(f.size_bytes) : ""}</div>
             </div>
           </a>`,
         )
@@ -1455,12 +1455,12 @@ function _renderJobDetail(job) {
   if (auditList) {
     if (audit.length === 0) {
       auditList.innerHTML =
-        '<div class="text-[10px] text-slate-600 italic">No audit entries</div>';
+        '<div class="text-xs text-slate-600 italic">No audit entries</div>';
     } else {
       auditList.innerHTML = audit
         .map(
           (a) => `
-          <div class="flex items-start gap-2 text-[10px] font-mono text-slate-500 py-1 border-b border-slate-800/30 last:border-0">
+          <div class="flex items-start gap-2 text-xs font-mono text-slate-500 py-1 border-b border-slate-800/30 last:border-0">
             <span class="text-slate-600 shrink-0">${_formatTime(a.timestamp)}</span>
             <span class="text-slate-400 font-bold">${escapeHtml(a.action)}</span>
             ${a.detail ? `<span class="text-slate-600 truncate flex-1">${escapeHtml(a.detail)}</span>` : ""}
@@ -1527,10 +1527,10 @@ function _renderNodes(nodes, jobStatus) {
         >
           <div class="flex items-center gap-2 mb-2">
             <span class="material-symbols-outlined text-${cfg.color}-400 text-sm ${spinClass}" aria-hidden="true">${isRunning ? "progress_activity" : cfg.icon}</span>
-            <span class="text-[9px] font-bold uppercase tracking-widest text-${cfg.color}-400">${cfg.label}</span>
+            <span class="text-[11px] font-bold uppercase tracking-widest text-${cfg.color}-400">${cfg.label}</span>
           </div>
           <div class="text-xs font-medium text-slate-200 truncate">${escapeHtml(node.title || "Untitled")}</div>
-          <div class="flex items-center gap-2 text-[9px] font-mono text-slate-600 mt-1.5 flex-wrap">
+          <div class="flex items-center gap-2 text-[11px] font-mono text-slate-600 mt-1.5 flex-wrap">
             <span>Step ${node.sequence ?? i + 1}</span>
             ${elapsedStr ? `<span class="text-slate-500" title="Elapsed time">${escapeHtml(elapsedStr)}</span>` : ""}
             ${modelStr ? `<span class="text-slate-600 truncate max-w-[80px]" title="${escapeHtml(modelStr)}">${escapeHtml(modelStr)}</span>` : ""}
@@ -1541,11 +1541,11 @@ function _renderNodes(nodes, jobStatus) {
             </div>
           ` : ""}
           ${outputPreview ? `
-            <div class="mt-2 text-[9px] text-slate-500 leading-relaxed line-clamp-3 break-all" title="Node output preview">${escapeHtml(outputPreview)}</div>
+            <div class="mt-2 text-[11px] text-slate-500 leading-relaxed line-clamp-3 break-all" title="Node output preview">${escapeHtml(outputPreview)}</div>
           ` : ""}
           ${nodeFiles.length > 0 ? `
             <div class="mt-2 flex flex-wrap gap-1">
-              ${nodeFiles.map((f) => `<span class="inline-flex items-center gap-0.5 text-[8px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5 truncate max-w-[120px]" title="${escapeHtml(f.filename || f.name || "file")}"><span class="material-symbols-outlined text-[10px]" aria-hidden="true">description</span>${escapeHtml(_truncate(f.filename || f.name || "file", 20))}</span>`).join("")}
+              ${nodeFiles.map((f) => `<span class="inline-flex items-center gap-0.5 text-xs font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5 truncate max-w-[120px]" title="${escapeHtml(f.filename || f.name || "file")}"><span class="material-symbols-outlined text-xs" aria-hidden="true">description</span>${escapeHtml(_truncate(f.filename || f.name || "file", 20))}</span>`).join("")}
             </div>
           ` : ""}
         </div>
@@ -1600,7 +1600,7 @@ function _renderNodeDetail(node) {
   const statusEl = el("nodeDetailStatus");
   if (statusEl) {
     const spinClass = isRunning ? "jobs-spin" : "";
-    statusEl.className = `inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-${cfg.color}-500/15 text-${cfg.color}-400 border border-${cfg.color}-500/20`;
+    statusEl.className = `inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-${cfg.color}-500/15 text-${cfg.color}-400 border border-${cfg.color}-500/20`;
     statusEl.innerHTML = `<span class="material-symbols-outlined text-xs ${spinClass}" aria-hidden="true">${isRunning ? "progress_activity" : cfg.icon}</span> ${cfg.label}`;
   }
 
@@ -1650,10 +1650,10 @@ function _renderNodeDetail(node) {
         ? tools
             .map(
               (t) =>
-                `<span class="text-[9px] font-mono bg-slate-800/60 border border-slate-700/40 text-slate-400 px-2 py-0.5 rounded">${escapeHtml(t)}</span>`,
+                `<span class="text-[11px] font-mono bg-slate-800/60 border border-slate-700/40 text-slate-400 px-2 py-0.5 rounded">${escapeHtml(t)}</span>`,
             )
             .join("")
-        : '<span class="text-[9px] text-slate-600 italic">No tool restrictions</span>';
+        : '<span class="text-[11px] text-slate-600 italic">No tool restrictions</span>';
   }
 
   // Output preview
@@ -1682,14 +1682,14 @@ function _renderNodeDetail(node) {
     if (nFiles.length > 0) {
       nodeFilesEl.classList.remove("hidden");
       nodeFilesEl.innerHTML =
-        `<div class="w-full text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Output Files</div>` +
+        `<div class="w-full text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Output Files</div>` +
         nFiles
           .map(
             (f) => `
             <a
               href="${f.url || "#"}"
               ${f.url ? `download="${escapeHtml(f.filename || f.name || "file")}"` : ""}
-              class="inline-flex items-center gap-1.5 text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-2.5 py-1.5 hover:bg-indigo-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              class="inline-flex items-center gap-1.5 text-xs font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-2.5 py-1.5 hover:bg-indigo-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
               title="Download ${escapeHtml(f.filename || f.name || "file")}"
             >
               <span class="material-symbols-outlined text-xs" aria-hidden="true">download</span>

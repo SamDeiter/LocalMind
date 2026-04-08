@@ -368,13 +368,13 @@ export function appendMessage(role, content) {
 export function createMessageEl(role, content) {
   const wrapper = document.createElement("div");
   const isUser = role === "user";
-  wrapper.className = `message ${role}-message flex w-full mb-6 ${isUser ? "justify-end" : "justify-start"}`;
+  wrapper.className = `message ${role}-message flex w-full mb-8 ${isUser ? "justify-end" : "justify-start"}`;
 
   const contentDiv = document.createElement("div");
-  contentDiv.className = `message-content max-w-[80%] p-4 rounded-2xl ${
+  contentDiv.className = `message-content max-w-[72%] p-5 rounded-2xl text-[15px] leading-relaxed ${
     isUser
-      ? "bg-[#6366f1]/20 border border-[#6366f1]/30 text-[#e5e2e1] rounded-tr-sm"
-      : "bg-[#1c1b1b] border border-[#444748]/20 text-[#c4c7c7] rounded-tl-sm shadow-md"
+      ? "bg-indigo-500/15 border border-indigo-500/25 text-slate-200 rounded-tr-sm"
+      : "bg-slate-800/60 border border-slate-700/30 text-slate-300 rounded-tl-sm"
   }`;
 
   contentDiv.innerHTML = role === "assistant" ? renderMarkdown(content) : escapeHtml(content);

@@ -58,7 +58,7 @@ function hideAllViews() {
 
 /** Reset active state on all nav buttons, then highlight the given one. */
 function setActiveNav(activeId) {
-  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn", "hubBtn", "aiProfileBtn", "chatBtn", "learningBtn"];
+  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn", "hubBtn", "aiProfileBtn", "chatBtn", "learningBtn", "swarmDashBtn"];
   navIds.forEach((id) => {
     const btn = document.getElementById(id);
     if (!btn) return;

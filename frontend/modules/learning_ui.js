@@ -94,11 +94,11 @@ function _buildSkeleton() {
           </div>
           <div>
             <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">AI Learning Lab</h2>
-            <p class="text-[10px] text-outline font-mono uppercase tracking-widest mt-0.5">Autonomous internet learning engine</p>
+            <p class="text-xs text-outline font-mono uppercase tracking-widest mt-0.5">Autonomous internet learning engine</p>
           </div>
         </div>
         <button id="learnNowBtn"
-          class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-[10px] font-black text-white hover:shadow-2xl hover:shadow-indigo-500/30 transition-all uppercase tracking-widest"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-xs font-black text-white hover:shadow-2xl hover:shadow-indigo-500/30 transition-all uppercase tracking-widest"
           title="Start an AI learning cycle on an auto-detected topic">
           <span class="material-symbols-outlined text-sm">auto_awesome</span> Learn Now
         </button>
@@ -109,7 +109,7 @@ function _buildSkeleton() {
 
       <!-- Suggestions Panel -->
       <div>
-        <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-3 flex items-center gap-2">
+        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-3 flex items-center gap-2">
           <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_#8b5cf6]"></span>
           Suggested Topics
         </h3>
@@ -118,7 +118,7 @@ function _buildSkeleton() {
 
       <!-- Journal -->
       <div>
-        <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-3 flex items-center gap-2">
+        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-3 flex items-center gap-2">
           <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]"></span>
           Learning Journal
         </h3>
@@ -135,7 +135,7 @@ function _buildSkeleton() {
           <div class="learning-progress-bar mt-4">
             <div class="learning-progress-fill"></div>
           </div>
-          <p class="text-[10px] text-outline mt-2 font-mono uppercase tracking-widest">Searching the web, synthesizing knowledge...</p>
+          <p class="text-xs text-outline mt-2 font-mono uppercase tracking-widest">Searching the web, synthesizing knowledge...</p>
         </div>
       </div>
 
@@ -176,19 +176,19 @@ function _renderStats() {
 
   el.innerHTML = `
     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-      <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Topics Explored</div>
+      <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Topics Explored</div>
       <div class="text-2xl font-bold text-indigo-400 font-mono">${topics}</div>
     </div>
     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-      <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Skills Applied</div>
+      <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Skills Applied</div>
       <div class="text-2xl font-bold text-emerald-400 font-mono">${applied}</div>
     </div>
     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-      <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Journal Entries</div>
+      <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Journal Entries</div>
       <div class="text-2xl font-bold text-violet-400 font-mono">${total}</div>
     </div>
     <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-      <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Last Learned</div>
+      <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Last Learned</div>
       <div class="text-lg font-bold text-amber-400 font-mono">${escapeHtml(lastStr)}</div>
     </div>
   `;
@@ -211,10 +211,10 @@ function _renderSuggestions() {
       <div class="bg-surface-container/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl p-5 flex flex-col gap-3 hover:border-primary/40 transition-all group">
         <div class="flex items-center justify-between">
           <h4 class="font-headline font-bold text-sm text-slate-100 group-hover:text-primary transition-colors">${escapeHtml(s.topic)}</h4>
-          <span class="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${diffClass}">${escapeHtml(s.difficulty || "medium")}</span>
+          <span class="text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${diffClass}">${escapeHtml(s.difficulty || "medium")}</span>
         </div>
         <p class="text-xs text-slate-400 leading-relaxed">${escapeHtml(s.reasoning || "")}</p>
-        <button class="learn-topic-btn mt-auto self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider transition-colors border border-primary/20"
+        <button class="learn-topic-btn mt-auto self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold uppercase tracking-wider transition-colors border border-primary/20"
           data-topic="${escapeHtml(s.topic)}">
           <span class="material-symbols-outlined text-xs">play_arrow</span> Learn This
         </button>
@@ -249,13 +249,13 @@ function _renderJournal() {
     .map((entry, idx) => {
       const time = entry.timestamp ? _formatTimestamp(entry.timestamp) : "Unknown time";
       const appliedBadge = entry.applied
-        ? `<span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-[10px]">check_circle</span> Applied</span>`
-        : `<span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-[10px]">lightbulb</span> Knowledge</span>`;
+        ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-xs">check_circle</span> Applied</span>`
+        : `<span class="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-xs">lightbulb</span> Knowledge</span>`;
       const toolBadge = entry.tool_name
-        ? `<span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-[10px]">build</span> ${escapeHtml(entry.tool_name)}</span>`
+        ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-xs">build</span> ${escapeHtml(entry.tool_name)}</span>`
         : "";
       const sourceBadge = entry.source
-        ? `<span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full">${escapeHtml(entry.source)}</span>`
+        ? `<span class="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full">${escapeHtml(entry.source)}</span>`
         : "";
 
       const summaryTrunc = (entry.summary || "").length > 180;
@@ -273,11 +273,11 @@ function _renderJournal() {
           ${toolBadge}
           ${sourceBadge}
         </div>
-        <p class="text-[10px] text-outline font-mono mb-2">${escapeHtml(time)}</p>
+        <p class="text-xs text-outline font-mono mb-2">${escapeHtml(time)}</p>
         <div class="text-xs text-slate-400 leading-relaxed">
           <span class="journal-summary-short-${idx}">${summaryShort}</span>
           ${summaryTrunc ? `<span class="journal-summary-full-${idx} hidden">${summaryFull}</span>
-          <button class="journal-expand-btn text-primary hover:text-primary/80 text-[10px] font-bold ml-1 transition-colors" data-idx="${idx}">Show more</button>` : ""}
+          <button class="journal-expand-btn text-primary hover:text-primary/80 text-xs font-bold ml-1 transition-colors" data-idx="${idx}">Show more</button>` : ""}
         </div>
       </div>`;
     })

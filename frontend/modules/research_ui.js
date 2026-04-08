@@ -73,20 +73,20 @@ export async function searchArxiv(query, page = 0) {
           <div class="flex-col space-y-1">
              <div class="inline">
                 <h4 class="text-[14px] font-bold text-[#fafafa] group-hover/card:text-primary transition-colors leading-snug inline">${title}</h4>
-                <div class="inline-flex items-center ml-2 px-2 py-0.5 rounded border border-[#4d4872] bg-[#333140]/50 text-[9px] font-bold text-[#baafff] uppercase tracking-widest align-middle translate-y-[-1px]">
+                <div class="inline-flex items-center ml-2 px-2 py-0.5 rounded border border-[#4d4872] bg-[#333140]/50 text-[11px] font-bold text-[#baafff] uppercase tracking-widest align-middle translate-y-[-1px]">
                    Source
                 </div>
              </div>
-             <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#787878] pt-1">
+             <div class="text-xs font-bold uppercase tracking-[0.1em] text-[#787878] pt-1">
                 ${authors}
              </div>
           </div>
           <p class="text-[11.5px] text-[#999999] leading-relaxed">${abstract}</p>
           <div class="flex gap-2 pt-2">
-            <button class="arxiv-apply-btn flex-[7] py-2 bg-[#383344] border border-[#4d4872] rounded shadow-sm text-[10px] font-bold uppercase tracking-[0.15em] text-[#baafff] hover:bg-[#464057] transition-all" data-idx="${idx}">
+            <button class="arxiv-apply-btn flex-[7] py-2 bg-[#383344] border border-[#4d4872] rounded shadow-sm text-xs font-bold uppercase tracking-[0.15em] text-[#baafff] hover:bg-[#464057] transition-all" data-idx="${idx}">
               Synthesize
             </button>
-            <button class="arxiv-context-btn flex-[3] py-2 bg-[#363636] border border-[#444444] rounded shadow-sm text-[10px] font-bold uppercase tracking-[0.15em] text-[#999999] hover:text-white hover:bg-[#4a4a4a] transition-all" data-idx="${idx}">
+            <button class="arxiv-context-btn flex-[3] py-2 bg-[#363636] border border-[#444444] rounded shadow-sm text-xs font-bold uppercase tracking-[0.15em] text-[#999999] hover:text-white hover:bg-[#4a4a4a] transition-all" data-idx="${idx}">
               Save
             </button>
           </div>
@@ -97,9 +97,9 @@ export async function searchArxiv(query, page = 0) {
     // Pagination controls
     html += `
       <div class="flex items-center justify-center gap-3 pt-4 pb-2">
-        <button class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#baafff] bg-[#383344] border border-[#4d4872] rounded hover:bg-[#464057] disabled:opacity-30 disabled:cursor-not-allowed transition-all" id="arxivPrevPage" ${page === 0 ? "disabled" : ""}>◀ Prev</button>
+        <button class="px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-[#baafff] bg-[#383344] border border-[#4d4872] rounded hover:bg-[#464057] disabled:opacity-30 disabled:cursor-not-allowed transition-all" id="arxivPrevPage" ${page === 0 ? "disabled" : ""}>◀ Prev</button>
         <span class="text-[11px] font-mono text-[#787878]">Page ${page + 1}</span>
-        <button class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#baafff] bg-[#383344] border border-[#4d4872] rounded hover:bg-[#464057] disabled:opacity-30 disabled:cursor-not-allowed transition-all" id="arxivNextPage" ${papers.length < 8 ? "disabled" : ""}>Next ▶</button>
+        <button class="px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-[#baafff] bg-[#383344] border border-[#4d4872] rounded hover:bg-[#464057] disabled:opacity-30 disabled:cursor-not-allowed transition-all" id="arxivNextPage" ${papers.length < 8 ? "disabled" : ""}>Next ▶</button>
       </div>`;
 
     resultsEl.innerHTML = html;

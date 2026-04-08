@@ -36,7 +36,7 @@ async function fetchSwarmStatus() {
         const badge = els.statusBadge();
         if (badge) {
             badge.textContent = 'Disconnected';
-            badge.className = 'text-[9px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full';
+            badge.className = 'text-[11px] font-bold uppercase tracking-widest bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full';
         }
     }
 }
@@ -183,7 +183,7 @@ function renderSwarmStatus(data) {
     if (els.statusBadge()) {
         const badge = els.statusBadge();
         badge.textContent = status.state || 'Active';
-        badge.className = 'text-[9px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full';
+        badge.className = 'text-[11px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full';
     }
 
     if (els.pollTime()) {
@@ -201,10 +201,10 @@ function renderSwarmStatus(data) {
                         <span class="sr-only">${agent.status === 'working' ? 'Active' : 'Idle'}</span>
                         <span class="text-xs font-bold text-slate-200">Worker_${agent.id.slice(0,4)}</span>
                     </div>
-                    <span class="text-[9px] font-mono text-slate-500">${agent.type || 'GPT_4o'}</span>
+                    <span class="text-[11px] font-mono text-slate-500">${agent.type || 'GPT_4o'}</span>
                 </div>
                 <div class="space-y-1">
-                    <div class="text-[10px] text-slate-400 truncate">${agent.current_task || 'Awaiting task queue...'}</div>
+                    <div class="text-xs text-slate-400 truncate">${agent.current_task || 'Awaiting task queue...'}</div>
                     <div class="w-full bg-slate-800/50 h-1 rounded-full overflow-hidden">
                         <div class="bg-cyan-500 h-full transition-all duration-1000" style="width: ${agent.status === 'working' ? '70%' : '0%'}" role="progressbar" aria-valuenow="${agent.status === 'working' ? 70 : 0}" aria-valuemin="0" aria-valuemax="100" aria-label="Worker ${agent.id.slice(0,4)} progress"></div>
                     </div>
@@ -227,7 +227,7 @@ function renderSwarmStatus(data) {
                     <span class="sr-only">${res.success ? 'Success' : 'Failed'}</span>
                     <div class="flex-1 min-w-0">
                         <div class="text-[11px] text-slate-200 truncate">${res.task_id}</div>
-                        <div class="text-[9px] text-slate-500 font-mono">${res.duration.toFixed(2)}s - ${res.agent_id}</div>
+                        <div class="text-[11px] text-slate-500 font-mono">${res.duration.toFixed(2)}s - ${res.agent_id}</div>
                     </div>
                 </div>
             `).join('');
@@ -243,11 +243,11 @@ function renderSwarmStatus(data) {
             improvements.innerHTML = data.recent_improvements.map(imp => `
                 <div class="p-3 bg-cyan-500/5 border border-cyan-500/10 rounded-lg group">
                     <div class="flex items-center justify-between mb-1">
-                        <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">${imp.type || 'REFACTOR'}</span>
-                        <span class="text-[9px] font-mono text-slate-500">${imp.timestamp || ''}</span>
+                        <span class="text-xs font-bold text-cyan-400 uppercase tracking-widest">${imp.type || 'REFACTOR'}</span>
+                        <span class="text-[11px] font-mono text-slate-500">${imp.timestamp || ''}</span>
                     </div>
                     <div class="text-xs text-slate-300 leading-relaxed">${imp.description || imp.title}</div>
-                    <div class="mt-2 text-[9px] font-mono text-cyan-500/60 truncate">${imp.files?.join(', ') || ''}</div>
+                    <div class="mt-2 text-[11px] font-mono text-cyan-500/60 truncate">${imp.files?.join(', ') || ''}</div>
                 </div>
             `).join('');
         }
@@ -304,7 +304,7 @@ export function initSwarmTabs() {
 }
 
 function tabClass(active) {
-    const base = 'px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors';
+    const base = 'px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors';
     return active
         ? `${base} bg-amber-500/20 text-amber-400 border border-amber-500/30`
         : `${base} text-slate-500 hover:text-slate-300 hover:bg-slate-800/40 border border-transparent`;
@@ -362,7 +362,7 @@ async function loadTreeTab() {
                 <input id="swarmTreeJobInput" type="text" placeholder="Enter Job ID..."
                     class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 w-64" />
                 <button id="swarmTreeLoadBtn"
-                    class="px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
+                    class="px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
                     Load Tree
                 </button>
             </div>
@@ -383,7 +383,7 @@ async function loadTreeTab() {
         header.className = 'flex items-center gap-2 mb-4';
         header.innerHTML = `
             <button id="swarmTreeBack" class="text-slate-400 hover:text-white text-xs underline">&#8592; Change Job</button>
-            <span class="text-[10px] text-slate-500 font-mono">Job: ${_selectedTreeJobId}</span>`;
+            <span class="text-xs text-slate-500 font-mono">Job: ${_selectedTreeJobId}</span>`;
         container.appendChild(header);
         document.getElementById('swarmTreeBack')?.addEventListener('click', () => { _selectedTreeJobId = null; loadTreeTab(); });
         const treeEl = document.createElement('div');
@@ -417,7 +417,7 @@ function statusBadge(status) {
         cancelled: 'bg-slate-600/20 text-slate-400'
     };
     const cls = map[(status || '').toLowerCase()] || 'bg-slate-600/20 text-slate-400';
-    return `<span class="text-[9px] font-bold uppercase tracking-widest ${cls} px-2 py-0.5 rounded-full">${status || 'unknown'}</span>`;
+    return `<span class="text-[11px] font-bold uppercase tracking-widest ${cls} px-2 py-0.5 rounded-full">${status || 'unknown'}</span>`;
 }
 
 function appendTreeNode(ul, node) {
@@ -434,7 +434,7 @@ function appendTreeNode(ul, node) {
             ${toggle}
             <span class="text-xs text-slate-200 font-semibold">${node.title || 'Untitled'}</span>
             ${statusBadge(node.status)}
-            ${node.delegation_type ? `<span class="text-[9px] text-slate-500 font-mono">${node.delegation_type}</span>` : ''}
+            ${node.delegation_type ? `<span class="text-[11px] text-slate-500 font-mono">${node.delegation_type}</span>` : ''}
         </div>`;
 
     if (hasChildren) {
@@ -471,7 +471,7 @@ async function loadMemoryTab() {
                 <input id="swarmMemJobInput" type="text" placeholder="Enter Job ID..."
                     class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 w-64" />
                 <button id="swarmMemLoadBtn"
-                    class="px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
+                    class="px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
                     Load Memory
                 </button>
             </div>
@@ -492,7 +492,7 @@ async function loadMemoryTab() {
         header.className = 'flex items-center gap-2 mb-4';
         header.innerHTML = `
             <button id="swarmMemBack" class="text-slate-400 hover:text-white text-xs underline">&#8592; Change Job</button>
-            <span class="text-[10px] text-slate-500 font-mono">Job: ${_selectedMemoryJobId}</span>`;
+            <span class="text-xs text-slate-500 font-mono">Job: ${_selectedMemoryJobId}</span>`;
         container.appendChild(header);
         document.getElementById('swarmMemBack')?.addEventListener('click', () => { _selectedMemoryJobId = null; loadMemoryTab(); });
         const tableEl = document.createElement('div');
@@ -540,7 +540,7 @@ export async function renderSharedMemory(jobId, container, prefetchedData) {
         <div class="overflow-x-auto">
             <table class="w-full text-xs">
                 <thead>
-                    <tr class="text-left text-[9px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700">
+                    <tr class="text-left text-[11px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700">
                         <th class="pb-2 pr-4">Key</th>
                         <th class="pb-2 pr-4">Value</th>
                         <th class="pb-2 pr-4">Version</th>
@@ -578,7 +578,7 @@ async function loadMessagesTab() {
                 <input id="swarmMsgJobInput" type="text" placeholder="Enter Job ID..."
                     class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 w-64" />
                 <button id="swarmMsgLoadBtn"
-                    class="px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
+                    class="px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
                     Load Messages
                 </button>
             </div>
@@ -599,7 +599,7 @@ async function loadMessagesTab() {
         header.className = 'flex items-center gap-2 mb-4';
         header.innerHTML = `
             <button id="swarmMsgBack" class="text-slate-400 hover:text-white text-xs underline">&#8592; Change Job</button>
-            <span class="text-[10px] text-slate-500 font-mono">Job: ${_selectedMsgJobId}</span>`;
+            <span class="text-xs text-slate-500 font-mono">Job: ${_selectedMsgJobId}</span>`;
         container.appendChild(header);
         document.getElementById('swarmMsgBack')?.addEventListener('click', () => { _selectedMsgJobId = null; loadMessagesTab(); });
         const logEl = document.createElement('div');
@@ -647,7 +647,7 @@ export async function renderMessageLog(jobId, container, prefetchedData) {
             request:   'bg-blue-500/20 text-blue-400'
         };
         const cls = colors[(type || '').toLowerCase()] || 'bg-slate-600/20 text-slate-400';
-        return `<span class="text-[9px] font-bold uppercase tracking-widest ${cls} px-2 py-0.5 rounded-full">${type || 'info'}</span>`;
+        return `<span class="text-[11px] font-bold uppercase tracking-widest ${cls} px-2 py-0.5 rounded-full">${type || 'info'}</span>`;
     };
 
     container.innerHTML = `
@@ -656,14 +656,14 @@ export async function renderMessageLog(jobId, container, prefetchedData) {
                 <div class="flex items-start gap-3 p-3 bg-slate-900/40 border border-slate-800/40 rounded-lg hover:bg-slate-800/30 transition-colors">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
-                            <span class="text-[10px] font-bold text-slate-200">${m.from || 'unknown'}</span>
-                            <span class="text-[9px] text-slate-600">&#8594;</span>
-                            <span class="text-[10px] text-slate-400">${m.to || 'broadcast'}</span>
+                            <span class="text-xs font-bold text-slate-200">${m.from || 'unknown'}</span>
+                            <span class="text-[11px] text-slate-600">&#8594;</span>
+                            <span class="text-xs text-slate-400">${m.to || 'broadcast'}</span>
                             ${typeBadge(m.type)}
                         </div>
                         <div class="text-xs text-slate-300 truncate">${m.subject || ''}</div>
                     </div>
-                    <span class="text-[9px] text-slate-600 font-mono whitespace-nowrap">${m.timestamp || ''}</span>
+                    <span class="text-[11px] text-slate-600 font-mono whitespace-nowrap">${m.timestamp || ''}</span>
                 </div>
             `).join('')}
         </div>`;
@@ -718,7 +718,7 @@ export async function renderLockStatus(container, prefetchedData) {
         <div class="overflow-x-auto">
             <table class="w-full text-xs">
                 <thead>
-                    <tr class="text-left text-[9px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700">
+                    <tr class="text-left text-[11px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700">
                         <th class="pb-2 pr-4">Resource</th>
                         <th class="pb-2 pr-4">Lock Type</th>
                         <th class="pb-2 pr-4">Held By</th>
@@ -731,7 +731,7 @@ export async function renderLockStatus(container, prefetchedData) {
                         <tr class="border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors">
                             <td class="py-2 pr-4 text-slate-200 font-mono">${l.resource || ''}</td>
                             <td class="py-2 pr-4">
-                                <span class="text-[9px] font-bold uppercase tracking-widest ${l.lock_type === 'exclusive' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'} px-2 py-0.5 rounded-full">
+                                <span class="text-[11px] font-bold uppercase tracking-widest ${l.lock_type === 'exclusive' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'} px-2 py-0.5 rounded-full">
                                     ${l.lock_type || 'shared'}
                                 </span>
                             </td>
