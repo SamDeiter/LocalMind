@@ -197,12 +197,12 @@ function wirePipelineButtons(body) {
           method: "POST",
         });
         const d = await r.json();
-        if (d.success) {
-          showToast(`✅ ${d.message || "Undo successful"}`, "info");
+        if (d.ok) {
+          showToast(`✅ Undo successful`, "info");
           renderTaskPipeline();
           updateSuccessRate();
         } else {
-          showToast(`❌ ${d.message || "Undo failed"}`, "error");
+          showToast(`❌ ${d.error || "Undo failed"}`, "error");
           btn.disabled = false;
           btn.style.opacity = "1";
         }

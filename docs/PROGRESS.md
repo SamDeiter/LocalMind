@@ -2,7 +2,7 @@
 
 > Last updated: April 8, 2026
 
-## Current Version: v0.8.0 — Phase 8 (Complete)
+## Current Version: v0.9.0 — Phase 9 (In Progress)
 
 ---
 
@@ -152,11 +152,11 @@
 
 ---
 
-## 📋 Phase 9 — Intelligence (Planned)
+## 🚧 Phase 9 — Intelligence (In Progress)
 
 | Feature                    | Status     | Notes                                                                        |
 | -------------------------- | ---------- | ---------------------------------------------------------------------------- |
-| AI Time Machine            | 📋 Planned | Every AI action versioned + replayable, undo any step                        |
+| AI Time Machine            | ✅ Done    | Action versioning, replay engine, timeline UI, undo integration              |
 | Cross-Project Hub          | 📋 Planned | AI remembers patterns across ALL your projects                              |
 | Self-extending tools       | 📋 Planned | AI writes new tool plugins when it lacks a capability                        |
 | VS Code Extension          | 📋 Planned | LocalMind as a VS Code sidecar                                               |

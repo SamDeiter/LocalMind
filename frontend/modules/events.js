@@ -7,7 +7,6 @@ import {
   $,
   sidebar,
   sidebarToggle,
-  newChatBtn,
   learningToggle,
   modelSelect,
   sendBtn,
@@ -35,22 +34,24 @@ import { showTemplatesView } from "./templates_ui.js";
 import { showApprovalsView } from "./approvals_ui.js";
 import { chatScreen, overviewBtn } from "./state.js";
 
-/** Hide all enterprise views and restore the default main scroll area. */
+/** Hide all views and restore the default main scroll area. */
 function hideAllViews() {
   hideSwarmDashboard();
   const mainScroll = document.getElementById("mainScrollArea");
   const jobsView = document.getElementById("jobsView");
   const templatesView = document.getElementById("templatesView");
   const approvalsView = document.getElementById("approvalsView");
+  const chat = document.getElementById("chatScreen");
   if (mainScroll) { mainScroll.classList.add("hidden"); mainScroll.style.display = "none"; }
   if (jobsView) jobsView.classList.add("hidden");
   if (templatesView) templatesView.classList.add("hidden");
   if (approvalsView) approvalsView.classList.add("hidden");
+  if (chat) { chat.classList.add("hidden"); chat.style.display = "none"; }
 }
 
 /** Reset active state on all nav buttons, then highlight the given one. */
 function setActiveNav(activeId) {
-  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn"];
+  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn", "chatBtn"];
   navIds.forEach((id) => {
     const btn = document.getElementById(id);
     if (!btn) return;
@@ -67,64 +68,43 @@ function setActiveNav(activeId) {
 export function bindEvents() {
   // Sidebar
   sidebarToggle?.addEventListener("click", () => sidebar?.classList.toggle("collapsed"));
-  newChatBtn?.addEventListener("click", () => {
-    state.currentConvId = null;
-    state.messages = [];
-    clearMessages();
-    loadConversations();
-    if (chatScreen) {
-      chatScreen.classList.add("hidden");
-      chatScreen.style.display = "none";
-    }
-  });
 
-  // Global Overview Button
+  // Nav — Dashboard
   overviewBtn?.addEventListener("click", () => {
     hideAllViews();
     const mainScroll = document.getElementById("mainScrollArea");
     if (mainScroll) { mainScroll.classList.remove("hidden"); mainScroll.style.display = "flex"; }
-    if (chatScreen) {
-      chatScreen.classList.add("hidden");
-      chatScreen.style.display = "none";
-    }
     setActiveNav("overviewBtn");
-    loadConversations();
   });
 
-  // Enterprise Nav — Jobs
+  // Nav — Jobs
   document.getElementById("jobsBtn")?.addEventListener("click", () => {
     hideAllViews();
     showJobsView();
-    if (chatScreen) { chatScreen.classList.add("hidden"); chatScreen.style.display = "none"; }
     setActiveNav("jobsBtn");
   });
 
-  // Enterprise Nav — Templates
+  // Nav — Templates
   document.getElementById("templatesBtn")?.addEventListener("click", () => {
     hideAllViews();
     showTemplatesView();
-    if (chatScreen) { chatScreen.classList.add("hidden"); chatScreen.style.display = "none"; }
     setActiveNav("templatesBtn");
   });
 
-  // Enterprise Nav — Approvals
+  // Nav — Approvals
   document.getElementById("approvalsBtn")?.addEventListener("click", () => {
     hideAllViews();
     showApprovalsView();
-    if (chatScreen) { chatScreen.classList.add("hidden"); chatScreen.style.display = "none"; }
     setActiveNav("approvalsBtn");
   });
 
-  // Close Chat Overlay Button
-  const closeChatBtn = document.getElementById("closeChatBtn");
-  if (closeChatBtn) {
-    closeChatBtn.addEventListener("click", () => {
-      if (chatScreen) {
-        chatScreen.classList.add("hidden");
-        chatScreen.style.display = "none";
-      }
-    });
-  }
+  // Nav — Chat
+  document.getElementById("chatBtn")?.addEventListener("click", () => {
+    hideAllViews();
+    const chat = document.getElementById("chatScreen");
+    if (chat) { chat.classList.remove("hidden"); chat.style.display = "flex"; }
+    setActiveNav("chatBtn");
+  });
 
   // Unified Main Input: Always use sendMessage which switches to Chat Mode
   sendBtn?.addEventListener("click", () => {

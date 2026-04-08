@@ -85,11 +85,12 @@ export async function sendMessage() {
   messageInput.value = "";
   autoResize();
 
-  // Removed welcomeScreen hiding logic so chatting doesn't obscure the dashboard UI.
+  // Switch to chat view if not already visible
   const chatScreen = document.getElementById("chatScreen");
-  if (chatScreen) {
-    chatScreen.classList.remove("hidden");
-    chatScreen.style.display = "flex";
+  if (chatScreen && chatScreen.classList.contains("hidden")) {
+    // Trigger the chat nav button to properly hide other views
+    const chatBtn = document.getElementById("chatBtn");
+    if (chatBtn) chatBtn.click();
   }
 
   state.messages.push({ role: "user", content: text });

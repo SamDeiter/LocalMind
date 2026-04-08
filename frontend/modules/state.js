@@ -40,7 +40,7 @@ export const $ = (s) => document.querySelector(s);
 // ── DOM refs ────────────────────────────────────────────────────
 export const sidebar = $("#sidebar");
 export const sidebarToggle = $("#sidebarToggle");
-export const newChatBtn = $("#newChatBtn");
+export const newChatBtn = $("#chatBtn");
 export const conversationList = $("#conversationList");
 export const learningToggle = $("#learningToggle");
 export const modelSelect = $("#modelSelect");
@@ -70,8 +70,8 @@ export const editorToggle = document.getElementById("editorToggle");
 export const priorityInput = document.getElementById("priorityInput");
 export const priorityContainer = $("#priorityList");
 export const addPriorityBtn = document.getElementById("addPriorityBtn");
-export const insightContent = document.getElementById("insightContent");
-export const brainDigest = document.getElementById("brainDigest");
+export const insightContent = null; // removed — was in old right sidebar
+export const brainDigest = null; // removed — was in old right sidebar
 export const homeBtn = document.getElementById("homeBtn");
 export const modeSupervisedBtn = document.getElementById("modeSupervisedBtn");
 export const modeAutonomousBtn = document.getElementById("modeAutonomousBtn");
