@@ -34,7 +34,7 @@ _PII_PATTERNS = (
     (re.compile(r'\b\d{3}-\d{2}-\d{4}\b'), "[SSN]"),
     (re.compile(r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b'), "[CARD]"),
     (re.compile(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'), "[IP_ADDRESS]"),
-    (re.compile(r'C:\\Users\\[^\\]+', re.IGNORECASE), "C:\\Users\\[USER]"),
+    (re.compile(r'C:\\Users\\[^\\]+', re.IGNORECASE), r"C:\\Users\\[USER]"),
     (re.compile(r'/home/[^/\s]+'), "/home/[USER]"),
     (re.compile(r'\b(AIza[A-Za-z0-9_-]{35,})\b'), "[API_KEY]"),
     (re.compile(r'\b(sk-[a-zA-Z0-9]{20,})\b'), "[API_KEY]"),

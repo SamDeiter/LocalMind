@@ -36,10 +36,10 @@ class TestRouteModel:
         assert result["provider"] == "ollama"
 
     def test_high_complexity_without_cloud_stays_local(self):
-        """High complexity without cloud available stays local heavy."""
+        """High complexity without cloud available stays local ultra."""
         result = route_model(complexity_score=9, gemini_available=False)
         assert result["provider"] == "ollama"
-        assert result["name"] == MODELS["local_heavy"]["name"]
+        assert result["name"] == MODELS["local_ultra"]["name"]
 
     def test_force_local_light_task(self):
         """Force local with low complexity picks local light."""
@@ -48,9 +48,9 @@ class TestRouteModel:
         assert result["needs_approval"] is False
 
     def test_force_local_heavy_task(self):
-        """Force local with high complexity picks local heavy."""
+        """Force local with high complexity picks local ultra."""
         result = route_model(complexity_score=8, force_local=True)
-        assert result["name"] == MODELS["local_heavy"]["name"]
+        assert result["name"] == MODELS["local_ultra"]["name"]
         assert result["needs_approval"] is False
 
     def test_force_local_ignores_cloud(self):
@@ -92,8 +92,8 @@ class TestRouteModel:
 
 class TestModels:
     def test_all_tiers_defined(self):
-        """Should have local_micro, local_light, local_heavy, cloud_flash, cloud_pro."""
-        expected = {"local_micro", "local_light", "local_heavy", "cloud_flash", "cloud_pro"}
+        """Should have local_micro, local_light, local_heavy, local_ultra, cloud_flash, cloud_pro."""
+        expected = {"local_micro", "local_light", "local_heavy", "local_ultra", "cloud_flash", "cloud_pro"}
         assert set(MODELS.keys()) == expected
 
     def test_local_models_are_ollama(self):

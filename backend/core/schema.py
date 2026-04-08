@@ -655,6 +655,41 @@ def init_phase0_schema():
         CREATE INDEX IF NOT EXISTS idx_av_conversation ON action_versions(conversation_id);
     """)
 
+    # ── Cross-Project Hub: Registry & Patterns ────────────────────
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS project_registry (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            path TEXT NOT NULL UNIQUE,
+            description TEXT,
+            language_breakdown TEXT,  -- JSON: {"python": 45, "javascript": 30, ...}
+            file_count INTEGER DEFAULT 0,
+            total_lines INTEGER DEFAULT 0,
+            last_scanned_at REAL,
+            active INTEGER DEFAULT 1,
+            created_at REAL NOT NULL,
+            metadata TEXT DEFAULT '{}'  -- JSON: extra info
+        );
+        CREATE INDEX IF NOT EXISTS idx_project_reg_path ON project_registry(path);
+        CREATE INDEX IF NOT EXISTS idx_project_reg_active ON project_registry(active);
+
+        CREATE TABLE IF NOT EXISTS cross_project_patterns (
+            id TEXT PRIMARY KEY,
+            pattern_type TEXT NOT NULL,  -- 'dependency', 'code_pattern', 'architecture', 'naming', 'issue'
+            title TEXT NOT NULL,
+            description TEXT,
+            source_project_id TEXT REFERENCES project_registry(id),
+            related_project_ids TEXT,  -- JSON array of project IDs
+            confidence REAL DEFAULT 0.0,
+            occurrences INTEGER DEFAULT 1,
+            first_seen_at REAL NOT NULL,
+            last_seen_at REAL NOT NULL,
+            metadata TEXT DEFAULT '{}'  -- JSON: extra detail
+        );
+        CREATE INDEX IF NOT EXISTS idx_patterns_type ON cross_project_patterns(pattern_type);
+        CREATE INDEX IF NOT EXISTS idx_patterns_source ON cross_project_patterns(source_project_id);
+    """)
+
     conn.commit()
     conn.close()
     logger.info("Phase 0 enterprise schema initialized")

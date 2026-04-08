@@ -394,6 +394,8 @@ class ProposalManager:
         """Invalidate the active count cache."""
         self._active_count_cache = None
         self._last_dir_mtime = None
+        if hasattr(self, "_active_cache"):
+            del self._active_cache
 
     def _write_proposal(self, proposal: dict):
         """Find a proposal's file on disk and update it."""
