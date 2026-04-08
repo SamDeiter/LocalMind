@@ -1,70 +1,49 @@
+"""Background learning loop — triggers self-discovery and skill learning."""
 import asyncio
 import logging
 import time
-from ..utils import log_event
 
-logger = logging.getLogger("localmind.autonomy.research")
+logger = logging.getLogger("localmind.learning.loop")
 
 _self_discovery_done = False
 
+async def run_learning_loop():
+    """Background loop: self-discovery once, then skill learning daily."""
+    await asyncio.sleep(120)  # Wait 2 min for server to settle
 
-async def _maybe_run_self_discovery():
-    """Run AI self-discovery once if no profile exists yet."""
     global _self_discovery_done
-    if _self_discovery_done:
-        return
-    _self_discovery_done = True
-    try:
-        from backend.autonomy.self_discovery import get_self_discovery
-        service = get_self_discovery()
-        if service.get_profile() is None:
-            logger.info("No AI profile found — running initial self-discovery")
-            await service.discover(force=False)
-            logger.info("Initial self-discovery complete")
-    except Exception as exc:
-        logger.warning("Self-discovery during research loop failed (non-fatal): %s", exc)
 
-
-async def _maybe_run_skill_learning(engine):
-    """Trigger one learning cycle per day when the system is idle."""
-    if engine.is_user_active():
-        return
-    try:
-        from backend.autonomy.skill_learner import get_skill_learner
-
-        learner = get_skill_learner()
-        stats = learner.get_stats()
-        # Learn at most once per 24 hours
-        if time.time() - stats.get("last_learned", 0) > 86400:
-            logger.info("Idle + no recent learning — starting skill learning cycle")
-            result = await learner.learn()
-            topic = result.get("topic", "unknown")
-            applied = result.get("applied", False)
-            logger.info(
-                "Skill learning complete: topic=%s, applied=%s", topic, applied
-            )
-    except Exception as exc:
-        logger.warning("Skill learning during research loop failed (non-fatal): %s", exc)
-
-
-async def run_auto_research_loop(engine):
-    """Every 2h (or when bored): perform automated web research to find new problems."""
-    await asyncio.sleep(60)
     while True:
         try:
-            # One-time self-discovery on first research cycle
-            await _maybe_run_self_discovery()
+            # One-time self-discovery
+            if not _self_discovery_done:
+                try:
+                    from backend.autonomy.self_discovery import get_self_discovery
+                    svc = get_self_discovery()
+                    if svc.get_profile() is None:
+                        logger.info("Running initial self-discovery...")
+                        await svc.discover()
+                        logger.info("Self-discovery complete")
+                    _self_discovery_done = True
+                except Exception as exc:
+                    logger.warning("Self-discovery failed: %s", exc)
 
-            if engine.enabled and not engine.is_user_active():
-                await engine._run_auto_research()
-                engine.status.research.last_run = time.time()
+            # Skill learning (once per cycle)
+            try:
+                from backend.autonomy.skill_learner import get_skill_learner
+                learner = get_skill_learner()
+                stats = learner.get_stats()
+                last = stats.get("last_learned", 0)
+                if time.time() - last > 86400:  # Once per day
+                    logger.info("Running skill learning cycle...")
+                    await learner.learn()
+                    logger.info("Skill learning cycle complete")
+            except Exception as exc:
+                logger.warning("Skill learning failed: %s", exc)
 
-                # After research, optionally trigger a learning cycle when idle
-                await _maybe_run_skill_learning(engine)
-
-            await asyncio.sleep(2 * 3600)  # 2 hours
+            await asyncio.sleep(2 * 3600)  # Check every 2 hours
         except asyncio.CancelledError:
             break
         except Exception as exc:
-            logger.error(f"Auto-research loop error: {exc}")
+            logger.error("Learning loop error: %s", exc)
             await asyncio.sleep(3600)

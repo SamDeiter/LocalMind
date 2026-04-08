@@ -1,34 +1,16 @@
 /**
  * Sidebar features — Hardware dashboard, Memory viewer, Document RAG,
  * Version badge.
- *
- * Autonomy UI and Proposals UI have been extracted into their own modules:
- *   - autonomy/  (SSE, brain dashboard, status, triggers)
- *   - proposals_ui.js (proposals dashboard, approve/deny/retry)
  */
 
 import { API } from "./state.js";
 import { escapeHtml } from "./utils.js";
-import { pollAutonomy } from "./autonomy/index.js";
-
-// Re-export from extracted modules so existing imports still work
-export {
-  pollAutonomy,
-  connectActivityFeed,
-  toggleAutonomyMode,
-  triggerReflection,
-  triggerExecution,
-  initAutonomyUI as initDashboardPanels,
-} from "./autonomy/index.js";
-
-export { loadProposals, toggleProposalList, retryProposal } from "./proposals_ui.js";
 
 // ── Hardware Dashboard ──────────────────────────────────────────
 let hwInterval = null;
 
 export async function pollHardware() {
-  // hardware polling consolidated to dashboard.js to reduce fetch overhead
-  await pollAutonomy();
+  // hardware polling consolidated to dashboard.js
 }
 
 export function startHwPolling() {

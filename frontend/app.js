@@ -11,9 +11,6 @@ import {
   loadMemories,
   loadDocuments,
   loadVersion,
-  loadProposals,
-  connectActivityFeed,
-  initDashboardPanels,
 } from "./modules/sidebar.js";
 import { toggleEditorPanel, initEditorEnhancements } from "./modules/editor.js";
 import { bindEvents } from "./modules/events.js";
@@ -50,10 +47,7 @@ async function init() {
   startHwPolling();
   bindEvents();
   loadVersion();
-  loadProposals();
-  connectActivityFeed();
   initEditorEnhancements();
-  initDashboardPanels();
   initResearchPanel();
   initGlobalSearch();
   initSettingsUI();

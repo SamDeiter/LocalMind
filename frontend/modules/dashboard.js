@@ -50,36 +50,26 @@ async function updateDashboardMetrics() {
   }
 }
 
-/** Update status bar with connection + engine info */
+/** Update status bar with connection info */
 async function updateStatusBar() {
   const dot = document.getElementById("brainPulse");
   const connEl = document.getElementById("brainStatus");
   try {
-    // Check autonomy status
-    const r = await fetch(`${API}/api/autonomy/status`);
-    if (r.ok) {
-      const s = await r.json();
-      statusFailCount = 0; // Reset on success
+    // Check server health via version endpoint
+    const vr = await fetch(`${API}/api/version`);
+    if (vr.ok) {
+      statusFailCount = 0;
+      const vd = await vr.json();
       if (dot) dot.style.backgroundColor = "#4fdbc8";
-      if (connEl) connEl.textContent = s.status ? `Active: ${s.status}` : "Online";
+      if (connEl) connEl.textContent = "Online";
+      const versionEl = document.querySelector(".version-badge");
+      if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
     } else {
       statusFailCount++;
       if (statusFailCount >= OFFLINE_THRESHOLD) {
         if (dot) dot.style.backgroundColor = "#ff6b98";
         if (connEl) connEl.textContent = "Degraded";
       }
-    }
-
-    // Version
-    try {
-      const vr = await fetch(`${API}/api/version`);
-      if (vr.ok) {
-        const vd = await vr.json();
-        const versionEl = document.querySelector(".version-badge");
-        if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
-      }
-    } catch {
-      /* ignore */
     }
 
     // Ideas count for reasoning grid

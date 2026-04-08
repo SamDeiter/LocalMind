@@ -24,8 +24,6 @@ import { sendMessage, activateMode, clearMessages } from "./chat.js";
 import { loadConversations } from "./conversations.js";
 import { toggleMic, openCamera, closeCamera, captureFrame, clearCapturedImage } from "./media.js";
 import { uploadDocuments, toggleMemoryList } from "./sidebar.js";
-import { toggleProposalList } from "./proposals_ui.js";
-import { toggleActivityFeed } from "./autonomy/index.js";
 import { toggleEditorPanel } from "./editor.js";
 import { toggleSettingsModal } from "./settings_ui.js";
 import { hideSwarmDashboard } from "./swarm_ui.js";
@@ -222,14 +220,6 @@ export function bindEvents() {
 
   // Memory
   $("#memoryToggleBtn")?.addEventListener("click", toggleMemoryList);
-
-  // Proposals
-  $("#proposalToggle")?.addEventListener("click", toggleProposalList);
-
-  // Activity feed toggle
-  $("#activityToggle")?.addEventListener("click", toggleActivityFeed);
-
-  // Autonomy mode buttons
 
   // Obsidian Specific Hooks
   $("#editorToggle")?.addEventListener("click", () => {

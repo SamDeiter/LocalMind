@@ -40,11 +40,15 @@ def _get_researcher():
 
 
 def _get_proposals():
-    """Lazy-init ProposalManager."""
+    """Lazy-init ProposalManager (returns None if proposals module removed)."""
     global _proposals
     if _proposals is None:
-        from backend.proposals import ProposalManager
-        _proposals = ProposalManager()
+        try:
+            from backend.proposals import ProposalManager
+            _proposals = ProposalManager()
+        except ImportError:
+            logger.info("ProposalManager not available (autonomy engine removed)")
+            return None
     return _proposals
 
 
@@ -259,21 +263,26 @@ async def generate_paper_proposal(
             proposal["source_paper"] = title
             proposal["source_url"] = url
 
-            # Save via ProposalManager
+            # Save via ProposalManager (if available)
             pm = _get_proposals()
-            saved = pm.save(
-                proposal,
-                mode="supervised",
-                auto_approve_risks=set(),
-                log_fn=lambda *a, **k: None,
-                emit_activity=lambda *a, **k: None,
-            )
+            if pm is not None:
+                saved = pm.save(
+                    proposal,
+                    mode="supervised",
+                    auto_approve_risks=set(),
+                    log_fn=lambda *a, **k: None,
+                    emit_activity=lambda *a, **k: None,
+                )
 
-            if saved:
-                logger.info(f"📄 Paper proposal saved: {saved.get('title', '?')}")
-                return {"proposal": saved, "error": None}
+                if saved:
+                    logger.info(f"Paper proposal saved: {saved.get('title', '?')}")
+                    return {"proposal": saved, "error": None}
+                else:
+                    return {"error": "Proposal was rejected (duplicate or invalid)", "proposal": None}
             else:
-                return {"error": "Proposal was rejected (duplicate or invalid)", "proposal": None}
+                # ProposalManager removed; return the generated proposal directly
+                logger.info(f"Paper proposal generated (no ProposalManager): {proposal.get('title', '?')}")
+                return {"proposal": proposal, "error": None}
 
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse LLM response as JSON: {e}")

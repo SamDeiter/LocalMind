@@ -23,11 +23,10 @@ logger = logging.getLogger("localmind.logic.chat_service")
 
 
 class ChatService:
-    def __init__(self, db_factory, registry, ontology=None, autonomy_engine=None, metacog_controller=None):
+    def __init__(self, db_factory, registry, ontology=None, metacog_controller=None, **kwargs):
         self.db_factory = db_factory
         self.registry = registry
         self.ontology = ontology
-        self.autonomy_engine = autonomy_engine
         self.metacog_controller = metacog_controller
         self.llm = LLMClient()
         self.ctx = ContextBuilder(registry)

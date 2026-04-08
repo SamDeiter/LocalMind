@@ -13,12 +13,11 @@ logger = logging.getLogger("localmind.routes.chat")
 # These will be initialized by the server on startup or via dependency injection
 _chat_service: Optional[ChatService] = None
 
-def init_chat_service(registry, autonomy_engine, metacog_controller):
+def init_chat_service(registry, metacog_controller):
     global _chat_service
     _chat_service = ChatService(
         db_factory=db.get_db_connection,
         registry=registry,
-        autonomy_engine=autonomy_engine,
         metacog_controller=metacog_controller
     )
 

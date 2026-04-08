@@ -135,20 +135,6 @@
 
         <!-- Bottom Controls -->
         <div class="px-4 mt-auto mb-4 space-y-4">
-            <!-- Autonomy Mode Toggle -->
-            <div class="pt-4 border-t border-outline-variant/15 space-y-2">
-                <div class="flex items-center justify-between px-2 mb-2">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-outline">Operation Mode</span>
-                    <span id="autonomyIndicator" class="w-2 h-2 rounded-full bg-secondary animate-pulse" title="Current operation mode indicator"></span><span class="sr-only" id="autonomyIndicatorLabel">Active</span>
-                </div>
-                <button id="modeSupervisedBtn" title="AI asks for approval before executing each task step" class="w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest bg-surface-variant/30 text-on-surface-variant border border-outline-variant/20 hover:text-on-surface">
-                    <span class="material-symbols-outlined text-sm">shield</span> Supervised
-                </button>
-                <button id="modeAutonomousBtn" title="AI executes tasks independently without asking for approval" class="w-full flex items-center gap-3 p-2 rounded text-[10px] font-bold uppercase tracking-widest text-outline border border-outline-variant/20 hover:text-on-surface">
-                    <span class="material-symbols-outlined text-sm">robot_2</span> Autonomous
-                </button>
-            </div>
-
             <div class="pt-4 border-t border-outline-variant/15 space-y-2">
                 <button id="editorToggle" title="Open the built-in code editor" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 text-xs font-semibold transition-all">
                     <span class="material-symbols-outlined text-sm mr-3">code</span> Code Editor
@@ -367,7 +353,7 @@
                                 </div>
                                 <div>
                                     <h2 class="font-headline font-bold text-lg">Task Pipeline</h2>
-                                    <span class="text-[10px] font-mono text-outline">Live activity from the autonomy engine</span>
+                                    <span class="text-[10px] font-mono text-outline">Live task execution activity</span>
                                 </div>
                             </div>
                         </div>

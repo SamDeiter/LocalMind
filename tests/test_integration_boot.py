@@ -132,8 +132,8 @@ class TestAppCreation:
     def test_health_deep_route_registered(self, all_route_paths):
         assert any(p == "/health/deep" for p in all_route_paths)
 
-    def test_autonomy_routes_registered(self, all_route_paths):
-        assert any("/api/autonomy" in p or "/api/proposals" in p for p in all_route_paths)
+    def test_learning_routes_registered(self, all_route_paths):
+        assert any("/api/learning" in p or "/api/ai-profile" in p for p in all_route_paths)
 
     def test_settings_routes_registered(self, all_route_paths):
         assert any("/api/settings" in p for p in all_route_paths)

@@ -19,8 +19,8 @@ router = APIRouter(prefix="/api/swarm", tags=["swarm"])
 @router.get("/status")
 async def swarm_status(request: Request):
     """Full swarm status: agents, queue, metrics."""
-    engine = request.app.state.autonomy_engine
-    coordinator = getattr(engine, "coordinator", None)
+    engine = getattr(request.app.state, "autonomy_engine", None)
+    coordinator = getattr(engine, "coordinator", None) if engine else None
     if not coordinator:
         return JSONResponse({"error": "Swarm not initialized", "running": False}, status_code=200)
     return JSONResponse(coordinator.get_status())
@@ -29,8 +29,8 @@ async def swarm_status(request: Request):
 @router.get("/agents")
 async def swarm_agents(request: Request):
     """Detailed status for every agent in the swarm."""
-    engine = request.app.state.autonomy_engine
-    coordinator = getattr(engine, "coordinator", None)
+    engine = getattr(request.app.state, "autonomy_engine", None)
+    coordinator = getattr(engine, "coordinator", None) if engine else None
     if not coordinator:
         return JSONResponse({"agents": []})
     return JSONResponse({"agents": coordinator.get_agent_details()})
@@ -39,8 +39,8 @@ async def swarm_agents(request: Request):
 @router.post("/scan")
 async def trigger_scan(request: Request):
     """Submit a full parallel codebase scan."""
-    engine = request.app.state.autonomy_engine
-    coordinator = getattr(engine, "coordinator", None)
+    engine = getattr(request.app.state, "autonomy_engine", None)
+    coordinator = getattr(engine, "coordinator", None) if engine else None
     if not coordinator:
         return JSONResponse({"error": "Swarm not initialized"}, status_code=503)
 
@@ -58,8 +58,8 @@ async def trigger_research(request: Request):
     query = body.get("query", "")
     source = body.get("source", "web")
 
-    engine = request.app.state.autonomy_engine
-    coordinator = getattr(engine, "coordinator", None)
+    engine = getattr(request.app.state, "autonomy_engine", None)
+    coordinator = getattr(engine, "coordinator", None) if engine else None
     if not coordinator:
         return JSONResponse({"error": "Swarm not initialized"}, status_code=503)
 
@@ -74,8 +74,8 @@ async def trigger_test(request: Request):
     mode = body.get("mode", "syntax")
     files = body.get("files", [])
 
-    engine = request.app.state.autonomy_engine
-    coordinator = getattr(engine, "coordinator", None)
+    engine = getattr(request.app.state, "autonomy_engine", None)
+    coordinator = getattr(engine, "coordinator", None) if engine else None
     if not coordinator:
         return JSONResponse({"error": "Swarm not initialized"}, status_code=503)
 

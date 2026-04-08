@@ -19,14 +19,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import (
-    DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, PROPOSALS_DIR, FRONTEND_URLS,
+    DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, FRONTEND_URLS,
     SLACK_ENABLED, GPU_VRAM_GB, VACUUM_INTERVAL_HOURS, JOB_RETENTION_DAYS,
     WORKSPACE_ROOT, BEST_OF_N_ENABLED, PRM_MODEL, LORA_ADAPTERS_DIR,
     MODEL_TIERS,
 )
 from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
 from backend.tools.registry import ToolRegistry
-from backend.autonomy import AutonomyEngine, PROPOSALS_DIR
 from backend.metacognition.controller import MetaCognitiveController
 from backend import notifications, gemini_client, db
 from backend.db import DB_PATH, get_db
@@ -59,7 +58,6 @@ except ImportError:
     logger.info("RAG not available — chromadb not installed")
 
 # -- Global Components --
-autonomy_engine = AutonomyEngine(ollama_url=OLLAMA_BASE_URL)
 metacog_controller = MetaCognitiveController(
     emit_activity=lambda *a, **kw: logger.debug(f"metacog: {a} {kw}"),
 )
@@ -111,9 +109,6 @@ async def lifespan(app: FastAPI):
             logger.warning("Secret scan: %s in %s", w.get("pattern", "unknown"), w.get("file", "unknown"))
     except Exception:
         logger.debug("Secret scanner skipped (non-critical)")
-
-    # Store engine on app.state for route access
-    app.state.autonomy_engine = autonomy_engine
 
     # ── Inference dependencies (ModelSelector, LoRA, BestOfN) ───
     model_selector = None
@@ -201,9 +196,13 @@ async def lifespan(app: FastAPI):
                 VACUUM_INTERVAL_HOURS, JOB_RETENTION_DAYS)
 
     # ── Start main workers ──────────────────────────────────────
-    await autonomy_engine.start()
     asyncio.create_task(job_worker.start())
-    logger.info("LocalMind server initialized (autonomy + job worker + GC active)")
+
+    # ── Background learning loop (self-discovery + skill learning) ──
+    from backend.autonomy.loops.research import run_learning_loop
+    asyncio.create_task(run_learning_loop())
+
+    logger.info("LocalMind server initialized (job worker + learning loop + GC active)")
     yield
 
     # ── Graceful shutdown ───────────────────────────────────────
@@ -212,18 +211,14 @@ async def lifespan(app: FastAPI):
         await gc_worker.stop()
     if slack_bot:
         await slack_bot.stop()
-    if hasattr(autonomy_engine, 'coordinator') and autonomy_engine.coordinator:
-        await autonomy_engine.coordinator.stop()
-    await autonomy_engine.stop()
 
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""
-    from backend.routes import chat, conversations, documents, autonomy_routes
+    from backend.routes import chat, conversations, documents
     from backend.routes.chat import init_chat_service
 
     init_chat_service(
         registry=registry,
-        autonomy_engine=autonomy_engine,
         metacog_controller=metacog_controller
     )
 
@@ -242,12 +237,6 @@ def _configure_routers():
     else:
         documents.configure(rag_available=False)
 
-    autonomy_routes.configure(
-        engine=autonomy_engine,
-        proposals_dir=PROPOSALS_DIR,
-        rag_available=RAG_AVAILABLE,
-        list_indexed_documents_fn=list_indexed_documents if RAG_AVAILABLE else None,
-    )
 
 # -- Create FastAPI App --
 app = FastAPI(title="LocalMind", version="1.0.0", lifespan=lifespan)
@@ -328,7 +317,6 @@ from backend.routes.memory import router as memory_router
 from backend.routes.files import router as files_router
 from backend.routes.tools import router as tools_router
 from backend.routes.documents import router as documents_router
-from backend.routes.autonomy_routes import router as autonomy_router
 from backend.routes.research_routes import router as research_router
 from backend.routes.system import router as system_router
 from backend.routes.settings import router as settings_router
@@ -354,7 +342,6 @@ app.include_router(memory_router)
 app.include_router(files_router)
 app.include_router(tools_router)
 app.include_router(documents_router)
-app.include_router(autonomy_router)
 app.include_router(research_router)
 app.include_router(system_router)
 app.include_router(settings_router)
