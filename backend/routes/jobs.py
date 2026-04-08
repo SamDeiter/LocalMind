@@ -38,6 +38,7 @@ from backend.config import JOBS_DIR, MAX_UPLOAD_SIZE_MB, WORKSPACE_ROOT
 from backend.jobs.models import Job, JobStatus
 from backend.jobs.queue import JobQueue
 from backend.security.paths import SecurityError, safe_resolve, sanitize_filename, validate_upload
+from backend.swarm.delegation import DelegationEngine
 
 logger = logging.getLogger("localmind.routes.jobs")
 
@@ -415,6 +416,13 @@ async def get_job(
     result["nodes"] = [n.to_dict() for n in nodes]
     result["files"] = [f.to_dict() for f in files]
     result["audit"] = [a.to_dict() for a in audit]
+
+    # Expose delegation tree fields if present on the job
+    if getattr(job, "parent_job_id", None):
+        result["parent_job_id"] = job.parent_job_id
+    if getattr(job, "tree_root_id", None):
+        result["tree_root_id"] = job.tree_root_id
+
     return JSONResponse(result)
 
 
@@ -457,6 +465,29 @@ async def cancel_job(
     })
 
     return JSONResponse((updated or job).to_api_dict())
+
+
+@router.get("/{job_id}/tree")
+async def get_job_tree(
+    job_id: str = FPath(..., description="Job UUID"),
+) -> JSONResponse:
+    """Return the delegation tree for a job.
+
+    Uses DelegationEngine to build the full tree starting from this job.
+    Returns 404 if the job is not found.
+    """
+    queue = _queue()
+    job = queue.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+
+    try:
+        engine = DelegationEngine()
+        tree = engine.get_full_tree(job_id)
+        return JSONResponse({"tree": tree})
+    except Exception as exc:
+        logger.exception("Failed to get delegation tree for job %s", job_id)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/{job_id}/files/{file_id}")

@@ -24,6 +24,10 @@ from .agents.scanner_agent import ScannerAgent
 from .agents.test_agent import TestAgent
 from .agents.research_agent import ResearchAgent
 from .agents.llm_agent import LLMAgent
+from backend.swarm.delegation import DelegationEngine
+from backend.swarm.shared_memory import SharedMemoryStore
+from backend.swarm.resource_lock import ResourceLockManager
+from backend.swarm.messaging import AgentMessageBus
 
 logger = logging.getLogger("localmind.swarm.coordinator")
 
@@ -69,6 +73,12 @@ class HiveCoordinator:
         # Worker tasks
         self._worker_tasks: list[asyncio.Task] = []
         self._running = False
+
+        # Delegation subsystems
+        self.delegation = DelegationEngine()
+        self.shared_memory = SharedMemoryStore()
+        self.lock_manager = ResourceLockManager()
+        self.message_bus = AgentMessageBus()
 
         # Metrics
         self._start_time: Optional[float] = None
@@ -342,6 +352,59 @@ class HiveCoordinator:
         )
         self.queue.submit(task)
         return task.id
+
+    # ── Delegation Helpers ────────────────────────────────────────
+
+    def submit_delegated_job(
+        self,
+        parent_job_id: str,
+        title: str,
+        description: str,
+        delegation_type: str = "sub_task",
+        context: Optional[dict] = None,
+        priority: int = 5,
+    ) -> dict:
+        """Spawn a child job under *parent_job_id* via the delegation engine.
+
+        Returns the delegation record as a dict.
+        """
+        delegation = self.delegation.spawn_child_job(
+            parent_job_id=parent_job_id,
+            title=title,
+            description=description,
+            delegation_type=delegation_type,
+            context=context,
+            priority=priority,
+        )
+        return delegation.to_dict()
+
+    def get_tree_status(self, job_id: str) -> dict:
+        """Return aggregated status for an entire delegation tree.
+
+        Includes the recursive job tree, shared memory entries, active
+        resource locks, and message count.
+        """
+        root_id = self.delegation.get_tree_root(job_id)
+        tree = self.delegation.get_full_tree(root_id)
+        memory_entries = self.shared_memory.get_all(root_id)
+        active_locks = self.lock_manager.list_active()
+        messages = self.message_bus.get_messages_for_tree(root_id)
+
+        return {
+            "tree": tree,
+            "shared_memory": [e.to_dict() for e in memory_entries],
+            "active_locks": [lk.to_dict() for lk in active_locks],
+            "messages_count": len(messages),
+        }
+
+    def cleanup(self) -> None:
+        """Run periodic maintenance on delegation subsystems.
+
+        Releases expired resource locks and expires stale messages.
+        Should be called periodically (e.g. from the auto-scheduler).
+        """
+        self.lock_manager.cleanup_expired()
+        self.message_bus.cleanup_expired()
 
     # ── Status & Metrics ──────────────────────────────────────────
 

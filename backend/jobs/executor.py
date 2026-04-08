@@ -475,6 +475,30 @@ class NodeExecutor:
                     "iteration": iteration + 1,
                 })
 
+                # ── Delegate pseudo-tool interception ─────────────────
+                # When the LLM emits a tool call named "delegate", we do
+                # NOT route it to the tool registry.  Instead we return
+                # the delegation signal as the node's final output so the
+                # worker can spawn a child job.
+                if tool_name == "delegate":
+                    logger.info(
+                        "Node '%s' requested delegation: %s", node.id, tool_args,
+                    )
+                    delegate_output = {
+                        "delegate": {
+                            "title": tool_args.get("title", "Delegated sub-task"),
+                            "description": tool_args.get("description", ""),
+                            "priority": tool_args.get("priority", 5),
+                        },
+                        "result": "Delegation requested.",
+                    }
+                    return {
+                        "output": delegate_output,
+                        "tokens_in": tokens_in_total,
+                        "tokens_out": tokens_out_total,
+                        "tool_calls_made": tool_calls_made,
+                    }
+
                 # ── Anomaly check ──────────────────────────────────────
                 anomaly = self._prompt_guard.check_anomaly(
                     node_type=node.id,
@@ -774,28 +798,68 @@ class NodeExecutor:
     # Tool scoping
     # ------------------------------------------------------------------
 
+    # Pseudo-tool definition for delegation — always available so the LLM
+    # can request spawning a child job at any point during node execution.
+    _DELEGATE_TOOL_SCHEMA: dict = {
+        "type": "function",
+        "function": {
+            "name": "delegate",
+            "description": (
+                "Delegate a sub-task to a new child job. Use this when the "
+                "current task is too large or requires a separate specialist. "
+                "The child job will be executed independently and the parent "
+                "will wait for it to finish before proceeding to review."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Short title for the delegated sub-task.",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Detailed description of what the child job should accomplish.",
+                    },
+                    "priority": {
+                        "type": "integer",
+                        "description": "Priority of the child job (1-10, default 5).",
+                    },
+                },
+                "required": ["title", "description"],
+            },
+        },
+    }
+
     def _scope_tools(self, allowed_names: list[str]) -> list[dict]:
         """Return Ollama-format tool schemas filtered to ``allowed_names``.
 
         If ``allowed_names`` is empty or ``["*"]``, all registered tools are
         included (useful for quick-mode nodes that don't restrict tools).
+
+        The ``delegate`` pseudo-tool is always appended so the agent can
+        request spawning child jobs regardless of the node's tool whitelist.
         """
         all_tools: list[dict] = self._registry.get_ollama_tools()
 
         if not allowed_names or allowed_names == ["*"]:
-            return all_tools
+            return all_tools + [self._DELEGATE_TOOL_SCHEMA]
 
         allowed_set = set(allowed_names)
         scoped = [t for t in all_tools if t["function"]["name"] in allowed_set]
 
         # Log any names that were requested but not found in the registry.
         registered_names = {t["function"]["name"] for t in all_tools}
-        missing = allowed_set - registered_names
+        # "delegate" is a pseudo-tool, not in the registry — exclude from warnings.
+        missing = allowed_set - registered_names - {"delegate"}
         if missing:
             logger.warning(
                 "Node requested tools not found in registry: %s",
                 sorted(missing),
             )
+
+        # Always include the delegate pseudo-tool.
+        scoped.append(self._DELEGATE_TOOL_SCHEMA)
 
         return scoped
 

@@ -47,6 +47,35 @@ def _get_conn() -> sqlite3.Connection:
     return conn
 
 
+def _ensure_delegation_columns() -> None:
+    """Add parent_job_id and tree_root_id columns to jobs table if missing.
+
+    Wrapped in try/except so it is safe to call on every startup — the ALTER
+    TABLE will silently fail when the columns already exist or the jobs table
+    has not been created yet (first-time startup before schema init).
+    """
+    try:
+        conn = _get_conn()
+    except Exception:
+        # DB file may not exist yet on first import
+        return
+    try:
+        for col in ("parent_job_id", "tree_root_id"):
+            try:
+                conn.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT")
+                conn.commit()
+                logger.info("Migration: added column jobs.%s", col)
+            except sqlite3.OperationalError:
+                # Column already exists, or jobs table not yet created — both OK
+                pass
+    finally:
+        conn.close()
+
+
+# Run migration on module import so columns exist before any CRUD call.
+_ensure_delegation_columns()
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -78,27 +107,51 @@ class JobQueue:
         template_id: str | None = None,
         priority: int = 0,
         source_ref: str | None = None,
+        parent_job_id: str | None = None,
+        tree_root_id: str | None = None,
     ) -> Job:
         """Insert a new job row and return the populated Job model."""
         job_id = _new_id()
         now = _now()
         conn = _get_conn()
         try:
-            conn.execute(
-                """
-                INSERT INTO jobs (
-                    id, workspace_id, title, description, source, source_ref,
-                    status, priority, requester, mode, template_id,
-                    result_summary, review_count, max_reviews, error,
-                    cost_cents, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 3, NULL, 0, ?, ?)
-                """,
-                (
-                    job_id, workspace_id, title, description, source, source_ref,
-                    JobStatus.PENDING.value, priority, requester, mode, template_id,
-                    now, now,
-                ),
-            )
+            # Check if delegation columns exist (they may not in test DBs).
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+            has_delegation = "parent_job_id" in cols
+
+            if has_delegation:
+                conn.execute(
+                    """
+                    INSERT INTO jobs (
+                        id, workspace_id, title, description, source, source_ref,
+                        status, priority, requester, mode, template_id,
+                        result_summary, review_count, max_reviews, error,
+                        cost_cents, created_at, updated_at,
+                        parent_job_id, tree_root_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 3, NULL, 0, ?, ?, ?, ?)
+                    """,
+                    (
+                        job_id, workspace_id, title, description, source, source_ref,
+                        JobStatus.PENDING.value, priority, requester, mode, template_id,
+                        now, now, parent_job_id, tree_root_id,
+                    ),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO jobs (
+                        id, workspace_id, title, description, source, source_ref,
+                        status, priority, requester, mode, template_id,
+                        result_summary, review_count, max_reviews, error,
+                        cost_cents, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 3, NULL, 0, ?, ?)
+                    """,
+                    (
+                        job_id, workspace_id, title, description, source, source_ref,
+                        JobStatus.PENDING.value, priority, requester, mode, template_id,
+                        now, now,
+                    ),
+                )
             conn.commit()
             row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
             job = Job.from_row(row)
@@ -174,9 +227,80 @@ class JobQueue:
             conn.close()
         logger.debug("Job %s → status=%s", job_id, status)
 
-    def cancel_job(self, job_id: str) -> None:
-        """Transition a job to 'cancelling' status."""
+    def cancel_job(self, job_id: str, cascade: bool = False) -> None:
+        """Transition a job to 'cancelling' status.
+
+        When *cascade* is True, also cancel all child jobs by walking the
+        ``job_delegation`` table recursively.
+        """
         self.update_job_status(job_id, JobStatus.CANCELLING.value)
+        if cascade:
+            self._cascade_cancel(job_id)
+
+    def _cascade_cancel(self, parent_id: str) -> None:
+        """Recursively cancel all descendant jobs of *parent_id*."""
+        conn = _get_conn()
+        try:
+            children = conn.execute(
+                "SELECT child_job_id FROM job_delegation WHERE parent_job_id = ?",
+                (parent_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        for child_row in children:
+            child_id = child_row["child_job_id"]
+            self.update_job_status(child_id, JobStatus.CANCELLING.value)
+            self._cascade_cancel(child_id)
+
+    # ------------------------------------------------------------------
+    # Delegation-aware queries
+    # ------------------------------------------------------------------
+
+    def get_child_jobs(self, parent_job_id: str) -> list[Job]:
+        """Return all direct child jobs of *parent_job_id* via job_delegation."""
+        conn = _get_conn()
+        try:
+            rows = conn.execute(
+                """
+                SELECT j.*
+                FROM jobs j
+                JOIN job_delegation d ON j.id = d.child_job_id
+                WHERE d.parent_job_id = ?
+                ORDER BY j.created_at
+                """,
+                (parent_job_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        return [Job.from_row(r) for r in rows]
+
+    def get_job_tree(self, root_job_id: str) -> list[Job]:
+        """Return all jobs in the delegation tree rooted at *root_job_id*.
+
+        Uses a recursive CTE to walk the ``job_delegation`` table and
+        includes the root job itself.
+        """
+        conn = _get_conn()
+        try:
+            rows = conn.execute(
+                """
+                WITH RECURSIVE tree(job_id) AS (
+                    SELECT ?
+                    UNION ALL
+                    SELECT d.child_job_id
+                    FROM job_delegation d
+                    JOIN tree t ON d.parent_job_id = t.job_id
+                )
+                SELECT j.*
+                FROM jobs j
+                JOIN tree t ON j.id = t.job_id
+                ORDER BY j.created_at
+                """,
+                (root_job_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        return [Job.from_row(r) for r in rows]
 
     def track_cost(self, job_id: str, cents: float) -> None:
         """Atomically add *cents* to the job's cost_cents column."""

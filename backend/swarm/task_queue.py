@@ -26,6 +26,7 @@ class TaskType(str, Enum):
     LLM_REFLECT = "llm_reflect"         # GPU: Generate proposals
     LLM_EDIT = "llm_edit"              # GPU: Code editing
     LLM_TARGET = "llm_target"          # GPU: File targeting
+    DELEGATED_JOB = "delegated_job"    # Delegation: child job spawned by DelegationEngine
 
 
 # Which task types require the GPU
@@ -43,6 +44,7 @@ class SwarmTask:
     timeout: float = 300.0
     created_at: float = field(default_factory=time.time)
     parent_id: Optional[str] = None      # For task chaining
+    tree_root_id: Optional[str] = None   # Root job ID when part of a delegation tree
     retries: int = 0
     max_retries: int = 2
 

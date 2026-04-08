@@ -115,6 +115,9 @@ export function initSwarmUI() {
         return;
     }
 
+    // Initialize swarm tab bar
+    initSwarmTabs();
+
     // Connect toggle
     btn.addEventListener('click', (e) => {
         // If clicking on text or icon, ensure the button handles it
@@ -255,4 +258,489 @@ function formatUptime(sec) {
     if (sec < 60) return `${sec}s`;
     if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
     return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+}
+
+// ---------------------------------------------------------------------------
+// Multi-Agent Swarm Visualization
+// ---------------------------------------------------------------------------
+
+const SWARM_TABS = [
+    { id: 'agents',   label: 'Agents'   },
+    { id: 'tree',     label: 'Tree'     },
+    { id: 'memory',   label: 'Memory'   },
+    { id: 'messages', label: 'Messages' },
+    { id: 'locks',    label: 'Locks'    }
+];
+
+// Panels keyed by tab id.  "agents" maps to the existing content above the
+// tab bar (metrics + grid + results + improvements) which we simply leave
+// visible / hidden as a group.
+const PANEL_IDS = {
+    agents:   null,           // special - controls existing content
+    tree:     'swarmTreeView',
+    memory:   'swarmMemoryView',
+    messages: 'swarmMessageLog',
+    locks:    'swarmLockStatus'
+};
+
+let activeSwarmTab = 'agents';
+
+/**
+ * Build the tab-bar buttons inside #swarmTabBar and wire click handlers.
+ * Safe to call multiple times - it will only render once.
+ */
+export function initSwarmTabs() {
+    const bar = document.getElementById('swarmTabBar');
+    if (!bar || bar.children.length > 0) return;
+
+    SWARM_TABS.forEach(tab => {
+        const btn = document.createElement('button');
+        btn.dataset.swarmTab = tab.id;
+        btn.textContent = tab.label;
+        btn.className = tabClass(tab.id === activeSwarmTab);
+        btn.addEventListener('click', () => switchSwarmTab(tab.id));
+        bar.appendChild(btn);
+    });
+}
+
+function tabClass(active) {
+    const base = 'px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors';
+    return active
+        ? `${base} bg-amber-500/20 text-amber-400 border border-amber-500/30`
+        : `${base} text-slate-500 hover:text-slate-300 hover:bg-slate-800/40 border border-transparent`;
+}
+
+function switchSwarmTab(tabId) {
+    activeSwarmTab = tabId;
+
+    // Update button styles
+    const bar = document.getElementById('swarmTabBar');
+    if (bar) {
+        [...bar.children].forEach(btn => {
+            btn.className = tabClass(btn.dataset.swarmTab === tabId);
+        });
+    }
+
+    // Existing "agents" content: metrics row, agent grid, results/improvements
+    const agentSections = ['swarmMetrics', 'swarmAgentGrid', 'swarmResultStream', 'swarmImprovementsStream'];
+    agentSections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            // Walk up to the nearest direct child of the dashboard view so we
+            // toggle the whole visual section, not just the inner container.
+            const section = el.closest('#swarmDashboardView > div, #swarmDashboardView > section') || el.parentElement;
+            if (section) section.classList.toggle('hidden', tabId !== 'agents');
+        }
+    });
+
+    // New panels
+    Object.entries(PANEL_IDS).forEach(([key, panelId]) => {
+        if (!panelId) return;
+        const panel = document.getElementById(panelId);
+        if (panel) panel.classList.toggle('hidden', key !== tabId);
+    });
+
+    // Lazy-load data for the selected tab
+    if (tabId === 'tree')     loadTreeTab();
+    if (tabId === 'memory')   loadMemoryTab();
+    if (tabId === 'messages') loadMessagesTab();
+    if (tabId === 'locks')    loadLocksTab();
+}
+
+// ---------------------------------------------------------------------------
+// 1. Tree Visualization
+// ---------------------------------------------------------------------------
+
+let _selectedTreeJobId = null;
+
+async function loadTreeTab() {
+    const container = document.getElementById('swarmTreeView');
+    if (!container) return;
+    if (!_selectedTreeJobId) {
+        container.innerHTML = `
+            <div class="mb-4 flex items-center gap-2">
+                <input id="swarmTreeJobInput" type="text" placeholder="Enter Job ID..."
+                    class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 w-64" />
+                <button id="swarmTreeLoadBtn"
+                    class="px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
+                    Load Tree
+                </button>
+            </div>
+            <div id="swarmTreeContent" class="text-xs text-slate-500 italic">Enter a job ID to view its delegation tree.</div>`;
+        document.getElementById('swarmTreeLoadBtn')?.addEventListener('click', () => {
+            const val = document.getElementById('swarmTreeJobInput')?.value?.trim();
+            if (val) { _selectedTreeJobId = val; loadTreeTab(); }
+        });
+        return;
+    }
+    container.innerHTML = '<div class="text-xs text-slate-400 animate-pulse">Loading tree...</div>';
+    try {
+        const res = await fetch(`${API}/api/swarm/tree/${_selectedTreeJobId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const treeData = await res.json();
+        container.innerHTML = '';
+        const header = document.createElement('div');
+        header.className = 'flex items-center gap-2 mb-4';
+        header.innerHTML = `
+            <button id="swarmTreeBack" class="text-slate-400 hover:text-white text-xs underline">&#8592; Change Job</button>
+            <span class="text-[10px] text-slate-500 font-mono">Job: ${_selectedTreeJobId}</span>`;
+        container.appendChild(header);
+        document.getElementById('swarmTreeBack')?.addEventListener('click', () => { _selectedTreeJobId = null; loadTreeTab(); });
+        const treeEl = document.createElement('div');
+        treeEl.id = 'swarmTreeContent';
+        container.appendChild(treeEl);
+        renderJobTree(treeData, treeEl);
+    } catch (err) {
+        container.innerHTML = `<div class="text-xs text-red-400">Failed to load tree: ${err.message}</div>`;
+    }
+}
+
+/**
+ * Render a collapsible job delegation tree.
+ * @param {Object} treeData  - { title, status, delegation_type, children?: [...] }
+ * @param {HTMLElement} container
+ */
+export function renderJobTree(treeData, container) {
+    if (!treeData || !container) return;
+    const ul = document.createElement('ul');
+    ul.className = 'space-y-1 pl-4 border-l border-slate-700/50';
+    appendTreeNode(ul, treeData);
+    container.innerHTML = '';
+    container.appendChild(ul);
+}
+
+function statusBadge(status) {
+    const map = {
+        completed: 'bg-emerald-500/20 text-emerald-400',
+        running:   'bg-blue-500/20 text-blue-400',
+        failed:    'bg-red-500/20 text-red-400',
+        cancelled: 'bg-slate-600/20 text-slate-400'
+    };
+    const cls = map[(status || '').toLowerCase()] || 'bg-slate-600/20 text-slate-400';
+    return `<span class="text-[9px] font-bold uppercase tracking-widest ${cls} px-2 py-0.5 rounded-full">${status || 'unknown'}</span>`;
+}
+
+function appendTreeNode(ul, node) {
+    const li = document.createElement('li');
+    li.className = 'py-1';
+
+    const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+    const toggle = hasChildren
+        ? `<button class="swarm-tree-toggle text-slate-500 hover:text-slate-300 mr-1 text-xs select-none" aria-expanded="true">&#9660;</button>`
+        : `<span class="inline-block w-4 mr-1"></span>`;
+
+    li.innerHTML = `
+        <div class="flex items-center gap-2 group">
+            ${toggle}
+            <span class="text-xs text-slate-200 font-semibold">${node.title || 'Untitled'}</span>
+            ${statusBadge(node.status)}
+            ${node.delegation_type ? `<span class="text-[9px] text-slate-500 font-mono">${node.delegation_type}</span>` : ''}
+        </div>`;
+
+    if (hasChildren) {
+        const childUl = document.createElement('ul');
+        childUl.className = 'space-y-1 pl-4 border-l border-slate-700/50 mt-1';
+        node.children.forEach(child => appendTreeNode(childUl, child));
+        li.appendChild(childUl);
+
+        const toggleBtn = li.querySelector('.swarm-tree-toggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                const expanded = childUl.style.display !== 'none';
+                childUl.style.display = expanded ? 'none' : '';
+                toggleBtn.innerHTML = expanded ? '&#9654;' : '&#9660;';
+                toggleBtn.setAttribute('aria-expanded', String(!expanded));
+            });
+        }
+    }
+    ul.appendChild(li);
+}
+
+// ---------------------------------------------------------------------------
+// 2. Shared Memory Viewer
+// ---------------------------------------------------------------------------
+
+let _selectedMemoryJobId = null;
+
+async function loadMemoryTab() {
+    const container = document.getElementById('swarmMemoryView');
+    if (!container) return;
+    if (!_selectedMemoryJobId) {
+        container.innerHTML = `
+            <div class="mb-4 flex items-center gap-2">
+                <input id="swarmMemJobInput" type="text" placeholder="Enter Job ID..."
+                    class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 w-64" />
+                <button id="swarmMemLoadBtn"
+                    class="px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
+                    Load Memory
+                </button>
+            </div>
+            <div class="text-xs text-slate-500 italic">Enter a job ID to view shared memory.</div>`;
+        document.getElementById('swarmMemLoadBtn')?.addEventListener('click', () => {
+            const val = document.getElementById('swarmMemJobInput')?.value?.trim();
+            if (val) { _selectedMemoryJobId = val; loadMemoryTab(); }
+        });
+        return;
+    }
+    container.innerHTML = '<div class="text-xs text-slate-400 animate-pulse">Loading memory...</div>';
+    try {
+        const res = await fetch(`${API}/api/swarm/memory/${_selectedMemoryJobId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        container.innerHTML = '';
+        const header = document.createElement('div');
+        header.className = 'flex items-center gap-2 mb-4';
+        header.innerHTML = `
+            <button id="swarmMemBack" class="text-slate-400 hover:text-white text-xs underline">&#8592; Change Job</button>
+            <span class="text-[10px] text-slate-500 font-mono">Job: ${_selectedMemoryJobId}</span>`;
+        container.appendChild(header);
+        document.getElementById('swarmMemBack')?.addEventListener('click', () => { _selectedMemoryJobId = null; loadMemoryTab(); });
+        const tableEl = document.createElement('div');
+        container.appendChild(tableEl);
+        renderSharedMemory(_selectedMemoryJobId, tableEl, data);
+    } catch (err) {
+        container.innerHTML = `<div class="text-xs text-red-400">Failed to load memory: ${err.message}</div>`;
+    }
+}
+
+/**
+ * Render shared memory key-value table.
+ * @param {string} jobId
+ * @param {HTMLElement} container
+ * @param {Object} [prefetchedData] - optional pre-fetched data to avoid a duplicate request
+ */
+export async function renderSharedMemory(jobId, container, prefetchedData) {
+    if (!container) return;
+    let entries;
+    if (prefetchedData) {
+        entries = Array.isArray(prefetchedData) ? prefetchedData : (prefetchedData.entries || []);
+    } else {
+        try {
+            const res = await fetch(`${API}/api/swarm/memory/${jobId}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            entries = Array.isArray(data) ? data : (data.entries || []);
+        } catch (err) {
+            container.innerHTML = `<div class="text-xs text-red-400">Error: ${err.message}</div>`;
+            return;
+        }
+    }
+
+    if (entries.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 italic">No shared memory entries.</div>';
+        return;
+    }
+
+    const truncate = (v, max = 100) => {
+        const s = typeof v === 'string' ? v : JSON.stringify(v);
+        return s.length > max ? s.slice(0, max) + '...' : s;
+    };
+
+    container.innerHTML = `
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="text-left text-[9px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700">
+                        <th class="pb-2 pr-4">Key</th>
+                        <th class="pb-2 pr-4">Value</th>
+                        <th class="pb-2 pr-4">Version</th>
+                        <th class="pb-2 pr-4">Written By</th>
+                        <th class="pb-2">Updated At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${entries.map(e => `
+                        <tr class="border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors">
+                            <td class="py-2 pr-4 text-slate-200 font-mono">${e.key || ''}</td>
+                            <td class="py-2 pr-4 text-slate-400 font-mono max-w-xs truncate" title="${truncate(e.value, 500)}">${truncate(e.value)}</td>
+                            <td class="py-2 pr-4 text-slate-500">${e.version ?? ''}</td>
+                            <td class="py-2 pr-4 text-slate-400">${e.written_by || ''}</td>
+                            <td class="py-2 text-slate-500 font-mono">${e.updated_at || ''}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+// ---------------------------------------------------------------------------
+// 3. Message Log
+// ---------------------------------------------------------------------------
+
+let _selectedMsgJobId = null;
+
+async function loadMessagesTab() {
+    const container = document.getElementById('swarmMessageLog');
+    if (!container) return;
+    if (!_selectedMsgJobId) {
+        container.innerHTML = `
+            <div class="mb-4 flex items-center gap-2">
+                <input id="swarmMsgJobInput" type="text" placeholder="Enter Job ID..."
+                    class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 w-64" />
+                <button id="swarmMsgLoadBtn"
+                    class="px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors">
+                    Load Messages
+                </button>
+            </div>
+            <div class="text-xs text-slate-500 italic">Enter a job ID to view agent messages.</div>`;
+        document.getElementById('swarmMsgLoadBtn')?.addEventListener('click', () => {
+            const val = document.getElementById('swarmMsgJobInput')?.value?.trim();
+            if (val) { _selectedMsgJobId = val; loadMessagesTab(); }
+        });
+        return;
+    }
+    container.innerHTML = '<div class="text-xs text-slate-400 animate-pulse">Loading messages...</div>';
+    try {
+        const res = await fetch(`${API}/api/swarm/messages/${_selectedMsgJobId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        container.innerHTML = '';
+        const header = document.createElement('div');
+        header.className = 'flex items-center gap-2 mb-4';
+        header.innerHTML = `
+            <button id="swarmMsgBack" class="text-slate-400 hover:text-white text-xs underline">&#8592; Change Job</button>
+            <span class="text-[10px] text-slate-500 font-mono">Job: ${_selectedMsgJobId}</span>`;
+        container.appendChild(header);
+        document.getElementById('swarmMsgBack')?.addEventListener('click', () => { _selectedMsgJobId = null; loadMessagesTab(); });
+        const logEl = document.createElement('div');
+        container.appendChild(logEl);
+        renderMessageLog(_selectedMsgJobId, logEl, data);
+    } catch (err) {
+        container.innerHTML = `<div class="text-xs text-red-400">Failed to load messages: ${err.message}</div>`;
+    }
+}
+
+/**
+ * Render chronological agent message log.
+ * @param {string} jobId
+ * @param {HTMLElement} container
+ * @param {Object} [prefetchedData]
+ */
+export async function renderMessageLog(jobId, container, prefetchedData) {
+    if (!container) return;
+    let messages;
+    if (prefetchedData) {
+        messages = Array.isArray(prefetchedData) ? prefetchedData : (prefetchedData.messages || []);
+    } else {
+        try {
+            const res = await fetch(`${API}/api/swarm/messages/${jobId}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            messages = Array.isArray(data) ? data : (data.messages || []);
+        } catch (err) {
+            container.innerHTML = `<div class="text-xs text-red-400">Error: ${err.message}</div>`;
+            return;
+        }
+    }
+
+    if (messages.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 italic">No messages recorded.</div>';
+        return;
+    }
+
+    const typeBadge = (type) => {
+        const colors = {
+            delegate:  'bg-violet-500/20 text-violet-400',
+            result:    'bg-emerald-500/20 text-emerald-400',
+            error:     'bg-red-500/20 text-red-400',
+            broadcast: 'bg-amber-500/20 text-amber-400',
+            request:   'bg-blue-500/20 text-blue-400'
+        };
+        const cls = colors[(type || '').toLowerCase()] || 'bg-slate-600/20 text-slate-400';
+        return `<span class="text-[9px] font-bold uppercase tracking-widest ${cls} px-2 py-0.5 rounded-full">${type || 'info'}</span>`;
+    };
+
+    container.innerHTML = `
+        <div class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+            ${messages.map(m => `
+                <div class="flex items-start gap-3 p-3 bg-slate-900/40 border border-slate-800/40 rounded-lg hover:bg-slate-800/30 transition-colors">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[10px] font-bold text-slate-200">${m.from || 'unknown'}</span>
+                            <span class="text-[9px] text-slate-600">&#8594;</span>
+                            <span class="text-[10px] text-slate-400">${m.to || 'broadcast'}</span>
+                            ${typeBadge(m.type)}
+                        </div>
+                        <div class="text-xs text-slate-300 truncate">${m.subject || ''}</div>
+                    </div>
+                    <span class="text-[9px] text-slate-600 font-mono whitespace-nowrap">${m.timestamp || ''}</span>
+                </div>
+            `).join('')}
+        </div>`;
+}
+
+// ---------------------------------------------------------------------------
+// 4. Lock Status
+// ---------------------------------------------------------------------------
+
+async function loadLocksTab() {
+    const container = document.getElementById('swarmLockStatus');
+    if (!container) return;
+    container.innerHTML = '<div class="text-xs text-slate-400 animate-pulse">Loading locks...</div>';
+    try {
+        const res = await fetch(`${API}/api/swarm/locks`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderLockStatus(container, data);
+    } catch (err) {
+        container.innerHTML = `<div class="text-xs text-red-400">Failed to load locks: ${err.message}</div>`;
+    }
+}
+
+/**
+ * Render active resource locks table.
+ * @param {HTMLElement} container
+ * @param {Object} [prefetchedData]
+ */
+export async function renderLockStatus(container, prefetchedData) {
+    if (!container) return;
+    let locks;
+    if (prefetchedData) {
+        locks = Array.isArray(prefetchedData) ? prefetchedData : (prefetchedData.locks || []);
+    } else {
+        try {
+            const res = await fetch(`${API}/api/swarm/locks`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            locks = Array.isArray(data) ? data : (data.locks || []);
+        } catch (err) {
+            container.innerHTML = `<div class="text-xs text-red-400">Error: ${err.message}</div>`;
+            return;
+        }
+    }
+
+    if (locks.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 italic">No active locks.</div>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="text-left text-[9px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700">
+                        <th class="pb-2 pr-4">Resource</th>
+                        <th class="pb-2 pr-4">Lock Type</th>
+                        <th class="pb-2 pr-4">Held By</th>
+                        <th class="pb-2 pr-4">Acquired</th>
+                        <th class="pb-2">Expires</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${locks.map(l => `
+                        <tr class="border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors">
+                            <td class="py-2 pr-4 text-slate-200 font-mono">${l.resource || ''}</td>
+                            <td class="py-2 pr-4">
+                                <span class="text-[9px] font-bold uppercase tracking-widest ${l.lock_type === 'exclusive' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'} px-2 py-0.5 rounded-full">
+                                    ${l.lock_type || 'shared'}
+                                </span>
+                            </td>
+                            <td class="py-2 pr-4 text-slate-400">${l.held_by || ''}</td>
+                            <td class="py-2 pr-4 text-slate-500 font-mono">${l.acquired || ''}</td>
+                            <td class="py-2 text-slate-500 font-mono">${l.expires || ''}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
 }

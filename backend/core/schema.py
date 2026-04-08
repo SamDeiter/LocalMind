@@ -573,6 +573,66 @@ def init_phase0_schema():
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_action ON job_audit_log(action)")
 
+    # ── Swarm: Multi-Agent Coordination (Phase 5) ─────────────────
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS job_delegation (
+            id TEXT PRIMARY KEY,
+            parent_job_id TEXT NOT NULL,
+            child_job_id TEXT NOT NULL,
+            delegation_type TEXT NOT NULL DEFAULT 'sub_task',
+            context_json TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL,
+            completed_at TEXT,
+            UNIQUE(parent_job_id, child_job_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_delegation_parent ON job_delegation(parent_job_id);
+        CREATE INDEX IF NOT EXISTS idx_delegation_child ON job_delegation(child_job_id);
+
+        CREATE TABLE IF NOT EXISTS swarm_shared_memory (
+            id TEXT PRIMARY KEY,
+            tree_root_job_id TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value_json TEXT NOT NULL,
+            written_by_job_id TEXT NOT NULL,
+            written_by_node_id TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(tree_root_job_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_shared_mem_tree ON swarm_shared_memory(tree_root_job_id);
+
+        CREATE TABLE IF NOT EXISTS resource_locks (
+            id TEXT PRIMARY KEY,
+            resource_path TEXT NOT NULL,
+            lock_type TEXT NOT NULL DEFAULT 'exclusive',
+            held_by_job_id TEXT NOT NULL,
+            held_by_node_id TEXT,
+            acquired_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            released_at TEXT,
+            UNIQUE(resource_path, held_by_job_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_locks_resource ON resource_locks(resource_path);
+        CREATE INDEX IF NOT EXISTS idx_locks_job ON resource_locks(held_by_job_id);
+
+        CREATE TABLE IF NOT EXISTS agent_messages (
+            id TEXT PRIMARY KEY,
+            tree_root_job_id TEXT NOT NULL,
+            from_job_id TEXT NOT NULL,
+            to_job_id TEXT,
+            message_type TEXT NOT NULL,
+            subject TEXT,
+            body_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            read_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_messages_tree ON agent_messages(tree_root_job_id);
+        CREATE INDEX IF NOT EXISTS idx_messages_to ON agent_messages(to_job_id, status);
+    """)
+
     conn.commit()
     conn.close()
     logger.info("Phase 0 enterprise schema initialized")

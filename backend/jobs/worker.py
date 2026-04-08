@@ -30,6 +30,8 @@ from backend.jobs.queue import JobQueue
 from backend.jobs.planner import JobPlanner
 from backend.jobs.executor import NodeExecutor
 from backend.jobs.reviewer import JobReviewer
+from backend.swarm.delegation import DelegationEngine
+from backend.swarm.shared_memory import SharedMemoryStore
 
 logger = logging.getLogger("localmind.jobs.worker")
 
@@ -88,6 +90,8 @@ class JobWorker:
         )
         self.reviewer = JobReviewer(tool_registry)
         self._activity_callback = activity_callback
+        self._delegation_engine = DelegationEngine()
+        self._shared_memory = SharedMemoryStore()
 
         self._running: bool = False
         self._current_job_id: str | None = None
@@ -328,6 +332,25 @@ class JobWorker:
                 err = failed_node.error if failed_node else "One or more nodes failed."
                 await self._handle_failure(job, err, node=failed_node)
                 return
+
+            # ── Wait for delegated child jobs (if any) ────────────
+            children = self._delegation_engine.get_children(job.id)
+            if children:
+                logger.info(
+                    "Job %s has %d child job(s) — waiting for completion.",
+                    job.id, len(children),
+                )
+                await self._emit("job_waiting_children", {
+                    "job_id": job.id,
+                    "child_count": len(children),
+                })
+                children_done = await self._wait_for_children(job.id)
+                if not children_done:
+                    await self._handle_failure(
+                        job,
+                        "Timed out waiting for delegated child jobs to complete.",
+                    )
+                    return
 
             # ── Review ────────────────────────────────────────────────
             self.queue.update_job_status(job.id, JobStatus.REVIEWING.value)
@@ -600,6 +623,12 @@ class JobWorker:
                     "tokens_out": result.tokens_out,
                     "tool_calls_made": result.tool_calls_made,
                 })
+
+                # ── Delegation check ──────────────────────────────
+                # If the node output contains a "delegate" key, spawn
+                # a child job via the DelegationEngine.
+                if isinstance(result.output, dict) and "delegate" in result.output:
+                    await self._handle_delegation(job, result.output["delegate"])
             else:
                 # Node reported failure (e.g. schema validation).
                 error_msg = result.error or "Node execution failed."
@@ -626,6 +655,73 @@ class JobWorker:
                 return False
 
         return True
+
+    # ------------------------------------------------------------------
+    # Delegation helpers
+    # ------------------------------------------------------------------
+
+    async def _handle_delegation(self, job: Job, delegate_spec: dict[str, Any]) -> None:
+        """Spawn a child job from a delegation signal in a node's output.
+
+        ``delegate_spec`` is expected to contain ``title``, ``description``,
+        and optionally ``priority`` (defaults to the parent job's priority).
+        """
+        title = delegate_spec.get("title", "Delegated sub-task")
+        description = delegate_spec.get("description", "")
+        priority = delegate_spec.get("priority", job.priority)
+
+        try:
+            delegation = self._delegation_engine.spawn_child_job(
+                parent_job_id=job.id,
+                title=title,
+                description=description,
+                priority=priority,
+            )
+            logger.info(
+                "Job %s delegated child job %s: %s",
+                job.id, delegation.child_job_id, title,
+            )
+            self.queue.add_audit(
+                job.id,
+                action="delegated_child",
+                detail=f"child={delegation.child_job_id} title={title!r}",
+                actor="worker",
+            )
+            await self._emit("job_delegated", {
+                "job_id": job.id,
+                "child_job_id": delegation.child_job_id,
+                "title": title,
+                "priority": priority,
+            })
+        except Exception as exc:
+            logger.error(
+                "Failed to spawn delegated child for job %s: %s", job.id, exc,
+            )
+
+    async def _wait_for_children(self, job_id: str) -> bool:
+        """Poll until all child jobs in the delegation tree are complete.
+
+        Returns ``True`` when every child has a terminal status, or ``False``
+        if the maximum wait of 600 seconds (10 minutes) is exceeded.
+        """
+        max_wait = 600.0  # seconds
+        poll_interval = 2.0  # seconds
+        waited = 0.0
+
+        while waited < max_wait:
+            if self._delegation_engine.is_tree_complete(job_id):
+                logger.info(
+                    "All child jobs for %s are complete (waited %.1fs).",
+                    job_id, waited,
+                )
+                return True
+            await asyncio.sleep(poll_interval)
+            waited += poll_interval
+
+        logger.warning(
+            "Timed out waiting for child jobs of %s after %.0fs.", job_id, max_wait,
+        )
+        return False
 
     # ------------------------------------------------------------------
     # Resume

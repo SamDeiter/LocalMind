@@ -144,6 +144,9 @@ class Job:
     cost_cents: float
     created_at: str
     updated_at: str
+    # Delegation awareness — may be NULL for jobs not part of a delegation tree
+    parent_job_id: str | None = None
+    tree_root_id: str | None = None
 
     # ------------------------------------------------------------------
     # Construction helpers
@@ -151,26 +154,34 @@ class Job:
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Job:
-        """Build a Job from a sqlite3.Row (dict-style access)."""
+        """Build a Job from a sqlite3.Row (dict-style access).
+
+        Uses dict-based access with defaults for delegation fields so that
+        older DB rows (before the migration added these columns) don't break.
+        """
+        # Convert to dict for safe .get() access on optional columns
+        row_dict = dict(row)
         return cls(
-            id=row["id"],
-            workspace_id=row["workspace_id"],
-            title=row["title"],
-            description=row["description"],
-            source=row["source"],
-            source_ref=row["source_ref"],
-            status=row["status"],
-            priority=row["priority"],
-            requester=row["requester"],
-            mode=row["mode"],
-            template_id=row["template_id"],
-            result_summary=row["result_summary"],
-            review_count=row["review_count"],
-            max_reviews=row["max_reviews"],
-            error=row["error"],
-            cost_cents=float(row["cost_cents"] or 0),
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            id=row_dict["id"],
+            workspace_id=row_dict["workspace_id"],
+            title=row_dict["title"],
+            description=row_dict["description"],
+            source=row_dict["source"],
+            source_ref=row_dict["source_ref"],
+            status=row_dict["status"],
+            priority=row_dict["priority"],
+            requester=row_dict["requester"],
+            mode=row_dict["mode"],
+            template_id=row_dict["template_id"],
+            result_summary=row_dict["result_summary"],
+            review_count=row_dict["review_count"],
+            max_reviews=row_dict["max_reviews"],
+            error=row_dict["error"],
+            cost_cents=float(row_dict["cost_cents"] or 0),
+            created_at=row_dict["created_at"],
+            updated_at=row_dict["updated_at"],
+            parent_job_id=row_dict.get("parent_job_id"),
+            tree_root_id=row_dict.get("tree_root_id"),
         )
 
     # ------------------------------------------------------------------
@@ -198,6 +209,8 @@ class Job:
             "cost_cents": self.cost_cents,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "parent_job_id": self.parent_job_id,
+            "tree_root_id": self.tree_root_id,
         }
 
     def to_api_dict(self) -> dict[str, Any]:

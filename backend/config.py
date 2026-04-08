@@ -130,6 +130,13 @@ RECYCLE_DIR.mkdir(parents=True, exist_ok=True)
 ACTIVE_CACHE_ENABLED = True
 
 
+# --- Swarm / Multi-Agent Config ---
+MAX_CHILD_JOBS_PER_PARENT = int(os.getenv("MAX_CHILD_JOBS_PER_PARENT", "10"))
+MAX_DELEGATION_DEPTH = int(os.getenv("MAX_DELEGATION_DEPTH", "5"))
+RESOURCE_LOCK_TTL_SEC = int(os.getenv("RESOURCE_LOCK_TTL_SEC", "300"))
+SWARM_MESSAGE_TTL_SEC = int(os.getenv("SWARM_MESSAGE_TTL_SEC", "3600"))
+DELEGATION_POLL_INTERVAL_SEC = float(os.getenv("DELEGATION_POLL_INTERVAL_SEC", "2.0"))
+
 # --- Job Pipeline Config ---
 MAX_NODES_PER_JOB = int(os.getenv("MAX_NODES_PER_JOB", "20"))
 MAX_JOB_TIMEOUT_SEC = int(os.getenv("MAX_JOB_TIMEOUT_SEC", "1800"))  # 30 min
