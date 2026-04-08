@@ -141,8 +141,25 @@ def _progress_bar(completed: int, total: int, width: int = 15) -> str:
 # SlackBot
 # ---------------------------------------------------------------------------
 
-# Default workspace slug used when creating jobs from Slack.
-_DEFAULT_WORKSPACE = "default"
+# Cache the resolved default workspace UUID (slug -> id).
+_default_workspace_id: str | None = None
+
+
+def _get_default_workspace_id() -> str:
+    """Return the UUID of the 'default' workspace.
+
+    The jobs and source_events tables have FK constraints on workspaces(id)
+    which is a UUID, not the slug.  We resolve the slug once and cache it.
+    """
+    global _default_workspace_id
+    if _default_workspace_id is not None:
+        return _default_workspace_id
+
+    from backend.core.identity import IdentityService
+    svc = IdentityService()
+    ws = svc.get_default_workspace()
+    _default_workspace_id = ws.id
+    return _default_workspace_id
 
 
 class SlackBot:
@@ -247,7 +264,7 @@ class SlackBot:
 
         queue = JobQueue()
         job = queue.create_job(
-            workspace_id=_DEFAULT_WORKSPACE,
+            workspace_id=_get_default_workspace_id(),
             title=text[:120].strip() or "Slack request",
             description=text,
             source="slack",
@@ -258,7 +275,7 @@ class SlackBot:
         _record_event(
             source="slack",
             source_event_id=source_event_id,
-            workspace_id=_DEFAULT_WORKSPACE,
+            workspace_id=_get_default_workspace_id(),
             result_json=f'{{"job_id": "{job.id}"}}',
         )
 

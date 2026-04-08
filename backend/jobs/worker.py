@@ -334,7 +334,10 @@ class JobWorker:
                 return
 
             # ── Wait for delegated child jobs (if any) ────────────
-            children = self._delegation_engine.get_children(job.id)
+            try:
+                children = self._delegation_engine.get_children(job.id)
+            except Exception:
+                children = []
             if children:
                 logger.info(
                     "Job %s has %d child job(s) — waiting for completion.",
@@ -628,7 +631,10 @@ class JobWorker:
                 # If the node output contains a "delegate" key, spawn
                 # a child job via the DelegationEngine.
                 if isinstance(result.output, dict) and "delegate" in result.output:
-                    await self._handle_delegation(job, result.output["delegate"])
+                    try:
+                        await self._handle_delegation(job, result.output["delegate"])
+                    except Exception as e:
+                        logger.warning("Delegation failed (non-fatal): %s", e)
             else:
                 # Node reported failure (e.g. schema validation).
                 error_msg = result.error or "Node execution failed."

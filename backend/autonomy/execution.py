@@ -72,7 +72,7 @@ async def execute_proposal_cycle(engine, timeout=300) -> bool:
         test_passed, test_output = await engine.git_coordinator.run_tests(target_files=edits_applied)
         if test_passed:
             engine.git_coordinator.commit_and_merge(branch_name, proposal['title'])
-            
+
             engine.proposals.mark_completed(
                 proposal,
                 edits_applied=edits_applied,
@@ -81,6 +81,21 @@ async def execute_proposal_cycle(engine, timeout=300) -> bool:
             engine.status.execution.proposals_executed += 1
             engine.success_tracker.record_outcome(proposal, success=True)
             engine._emit_activity("completed", f"✅ {proposal['title']}", proposal_id=proposal["id"])
+
+            # Record to AI Time Machine for undo/audit
+            try:
+                from backend.time_machine.recorder import get_recorder
+                get_recorder().record_proposal_execution(
+                    proposal_id=proposal["id"],
+                    proposal_data=proposal,
+                    result={
+                        "status": "completed",
+                        "edits_applied": edits_applied,
+                        "model_used": engine.editing_model,
+                    },
+                )
+            except Exception as tm_exc:
+                logger.warning("Time-machine recording failed: %s", tm_exc)
             return True
         else:
             engine.git_coordinator.revert_and_cleanup(branch_name, edits_applied)

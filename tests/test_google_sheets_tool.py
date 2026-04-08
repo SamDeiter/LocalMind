@@ -81,7 +81,8 @@ class TestGoogleSheetsToolInit:
         assert "credentials" in params["properties"]
 
     def test_required_list(self, tool):
-        assert set(tool.parameters["required"]) == {"action", "spreadsheet_id", "credentials"}
+        # credentials is optional (self-auth pattern loads OAuth internally)
+        assert set(tool.parameters["required"]) == {"action", "spreadsheet_id"}
 
     def test_action_enum_lists_all_actions(self, tool):
         expected = {

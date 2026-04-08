@@ -125,12 +125,16 @@ function renderProposalItem(p, status) {
     status === "failed"
       ? `<button class="pipeline-dismiss p-1 hover:text-error" data-id="${escapeHtml(p.id)}" title="Dismiss"><span class="material-symbols-outlined text-xs">close</span></button>`
       : "";
+  const undoBtn =
+    (status === "completed" || status === "executed") && p.action_version_id
+      ? `<button class="pipeline-undo p-1 hover:text-error" data-action-id="${escapeHtml(p.action_version_id)}" title="Undo" style="color:#ef4444"><span style="font-size:12px">↩</span> <span class="text-[9px] font-bold">Undo</span></button>`
+      : "";
 
   let html = `<div class="group flex flex-col gap-1 p-3 rounded-lg bg-surface-container-low/40 border border-outline-variant/10 hover:border-primary/30 transition-all">`;
   html += `  <div class="flex justify-between items-start gap-2">`;
   html += `    <span class="text-[11px] font-medium text-on-surface leading-snug">${title}</span>`;
   html += `    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">`;
-  html += `      ${approveBtn}${denyBtn}${retryBtn}${dismissBtn}`;
+  html += `      ${approveBtn}${denyBtn}${retryBtn}${dismissBtn}${undoBtn}`;
   html += `    </div>`;
   html += `  </div>`;
   html += `  <div class="flex items-center gap-2 mt-1">`;
@@ -178,6 +182,35 @@ function wirePipelineButtons(body) {
           showToast("❌ Action failed", "error");
         }
       });
+    });
+  });
+
+  // Wire undo buttons (Time Machine restore)
+  body.querySelectorAll(".pipeline-undo").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const actionId = btn.dataset.actionId;
+      btn.disabled = true;
+      btn.style.opacity = "0.5";
+      try {
+        const r = await fetch(`${API}/api/time-machine/restore/${actionId}`, {
+          method: "POST",
+        });
+        const d = await r.json();
+        if (d.success) {
+          showToast(`✅ ${d.message || "Undo successful"}`, "info");
+          renderTaskPipeline();
+          updateSuccessRate();
+        } else {
+          showToast(`❌ ${d.message || "Undo failed"}`, "error");
+          btn.disabled = false;
+          btn.style.opacity = "1";
+        }
+      } catch {
+        showToast("❌ Undo request failed", "error");
+        btn.disabled = false;
+        btn.style.opacity = "1";
+      }
     });
   });
 }

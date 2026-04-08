@@ -633,6 +633,28 @@ def init_phase0_schema():
         CREATE INDEX IF NOT EXISTS idx_messages_to ON agent_messages(to_job_id, status);
     """)
 
+    # ── AI Time Machine: Action Versioning ───────────────────────
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS action_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            action_type TEXT NOT NULL,
+            timestamp REAL NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            before_state TEXT,
+            after_state TEXT,
+            diff TEXT,
+            parent_id INTEGER REFERENCES action_versions(id),
+            conversation_id TEXT,
+            user_id TEXT,
+            metadata TEXT,
+            reverted INTEGER DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_av_timestamp ON action_versions(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_av_entity ON action_versions(entity_type, entity_id);
+        CREATE INDEX IF NOT EXISTS idx_av_conversation ON action_versions(conversation_id);
+    """)
+
     conn.commit()
     conn.close()
     logger.info("Phase 0 enterprise schema initialized")

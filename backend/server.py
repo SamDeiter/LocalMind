@@ -339,6 +339,7 @@ from backend.routes.google_auth import _legacy_router as google_auth_legacy_rout
 from backend.routes.jobs import router as jobs_router
 from backend.routes.admin import router as admin_router
 from backend.routes.knowledge_graph import router as knowledge_graph_router
+from backend.routes.time_machine import router as time_machine_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -357,6 +358,7 @@ app.include_router(google_auth_legacy_router)
 app.include_router(jobs_router)
 app.include_router(admin_router)
 app.include_router(knowledge_graph_router)
+app.include_router(time_machine_router)
 
 # -- Health Check Endpoints --
 @app.get("/health")

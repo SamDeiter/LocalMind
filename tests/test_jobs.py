@@ -1292,9 +1292,10 @@ class TestNodeExecutorToolScoping:
         ]
         executor = NodeExecutor(tool_registry=mock_registry, ollama_url="http://fake:11434")
         scoped = executor._scope_tools(["read_file", "write_file"])
-        assert len(scoped) == 2
+        # +1 for the "delegate" pseudo-tool always appended
+        assert len(scoped) == 3
         names = {t["function"]["name"] for t in scoped}
-        assert names == {"read_file", "write_file"}
+        assert names == {"read_file", "write_file", "delegate"}
 
     def test_scope_tools_empty_returns_all(self):
         mock_registry = MagicMock()
@@ -1304,7 +1305,8 @@ class TestNodeExecutorToolScoping:
         ]
         executor = NodeExecutor(tool_registry=mock_registry, ollama_url="http://fake:11434")
         scoped = executor._scope_tools([])
-        assert len(scoped) == 2
+        # 2 registry tools + 1 delegate pseudo-tool
+        assert len(scoped) == 3
 
     def test_scope_tools_wildcard_returns_all(self):
         mock_registry = MagicMock()
@@ -1313,7 +1315,8 @@ class TestNodeExecutorToolScoping:
         ]
         executor = NodeExecutor(tool_registry=mock_registry, ollama_url="http://fake:11434")
         scoped = executor._scope_tools(["*"])
-        assert len(scoped) == 1
+        # 1 registry tool + 1 delegate pseudo-tool
+        assert len(scoped) == 2
 
 
 class TestNodeExecutorOutputValidation:

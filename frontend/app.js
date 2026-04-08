@@ -28,6 +28,7 @@ import { initApprovalsUI } from "./modules/approvals_ui.js";
 import { initTaskCreation } from "./modules/task_creation.js";
 import { initOnboarding } from "./modules/onboarding.js";
 import { initBrainGraph } from "./modules/brain_graph.js";
+import { initTimeMachine } from "./modules/time_machine.js";
 
 async function init() {
   checkHealth();
@@ -56,6 +57,7 @@ async function init() {
   initTaskCreation();
   initOnboarding();
   initBrainGraph();
+  initTimeMachine();
 
   // Restore editor panel if it was open
 

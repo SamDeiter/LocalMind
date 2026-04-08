@@ -87,7 +87,25 @@ async def emit_activity(event_type: str, data: dict) -> None:
 # Helpers
 # ---------------------------------------------------------------------------
 
-_DEFAULT_WORKSPACE = "default"
+# Cache the resolved workspace UUID so we only query the DB once.
+_default_workspace_id: str | None = None
+
+
+def _get_default_workspace_id() -> str:
+    """Return the UUID of the 'default' workspace.
+
+    The jobs table has a FK constraint on workspaces(id) which is a UUID,
+    not the slug.  We resolve the slug -> id once and cache it.
+    """
+    global _default_workspace_id
+    if _default_workspace_id is not None:
+        return _default_workspace_id
+
+    from backend.core.identity import IdentityService
+    svc = IdentityService()
+    ws = svc.get_default_workspace()
+    _default_workspace_id = ws.id
+    return _default_workspace_id
 
 
 def _queue() -> JobQueue:
@@ -190,7 +208,7 @@ async def activity_stream(request: Request) -> StreamingResponse:
 async def list_templates() -> JSONResponse:
     """Return all pipeline templates for the default workspace."""
     queue = _queue()
-    templates = queue.list_templates(workspace_id=_DEFAULT_WORKSPACE)
+    templates = queue.list_templates(workspace_id=_get_default_workspace_id())
     return JSONResponse({"templates": [t.to_dict() for t in templates]})
 
 
@@ -228,7 +246,7 @@ async def create_template(request: Request) -> JSONResponse:
         template = queue.save_as_template(
             job_id=job_id,
             name=name.strip(),
-            workspace_id=_DEFAULT_WORKSPACE,
+            workspace_id=_get_default_workspace_id(),
             created_by=None,
         )
     except Exception as exc:
@@ -294,7 +312,7 @@ async def create_job(
     # Create the job row first to get the job_id
     try:
         job = queue.create_job(
-            workspace_id=_DEFAULT_WORKSPACE,
+            workspace_id=_get_default_workspace_id(),
             title=str(title).strip(),
             description=description,
             source="api",
@@ -382,7 +400,7 @@ async def list_jobs(
 
     queue = _queue()
     jobs = queue.list_jobs(
-        workspace_id=_DEFAULT_WORKSPACE,
+        workspace_id=_get_default_workspace_id(),
         status=status,
         limit=limit,
         offset=offset,
