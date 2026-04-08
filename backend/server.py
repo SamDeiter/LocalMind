@@ -25,6 +25,8 @@ from backend.autonomy import AutonomyEngine, PROPOSALS_DIR
 from backend.metacognition.controller import MetaCognitiveController
 from backend import notifications, gemini_client, db
 from backend.db import DB_PATH, get_db
+from backend.core.schema import init_phase0_schema, ensure_default_tenant
+from backend.jobs.worker import JobWorker
 
 # -- Logging --
 logging.basicConfig(
@@ -49,21 +51,38 @@ metacog_controller = MetaCognitiveController(
     emit_activity=lambda *a, **kw: logger.debug(f"metacog: {a} {kw}"),
 )
 registry = ToolRegistry()
+job_worker = None  # Initialized in lifespan after schema setup
 
 # -- App Lifecycle --
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database, configure routers, and start autonomy engine."""
+    global job_worker
+
     db.init_db()
+    init_phase0_schema()
+    ensure_default_tenant()
     _configure_routers()
 
     # Store engine on app.state for route access
     app.state.autonomy_engine = autonomy_engine
 
+    # Start job worker (enterprise task pipeline)
+    from backend.routes.jobs import emit_activity
+    job_worker = JobWorker(
+        tool_registry=registry,
+        ollama_url=OLLAMA_BASE_URL,
+        activity_callback=emit_activity,
+    )
+    app.state.job_worker = job_worker
+
     await autonomy_engine.start()
-    logger.info("LocalMind server initialized (autonomy engine active)")
+    import asyncio
+    _worker_task = asyncio.create_task(job_worker.start())
+    logger.info("LocalMind server initialized (autonomy engine + job worker active)")
     yield
-    # Stop swarm if running
+    # Graceful shutdown
+    await job_worker.stop()
     if hasattr(autonomy_engine, 'coordinator') and autonomy_engine.coordinator:
         await autonomy_engine.coordinator.stop()
     await autonomy_engine.stop()
@@ -141,6 +160,8 @@ from backend.routes.settings import router as settings_router
 from backend.routes.swarm_routes import router as swarm_router
 from backend.routes.validation_routes import router as validation_router
 from backend.routes.google_auth import router as google_auth_router
+from backend.routes.google_auth import _legacy_router as google_auth_legacy_router
+from backend.routes.jobs import router as jobs_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -155,6 +176,8 @@ app.include_router(settings_router)
 app.include_router(swarm_router)
 app.include_router(validation_router)
 app.include_router(google_auth_router)
+app.include_router(google_auth_legacy_router)
+app.include_router(jobs_router)
 
 # -- Static Files --
 frontend_path = Path(__file__).parent.parent / "frontend"

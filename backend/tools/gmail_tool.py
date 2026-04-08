@@ -35,11 +35,14 @@ TOKEN_FILE = CONFIG_DIR / "gmail_token.json"
 
 
 def _get_gmail_service():
-    """Build and return an authenticated Gmail API service object."""
+    """Build and return an authenticated Gmail API service object.
+
+    Uses the centralized credential store from google_auth module first,
+    then falls back to the legacy gmail_token.json file path.
+    """
     try:
         from google.auth.transport.requests import Request
         from google.oauth2.credentials import Credentials
-        from google_auth_oauthlib.flow import InstalledAppFlow
         from googleapiclient.discovery import build
     except ImportError:
         raise RuntimeError(
@@ -47,18 +50,35 @@ def _get_gmail_service():
             "pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib"
         )
 
+    # Try centralized credential store first
     creds = None
-    if TOKEN_FILE.exists():
+    try:
+        from backend.routes.google_auth import get_credentials
+        creds = get_credentials()
+    except Exception:
+        pass
+
+    # Fall back to legacy gmail_token.json
+    if creds is None and TOKEN_FILE.exists():
         creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
+            # Last resort: try InstalledAppFlow for local console auth
+            try:
+                from google_auth_oauthlib.flow import InstalledAppFlow
+            except ImportError:
+                raise RuntimeError(
+                    "No valid Google credentials found. Connect Google via "
+                    "Settings or run: pip install google-auth-oauthlib"
+                )
             if not CREDENTIALS_FILE.exists():
                 raise FileNotFoundError(
                     f"OAuth credentials not found at {CREDENTIALS_FILE}. "
-                    "Download from Google Cloud Console and place there."
+                    "Connect Google via Settings, or download credentials "
+                    "from Google Cloud Console and place there."
                 )
             flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
             creds = flow.run_local_server(port=0)
