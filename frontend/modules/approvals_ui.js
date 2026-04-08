@@ -807,6 +807,7 @@ export function showApprovalsView() {
   if (swarmView) swarmView.classList.add("hidden");
 
   view.classList.remove("hidden");
+  view.style.display = "";
   _visible = true;
 
   // Ensure we have current data

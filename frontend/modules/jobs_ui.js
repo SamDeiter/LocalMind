@@ -680,7 +680,10 @@ export function initJobsUI() {
 
 export function showJobsView() {
   const view = el("jobsView");
-  if (view) view.classList.remove("hidden");
+  if (view) {
+    view.classList.remove("hidden");
+    view.style.display = "";
+  }
   _showListView();
   _loadJobs();
   _startPolling();

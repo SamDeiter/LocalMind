@@ -19,6 +19,8 @@ import {
   voiceBtn,
   voiceSelect,
   autoResize,
+  priorityInput,
+  addPriorityBtn,
 } from "./state.js";
 import { sendMessage, activateMode, clearMessages } from "./chat.js";
 import { loadConversations } from "./conversations.js";
@@ -33,27 +35,33 @@ import { showApprovalsView } from "./approvals_ui.js";
 import { loadHub } from "./hub.js";
 import { loadLearningData } from "./learning_ui.js";
 import { loadProfile } from "./ai_profile.js";
+import { submitQuickTask } from "./task_creation.js";
 import { chatScreen, overviewBtn } from "./state.js";
 
 /** Hide all views and restore the default main scroll area. */
 function hideAllViews() {
   hideSwarmDashboard();
-  const mainScroll = document.getElementById("mainScrollArea");
-  const jobsView = document.getElementById("jobsView");
-  const templatesView = document.getElementById("templatesView");
-  const approvalsView = document.getElementById("approvalsView");
-  const chat = document.getElementById("chatScreen");
-  const hubView = document.getElementById("crossProjectHub");
-  const learningPage = document.getElementById("learningPage");
-  const aiProfileView = document.getElementById("aiProfileView");
-  if (mainScroll) { mainScroll.classList.add("hidden"); mainScroll.style.display = "none"; }
-  if (jobsView) jobsView.classList.add("hidden");
-  if (templatesView) templatesView.classList.add("hidden");
-  if (approvalsView) approvalsView.classList.add("hidden");
-  if (hubView) hubView.classList.add("hidden");
-  if (learningPage) learningPage.classList.add("hidden");
-  if (aiProfileView) aiProfileView.classList.add("hidden");
-  if (chat) { chat.classList.add("hidden"); chat.style.display = "none"; }
+  const views = [
+    "mainScrollArea", "jobsView", "templatesView", "approvalsView",
+    "chatScreen", "crossProjectHub", "learningPage", "aiProfileView",
+  ];
+  views.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add("hidden");
+    el.classList.remove("view-enter");
+    el.style.display = "none";
+  });
+}
+
+/** Show a view element with a transition animation. */
+function showView(el, displayStyle = "") {
+  if (!el) return;
+  el.classList.remove("hidden");
+  el.style.display = displayStyle || "";
+  // Trigger reflow then animate
+  void el.offsetWidth;
+  el.classList.add("view-enter");
 }
 
 /** Reset active state on all nav buttons, then highlight the given one. */
@@ -63,10 +71,10 @@ function setActiveNav(activeId) {
     const btn = document.getElementById(id);
     if (!btn) return;
     if (id === activeId) {
-      btn.classList.add("text-slate-100", "bg-slate-800/40", "border", "border-slate-700/30");
+      btn.classList.add("nav-active");
       btn.classList.remove("text-slate-400");
     } else {
-      btn.classList.remove("text-slate-100", "bg-slate-800/40", "border", "border-slate-700/30");
+      btn.classList.remove("nav-active");
       btn.classList.add("text-slate-400");
     }
   });
@@ -76,11 +84,35 @@ export function bindEvents() {
   // Sidebar
   sidebarToggle?.addEventListener("click", () => sidebar?.classList.toggle("collapsed"));
 
+  // Mobile sidebar toggle
+  const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+  const sidebarOverlay = document.getElementById("sidebarOverlay");
+  const openMobileSidebar = () => {
+    sidebar?.classList.remove("collapsed");
+    sidebarOverlay?.classList.add("active");
+  };
+  const closeMobileSidebar = () => {
+    sidebar?.classList.add("collapsed");
+    sidebarOverlay?.classList.remove("active");
+  };
+  mobileMenuBtn?.addEventListener("click", () => {
+    if (sidebar?.classList.contains("collapsed")) openMobileSidebar();
+    else closeMobileSidebar();
+  });
+  sidebarOverlay?.addEventListener("click", closeMobileSidebar);
+
+  // Sidebar quick-task Execute button
+  addPriorityBtn?.addEventListener("click", () => {
+    const text = priorityInput?.value?.trim() || "";
+    if (!text) return;
+    submitQuickTask(text);
+    if (priorityInput) priorityInput.value = "";
+  });
+
   // Nav — Dashboard
   overviewBtn?.addEventListener("click", () => {
     hideAllViews();
-    const mainScroll = document.getElementById("mainScrollArea");
-    if (mainScroll) { mainScroll.classList.remove("hidden"); mainScroll.style.display = "flex"; }
+    showView(document.getElementById("mainScrollArea"), "flex");
     setActiveNav("overviewBtn");
   });
 
@@ -108,8 +140,7 @@ export function bindEvents() {
   // Nav — Hub
   document.getElementById("hubBtn")?.addEventListener("click", () => {
     hideAllViews();
-    const hubView = document.getElementById("crossProjectHub");
-    if (hubView) hubView.classList.remove("hidden");
+    showView(document.getElementById("crossProjectHub"));
     loadHub();
     setActiveNav("hubBtn");
   });
@@ -117,8 +148,7 @@ export function bindEvents() {
   // Nav — AI Profile
   document.getElementById("aiProfileBtn")?.addEventListener("click", () => {
     hideAllViews();
-    const aiProfileView = document.getElementById("aiProfileView");
-    if (aiProfileView) aiProfileView.classList.remove("hidden");
+    showView(document.getElementById("aiProfileView"));
     loadProfile();
     setActiveNav("aiProfileBtn");
   });
@@ -126,16 +156,14 @@ export function bindEvents() {
   // Nav — Chat
   document.getElementById("chatBtn")?.addEventListener("click", () => {
     hideAllViews();
-    const chat = document.getElementById("chatScreen");
-    if (chat) { chat.classList.remove("hidden"); chat.style.display = "flex"; }
+    showView(document.getElementById("chatScreen"), "flex");
     setActiveNav("chatBtn");
   });
 
   // Nav — Learning Lab
   document.getElementById("learningBtn")?.addEventListener("click", () => {
     hideAllViews();
-    const learningPage = document.getElementById("learningPage");
-    if (learningPage) learningPage.classList.remove("hidden");
+    showView(document.getElementById("learningPage"));
     loadLearningData();
     setActiveNav("learningBtn");
   });

@@ -208,7 +208,8 @@ function _renderSuggestions() {
     .map((s) => {
       const diffClass = _difficultyClass(s.difficulty);
       return `
-      <div class="bg-surface-container/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl p-5 flex flex-col gap-3 hover:border-primary/40 transition-all group">
+      <div class="learn-topic-card bg-surface-container/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl p-5 flex flex-col gap-3 hover:border-primary/40 transition-all group cursor-pointer"
+        data-topic="${escapeHtml(s.topic)}">
         <div class="flex items-center justify-between">
           <h4 class="font-headline font-bold text-sm text-slate-100 group-hover:text-primary transition-colors">${escapeHtml(s.topic)}</h4>
           <span class="text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${diffClass}">${escapeHtml(s.difficulty || "medium")}</span>
@@ -222,13 +223,16 @@ function _renderSuggestions() {
     })
     .join("");
 
-  // Wire learn buttons
-  el.querySelectorAll(".learn-topic-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const topic = btn.dataset.topic;
+  // Wire clicks — entire card or button triggers learning (delegated)
+  if (!el._learningWired) {
+    el._learningWired = true;
+    el.addEventListener("click", (e) => {
+      const card = e.target.closest(".learn-topic-card");
+      if (!card) return;
+      const topic = card.dataset.topic;
       if (topic) triggerLearning(topic);
     });
-  });
+  }
 }
 
 function _renderJournal() {

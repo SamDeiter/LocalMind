@@ -55,7 +55,9 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\('backend/tools/self_extend.py'\\).read\\(\\)\\); print\\('self_extend.py OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('backend/routes/tools_generated.py'\\).read\\(\\)\\); print\\('tools_generated.py OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('backend/tts/piper_service.py'\\).read\\(\\)\\); print\\('piper_service.py OK'\\)\")",
-      "Bash(python -c \"import ast; ast.parse\\(open\\('backend/routes/tts.py'\\).read\\(\\)\\); print\\('tts.py OK'\\)\")"
+      "Bash(python -c \"import ast; ast.parse\\(open\\('backend/routes/tts.py'\\).read\\(\\)\\); print\\('tts.py OK'\\)\")",
+      "Bash(node -e ':*)",
+      "Bash(ls frontend/modules/*.js)"
     ]
   }
 }

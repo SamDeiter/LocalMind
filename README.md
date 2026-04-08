@@ -1,162 +1,172 @@
-# 🧠 LocalMind
+# LocalMind
 
 > An autonomous task worker that thinks, executes, and delivers — powered by local AI.
 
-LocalMind is an **enterprise-ready autonomous task worker** (not a chat assistant). It accepts jobs via Slack or the web UI, plans multi-step execution, runs tools, reviews its own output with 3-tier QA, and delivers artifacts back — all on your infrastructure. Powered by [Ollama](https://ollama.com) for local LLMs, [ChromaDB](https://www.trychroma.com) for persistent memory, and a durable **Job Pipeline** with RBAC, policy enforcement, and human approval workflows.
+LocalMind is an **autonomous task worker** (not a chat assistant). It accepts jobs via Slack or the web UI, plans multi-step execution, runs tools, reviews its own output with 3-tier QA, and delivers artifacts back — all on your infrastructure. Powered by [Ollama](https://ollama.com) for local LLMs, [ChromaDB](https://www.trychroma.com) for persistent memory, and a durable **Job Pipeline** with RBAC, policy enforcement, and human approval workflows.
 
-**Current Version:** v0.7.0 · Phase 8 — Enterprise (Complete)
+**Current Version:** v0.9.1 · Phase 9 — Intelligence
 
 ---
 
-## ✨ Features
+## Features
 
 ### Core Intelligence
 
-| Feature                        | Description                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| 🤖 **Autonomy Engine**         | Self-improving AI — reflects on codebase, proposes fixes, executes edits      |
-| 🧠 **Metacognition**           | Uncertainty gating, intent parsing, self-checking, and calibration            |
-| 📊 **Action Stream**           | Live pipeline of proposed/approved/completed/failed tasks with full reasoning |
-| ⚡ **Multi-Model Router**       | Routes tasks to fast 7B, deep 14B, or cloud Gemini based on complexity        |
-| 🔬 **Research Engine**         | Background web + academic research fed into reflection prompts                |
-| 🧠 **Long-term Memory**        | Remembers facts across conversations (ChromaDB + embeddings)                  |
-| 📈 **Success Tracking**        | Engine tracks edit success/failure rates to improve over time                 |
+| Feature | Description |
+| --- | --- |
+| **Autonomy Engine** | Self-improving AI — reflects on codebase, proposes fixes, executes edits |
+| **Metacognition** | Uncertainty gating, intent parsing, self-checking, and calibration |
+| **Action Stream** | Live pipeline of proposed/approved/completed/failed tasks with full reasoning |
+| **Multi-Model Router** | Routes tasks to fast 7B, deep 14B, or cloud Gemini based on complexity |
+| **Research Engine** | Background web + academic research fed into reflection prompts |
+| **Long-term Memory** | Remembers facts across conversations (ChromaDB + embeddings + session cache) |
+| **Self-Discovery** | AI discovers its own capabilities and builds an identity profile over time |
+| **Skill Learning** | Learns new skills from interactions and stores them for reuse |
+| **Knowledge Graph** | Builds and queries a knowledge graph of learned concepts |
+| **Time Machine** | Record and replay past agent states for debugging and analysis |
 
-### Enterprise Job Pipeline
+### Job Pipeline
 
-| Feature                        | Description                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| 📋 **Job Queue**               | SQLite-backed durable job queue with planning, execution, and review stages   |
-| 🚂 **Train Model Planner**     | Breaks jobs into node graphs — plans before executing                         |
-| 🔍 **3-Tier QA Reviewer**      | Format checks → LLM self-critique → human approval before delivery            |
-| 💬 **Slack Bot Integration**    | Submit jobs, get status updates, and receive artifacts directly in Slack       |
-| ✅ **Approval Workflows**       | Human-in-the-loop approval gates for sensitive operations                     |
-| 📄 **Job Templates**           | Saved templates for recurring task types                                      |
+| Feature | Description |
+| --- | --- |
+| **Job Queue** | SQLite-backed durable job queue with planning, execution, and review stages |
+| **Node Graph Planner** | Breaks jobs into node graphs — plans before executing |
+| **3-Tier QA Reviewer** | Format checks → LLM self-critique → human approval before delivery |
+| **Slack Bot Integration** | Submit jobs, get status updates, and receive artifacts directly in Slack |
+| **Approval Workflows** | Human-in-the-loop approval gates for sensitive operations |
+| **Job Templates** | Saved templates for recurring task types |
+| **SMS/Push Notifications** | Twilio SMS alerts and push notifications for job status changes |
+
+### Multi-Agent Swarm
+
+| Feature | Description |
+| --- | --- |
+| **Worker Pool** | Multiple specialized AI agents executing tasks in parallel |
+| **Agent Types** | LLM agent, research agent, scanner agent, test agent |
+| **Shared Memory** | Agents share context via a shared memory bus |
+| **Resource Locking** | Prevents conflicts when agents access shared resources |
+| **Task Delegation** | Coordinator routes tasks to the best-suited agent |
+| **Message Passing** | Inter-agent communication via a message queue |
 
 ### Enterprise Infrastructure
 
-| Feature                        | Description                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| 🏢 **Multi-Org Identity**      | Organizations, workspaces, users with full RBAC                               |
-| 🔐 **Secret Manager**          | AES-256-GCM encrypted credential storage                                     |
-| 📜 **Policy Engine**           | Approve/deny/dry-run rules for tool calls                                    |
-| 🔄 **Durable Execution**       | Attempt tracking, idempotency keys, heartbeats, fault recovery               |
-| 📦 **Artifact Versioning**     | Provenance chains with PPTX-specific stable anchors                          |
-| 🔎 **Evidence Tracking**       | Facts linked to source data for auditability                                 |
-| 💰 **Token Budgeting**         | Per-job and per-org cost tracking and limits                                 |
-| 📊 **Telemetry & Audit**       | Full audit logging of all operations                                         |
+| Feature | Description |
+| --- | --- |
+| **Multi-Org Identity** | Organizations, workspaces, users with full RBAC |
+| **Secret Manager** | AES-256-GCM encrypted credential storage |
+| **Policy Engine** | Approve/deny/dry-run rules for tool calls |
+| **Durable Execution** | Attempt tracking, idempotency keys, heartbeats, fault recovery |
+| **Artifact Versioning** | Provenance chains with PPTX-specific stable anchors |
+| **Evidence Tracking** | Facts linked to source data for auditability |
+| **Token Budgeting** | Per-job and per-org cost tracking and limits |
+| **Telemetry & Audit** | Full audit logging of all operations |
+| **Evaluation Harness** | Run test cases against the AI and track success rates |
+| **Project Registry** | Track multiple projects and cross-project patterns |
+| **Validation Pipeline** | Multi-stage prompt, output, and cross-stage validators |
 
-### Google Workspace Tools
+### Tool Ecosystem (35+ built-in)
 
-| Feature                        | Description                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| 📝 **Google Docs**             | Read, create, insert, replace, and append text in Google Docs                 |
-| 📁 **Google Drive**            | List, search, upload, download, move, and copy files                          |
-| 📊 **Google Sheets**           | Full Sheets API — read/write ranges, formatting, formulas (14 operations)     |
-| 📰 **Google Slides**           | Read, create, edit, and manage presentations                                  |
-| 📧 **Gmail**                   | Search, read, and manage email                                               |
+| Category | Tools |
+| --- | --- |
+| **Web & Research** | Multi-provider web search (DuckDuckGo → Google → Brave), browser automation |
+| **File Operations** | Read, write, list files — sandboxed to `~/LocalMind_Workspace` |
+| **Code** | Python execution with timeout + blocklist, AST analysis |
+| **Git** | Status, diff, log, commit, branch management |
+| **Vision** | Camera capture, screenshot, image analysis via Ollama |
+| **Google Workspace** | Docs, Drive, Sheets (14 ops), Slides, Gmail |
+| **Office Documents** | Excel, Word, PowerPoint, PDF extraction |
+| **Self-Improvement** | Self-edit, self-reflect, self-test, self-extend (AI writes new tools) |
+| **Memory** | ChromaDB vector memory, document RAG (index + query) |
+| **Infrastructure** | Model management, dependency management, project context, clipboard |
+| **AI-Generated Tools** | AI can write, test, and deploy new tool plugins at runtime |
 
-### Desktop & Developer Tools
+### Desktop & Web UI
 
-| Feature                        | Description                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| 🗣️ **Voice Output**            | Selectable voices via Web Speech API                                          |
-| 📷 **Camera/Vision**           | Capture images from webcam and ask the AI to analyze them                     |
-| 🔍 **Web Search**              | Multi-provider: DuckDuckGo → Google → Brave (auto-fallback)                  |
-| 📸 **Screenshots**             | Takes screenshots and describes what it sees                                  |
-| 📋 **Clipboard**               | Reads clipboard contents on command                                           |
-| 💻 **Code Execution**          | Runs Python safely with timeout and blocklist protections                     |
-| 📁 **File Operations**         | Reads, writes, and lists files — sandboxed to `~/LocalMind_Workspace`         |
-| 🖥️ **Integrated Code Editor**  | Monaco Editor (VS Code engine) with file tree, Ctrl+S, Send to AI            |
-| 📊 **Hardware Dashboard**      | Live CPU, RAM, VRAM monitoring in status bar                                  |
-| 📄 **Document RAG**            | Index files and ask questions about your documents                            |
-| 📱 **PWA**                     | Install on your phone's home screen for mobile access                         |
-| 🌐 **Remote Access**           | Access from anywhere via Tailscale (WireGuard encryption)                     |
-| 🔒 **Infrastructure Guard**    | Critical files protected from self-edit; confidence gating on proposals       |
+| Feature | Description |
+| --- | --- |
+| **Dashboard** | Real-time task pipeline, action stream, workflow stepper |
+| **Chat Interface** | Streaming responses with markdown rendering and syntax highlighting |
+| **Code Editor** | Monaco Editor (VS Code engine) with file tree and AI context integration |
+| **Hardware Monitor** | Live CPU, RAM, VRAM metrics in the status bar |
+| **Worker Pool Dashboard** | Visualize multi-agent activity, success rates, and queue depth |
+| **Learning Lab** | Browse what the AI has learned and trigger new learning cycles |
+| **AI Profile** | View the AI's self-discovered identity and capability map |
+| **Cross-Project Hub** | Patterns and insights across registered projects |
+| **Voice I/O** | Speech-to-text input and selectable TTS voices |
+| **PWA** | Install on mobile for home screen access |
+| **Remote Access** | Access from anywhere via Tailscale (WireGuard encryption) |
 
-### Office Document Tools
+## Architecture
 
-| Feature                        | Description                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| 📊 **Excel**                   | Read/write Excel spreadsheets locally                                        |
-| 📄 **PDF**                     | Extract text and data from PDF files                                         |
-| 📰 **PowerPoint**              | Create and edit PPTX presentations                                           |
-| 📝 **Word**                    | Read and write DOCX documents                                                |
-
-## 🏗️ Architecture
-
-```
+```text
 LocalMind/
 ├── backend/
 │   ├── server.py              # FastAPI app, route mounting, startup
 │   ├── agent.py               # Core AI agent with tool-calling
 │   ├── config.py              # Centralized configuration
 │   ├── model_router.py        # Routes to 7B/14B/Gemini by task complexity
-│   ├── proposals.py           # Proposal lifecycle (create, dedup, approve, execute)
 │   ├── code_editor.py         # AI-driven code editing (search/replace diffs)
 │   ├── git_ops.py             # Git operations (commit, branch, revert)
-│   ├── gemini_client.py       # Optional Gemini cloud fallback (PII-scrubbed)
-│   ├── self_improver.py       # Self-improvement logic
-│   ├── meta_critic.py         # Meta-analysis of engine decisions
-│   ├── priority_queue.py      # User priority directives
+│   ├── gemini_client.py       # Optional Gemini cloud fallback
+│   ├── notifications.py       # SMS/push notification dispatch
+│   ├── db.py                  # Database initialization and helpers
 │   ├── core/                  # Enterprise control plane
 │   │   ├── identity.py        # Multi-org/workspace/user model with RBAC
-│   │   ├── schema.py          # Enterprise DB schema (orgs, workspaces, OAuth, quotas)
-│   │   ├── providers.py       # Provider config management (Gemini, Ollama, Slack, Google)
+│   │   ├── schema.py          # Enterprise DB schema
+│   │   ├── providers.py       # Provider config management
 │   │   ├── secret_manager.py  # AES-256-GCM encrypted secret storage
-│   │   ├── policy.py          # Policy engine (approve/deny/dry-run tool calls)
-│   │   ├── execution.py       # Durable execution (attempts, idempotency, heartbeats)
+│   │   ├── policy.py          # Policy engine (approve/deny/dry-run)
+│   │   ├── execution.py       # Durable execution (attempts, idempotency)
 │   │   ├── artifacts.py       # Artifact versioning + provenance chains
-│   │   ├── evidence.py        # Evidence tracking (facts linked to source data)
-│   │   ├── feedback.py        # Review feedback + human approval workflows
+│   │   ├── evidence.py        # Evidence tracking
+│   │   ├── feedback.py        # Review feedback + human approval
 │   │   ├── eval.py            # Evaluation & success metrics
 │   │   ├── eval_runner.py     # Evaluation execution pipeline
 │   │   ├── token_budget.py    # Token budgeting & cost tracking
 │   │   ├── telemetry.py       # Full audit logging
 │   │   ├── scheduler.py       # Job scheduling
-│   │   ├── gc.py              # Garbage collection & cleanup
 │   │   ├── gpu_manager.py     # GPU resource management
+│   │   ├── project_registry.py # Multi-project tracking
+│   │   ├── audit.py           # Audit trail management
+│   │   ├── gc.py              # Garbage collection & cleanup
 │   │   ├── error_strategy.py  # Error handling & recovery strategies
 │   │   └── atomic_io.py       # Atomic file operations
-│   ├── jobs/                  # Job pipeline ("The Train")
+│   ├── jobs/                  # Job pipeline
 │   │   ├── models.py          # Job, node, artifact data models
 │   │   ├── planner.py         # Plan generation (node graph layout)
 │   │   ├── executor.py        # Node execution, tool dispatch, retry
 │   │   ├── queue.py           # SQLite-backed job queue
-│   │   ├── reviewer.py        # 3-tier QA (format → LLM critique → human)
-│   │   └── worker.py          # Worker process lifecycle + heartbeats
-│   ├── integrations/          # External service integrations
-│   │   └── slack_bot.py       # Slack bot (Socket Mode, job lifecycle sync)
-│   ├── inference/             # Advanced inference capabilities
-│   │   ├── lora_manager.py    # LoRA adapter management
-│   │   ├── model_selector.py  # Optimal model selection by task
-│   │   └── best_of_n.py       # Best-of-N generation with PRM scoring
-│   ├── security/              # Security layer
-│   │   ├── auth.py            # OAuth + JWT authentication
-│   │   ├── rbac.py            # Role-based access control
-│   │   ├── paths.py           # Path sandboxing (directory traversal prevention)
-│   │   ├── memory_encryption.py # Encrypted memory storage
-│   │   ├── prompt_guard.py    # Prompt injection detection
-│   │   └── recycle_bin.py     # Soft-delete, file recovery
-│   ├── autonomy/
-│   │   ├── engine.py          # Main autonomy engine (reflection, research, execution)
-│   │   ├── execution.py       # Proposal execution pipeline
-│   │   ├── reflection.py      # Codebase self-reflection
-│   │   ├── task_executor.py   # General task executor (research, docs)
-│   │   ├── config.py          # Engine constants
+│   │   ├── reviewer.py        # 3-tier QA (format → LLM → human)
+│   │   └── worker.py          # Worker process lifecycle
+│   ├── autonomy/              # Autonomous operation
+│   │   ├── cloud_brain.py     # Cloud-enhanced reasoning
+│   │   ├── self_discovery.py  # Capability self-discovery
+│   │   ├── skill_learner.py   # Skill acquisition from interactions
+│   │   ├── services/          # Autonomy service layer
 │   │   └── loops/
-│   │       ├── health.py      # Self-healing monitor (auto-restart, pre-warm)
-│   │       ├── reflection.py  # Periodic reflection scheduler
-│   │       ├── research.py    # Background research scheduler
-│   │       ├── execution.py   # Execution loop scheduler
-│   │       └── digest.py      # Daily summary generation
-│   ├── logic/
+│   │       └── research.py    # Background research scheduler
+│   ├── swarm/                 # Multi-agent system
+│   │   ├── coordinator.py     # Swarm orchestrator
+│   │   ├── delegation.py      # Task delegation logic
+│   │   ├── messaging.py       # Inter-agent message passing
+│   │   ├── shared_memory.py   # Shared context bus
+│   │   ├── resource_lock.py   # Resource conflict prevention
+│   │   ├── task_queue.py      # Swarm task queue
+│   │   └── agents/            # Specialized agents
+│   │       ├── llm_agent.py   # General LLM reasoning agent
+│   │       ├── research_agent.py  # Web/academic research agent
+│   │       ├── scanner_agent.py   # Codebase scanner agent
+│   │       └── test_agent.py      # Test execution agent
+│   ├── logic/                 # Chat & LLM orchestration
 │   │   ├── llm_client.py      # Ollama streaming client with retry
 │   │   ├── chat_service.py    # Chat orchestration and tool dispatch
 │   │   ├── prompt_factory.py  # System prompt construction
+│   │   ├── context_builder.py # Context window assembly
 │   │   ├── token_manager.py   # Context window management
+│   │   ├── tool_dispatcher.py # Tool call routing and execution
+│   │   ├── load_monitor.py    # System load monitoring
 │   │   └── summarizer.py      # Conversation summarization
-│   ├── metacognition/
+│   ├── metacognition/         # Self-awareness layer
 │   │   ├── controller.py      # Metacognition orchestrator
 │   │   ├── intent_parser.py   # User intent classification
 │   │   ├── uncertainty_gate.py # Confidence-based routing
@@ -166,59 +176,68 @@ LocalMind/
 │   │   ├── memory_manager.py  # Memory relevance scoring
 │   │   ├── ui_generator.py    # Dynamic UI generation
 │   │   └── revision_controller.py # Edit revision logic
-│   ├── research/
+│   ├── research/              # Research capabilities
 │   │   ├── web.py             # Web research (academic + general)
 │   │   ├── scanner.py         # Codebase complexity/smell scanner
 │   │   └── analyzer.py        # Failure analysis + success tracking
-│   ├── tools/                 # 30+ plugin-based AI tools
+│   ├── time_machine/          # State recording & replay
+│   │   ├── recorder.py        # State snapshot recording
+│   │   └── replay.py          # State replay and comparison
+│   ├── eval/                  # Evaluation framework
+│   │   ├── harness.py         # Test harness runner
+│   │   └── cases.py           # Test case definitions
+│   ├── validation/            # Input/output validation
+│   │   ├── base.py            # Validator base class
+│   │   ├── prompt_validators.py  # Prompt quality checks
+│   │   ├── output_validators.py  # Output quality checks
+│   │   ├── cross_stage_validators.py  # Cross-stage consistency
+│   │   ├── robust_parser.py   # Resilient response parsing
+│   │   └── root_cause.py      # Root cause analysis
+│   ├── tts/                   # Text-to-speech
+│   │   └── piper_service.py   # Piper TTS integration
+│   ├── memory/                # Memory subsystem
+│   │   └── session_cache.py   # In-memory session cache
+│   ├── inference/             # Advanced inference
+│   │   ├── lora_manager.py    # LoRA adapter management
+│   │   ├── model_selector.py  # Optimal model selection
+│   │   └── best_of_n.py       # Best-of-N generation with PRM scoring
+│   ├── security/              # Security layer
+│   │   ├── auth.py            # OAuth + JWT authentication
+│   │   ├── rbac.py            # Role-based access control
+│   │   ├── paths.py           # Path sandboxing
+│   │   ├── memory_encryption.py # Encrypted memory storage
+│   │   ├── prompt_guard.py    # Prompt injection detection
+│   │   └── recycle_bin.py     # Soft-delete, file recovery
+│   ├── integrations/
+│   │   └── slack_bot.py       # Slack bot (Socket Mode)
+│   ├── tools/                 # 35+ plugin-based AI tools
 │   │   ├── base.py            # Abstract tool base class
 │   │   ├── registry.py        # Auto-discovers and routes tools
-│   │   ├── web_search.py      # Multi-provider search
-│   │   ├── file_tools.py      # Sandboxed read/write/list
-│   │   ├── run_code.py        # Python execution with safety
-│   │   ├── memory.py          # ChromaDB vector memory
-│   │   ├── rag.py             # Document RAG (index + query)
-│   │   ├── vision.py          # Image analysis via Ollama
-│   │   ├── screenshot.py      # Screen capture
-│   │   ├── clipboard.py       # Clipboard access
-│   │   ├── git_tools.py       # Git status, diff, commit, log
-│   │   ├── self_edit.py       # AI self-editing capability
-│   │   ├── self_reflect.py    # Self-reflection tool
-│   │   ├── self_test.py       # Self-testing tool
-│   │   ├── self_extend.py     # AI writes new tool plugins
-│   │   ├── propose_action.py  # Proposal creation tool
-│   │   ├── generate_ui.py     # Dynamic UI generation
-│   │   ├── mcp_browser.py     # MCP browser integration
-│   │   ├── manage_model.py    # Ollama model management
-│   │   ├── dependency_manager.py # Package dependency tool
-│   │   ├── project_context.py # Project structure context
-│   │   ├── google_docs_tool.py # Google Docs read/write
-│   │   ├── google_drive_tool.py # Google Drive file management
-│   │   ├── google_sheets_tool.py # Google Sheets (14 operations)
-│   │   ├── google_slides_tool.py # Google Slides read/write/edit
-│   │   ├── gmail_tool.py      # Gmail search and management
-│   │   ├── excel_tool.py      # Excel spreadsheet operations
-│   │   ├── pdf_tool.py        # PDF text extraction
-│   │   ├── pptx_tool.py       # PowerPoint creation/editing
-│   │   ├── word_tool.py       # Word document operations
-│   │   ├── browser_tool.py    # Web browser automation
-│   │   ├── terminal.py        # Terminal command execution
-│   │   └── ast_analyzer.py    # Python AST analysis
+│   │   ├── tool_generator.py  # AI generates new tools at runtime
+│   │   ├── generated/         # AI-created tool plugins
+│   │   └── ...                # web_search, file_tools, vision, etc.
 │   └── routes/                # API endpoints
 │       ├── chat.py            # /api/chat SSE streaming
-│       ├── autonomy_routes.py # /api/autonomy/* engine control
-│       ├── research_routes.py # /api/research/* endpoints
+│       ├── jobs.py            # /api/jobs CRUD + pipeline control
+│       ├── tools.py           # /api/tools execution
+│       ├── tools_generated.py # /api/tools/generated management
+│       ├── swarm_routes.py    # /api/swarm multi-agent coordination
+│       ├── hub.py             # /api/hub cross-project insights
+│       ├── knowledge_graph.py # /api/knowledge-graph
+│       ├── self_discovery.py  # /api/self-discovery
+│       ├── skill_learning.py  # /api/skills learning endpoints
+│       ├── time_machine.py    # /api/time-machine record/replay
+│       ├── eval_routes.py     # /api/eval evaluation runs
+│       ├── tts.py             # /api/tts text-to-speech
+│       ├── research_routes.py # /api/research endpoints
 │       ├── conversations.py   # /api/conversations CRUD
 │       ├── documents.py       # /api/documents RAG endpoints
 │       ├── files.py           # /api/files sandboxed ops
 │       ├── memory.py          # /api/memory CRUD
 │       ├── settings.py        # /api/settings
 │       ├── system.py          # /api/system health + metrics
-│       ├── tools.py           # /api/tools execution
-│       ├── jobs.py            # /api/jobs CRUD + pipeline control
 │       ├── admin.py           # /api/admin management endpoints
 │       ├── google_auth.py     # /api/auth/google OAuth flow
-│       ├── swarm_routes.py    # /api/swarm multi-agent coordination
 │       └── validation_routes.py # /api/validate input validation
 ├── frontend/
 │   ├── index.html             # SPA shell + all UI panels
@@ -226,27 +245,25 @@ LocalMind/
 │   ├── styles.css             # Core styles (Tailwind companion)
 │   ├── manifest.json          # PWA manifest
 │   ├── sw.js                  # Service worker for offline
-│   └── modules/
-│       ├── autonomy_ui.js     # Brain dashboard + action stream
+│   └── modules/               # 32 ES6 modules
 │       ├── chat.js            # Chat interface + SSE streaming
-│       ├── editor.js          # Monaco code editor
-│       ├── events.js          # DOM event binding
-│       ├── state.js           # Shared state + DOM refs
-│       ├── settings_ui.js     # Settings modal
-│       ├── sidebar.js         # Sidebar navigation
-│       ├── dashboard.js       # Hardware dashboard
-│       ├── conversations.js   # Conversation management
-│       ├── proposals_ui.js    # Proposal review UI
-│       ├── research_ui.js     # Research results UI
-│       ├── media.js           # Camera/voice/media
-│       ├── utils.js           # Shared utilities
-│       ├── live_reload.js     # Dev hot-reload
-│       ├── jobs_ui.js         # Job creation, filtering, status monitoring
-│       ├── templates_ui.js    # Saved job templates
+│       ├── jobs_ui.js         # Job creation, filtering, monitoring
+│       ├── swarm_ui.js        # Multi-agent swarm dashboard
+│       ├── task_creation.js   # Progressive-disclosure task creator
 │       ├── approvals_ui.js    # Human approval workflows
-│       ├── swarm_ui.js        # Multi-agent swarm visualization
-│       ├── streaming.js       # SSE streaming utilities
-│       └── tools.js           # Tool execution UI
+│       ├── templates_ui.js    # Saved job templates
+│       ├── ai_profile.js      # AI self-discovery profile view
+│       ├── learning_ui.js     # Learning Lab interface
+│       ├── hub.js             # Cross-project hub
+│       ├── brain_graph.js     # Knowledge graph visualization
+│       ├── time_machine.js    # State replay UI
+│       ├── eval_ui.js         # Evaluation runner UI
+│       ├── monitoring_ui.js   # System monitoring
+│       ├── editor.js          # Monaco code editor
+│       ├── token_panel.js     # Token usage tracking
+│       ├── onboarding.js      # First-run onboarding flow
+│       ├── tools_generated.js # AI-generated tools panel
+│       └── ...                # state, events, streaming, etc.
 ├── docs/
 │   ├── PROGRESS.md            # Development progress & roadmap
 │   ├── FEATURES.md            # Feature request backlog
@@ -257,13 +274,13 @@ LocalMind/
 │   ├── MARKET_RESEARCH.md     # Competitive analysis
 │   ├── BUSINESS_STRATEGY.md   # Business plan
 │   └── audits/                # Code audit reports
-├── tests/                     # pytest test suites (2,000+ tests)
+├── tests/                     # pytest test suites
 ├── scripts/
 │   ├── bump_build.py          # Auto-increment build number
 │   └── generate_docs.py       # API doc generator
 ├── Dockerfile                 # Docker image
 ├── docker-compose.yml         # Docker Compose setup
-├── install.ps1                # One-click installer (Ollama + models + venv)
+├── install.ps1                # One-click installer
 ├── uninstall.ps1              # Clean uninstaller
 ├── LocalMind.bat              # Launch script
 ├── run.py                     # Python entry point
@@ -272,7 +289,7 @@ LocalMind/
 └── requirements-dev.txt       # Dev dependencies
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install
 
@@ -306,7 +323,7 @@ docker-compose up -d
 3. Open `http://<your-tailscale-ip>:8001` on your phone
 4. Tap "Add to Home Screen" for the PWA experience
 
-## 🔧 Tool Plugin System
+## Tool Plugin System
 
 LocalMind uses a drop-in plugin architecture. Every `.py` file in `backend/tools/` that extends `BaseTool` is automatically discovered and available to the AI.
 
@@ -329,26 +346,31 @@ class MyTool(BaseTool):
 
 Drop it in `backend/tools/` and restart. That's it.
 
-## 🤖 Autonomy Engine
+### AI-Generated Tools
+
+LocalMind can also **write its own tools** at runtime. When the AI encounters a task that no existing tool covers, it can generate a new tool plugin, test it, and deploy it — all without restarting. Generated tools appear in `backend/tools/generated/` and show up in the UI's Generated Tools panel.
+
+## Autonomy Engine
 
 The engine runs continuous background loops:
 
 | Loop | Interval | Purpose |
-|------|----------|---------|
-| **Reflection** | Every 15 min | Scans codebase for issues, proposes improvements |
-| **Research** | Every 30 min | Web + academic research to inform proposals |
-| **Execution** | Continuous | Executes approved proposals (branch → edit → test → merge) |
-| **Health** | Every 5 min | Self-healing: auto-restart, model pre-warming |
-| **Digest** | Daily | Generates daily summary of engine activity |
+| --- | --- | --- |
+| **Research** | Every 30 min | Web + academic research to inform decisions |
+| **Self-Discovery** | Periodic | Maps its own capabilities and builds an identity profile |
+| **Skill Learning** | Continuous | Learns patterns from successful interactions |
+| **Cloud Brain** | On-demand | Cloud-enhanced reasoning for complex tasks |
 
 ### Safety Features
+
 - **Confidence gating** — Proposals below 30% confidence are auto-denied
-- **Infrastructure protection** — Critical files (`llm_client.py`, `code_editor.py`, etc.) blocked from self-edit
+- **Infrastructure protection** — Critical files blocked from self-edit
 - **Git branching** — All edits happen on feature branches, only merged after tests pass
 - **Max retries** — Failed proposals capped at 5 retries before permanent archival
 - **Deduplication** — Synonym-aware title matching prevents duplicate proposals
+- **Validation pipeline** — Multi-stage validators catch issues before they reach users
 
-## 🔒 Safety & Security
+## Safety & Security
 
 - **OAuth + JWT authentication** — Secure login via Google OAuth with JWT session tokens
 - **Role-based access control** — Org admin, workspace member, viewer roles with granular permissions
@@ -361,11 +383,10 @@ The engine runs continuous background loops:
 - **Sandboxed workspace** — All file ops restricted to `~/LocalMind_Workspace`
 - **Code execution safety** — Timeout (30s), blocked imports (`os.system`, `subprocess`, `shutil.rmtree`)
 - **Infrastructure guard** — Engine cannot modify its own core runtime files
-- **Git branching** — All edits happen on feature branches, only merged after tests pass
-- **Confidence gating** — Proposals below 30% confidence are auto-denied
 - **Audit logging** — Full telemetry of all operations for compliance
+- **Robust parsing** — Resilient response parsing with root cause analysis on failures
 
-## 🐳 Deployment
+## Deployment
 
 ### Local (Development)
 
@@ -380,32 +401,31 @@ The engine runs continuous background loops:
 docker-compose up -d
 ```
 
-### Slack Integration
+### Slack Integration (Optional)
 
-LocalMind connects to Slack via Socket Mode. Users can submit jobs, check status, and receive delivered artifacts directly in Slack channels.
+LocalMind can connect to Slack via Socket Mode (`slack-bolt[async]`). Once configured, users can submit jobs, check status, and receive delivered artifacts directly in Slack channels.
 
-## 📦 Dependencies
+## Dependencies
 
 All open-source and free:
 
 | Package | Purpose |
-|---|---|
+| --- | --- |
 | [Ollama](https://ollama.com) | Local LLM inference |
 | [FastAPI](https://fastapi.tiangolo.com) | Backend web framework |
 | [ChromaDB](https://www.trychroma.com) | Vector database for memories |
 | [Monaco Editor](https://microsoft.github.io/monaco-editor/) | VS Code editor engine (CDN) |
-| [slack-sdk](https://slack.dev/python-slack-sdk/) | Slack bot integration |
+| [D3.js](https://d3js.org) | Knowledge graph visualization |
 | [google-api-python-client](https://github.com/googleapis/google-api-python-client) | Google Workspace APIs |
-| [python-jose](https://github.com/mpdavis/python-jose) | JWT token handling |
 | [cryptography](https://cryptography.io) | AES-256-GCM secret encryption |
 | [python-pptx](https://python-pptx.readthedocs.io) | PowerPoint generation |
-| [python-docx](https://python-docx.readthedocs.io) | Word document operations |
 | [openpyxl](https://openpyxl.readthedocs.io) | Excel spreadsheet operations |
-| [PyPDF2](https://pypdf2.readthedocs.io) | PDF text extraction |
+| [python-docx](https://python-docx.readthedocs.io) | Word document operations |
+| [slack-bolt](https://slack.dev/bolt-python/) | Slack bot framework (optional) |
 | [httpx](https://www.python-httpx.org) | Async HTTP client |
 | [mss](https://pypi.org/project/mss/) | Screenshot capture |
 | [Pillow](https://pillow.readthedocs.io) | Image processing |
 
-## 📄 License
+## License
 
 MIT — do whatever you want with it.

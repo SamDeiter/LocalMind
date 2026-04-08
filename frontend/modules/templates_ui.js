@@ -58,8 +58,8 @@ let _dragSrcIndex = null;     // drag-and-drop source index
 
 const _el = (id) => document.getElementById(id);
 
-function _hide(el) { if (el) el.classList.add("hidden"); }
-function _show(el) { if (el) el.classList.remove("hidden"); }
+function _hide(el) { if (el) { el.classList.add("hidden"); el.style.display = "none"; } }
+function _show(el) { if (el) { el.classList.remove("hidden"); el.style.display = ""; } }
 
 /** Create an element with classes and optional attributes. */
 function _ce(tag, classes = "", attrs = {}) {

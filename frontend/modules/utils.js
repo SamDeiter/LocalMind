@@ -109,19 +109,31 @@ export function extToLang(ext) {
 
 /**
  * Show a temporary toast notification.
+ * @param {string} message - Plain text message (HTML-escaped automatically)
+ * @param {"info"|"success"|"error"} type
  */
 export function showToast(message, type = "info") {
+  const TOAST_ICONS = { success: "check_circle", error: "error", info: "info" };
   const container = document.getElementById("toast-container") || createToastContainer();
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
-  toast.innerHTML = `
-    <span class="toast-message">${message}</span>
-    <button class="toast-close">&times;</button>
-  `;
 
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined toast-icon";
+  icon.textContent = TOAST_ICONS[type] || "info";
+
+  const msg = document.createElement("span");
+  msg.className = "toast-message";
+  msg.textContent = message; // safe — textContent never interprets HTML
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "toast-close";
+  closeBtn.setAttribute("aria-label", "Dismiss notification");
+  closeBtn.innerHTML = "&times;";
+
+  toast.append(icon, msg, closeBtn);
   container.appendChild(toast);
 
-  // Animate in
   requestAnimationFrame(() => {
     toast.classList.add("visible");
   });
@@ -131,7 +143,7 @@ export function showToast(message, type = "info") {
     setTimeout(() => toast.remove(), 300);
   };
 
-  toast.querySelector(".toast-close").onclick = close;
+  closeBtn.onclick = close;
   setTimeout(close, 5000);
 }
 

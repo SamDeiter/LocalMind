@@ -176,8 +176,8 @@ export async function sendMessage() {
           // Render an inline approval card for the user.
           const card = document.createElement("div");
           card.className = "approval-card";
-          const riskColors = { LOW: "#4caf50", MEDIUM: "#ff9800", HIGH: "#f44336" };
-          const riskColor = riskColors[req.risk_level] || "#ff9800";
+          const riskClass = { LOW: "approval-risk-low", MEDIUM: "approval-risk-medium", HIGH: "approval-risk-high" };
+          const riskCls = riskClass[req.risk_level] || "approval-risk-medium";
           const icons = {
             install_package: "📦",
             download_file: "📥",
@@ -189,7 +189,7 @@ export async function sendMessage() {
           card.innerHTML = `
             <div class="approval-header">
               <span>${icon} Action Request</span>
-              <span class="approval-risk" style="color:${riskColor}">${req.risk_level || "MEDIUM"}</span>
+              <span class="approval-risk ${riskCls}">${req.risk_level || "MEDIUM"}</span>
             </div>
             <div class="approval-body">
               <div class="approval-desc">${escapeHtml(req.description || "")}</div>
@@ -241,12 +241,10 @@ export async function sendMessage() {
 
         onThinking(thinking) {
           removeTyping();
-          // Show agent mode badge so user knows which engine is handling the request
           const mode = thinking.provider === "react_agent" ? "Agent" : "Chat";
-          const modeIcon = mode === "Agent" ? "🤖" : "💬";
           const badge = document.createElement("div");
           badge.className = "agent-mode-badge";
-          badge.innerHTML = `${modeIcon} <strong>${mode}</strong> &middot; ${thinking.model || "model"} &middot; ${thinking.tier || "auto"}`;
+          badge.innerHTML = `<strong>${mode}</strong> &middot; ${thinking.model || "model"} &middot; ${thinking.tier || "auto"}`;
           if (contentEl) contentEl.prepend(badge);
         },
 
@@ -280,13 +278,13 @@ export async function sendMessage() {
         onError(error) {
           removeTyping();
           if (contentEl) {
-            contentEl.innerHTML = `<div style="color: var(--error)">❌ ${escapeHtml(error)}</div>`;
+            contentEl.innerHTML = `<div class="flex items-center gap-2 text-red-400 text-sm"><span class="material-symbols-outlined text-base">error</span> ${escapeHtml(error)}</div>`;
           }
         },
 
         onReconnecting(attempt, maxAttempts) {
           if (contentEl) {
-            contentEl.innerHTML = `<div style="color: var(--warning, #ff9800)">🔄 Reconnecting... (attempt ${attempt}/${maxAttempts})</div>`;
+            contentEl.innerHTML = `<div class="flex items-center gap-2 text-amber-400 text-sm"><span class="material-symbols-outlined text-base animate-spin">progress_activity</span> Reconnecting\u2026 (attempt ${attempt}/${maxAttempts})</div>`;
           }
         },
       },
@@ -319,7 +317,7 @@ export async function sendMessage() {
     } else {
       console.error("[LocalMind] Stream error:", e);
       if (contentEl) {
-        contentEl.innerHTML = `<div style="color: var(--error)">❌ Connection error: ${escapeHtml(e.message)}</div>`;
+        contentEl.innerHTML = `<div class="flex items-center gap-2 text-red-400 text-sm"><span class="material-symbols-outlined text-base">cloud_off</span> Connection error: ${escapeHtml(e.message)}</div>`;
       }
     }
   } finally {
@@ -362,19 +360,22 @@ export function renderMessages() {
 
 export function appendMessage(role, content) {
   if (welcomeScreen) welcomeScreen.style.display = "none";
+  // Hide chat empty state on first message
+  const emptyState = document.getElementById("chatEmptyState");
+  if (emptyState) emptyState.style.display = "none";
   return createMessageEl(role, content);
 }
 
 export function createMessageEl(role, content) {
   const wrapper = document.createElement("div");
   const isUser = role === "user";
-  wrapper.className = `message ${role}-message flex w-full mb-8 ${isUser ? "justify-end" : "justify-start"}`;
+  wrapper.className = `message ${role}-message flex w-full mb-3 ${isUser ? "justify-end" : "justify-start"}`;
 
   const contentDiv = document.createElement("div");
-  contentDiv.className = `message-content max-w-[72%] p-5 rounded-2xl text-[15px] leading-relaxed ${
+  contentDiv.className = `message-content max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
     isUser
-      ? "bg-indigo-500/15 border border-indigo-500/25 text-slate-200 rounded-tr-sm"
-      : "bg-slate-800/60 border border-slate-700/30 text-slate-300 rounded-tl-sm"
+      ? "bg-indigo-500/12 border border-indigo-500/20 text-slate-200 rounded-tr-sm"
+      : "bg-slate-800/50 border border-slate-700/25 text-slate-300 rounded-tl-sm"
   }`;
 
   contentDiv.innerHTML = role === "assistant" ? renderMarkdown(content) : escapeHtml(content);

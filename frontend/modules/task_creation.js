@@ -84,29 +84,19 @@ const el = (id) => document.getElementById(id);
 
 function _buildHTML() {
   return `
-<div class="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 shadow-xl relative overflow-hidden" id="tcCard">
-  <!-- Subtle radial glow -->
-  <div class="absolute inset-0 opacity-[0.04] pointer-events-none">
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#6366f1,transparent_70%)]"></div>
-  </div>
-
+<div class="bg-slate-900/50 border border-slate-800/40 rounded-xl p-5" id="tcCard">
   <!-- Header -->
-  <div class="flex items-center gap-3 mb-5 z-10 relative">
-    <div class="p-2 bg-primary/10 rounded-lg">
-      <span class="material-symbols-outlined text-primary">add_task</span>
-    </div>
-    <div>
-      <h2 class="font-headline font-bold text-lg text-white">New Task</h2>
-      <span class="text-xs font-mono text-outline">Describe what you need done</span>
-    </div>
+  <div class="flex items-center gap-2.5 mb-4">
+    <span class="material-symbols-outlined text-primary text-lg">add_task</span>
+    <h2 class="font-headline font-semibold text-sm text-slate-200">New Task</h2>
   </div>
 
   <!-- Task description textarea -->
-  <div class="relative z-10 mb-4">
+  <div class="mb-3">
     <textarea
       id="tcDescription"
-      class="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 resize-none custom-scrollbar transition-all"
-      rows="3"
+      class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 resize-none custom-scrollbar transition-all"
+      rows="2"
       placeholder="What would you like me to do? e.g., Research competitor pricing and create a summary report"
       title="Describe the task you want the AI to perform"
     ></textarea>
@@ -115,29 +105,29 @@ function _buildHTML() {
   <!-- File drop zone -->
   <div
     id="tcDropZone"
-    class="relative z-10 mb-4 border-2 border-dashed border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group"
+    class="mb-3 border border-dashed border-slate-700/60 rounded-lg px-4 py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all group"
     title="Drag and drop files here, or click to browse for files to attach"
   >
-    <span class="material-symbols-outlined text-2xl text-slate-500 group-hover:text-primary transition-colors">cloud_upload</span>
-    <span class="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Drop files here or click to upload</span>
+    <span class="material-symbols-outlined text-lg text-slate-500 group-hover:text-primary transition-colors">cloud_upload</span>
+    <span class="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Drop files or click to upload</span>
     <input type="file" id="tcFileInput" class="hidden" multiple title="Select files to attach to this task" />
   </div>
 
   <!-- File preview list -->
-  <div id="tcFilePreview" class="relative z-10 mb-4 flex flex-wrap gap-2 empty:hidden"></div>
+  <div id="tcFilePreview" class="mb-3 flex flex-wrap gap-2 empty:hidden"></div>
 
   <!-- Action buttons -->
-  <div class="relative z-10 flex items-center gap-3 mb-1">
+  <div class="flex items-center gap-2.5">
     <button
       id="tcRunNowBtn"
-      class="flex items-center gap-2 px-6 py-2.5 rounded-xl primary-gradient text-on-primary text-xs font-bold uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
+      class="btn-base btn-primary flex items-center gap-1.5"
       title="Submit this task immediately for quick AI processing"
     >
       <span class="material-symbols-outlined text-sm">bolt</span> Run Now
     </button>
     <button
       id="tcCustomizeBtn"
-      class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-slate-700 hover:border-slate-600 active:scale-95 transition-all"
+      class="btn-base btn-ghost flex items-center gap-1.5"
       title="Expand the pipeline editor to customize individual steps, choose tools, and set priority"
     >
       <span class="material-symbols-outlined text-sm" id="tcCustomizeIcon">tune</span>
@@ -146,12 +136,12 @@ function _buildHTML() {
   </div>
 
   <!-- ========== Expanded pipeline editor (hidden by default) ========== -->
-  <div id="tcPipelineEditor" class="hidden relative z-10 mt-6 border-t border-slate-800/60 pt-6">
+  <div id="tcPipelineEditor" class="hidden mt-5 border-t border-slate-800/40 pt-5">
     <!-- Top controls row -->
     <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-2">
-          <label for="tcTemplateSelect" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Template</label>
+          <label for="tcTemplateSelect" class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Template</label>
           <select
             id="tcTemplateSelect"
             class="bg-surface-container-low border border-outline-variant/30 rounded-lg text-xs text-slate-300 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -161,7 +151,7 @@ function _buildHTML() {
           </select>
         </div>
         <div class="flex items-center gap-2">
-          <label for="tcPriorityRange" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Priority</label>
+          <label for="tcPriorityRange" class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Priority</label>
           <input
             type="range"
             id="tcPriorityRange"
@@ -176,7 +166,7 @@ function _buildHTML() {
       </div>
       <button
         id="tcAddNodeBtn"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs font-bold uppercase tracking-widest hover:bg-slate-700 active:scale-95 transition-all"
+        class="btn-base btn-ghost flex items-center gap-1"
         title="Add another step to the pipeline"
       >
         <span class="material-symbols-outlined text-sm">add</span> Add Step
@@ -190,7 +180,7 @@ function _buildHTML() {
     <div class="flex justify-end mt-4">
       <button
         id="tcRunPipelineBtn"
-        class="flex items-center gap-2 px-6 py-2.5 rounded-xl primary-gradient text-on-primary text-xs font-bold uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20"
+        class="btn-base btn-primary flex items-center gap-1.5"
         title="Submit this multi-step pipeline for the AI to execute"
       >
         <span class="material-symbols-outlined text-sm">rocket_launch</span> Run Pipeline
@@ -216,12 +206,12 @@ function _buildNodeCard(index, node) {
   }).join("");
 
   return `
-<div class="tc-node-card flex-shrink-0 w-72 bg-slate-800/60 border border-slate-700/40 rounded-2xl p-4 flex flex-col gap-3 relative group" data-node-index="${index}">
-  <!-- Drag handle + step badge + remove -->
+<div class="tc-node-card flex-shrink-0 w-72 bg-slate-800/50 border border-slate-700/30 rounded-xl p-4 flex flex-col gap-2.5" data-node-index="${index}">
+  <!-- Step badge + remove -->
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <span class="material-symbols-outlined text-sm text-slate-600 cursor-grab" title="Drag to reorder this step (visual indicator)">drag_indicator</span>
-      <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold">${index + 1}</span>
+      <span class="flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-bold">${index + 1}</span>
+      <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Step ${index + 1}</span>
     </div>
     <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline">
       <span class="material-symbols-outlined text-sm pointer-events-none">close</span>
@@ -231,7 +221,7 @@ function _buildNodeCard(index, node) {
   <!-- Title -->
   <input
     type="text"
-    class="tc-node-title bg-surface-container-low border border-outline-variant/30 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+    class="tc-node-title bg-surface-container-low border border-outline-variant/25 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
     placeholder="Step title"
     data-node="${index}"
     value="${escapeHtml(node.title || "")}"
@@ -240,7 +230,7 @@ function _buildNodeCard(index, node) {
 
   <!-- Instructions -->
   <textarea
-    class="tc-node-instructions bg-surface-container-low border border-outline-variant/30 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none custom-scrollbar transition-all"
+    class="tc-node-instructions bg-surface-container-low border border-outline-variant/25 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none custom-scrollbar transition-all"
     rows="3"
     placeholder="Instructions for this step..."
     data-node="${index}"
@@ -248,8 +238,8 @@ function _buildNodeCard(index, node) {
   >${escapeHtml(node.instructions || "")}</textarea>
 
   <!-- Tool checkboxes -->
-  <div class="border-t border-slate-700/30 pt-2">
-    <div class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Allowed Tools</div>
+  <div class="border-t border-slate-700/25 pt-2">
+    <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">Allowed Tools</div>
     <div class="grid grid-cols-2 gap-x-2 gap-y-1 max-h-32 overflow-y-auto custom-scrollbar pr-1">
       ${toolCheckboxes}
     </div>
@@ -412,7 +402,7 @@ function _applyTemplate(templateId) {
 // Submit functions
 // ---------------------------------------------------------------------------
 
-async function submitQuickTask(description, files) {
+export async function submitQuickTask(description, files) {
   if (!description) {
     showToast("Please describe your task", "error");
     el("tcDescription")?.focus();
