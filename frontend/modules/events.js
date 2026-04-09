@@ -91,6 +91,13 @@ function _lazyInitAccordion(bodyId) {
   _accordionInited.add(bodyId);
 
   switch (bodyId) {
+    case "accordionWorkerPoolBody":
+      // Start swarm polling when the Worker Pool section is first expanded
+      import("./swarm_ui.js").then(m => {
+        m.initSwarmTabs?.();
+        m.startPolling?.();
+      }).catch(() => {});
+      break;
     case "accordionLearningBody":
       loadLearningData?.();
       break;
@@ -116,8 +123,8 @@ let _systemTabInited = false;
 function _initSystemTabOnce() {
   if (_systemTabInited) return;
   _systemTabInited = true;
-  // Worker Pool accordion is open by default — mark it as inited
-  _accordionInited.add("accordionWorkerPoolBody");
+  // Worker Pool accordion starts collapsed — polling is lazy-started on first expand
+  // (handled in _lazyInitAccordion case 'accordionWorkerPoolBody')
 }
 
 // ── Main Event Binding ───────────────────────────────────────────

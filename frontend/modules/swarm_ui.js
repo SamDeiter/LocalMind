@@ -41,7 +41,7 @@ async function fetchSwarmStatus() {
     }
 }
 
-function startPolling() {
+export function startPolling() {
     if (swarmPollingInterval) return;
     fetchSwarmStatus();
     swarmPollingInterval = setInterval(fetchSwarmStatus, 3000);
@@ -59,23 +59,12 @@ function stopPolling() {
  * called by sidebar buttons to ensure we don't end up on a blank screen
  */
 export function hideSwarmDashboard() {
-    const view = els.dashView();
-    const main = els.mainScroll();
-    
+    // In the 3-tab shell, visibility is managed by the System tab accordion.
+    // We only stop polling here; the accordion header handles show/hide.
     swarmVisible = false;
-    
-    // Always hide Worker Pool
-    if (view) view.classList.add('hidden');
-
-    // Always show Main Dashboard
-    if (main) {
-        main.classList.remove('hidden');
-        main.style.display = 'flex'; // Ensure flex layout is restored
-    }
-    
     stopPolling();
-    
-    // Update sidebar button state
+
+    // Legacy: update sidebar button state if it exists
     const btn = els.dashBtn();
     if (btn) {
         btn.classList.remove('bg-amber-500/10', 'text-amber-400', 'border-amber-500/20');
@@ -84,20 +73,12 @@ export function hideSwarmDashboard() {
 }
 
 export function toggleSwarmDashboard() {
-    const view = els.dashView();
-    const main = els.mainScroll();
-    if (!view) return;
-
+    // In the 3-tab shell, the accordion in the System tab controls visibility.
+    // This function is kept for backward compatibility but only manages polling.
     swarmVisible = !swarmVisible;
 
     if (swarmVisible) {
-        // Show Worker Pool, Hide Main Dashboard
-        view.classList.remove('hidden');
-        if (main) main.classList.add('hidden');
-        
         startPolling();
-        
-        // Update sidebar button active state
         const btn = els.dashBtn();
         if (btn) {
             btn.classList.add('bg-amber-500/10', 'text-amber-400', 'border-amber-500/20');
@@ -109,33 +90,16 @@ export function toggleSwarmDashboard() {
 }
 
 export function initSwarmUI() {
-    const btn = els.dashBtn();
-    if (!btn) {
-        console.warn('swarmDashBtn not found in DOM');
-        return;
-    }
-
-    // Initialize swarm tab bar
+    // Initialize swarm tab bar (safe to call whenever)
     initSwarmTabs();
 
-    // Connect toggle
-    btn.addEventListener('click', (e) => {
-        // If clicking on text or icon, ensure the button handles it
-        toggleSwarmDashboard();
-    });
+    // Wire sidebar button if it exists (legacy / non-shell contexts)
+    const btn = els.dashBtn();
+    if (btn) {
+        btn.addEventListener('click', () => toggleSwarmDashboard());
+    }
 
-    // Other nav buttons should clear the Swarm dashboard to prevent "blank screen" overlaps
-    const otherNavBtns = ['overviewBtn', 'editorToggle', 'activityToggle', 'memoryToggleBtn', 'newChatBtn', 'jobsBtn', 'templatesBtn', 'approvalsBtn', 'hubBtn'];
-    otherNavBtns.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('click', () => {
-                hideSwarmDashboard();
-            });
-        }
-    });
-
-    // Scan button
+    // Wire scan button if present
     const scanBtn = document.getElementById('swarmScanBtn');
     if (scanBtn) {
         scanBtn.addEventListener('click', async () => {
@@ -151,6 +115,9 @@ export function initSwarmUI() {
             }
         });
     }
+
+    // In the 3-tab shell, polling is started when the Worker Pool accordion
+    // is expanded (wired in events.js). No auto-start needed here.
 }
 
 function renderSwarmStatus(data) {
