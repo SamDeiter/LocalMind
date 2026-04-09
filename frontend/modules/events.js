@@ -97,6 +97,12 @@ function _lazyInitAccordion(bodyId) {
     case "accordionAIProfileBody":
       loadProfile?.();
       break;
+    case "accordionEvalsBody":
+      import("./eval_ui.js").then(m => m.initEvalUI()).catch(() => {});
+      break;
+    case "accordionMonitoringBody":
+      import("./monitoring_ui.js").then(m => m.initMonitoring()).catch(() => {});
+      break;
     case "accordionEditorBody":
       // Monaco is already initialized by editor.js init — just trigger resize
       window.dispatchEvent(new Event("resize"));
