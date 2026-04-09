@@ -146,11 +146,23 @@ export function getApprovalCount() {
 
 function updateNavBadge() {
   const badge = document.getElementById("approvalsBadge");
-  if (!badge) return;
   const count = _approvals.length;
-  badge.textContent = count;
-  badge.setAttribute("aria-label", `${count} approval${count !== 1 ? "s" : ""} pending`);
-  badge.classList.toggle("hidden", count === 0);
+
+  if (badge) {
+    badge.textContent = count;
+    badge.setAttribute("aria-label", `${count} approval${count !== 1 ? "s" : ""} pending`);
+    badge.classList.toggle("hidden", count === 0);
+  }
+
+  // ── Work Tab adapter: show/hide the inline Needs Approval section ──────
+  const inlineSection = document.getElementById("approvalsInlineSection");
+  if (inlineSection) {
+    if (count > 0) {
+      inlineSection.classList.remove("hidden");
+    } else {
+      inlineSection.classList.add("hidden");
+    }
+  }
 }
 
 // ── Polling ────────────────────────────────────────────────────
@@ -801,23 +813,13 @@ export function showApprovalsView() {
   const view = getContainer() || buildContainer();
   if (!view) return;
 
-  // Hide other views
-  const mainScroll = document.getElementById("mainScrollArea");
-  const swarmView = document.getElementById("swarmDashboardView");
-  if (mainScroll) mainScroll.classList.add("hidden");
-  if (swarmView) swarmView.classList.add("hidden");
-
-  view.classList.remove("hidden");
-  view.style.display = "";
   _visible = true;
 
-  // Show skeletons while data loads
   if (_approvals.length === 0) {
     const listEl = document.getElementById("approvalsList");
     if (listEl) showListSkeletons(listEl, 4);
   }
 
-  // Ensure we have current data
   poll();
   if (_activeTab === "history") {
     fetchCorrections().then(renderHistory);

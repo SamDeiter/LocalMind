@@ -182,9 +182,8 @@ export function showTemplatesView() {
   const view = _el("templatesView");
   if (!view) return;
 
-  // Hide sibling views
-  _hide(_el("mainScrollArea"));
-  _hide(_el("swarmDashboardView"));
+  // In the 3-tab shell, the Work tab controls which sections are visible.
+  // Templates renders inline inside #templatesView within the Work tab.
   _show(view);
 
   // Reset to list

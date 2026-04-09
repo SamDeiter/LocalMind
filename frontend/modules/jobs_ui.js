@@ -679,13 +679,13 @@ export function initJobsUI() {
 // ---------------------------------------------------------------------------
 
 export function showJobsView() {
+  // Show the hidden #jobsView shim (used for the full detail view)
   const view = el("jobsView");
   if (view) {
     view.classList.remove("hidden");
     view.style.display = "";
   }
   _showListView();
-  // Show skeletons while data loads
   const grid = el("jobsGrid");
   if (grid && _jobs.length === 0) showCardSkeletons(grid, 6);
   _loadJobs();
@@ -1345,6 +1345,41 @@ function _renderJobCards() {
       }
     });
   });
+
+  // ── Work Tab adapter: mirror cards into #taskPipelineBody ──────────────
+  const workGrid = document.getElementById("taskPipelineBody");
+  if (workGrid) {
+    if (filtered.length === 0) {
+      workGrid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-slate-600 italic">No active jobs</div>';
+    } else {
+      workGrid.innerHTML = filtered.slice(0, 6).map((job) => {
+        const cfg = STATUS_CFG[job.status] || STATUS_CFG.pending;
+        const isRunning = ["executing", "planning"].includes(job.status);
+        const spinClass = isRunning ? "jobs-spin" : "";
+        return `
+        <div class="bg-slate-900/40 border border-slate-800/50 rounded-xl p-4 space-y-2 cursor-pointer hover:bg-slate-800/40 hover:border-${cfg.color}-500/30 transition-all group"
+             data-work-job-id="${escapeHtml(job.id)}" tabindex="0" role="listitem"
+             aria-label="Job: ${escapeHtml(job.title)}, ${cfg.label}">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-semibold text-slate-200 truncate flex-1">${escapeHtml(job.title)}</span>
+            <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 bg-${cfg.color}-500/15 text-${cfg.color}-400">
+              <span class="material-symbols-outlined text-[10px] ${spinClass}">${isRunning ? "progress_activity" : cfg.icon}</span>
+              ${cfg.label}
+            </span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-600">${_timeAgo(job.created_at)}</div>
+        </div>`;
+      }).join("");
+      // Wire work grid click → full detail view
+      workGrid.querySelectorAll("[data-work-job-id]").forEach((card) => {
+        const handler = () => _showDetailView(card.dataset.workJobId);
+        card.addEventListener("click", handler);
+        card.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handler(); }
+        });
+      });
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1775,16 +1810,21 @@ function _renderNodeDetail(node) {
 
 function _updateRunningBadge() {
   const badge = el("jobsRunningBadge");
-  if (!badge) return;
   const running = _jobs.filter((j) =>
     ["pending", "planning", "executing", "reviewing", "cancelling"].includes(j.status),
   ).length;
-  badge.textContent = String(running);
-  badge.setAttribute("aria-label", `${running} job${running !== 1 ? "s" : ""} running`);
-  if (running > 0) {
-    badge.classList.remove("hidden");
-  } else {
-    badge.classList.add("hidden");
+
+  if (badge) {
+    badge.textContent = String(running);
+    badge.setAttribute("aria-label", `${running} job${running !== 1 ? "s" : ""} running`);
+    if (running > 0) badge.classList.remove("hidden");
+    else badge.classList.add("hidden");
+  }
+
+  // ── Work Tab adapter: update #taskPipelineCount chip ────────────────
+  const workCount = document.getElementById("taskPipelineCount");
+  if (workCount) {
+    workCount.textContent = running > 0 ? `${running} active` : "No active jobs";
   }
 }
 
