@@ -48,11 +48,15 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   LAYOUT
+   LAYOUT — 3-TAB SHELL
    ═══════════════════════════════════════════════════════════════════ */
 
-.app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
-.main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
+/* Top-level shell is a vertical flex column filling the viewport */
+body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* Tab panels fill remaining vertical space */
+.tab-panel { flex: 1; display: flex; flex-direction: column; }
+.tab-panel.hidden { display: none !important; }
 
 /* ═══════════════════════════════════════════════════════════════════
    REUSABLE COMPONENTS
@@ -192,57 +196,108 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SIDEBAR
+   TAB BAR
    ═══════════════════════════════════════════════════════════════════ */
 
-#sidebar {
-    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-                min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+#tabBar {
+    height: 44px;
+    gap: 0;
 }
-#sidebar.collapsed {
-    width: 68px !important;
-    min-width: 68px;
-    overflow: hidden;
-}
-#sidebar.collapsed nav span:not(.material-symbols-outlined),
-#sidebar.collapsed .version-badge,
-#sidebar.collapsed #priorityInput,
-#sidebar.collapsed #priorityList,
-#sidebar.collapsed #sidebarUploadBtn,
-#sidebar.collapsed #sidebarCameraBtn,
-#sidebar.collapsed #addPriorityBtn,
-#sidebar.collapsed nav .text-sm:not(.material-symbols-outlined) {
-    display: none;
-}
-#sidebar.collapsed .px-6 { padding-left: 1rem; padding-right: 1rem; }
-#sidebar.collapsed .px-4 { padding-left: 0.75rem; padding-right: 0.75rem; }
-#sidebar.collapsed .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
-#sidebar.collapsed nav > div > span { display: none; }
-#sidebar.collapsed .quick-task-box { display: none; }
 
-/* Nav buttons */
-.nav-btn {
+.tab-btn {
     position: relative;
-    transition: all 0.15s ease;
+    color: #64748b;
+    transition: color 0.15s ease;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px; /* overlap the border-b of the bar */
+    white-space: nowrap;
 }
-.nav-btn.nav-active {
-    color: #f1f5f9 !important;
-    background: rgba(99, 102, 241, 0.08) !important;
-    border-color: rgba(99, 102, 241, 0.15) !important;
+.tab-btn:hover { color: #e2e8f0; }
+.tab-btn.tab-active {
+    color: #f1f5f9;
+    border-bottom-color: #6366f1;
 }
-.nav-btn.nav-active::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 55%;
-    background: #6366f1;
-    border-radius: 0 3px 3px 0;
+.tab-btn.tab-active .material-symbols-outlined {
+    color: #818cf8;
 }
-.nav-btn.nav-active .material-symbols-outlined {
-    color: #818cf8 !important;
+
+/* ═══════════════════════════════════════════════════════════════════
+   ACCORDION (System Tab)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.accordion-section {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(51, 65, 85, 0.4);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    transition: border-color 0.15s ease;
+}
+.accordion-section:hover {
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+.accordion-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    cursor: pointer;
+    background: transparent;
+    transition: background 0.15s ease;
+    text-align: left;
+    gap: 0.75rem;
+}
+.accordion-header:hover { background: rgba(30, 41, 59, 0.4); }
+
+.accordion-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #e2e8f0;
+    tracking: tight;
+}
+
+.accordion-chevron {
+    transition: transform 0.2s ease;
+}
+.accordion-header[aria-expanded="true"] .accordion-chevron {
+    transform: rotate(0deg) !important;
+}
+.accordion-header[aria-expanded="false"] .accordion-chevron {
+    transform: rotate(-90deg);
+}
+
+.accordion-body {
+    padding: 1rem;
+    border-top: 1px solid rgba(51, 65, 85, 0.3);
+}
+.accordion-body.hidden { display: none; }
+
+.accordion-editor { padding: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   WORK TAB — TASK INPUT
+   ═══════════════════════════════════════════════════════════════════ */
+
+.work-task-input {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.work-task-input:focus-within {
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2), 0 4px 24px rgba(99, 102, 241, 0.08);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHAT TAB
+   ═══════════════════════════════════════════════════════════════════ */
+
+.chat-sidebar {
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.chat-sidebar.collapsed {
+    width: 0;
+    overflow: hidden;
+    border-right: none;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -670,27 +725,44 @@ select:focus-visible {
    ═══════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 768px) {
-    #sidebar {
-        position: fixed;
+    /* Move tab bar to bottom on mobile */
+    #tabBar {
+        order: 999;
+        border-top: 1px solid rgba(51, 65, 85, 0.4);
+        border-bottom: none;
+        margin-bottom: -1px;
+        padding-bottom: env(safe-area-inset-bottom, 0);
+        justify-content: space-around;
+    }
+    .tab-btn {
+        flex: 1;
+        justify-content: center;
+        border-bottom: none;
+        border-top: 2px solid transparent;
+        margin-bottom: 0;
+        margin-top: -1px;
+        padding: 0.75rem 0.5rem;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.5rem;
+    }
+    .tab-btn.tab-active {
+        border-bottom: none;
+        border-top-color: #6366f1;
+    }
+    /* Hide chat sidebar on mobile by default */
+    #chatSidebar {
+        position: absolute;
         top: 0; left: 0; bottom: 0;
-        z-index: 100;
+        z-index: 30;
         transform: translateX(-100%);
-        box-shadow: none;
+        transition: transform 0.25s ease;
+        box-shadow: 8px 0 24px rgba(0,0,0,0.4);
     }
-    #sidebar:not(.collapsed) {
+    #chatSidebar.open {
         transform: translateX(0);
-        box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
     }
-    #sidebar.collapsed {
-        transform: translateX(-100%) !important;
-    }
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 99;
-    }
-    .sidebar-overlay.active { display: block; }
-    .mobile-menu-btn { display: flex !important; }
+    #chatSidebarToggle { display: flex !important; }
+    /* Metrics hidden on small screens */
+    #topBar .hidden.md\:flex { display: none !important; }
 }

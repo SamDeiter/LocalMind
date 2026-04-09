@@ -1,6 +1,6 @@
 /**
- * LocalMind v3 — Entry Point
- * Thin boot file: imports modules and calls init.
+ * LocalMind v4 — Entry Point
+ * 3-tab shell: Work · Chat · System
  */
 
 import { checkHealth, loadModels } from "./modules/chat.js";
@@ -12,9 +12,8 @@ import {
   loadDocuments,
   loadVersion,
 } from "./modules/sidebar.js";
-import { toggleEditorPanel, initEditorEnhancements } from "./modules/editor.js";
+import { initEditorEnhancements } from "./modules/editor.js";
 import { bindEvents } from "./modules/events.js";
-import { initResearchPanel, initGlobalSearch } from "./modules/research_ui.js";
 import { initSettingsUI } from "./modules/settings_ui.js";
 import { initDashboard } from "./modules/dashboard.js";
 import { initLiveReload } from "./modules/live_reload.js";
@@ -23,10 +22,6 @@ import { initJobsUI } from "./modules/jobs_ui.js";
 import { initTemplatesUI } from "./modules/templates_ui.js";
 import { initApprovalsUI } from "./modules/approvals_ui.js";
 import { initTaskCreation } from "./modules/task_creation.js";
-import { initOnboarding } from "./modules/onboarding.js";
-import { initBrainGraph } from "./modules/brain_graph.js";
-import { initTimeMachine } from "./modules/time_machine.js";
-import { initHub } from "./modules/hub.js";
 import { initGeneratedTools } from "./modules/tools_generated.js";
 import { initPWA } from "./modules/pwa.js";
 import { initMonitoring } from "./modules/monitoring_ui.js";
@@ -48,8 +43,6 @@ async function init() {
   bindEvents();
   loadVersion();
   initEditorEnhancements();
-  initResearchPanel();
-  initGlobalSearch();
   initSettingsUI();
   initDashboard();
   initLiveReload();
@@ -58,10 +51,6 @@ async function init() {
   initTemplatesUI();
   initApprovalsUI();
   initTaskCreation();
-  initOnboarding();
-  initBrainGraph();
-  initTimeMachine();
-  initHub();
   initGeneratedTools();
   initPWA();
   initMonitoring();
@@ -69,12 +58,8 @@ async function init() {
   initTokenPanel();
   initLearningUI();
   initAIProfile();
-
-  // Restore editor panel if it was open
-
-  if (localStorage.getItem("localmind_editor") === "on") {
-    setTimeout(toggleEditorPanel, 500);
-  }
+  // initEvalUI stays dormant (no UI surface in current layout)
+  // initEvalUI();
 
   // Register Service Worker for PWA/Cache
   if ("serviceWorker" in navigator) {

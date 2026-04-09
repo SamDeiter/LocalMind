@@ -38,45 +38,61 @@ export const editorState = {
 export const $ = (s) => document.querySelector(s);
 
 // ── DOM refs ────────────────────────────────────────────────────
-export const sidebar = $("#sidebar");
-export const sidebarToggle = $("#sidebarToggle");
-export const newChatBtn = $("#chatBtn");
+// Tabs
+export const tabWork = document.getElementById("tabWork");
+export const tabChat = document.getElementById("tabChat");
+export const tabSystem = document.getElementById("tabSystem");
+// Work tab inputs
+export const priorityInput = document.getElementById("priorityInput");
+export const priorityContainer = $("#priorityList");
+export const addPriorityBtn = document.getElementById("addPriorityBtn");
+export const workAttachBtn = document.getElementById("workAttachBtn");
+export const workCameraBtn = document.getElementById("workCameraBtn");
+export const workImagePreview = document.getElementById("workImagePreview");
+export const workPreviewImg = document.getElementById("workPreviewImg");
+export const workRemoveImageBtn = document.getElementById("workRemoveImageBtn");
+// Chat elements
+export const newChatBtn = $("#newChatInlineBtn");
 export const conversationList = $("#conversationList");
-export const learningToggle = $("#learningToggle");
-export const modelSelect = $("#modelSelect");
-export const systemPromptText = $("#systemPromptText");
 export const sendBtn = $("#sendBtn");
 export const messageInput = $("#messageInput");
 export const messagesContainer = $("#messagesContainer");
 export const welcomeScreen = $("#welcomeScreen");
-export const loadingStatus = $("#loadingStatus");
+export const chatScreen = document.getElementById("chatScreen");
+// Voice / camera
+export const micBtn = $("#micBtn");
 export const voiceBtn = $("#voiceBtn");
 export const voiceSelect = $("#voiceSelect");
-export const cameraModal = $("#cameraModal");
-export const cameraPreview = $("#cameraPreview");
 export const openCameraBtn = $("#openCameraBtn");
 export const closeCameraBtn = $("#closeCameraBtn");
 export const snapBtn = $("#snapBtn");
 export const captureCanvas = $("#captureCanvas");
+export const cameraModal = $("#cameraModal");
+export const cameraPreview = $("#cameraPreview");
+// Misc / settings
+export const modelSelect = $("#modelSelect");
+export const systemPromptText = $("#systemPromptText");
+export const learningToggle = $("#learningToggle");
+export const loadingStatus = $("#loadingStatus");
+// Editor (now in System accordion — panelDivider still exists)
+export const editorPanel = null; // removed — editor now in System accordion
+export const panelDivider = document.getElementById("panelDivider");
+export const editorToggle = document.getElementById("editorToggle");
+// Sidebar compatibility shims (point to hidden shim elements)
+export const sidebar = null;
+export const sidebarToggle = null;
 export const imagePreview = $("#sidebarImagePreview");
 export const previewImg = $("#sidebarPreviewImg");
 export const removeImageBtn = $("#sidebarRemoveImageBtn");
-export const micBtn = $("#micBtn");
 export const uploadBtn = $("#sidebarUploadBtn");
 export const cameraBtn = $("#sidebarCameraBtn");
-export const editorPanel = document.getElementById("editorPanel");
-export const panelDivider = document.getElementById("panelDivider");
-export const editorToggle = document.getElementById("editorToggle");
-export const priorityInput = document.getElementById("priorityInput");
-export const priorityContainer = $("#priorityList");
-export const addPriorityBtn = document.getElementById("addPriorityBtn");
-export const insightContent = null; // removed — was in old right sidebar
-export const brainDigest = null; // removed — was in old right sidebar
-export const homeBtn = document.getElementById("homeBtn");
-export const modeSupervisedBtn = document.getElementById("modeSupervisedBtn");
-export const modeAutonomousBtn = document.getElementById("modeAutonomousBtn");
-export const chatScreen = document.getElementById("chatScreen");
-export const overviewBtn = document.getElementById("overviewBtn");
+// Removed refs (null for back-compat)
+export const insightContent = null;
+export const brainDigest = null;
+export const homeBtn = null;
+export const modeSupervisedBtn = null;
+export const modeAutonomousBtn = null;
+export const overviewBtn = null;
 
 // ── Smart Scroll ────────────────────────────────────────────────
 let _userScrolledUp = false;

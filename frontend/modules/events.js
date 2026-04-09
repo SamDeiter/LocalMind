@@ -1,20 +1,16 @@
 /**
- * Event binding — wires all DOM events to their module handlers.
+ * events.js — Tab-based event binding for LocalMind 3-tab shell.
+ * Replaces the old 9-nav-item sidebar system.
  */
 
 import {
   state,
   $,
-  sidebar,
-  sidebarToggle,
-  learningToggle,
-  modelSelect,
   sendBtn,
   messageInput,
   openCameraBtn,
   closeCameraBtn,
   snapBtn,
-  removeImageBtn,
   micBtn,
   voiceBtn,
   voiceSelect,
@@ -25,83 +21,110 @@ import {
 import { sendMessage, activateMode, clearMessages } from "./chat.js";
 import { loadConversations } from "./conversations.js";
 import { toggleMic, openCamera, closeCamera, captureFrame, clearCapturedImage } from "./media.js";
-import { uploadDocuments, toggleMemoryList } from "./sidebar.js";
-import { toggleEditorPanel } from "./editor.js";
+import { uploadDocuments } from "./sidebar.js";
 import { toggleSettingsModal } from "./settings_ui.js";
-import { hideSwarmDashboard } from "./swarm_ui.js";
-import { showJobsView } from "./jobs_ui.js";
-import { showTemplatesView } from "./templates_ui.js";
-import { showApprovalsView } from "./approvals_ui.js";
-import { loadHub } from "./hub.js";
+import { submitQuickTask } from "./task_creation.js";
 import { loadLearningData } from "./learning_ui.js";
 import { loadProfile } from "./ai_profile.js";
-import { submitQuickTask } from "./task_creation.js";
-import { chatScreen, overviewBtn } from "./state.js";
 
-/** Hide all views and restore the default main scroll area. */
-function hideAllViews() {
-  hideSwarmDashboard();
-  const views = [
-    "mainScrollArea", "jobsView", "templatesView", "approvalsView",
-    "chatScreen", "crossProjectHub", "learningPage", "aiProfileView",
-  ];
-  views.forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.add("hidden");
-    el.classList.remove("view-enter");
-    el.style.display = "none";
-  });
-}
+// ── Tab State ────────────────────────────────────────────────────
+const TABS = ["workTab", "chatTab", "systemTab"];
+const TAB_BTNS = ["tabWork", "tabChat", "tabSystem"];
 
-/** Show a view element with a transition animation. */
-function showView(el, displayStyle = "") {
-  if (!el) return;
-  el.classList.remove("hidden");
-  el.style.display = displayStyle || "";
-  // Trigger reflow then animate
-  void el.offsetWidth;
-  el.classList.add("view-enter");
-}
-
-/** Reset active state on all nav buttons, then highlight the given one. */
-function setActiveNav(activeId) {
-  const navIds = ["overviewBtn", "jobsBtn", "templatesBtn", "approvalsBtn", "hubBtn", "aiProfileBtn", "chatBtn", "learningBtn", "swarmDashBtn"];
-  navIds.forEach((id) => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    if (id === activeId) {
-      btn.classList.add("nav-active");
-      btn.classList.remove("text-slate-400");
+/** Switch the active tab. panelId: 'workTab' | 'chatTab' | 'systemTab' */
+export function switchTab(panelId) {
+  TABS.forEach((id) => {
+    const panel = document.getElementById(id);
+    if (!panel) return;
+    if (id === panelId) {
+      panel.classList.remove("hidden");
     } else {
-      btn.classList.remove("nav-active");
-      btn.classList.add("text-slate-400");
+      panel.classList.add("hidden");
     }
   });
+
+  const btnMap = { workTab: "tabWork", chatTab: "tabChat", systemTab: "tabSystem" };
+  TAB_BTNS.forEach((btnId) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (btnId === btnMap[panelId]) {
+      btn.classList.add("tab-active");
+      btn.setAttribute("aria-selected", "true");
+    } else {
+      btn.classList.remove("tab-active");
+      btn.setAttribute("aria-selected", "false");
+    }
+  });
+
+  // Lazy-load System tab sections on first open
+  if (panelId === "systemTab") {
+    _initSystemTabOnce();
+  }
 }
 
-export function bindEvents() {
-  // Sidebar
-  sidebarToggle?.addEventListener("click", () => sidebar?.classList.toggle("collapsed"));
+// ── Accordion Logic ──────────────────────────────────────────────
+const _accordionInited = new Set();
 
-  // Mobile sidebar toggle
-  const mobileMenuBtn = document.getElementById("mobileMenuBtn");
-  const sidebarOverlay = document.getElementById("sidebarOverlay");
-  const openMobileSidebar = () => {
-    sidebar?.classList.remove("collapsed");
-    sidebarOverlay?.classList.add("active");
-  };
-  const closeMobileSidebar = () => {
-    sidebar?.classList.add("collapsed");
-    sidebarOverlay?.classList.remove("active");
-  };
-  mobileMenuBtn?.addEventListener("click", () => {
-    if (sidebar?.classList.contains("collapsed")) openMobileSidebar();
-    else closeMobileSidebar();
+function _initAccordions() {
+  document.querySelectorAll("[data-accordion]").forEach((headerBtn) => {
+    headerBtn.addEventListener("click", () => {
+      const bodyId = headerBtn.getAttribute("data-accordion");
+      const body = document.getElementById(bodyId);
+      if (!body) return;
+      const isOpen = !body.classList.contains("hidden");
+
+      if (isOpen) {
+        body.classList.add("hidden");
+        headerBtn.setAttribute("aria-expanded", "false");
+      } else {
+        body.classList.remove("hidden");
+        headerBtn.setAttribute("aria-expanded", "true");
+        // Lazy init on first expand
+        _lazyInitAccordion(bodyId);
+      }
+    });
   });
-  sidebarOverlay?.addEventListener("click", closeMobileSidebar);
+}
 
-  // Sidebar quick-task Execute button
+function _lazyInitAccordion(bodyId) {
+  if (_accordionInited.has(bodyId)) return;
+  _accordionInited.add(bodyId);
+
+  switch (bodyId) {
+    case "accordionLearningBody":
+      loadLearningData?.();
+      break;
+    case "accordionAIProfileBody":
+      loadProfile?.();
+      break;
+    case "accordionEditorBody":
+      // Monaco is already initialized by editor.js init — just trigger resize
+      window.dispatchEvent(new Event("resize"));
+      break;
+    default:
+      break;
+  }
+}
+
+let _systemTabInited = false;
+function _initSystemTabOnce() {
+  if (_systemTabInited) return;
+  _systemTabInited = true;
+  // Worker Pool accordion is open by default — mark it as inited
+  _accordionInited.add("accordionWorkerPoolBody");
+}
+
+// ── Main Event Binding ───────────────────────────────────────────
+export function bindEvents() {
+  // ── Tab Buttons ──────────────────────────────────────────────
+  document.getElementById("tabWork")?.addEventListener("click", () => switchTab("workTab"));
+  document.getElementById("tabChat")?.addEventListener("click", () => switchTab("chatTab"));
+  document.getElementById("tabSystem")?.addEventListener("click", () => switchTab("systemTab"));
+
+  // ── Accordions ───────────────────────────────────────────────
+  _initAccordions();
+
+  // ── Work Tab: Task Input ─────────────────────────────────────
   addPriorityBtn?.addEventListener("click", () => {
     const text = priorityInput?.value?.trim() || "";
     if (!text) return;
@@ -109,69 +132,26 @@ export function bindEvents() {
     if (priorityInput) priorityInput.value = "";
   });
 
-  // Nav — Dashboard
-  overviewBtn?.addEventListener("click", () => {
-    hideAllViews();
-    showView(document.getElementById("mainScrollArea"), "flex");
-    setActiveNav("overviewBtn");
+  priorityInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const text = priorityInput?.value?.trim() || "";
+      if (!text) return;
+      submitQuickTask(text);
+      priorityInput.value = "";
+    }
   });
 
-  // Nav — Jobs
-  document.getElementById("jobsBtn")?.addEventListener("click", () => {
-    hideAllViews();
-    showJobsView();
-    setActiveNav("jobsBtn");
+  // Work tab attach/camera buttons → reuse media module
+  document.getElementById("workAttachBtn")?.addEventListener("click", () => {
+    const docUpload = document.getElementById("docUploadInput");
+    docUpload?.click();
   });
+  document.getElementById("workCameraBtn")?.addEventListener("click", openCamera);
+  document.getElementById("workRemoveImageBtn")?.addEventListener("click", clearCapturedImage);
 
-  // Nav — Templates
-  document.getElementById("templatesBtn")?.addEventListener("click", () => {
-    hideAllViews();
-    showTemplatesView();
-    setActiveNav("templatesBtn");
-  });
-
-  // Nav — Approvals
-  document.getElementById("approvalsBtn")?.addEventListener("click", () => {
-    hideAllViews();
-    showApprovalsView();
-    setActiveNav("approvalsBtn");
-  });
-
-  // Nav — Hub
-  document.getElementById("hubBtn")?.addEventListener("click", () => {
-    hideAllViews();
-    showView(document.getElementById("crossProjectHub"));
-    loadHub();
-    setActiveNav("hubBtn");
-  });
-
-  // Nav — AI Profile
-  document.getElementById("aiProfileBtn")?.addEventListener("click", () => {
-    hideAllViews();
-    showView(document.getElementById("aiProfileView"));
-    loadProfile();
-    setActiveNav("aiProfileBtn");
-  });
-
-  // Nav — Chat
-  document.getElementById("chatBtn")?.addEventListener("click", () => {
-    hideAllViews();
-    showView(document.getElementById("chatScreen"), "flex");
-    setActiveNav("chatBtn");
-  });
-
-  // Nav — Learning Lab
-  document.getElementById("learningBtn")?.addEventListener("click", () => {
-    hideAllViews();
-    showView(document.getElementById("learningPage"));
-    loadLearningData();
-    setActiveNav("learningBtn");
-  });
-
-  // Unified Main Input: Always use sendMessage which switches to Chat Mode
-  sendBtn?.addEventListener("click", () => {
-    sendMessage();
-  });
+  // ── Chat Tab: Message Input ──────────────────────────────────
+  sendBtn?.addEventListener("click", () => sendMessage());
 
   messageInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -181,49 +161,32 @@ export function bindEvents() {
   });
   messageInput?.addEventListener("input", autoResize);
 
-  // Learning toggle
-  learningToggle?.addEventListener("change", async () => {
-    try {
-      await fetch(`${window.location.origin}/api/memory/toggle`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: learningToggle.checked }),
-      });
-    } catch {
-      /* ignore */
-    }
+  // Chat tab: new conversation inline button
+  document.getElementById("newChatInlineBtn")?.addEventListener("click", () => {
+    clearMessages?.();
+    loadConversations?.();
   });
 
-  // Model dropdown
-  modelSelect?.addEventListener("change", () => {
-    state.model = modelSelect.value;
-  });
-
-  // Voice
+  // ── Voice & Camera ───────────────────────────────────────────
   micBtn?.addEventListener("click", toggleMic);
   voiceBtn?.addEventListener("click", () => {
     state.voiceEnabled = !state.voiceEnabled;
     localStorage.setItem("localmind_voice", state.voiceEnabled ? "on" : "off");
     if (voiceBtn) voiceBtn.classList.toggle("active", state.voiceEnabled);
   });
-  // Ensure voice button UI matches default-off state
   if (voiceBtn) voiceBtn.classList.remove("active");
-  voiceSelect?.addEventListener("change", () => {
-    /* voice stored by index */
-  });
+  voiceSelect?.addEventListener("change", () => { /* voice stored by index */ });
 
-  // Camera
   openCameraBtn?.addEventListener("click", openCamera);
   closeCameraBtn?.addEventListener("click", closeCamera);
   snapBtn?.addEventListener("click", captureFrame);
-  removeImageBtn?.addEventListener("click", clearCapturedImage);
 
-  // Mode buttons
+  // ── Mode Buttons ─────────────────────────────────────────────
   document.querySelectorAll(".mode-btn").forEach((b) => {
     b.addEventListener("click", () => activateMode(b.dataset.mode));
   });
 
-  // System prompt
+  // ── Settings ─────────────────────────────────────────────────
   const spBtn = $("#systemPromptBtn");
   spBtn?.addEventListener("click", () => toggleSettingsModal(true));
   $("#saveSystemPrompt")?.addEventListener("click", async () => {
@@ -234,33 +197,22 @@ export function bindEvents() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: text }),
       });
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   });
 
-  // Doc upload
+  // ── Doc Upload ───────────────────────────────────────────────
   const docUpload = $("#docUploadInput");
   docUpload?.addEventListener("change", () => {
     if (docUpload.files.length) uploadDocuments(Array.from(docUpload.files));
   });
   $("#uploadDocsBtn")?.addEventListener("click", () => docUpload?.click());
 
-  // Memory
-  $("#memoryToggleBtn")?.addEventListener("click", toggleMemoryList);
-
-  // Obsidian Specific Hooks
-  $("#editorToggle")?.addEventListener("click", () => {
-    hideSwarmDashboard();
-    toggleEditorPanel();
-  });
-
-  // Stop button
+  // ── Stop ─────────────────────────────────────────────────────
   $("#stopBtn")?.addEventListener("click", () => {
     if (state.abortController) state.abortController.abort();
   });
 
-  // Suggested prompts
+  // ── Prompt Pills ─────────────────────────────────────────────
   document.querySelectorAll(".prompt-pill").forEach((p) => {
     p.addEventListener("click", () => {
       if (messageInput) {
@@ -269,4 +221,25 @@ export function bindEvents() {
       }
     });
   });
+
+  // ── Learning toggle (legacy, may not exist in new HTML) ──────
+  const learningToggle = $("#learningToggle");
+  learningToggle?.addEventListener("change", async () => {
+    try {
+      await fetch(`${window.location.origin}/api/memory/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: learningToggle.checked }),
+      });
+    } catch { /* ignore */ }
+  });
+
+  // ── Model select ─────────────────────────────────────────────
+  const modelSelect = $("#modelSelect");
+  modelSelect?.addEventListener("change", () => {
+    state.model = modelSelect.value;
+  });
+
+  // ── Thinking terminal close ──────────────────────────────────
+  // (terminal shows/hides based on task activity — no change needed)
 }
