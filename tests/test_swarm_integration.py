@@ -215,8 +215,8 @@ class TestDelegationWorkflow:
             assert row["status"] == "cancelled"
 
     def test_delegation_depth_limit_enforced(self, _patch_db):
-        from backend.swarm.delegation import DelegationEngine
         from backend.config import MAX_DELEGATION_DEPTH
+        from backend.swarm.delegation import DelegationEngine
 
         db = _patch_db
         engine = DelegationEngine()
@@ -239,7 +239,7 @@ class TestDelegationWorkflow:
 
         parent_id = _insert_job(db, title="parent")
         d1 = engine.spawn_child_job(parent_id, "done-child", "done")
-        d2 = engine.spawn_child_job(parent_id, "running-child", "running")
+        engine.spawn_child_job(parent_id, "running-child", "running")
 
         # Mark one child completed, leave the other queued
         db.execute("UPDATE jobs SET status = 'completed' WHERE id = ?", (d1.child_job_id,))
@@ -261,7 +261,7 @@ class TestDelegationWorkflow:
 class TestResourceConflicts:
 
     def test_two_agents_exclusive_lock_conflict(self, _patch_db):
-        from backend.swarm.resource_lock import ResourceLockManager, LockConflictError
+        from backend.swarm.resource_lock import LockConflictError, ResourceLockManager
 
         db = _patch_db
         mgr = ResourceLockManager()
@@ -470,9 +470,9 @@ class TestFullPipeline:
         shared memory -> child completes -> parent reads result -> tree is complete.
         """
         from backend.swarm.delegation import DelegationEngine
-        from backend.swarm.shared_memory import SharedMemoryStore
-        from backend.swarm.resource_lock import ResourceLockManager
         from backend.swarm.messaging import AgentMessageBus
+        from backend.swarm.resource_lock import ResourceLockManager
+        from backend.swarm.shared_memory import SharedMemoryStore
 
         db = _patch_db
         engine = DelegationEngine()
@@ -526,8 +526,8 @@ class TestFullPipeline:
         """Multiple workers operate in parallel with non-overlapping locks
         and write results into shared memory."""
         from backend.swarm.delegation import DelegationEngine
-        from backend.swarm.shared_memory import SharedMemoryStore
         from backend.swarm.resource_lock import ResourceLockManager
+        from backend.swarm.shared_memory import SharedMemoryStore
 
         db = _patch_db
         engine = DelegationEngine()
@@ -581,7 +581,7 @@ class TestFullPipeline:
         d = engine.spawn_child_job(parent_id, "worker", "work")
         child_id = d.child_job_id
 
-        lock = locks.acquire("file:/important.py", child_id)
+        locks.acquire("file:/important.py", child_id)
         assert locks.is_locked("file:/important.py")
 
         # Cancel the whole tree
@@ -603,8 +603,8 @@ class TestFullPipeline:
 
         root = _insert_job(db, title="root")
         d1 = engine.spawn_child_job(root, "level-1a", "L1a")
-        d2 = engine.spawn_child_job(root, "level-1b", "L1b")
-        d1a = engine.spawn_child_job(d1.child_job_id, "level-2a", "L2a")
+        engine.spawn_child_job(root, "level-1b", "L1b")
+        engine.spawn_child_job(d1.child_job_id, "level-2a", "L2a")
 
         tree = engine.get_full_tree(root)
         assert tree["job_id"] == root

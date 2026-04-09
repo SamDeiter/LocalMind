@@ -6,15 +6,12 @@ ResourceLockManager, AgentMessageBus) at the module level where they are
 instantiated inside each handler.
 """
 
-import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from backend.swarm.models import AgentMessage, Delegation, ResourceLock, SharedMemoryEntry
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -119,6 +116,7 @@ def client():
     """Create a FastAPI TestClient wrapping only the swarm router."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from backend.routes.swarm_routes import router
 
     app = FastAPI()
@@ -376,7 +374,7 @@ class TestSwarmLocksEndpoint:
 
         # Verify it's gone from active list
         resp2 = client.get("/api/swarm/locks")
-        paths = [l["resource_path"] for l in resp2.json()["locks"]]
+        paths = [lock_info["resource_path"] for lock_info in resp2.json()["locks"]]
         assert "file:/workspace/util.py" not in paths
 
     def test_force_release_unknown_lock(self, client):

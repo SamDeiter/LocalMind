@@ -47,7 +47,7 @@ class TestToolRegistry:
 class TestPathValidation:
     def test_normal_path(self):
         """Normal relative paths should resolve within workspace."""
-        from backend.tools.file_tools import _validate_path, WORKSPACE
+        from backend.tools.file_tools import WORKSPACE, _validate_path
         result = _validate_path("hello.py")
         assert str(result).startswith(str(WORKSPACE.resolve()))
 
@@ -59,7 +59,7 @@ class TestPathValidation:
 
     def test_nested_path(self):
         """Nested paths should resolve within workspace."""
-        from backend.tools.file_tools import _validate_path, WORKSPACE
+        from backend.tools.file_tools import WORKSPACE, _validate_path
         result = _validate_path("subdir/file.txt")
         assert str(result).startswith(str(WORKSPACE.resolve()))
 
@@ -79,8 +79,9 @@ class TestFileTools:
     @pytest.mark.asyncio
     async def test_write_and_read_file(self, tmp_path):
         """Write a file then read it back via the tool classes."""
-        from backend.tools.file_tools import WriteFileTool, ReadFileTool, WORKSPACE
         import os
+
+        from backend.tools.file_tools import WORKSPACE, ReadFileTool, WriteFileTool
 
         # Write a test file into the actual workspace
         write_tool = WriteFileTool()

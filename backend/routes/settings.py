@@ -4,7 +4,8 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, Request, Response
-from backend import notifications, gemini_client
+
+from backend import gemini_client, notifications
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger("localmind.routes.settings")
@@ -132,6 +133,7 @@ async def get_notification_settings():
     if settings.get("smtp_pass"):
         settings["smtp_pass"] = "****"
     return settings
+
 
 @router.post("/settings/notifications")
 async def update_notification_settings(settings: dict):

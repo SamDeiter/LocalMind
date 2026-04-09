@@ -1,7 +1,9 @@
-import pytest
-import asyncio
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from backend.tools.terminal import TerminalTool
+
 
 @pytest.mark.asyncio
 async def test_terminal_tool_dangerous_command():
