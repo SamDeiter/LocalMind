@@ -31,7 +31,6 @@ def get_httpx_client() -> httpx.AsyncClient:
     """Return the shared httpx.AsyncClient instance."""
     global _HTTP_CLIENT
     if _HTTP_CLIENT is None:
-        # Using a longer timeout for general safety, but specific calls can override.
         _HTTP_CLIENT = httpx.AsyncClient(timeout=10.0)
     return _HTTP_CLIENT
 
@@ -87,13 +86,9 @@ def _job_counts() -> dict:
     completed = 0
     try:
         conn = _get_db_conn()
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'running'"
-        ).fetchone()
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'running'").fetchone()
         active = row["cnt"] if row else 0
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'completed'"
-        ).fetchone()
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'completed'").fetchone()
         completed = row["cnt"] if row else 0
         conn.close()
     except Exception:
@@ -161,8 +156,7 @@ async def hardware_status():
     ⚡ Bolt: Consolidated endpoint to reduce frontend network requests.
     """
     # ⚡ Bolt: Use interval=None to avoid blocking the event loop for 100ms.
-    # Returns the average CPU usage since the last call (or module load).
-    cpu_pct = psutil.cpu_percent(interval=None)
+    cpu_pct = psutil.cpu_percent(interval=None) if _PSUTIL_AVAILABLE else 0
     mem = psutil.virtual_memory()
     system = {
         "cpu_percent": cpu_pct,
@@ -216,10 +210,7 @@ async def list_models():
         client = get_httpx_client()
         resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
         data = resp.json()
-        models = [
-            {"name": m["name"], "size": m.get("size", 0)}
-            for m in data.get("models", [])
-        ]
+        models = [{"name": m["name"], "size": m.get("size", 0)} for m in data.get("models", [])]
         return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
@@ -266,9 +257,7 @@ async def health_deep():
     from backend.core.telemetry import health_checker
 
     result = await health_checker.check_deep()
-    return (
-        result.to_dict() if hasattr(result, "to_dict") else {"healthy": result.healthy}
-    )
+    return result.to_dict() if hasattr(result, "to_dict") else {"healthy": result.healthy}
 
 
 @router.get("/metrics/summary")
@@ -376,9 +365,7 @@ async def token_estimate(text: str = "", model: str = ""):
     """Return a token-count breakdown for the given text using the heuristic estimator."""
     from backend.core.token_budget import TokenEstimator
 
-    result = TokenEstimator.estimate_prompt_tokens(
-        input_data=text, model_id=model or None
-    )
+    result = TokenEstimator.estimate_prompt_tokens(input_data=text, model_id=model or None)
     return result
 
 
