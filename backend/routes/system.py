@@ -3,9 +3,11 @@ import logging
 import os
 import sqlite3
 import time
-import httpx
 from pathlib import Path
+
+import httpx
 from fastapi import APIRouter
+
 from backend.config import OLLAMA_BASE_URL
 from backend.db import DB_PATH
 
