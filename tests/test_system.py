@@ -8,7 +8,9 @@ def client():
     from fastapi.testclient import TestClient
 
     from backend.server import app
+
     return TestClient(app)
+
 
 def test_hardware_status_success(client):
     """Test the /api/hardware endpoint returns correct structure."""
