@@ -50,7 +50,7 @@ class TraceAnalyzer:
             return {"error": "No trace found for this ID"}
 
         # Summarize the failing sequence
-        summary_lines = [f"{e.stage}: {e.validator_name}: {e.result.error}" for e in trace.entries]
+        summary_lines = [f"{e.stage}: {e.validator_name}: {e.result.message}" for e in trace.entries]
         failure_log = "\n".join(summary_lines)
 
         prompt = (

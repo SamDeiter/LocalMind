@@ -34,6 +34,11 @@ const TAB_BTNS = ["tabWork", "tabChat", "tabSystem"];
 /** Switch the active tab. panelId: 'workTab' | 'chatTab' | 'systemTab' */
 export function switchTab(panelId) {
   TABS.forEach((id) => {
+  // Close sidebar and clear temporary media on tab switch
+  document.getElementById("chatSidebar")?.classList.remove("open");
+  document.getElementById("sidebarBackdrop")?.classList.remove("visible");
+  clearCapturedImage?.();
+
     const panel = document.getElementById(id);
     if (!panel) return;
     if (id === panelId) {
@@ -71,7 +76,9 @@ function _initAccordions() {
       const bodyId = headerBtn.getAttribute("data-accordion");
       const body = document.getElementById(bodyId);
       if (!body) return;
-      const isOpen = !body.classList.contains("hidden");
+
+      // Use aria-expanded as single source of truth (CSS chevron rotation reads it too)
+      const isOpen = headerBtn.getAttribute("aria-expanded") === "true";
 
       if (isOpen) {
         body.classList.add("hidden");
@@ -164,6 +171,11 @@ export function bindEvents() {
   document.getElementById("workRemoveImageBtn")?.addEventListener("click", clearCapturedImage);
 
   // ── Chat Tab: Message Input ──────────────────────────────────
+  document.getElementById("chatSidebarToggle")?.addEventListener("click", () => {
+    document.getElementById("chatSidebar")?.classList.toggle("open");
+    document.getElementById("sidebarBackdrop")?.classList.toggle("visible");
+  });
+
   sendBtn?.addEventListener("click", () => sendMessage());
 
   messageInput?.addEventListener("keydown", (e) => {
@@ -255,4 +267,10 @@ export function bindEvents() {
 
   // ── Thinking terminal close ──────────────────────────────────
   // (terminal shows/hides based on task activity — no change needed)
+
+  // ── Backdrop ─────────────────────────────────────────────────
+  document.getElementById("sidebarBackdrop")?.addEventListener("click", () => {
+    document.getElementById("chatSidebar")?.classList.remove("open");
+    document.getElementById("sidebarBackdrop")?.classList.remove("visible");
+  });
 }

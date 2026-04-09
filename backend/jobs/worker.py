@@ -30,6 +30,7 @@ from backend.jobs.queue import JobQueue
 from backend.jobs.planner import JobPlanner
 from backend.jobs.executor import NodeExecutor
 from backend.jobs.reviewer import JobReviewer
+from backend.autonomy.services.reflection_service import ReflectionService
 from backend.swarm.delegation import DelegationEngine
 from backend.swarm.shared_memory import SharedMemoryStore
 
@@ -88,7 +89,8 @@ class JobWorker:
             model_selector=model_selector,
             best_of_n_sampler=best_of_n_sampler,
         )
-        self.reviewer = JobReviewer(tool_registry)
+        self.reflection = ReflectionService(ollama_url or OLLAMA_BASE_URL)
+        self.reviewer = JobReviewer(tool_registry, reflection_service=self.reflection)
         self._activity_callback = activity_callback
         self._delegation_engine = DelegationEngine()
         self._shared_memory = SharedMemoryStore()
@@ -436,6 +438,9 @@ class JobWorker:
                     "Job %s failed review %d/%d times — marking failed.",
                     job.id, review_count, max_reviews,
                 )
+                rca = await self.reflection.analyze_failure(job.id)
+                if rca and "error" not in rca:
+                    logger.warning(f"Job {job.id} failure RCA: {rca.get('root_cause')}")
                 await self._handle_failure(
                     job,
                     f"Review failed after {review_count} attempt(s). "
@@ -572,6 +577,12 @@ class JobWorker:
                 duration = time.monotonic() - elapsed_so_far
                 node_durations.append(duration)
                 error_msg = f"Node '{node.title}' raised exception: {exc}"
+                self.reflection.log_step_failure(
+                    task_id=job.id,
+                    stage="node_execution",
+                    validator=node.title,
+                    error_msg=error_msg
+                )
                 logger.exception(error_msg)
                 self.queue.update_node(
                     node.id,
@@ -638,6 +649,12 @@ class JobWorker:
             else:
                 # Node reported failure (e.g. schema validation).
                 error_msg = result.error or "Node execution failed."
+                self.reflection.log_step_failure(
+                    task_id=job.id,
+                    stage="node_logic",
+                    validator=node.title,
+                    error_msg=error_msg
+                )
                 self.queue.update_node(
                     node.id,
                     status=NodeStatus.FAILED.value,

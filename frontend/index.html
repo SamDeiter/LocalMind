@@ -351,7 +351,7 @@
 
             <!-- ── Worker Pool ──────────────────────────────────────── -->
             <div class="accordion-section" id="accordionWorkerPool">
-                <button class="accordion-header" aria-expanded="true" aria-controls="accordionWorkerPoolBody"
+                <button class="accordion-header" aria-expanded="false" aria-controls="accordionWorkerPoolBody"
                     data-accordion="accordionWorkerPoolBody">
                     <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-amber-400 text-lg">hive</span>
@@ -367,7 +367,7 @@
                         <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform">expand_more</span>
                     </div>
                 </button>
-                <div id="accordionWorkerPoolBody" class="accordion-body">
+                <div id="accordionWorkerPoolBody" class="accordion-body hidden">
                     <!-- Metrics bar -->
                     <div class="flex items-center gap-4 text-xs text-slate-500 font-mono mb-4">
                         <span class="flex items-center gap-1.5">
@@ -718,5 +718,7 @@
 </div>
 
 <script type="module" src="app.js?v=4"></script>
+    <!-- Mobile Sidebar Backdrop -->
+    <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-20 hidden"></div>
 </body>
 </html>

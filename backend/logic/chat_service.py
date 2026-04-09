@@ -18,6 +18,7 @@ from backend.logic.tool_dispatcher import ToolDispatcher
 from backend.logic.token_manager import TokenManager
 from backend.logic.summarizer import Summarizer
 from backend.memory.session_cache import get_session_cache
+from backend.autonomy.services.reflection_service import ReflectionService
 
 logger = logging.getLogger("localmind.logic.chat_service")
 
@@ -33,6 +34,7 @@ class ChatService:
         self.tools = ToolDispatcher(registry)
         self.token_manager = TokenManager()
         self.summarizer = Summarizer(self.llm)
+        self.reflection = ReflectionService(config.OLLAMA_BASE_URL)
 
     # ------------------------------------------------------------------
     # Backward-compatible static methods (used by tests and system.py)
@@ -312,6 +314,15 @@ class ChatService:
                 break
 
         # Finalize
+                # Phase 3: Automated Root Cause Analysis if task failed or exhausted iterations
+        if iteration >= config.MAX_AGENT_ITERATIONS - 1:
+            logger.warning(f"Conversation {conversation_id} exhausted max iterations. Triggering RCA.")
+            rca_result = await self.reflection.analyze_failure(conversation_id)
+            if rca_result and "error" not in rca_result:
+                rca_msg = f"\n\n[Root Cause Analysis]: {rca_result.get('root_cause', 'Unknown')}\n[Suggested Recovery]: {rca_result.get('proposed_fix', 'Contact support')}"
+                full_response += rca_msg
+                yield f"data: {json.dumps({'token': rca_msg, 'conversation_id': conversation_id})}\n\n"
+        
         await self._save_msg(conversation_id, "assistant", full_response)
 
         elapsed = time.time() - start_time
@@ -363,6 +374,13 @@ class ChatService:
                 res_str = f"Error: {str(e)}"
 
             tool_result_evt = {"name": name, "result": res_str}
+            if isinstance(res, dict) and not res.get("success", True):
+                self.reflection.log_step_failure(
+                    task_id=conversation_id,
+                    stage="tool_execution",
+                    validator=name,
+                    error_msg=res_str
+                )
             if isinstance(res, dict) and res.get("image_base64"):
                 tool_result_evt["image_base64"] = res["image_base64"]
                 tool_result_evt["mime_type"] = res.get("mime_type", "image/png")

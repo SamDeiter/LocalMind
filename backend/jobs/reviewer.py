@@ -22,10 +22,11 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from backend.gemini_client import generate, is_available
 from backend.jobs.models import Job, JobFile, Node, NodeStatus
+from backend.autonomy.services.reflection_service import ReflectionService
 
 logger = logging.getLogger("localmind.jobs.reviewer")
 
@@ -105,10 +106,15 @@ class ReviewResult:
 class JobReviewer:
     """3-tier QA reviewer for completed job output."""
 
-    def __init__(self, tool_registry: Any = None) -> None:
+    def __init__(
+        self,
+        tool_registry: Any = None,
+        reflection_service: Optional[ReflectionService] = None
+    ) -> None:
         # tool_registry reserved for future tool-aware checks (e.g. re-run a
         # validation tool).  Stored but not used in the current implementation.
         self._tool_registry = tool_registry
+        self.reflection = reflection_service
 
     # ------------------------------------------------------------------
     # Public API
@@ -181,6 +187,16 @@ class JobReviewer:
 
         # ── Aggregate ───────────────────────────────────────────────────
         all_issues = tier1_issues + tier2_issues
+
+        # Log issues to reflection service for better terminal RCA
+        if self.reflection:
+            for issue in all_issues:
+                self.reflection.log_step_failure(
+                    task_id=job.id,
+                    stage=f"tier{issue.tier}_review",
+                    validator=issue.category,
+                    error_msg=issue.description
+                )
 
         # Overall pass: Tier 1 no criticals AND Tier 2 meets threshold.
         overall_passed = tier1_passed and tier2_passed
