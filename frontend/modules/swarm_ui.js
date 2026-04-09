@@ -6,8 +6,6 @@ let swarmVisible = false;
 // Helpers to get fresh DOM refs
 const els = {
     dashBtn: () => document.getElementById('swarmDashBtn'),
-    dashView: () => document.getElementById('swarmDashboardView'),
-    mainScroll: () => document.getElementById('mainScrollArea'),
     agentGrid: () => document.getElementById('swarmAgentGrid'),
     resultsStream: () => document.getElementById('swarmResultStream'),
     improvementsStream: () => document.getElementById('swarmImprovementsStream'),
@@ -293,9 +291,11 @@ function switchSwarmTab(tabId) {
     agentSections.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            // Walk up to the nearest direct child of the dashboard view so we
+            // Walk up to the nearest direct child of the accordion body so we
             // toggle the whole visual section, not just the inner container.
-            const section = el.closest('#swarmDashboardView > div, #swarmDashboardView > section') || el.parentElement;
+            const accordionBody = document.getElementById('accordionWorkerPoolBody');
+            const section = (accordionBody && el.closest('#accordionWorkerPoolBody > div, #accordionWorkerPoolBody > section'))
+                || el.parentElement;
             if (section) section.classList.toggle('hidden', tabId !== 'agents');
         }
     });
