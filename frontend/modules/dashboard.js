@@ -6,9 +6,19 @@ const OFFLINE_THRESHOLD = 3; // consecutive failures before showing Offline
 
 /** Update neural topology SVG nodes and metric cards with live hardware data */
 async function updateDashboardMetrics() {
+  const dot = document.getElementById("brainPulse");
+  const connEl = document.getElementById("brainStatus");
+
   try {
     const r = await fetch(`${API}/api/hardware`);
-    if (!r.ok) return;
+    if (!r.ok) {
+      handleFail();
+      return;
+    }
+
+    statusFailCount = 0;
+    if (connEl) connEl.textContent = "Online";
+
     const hw = await r.json();
     const sys = hw.system || {};
     const models = hw.models || [];
@@ -19,11 +29,10 @@ async function updateDashboardMetrics() {
     if (cpuEl) cpuEl.textContent = `${cpuPct}%`;
 
     // Update brain pulse color based on load
-    const brainPulse = document.getElementById("brainPulse");
-    if (brainPulse) {
-      if (cpuPct > 80) brainPulse.style.backgroundColor = "#ff6b98";
-      else if (cpuPct > 50) brainPulse.style.backgroundColor = "#f59e0b";
-      else brainPulse.style.backgroundColor = "#4fdbc8";
+    if (dot) {
+      if (cpuPct > 80) dot.style.backgroundColor = "#ff6b98";
+      else if (cpuPct > 50) dot.style.backgroundColor = "#f59e0b";
+      else dot.style.backgroundColor = "#4fdbc8";
     }
 
     // ── RAM ──
@@ -45,49 +54,24 @@ async function updateDashboardMetrics() {
     // Update status badge with model
     const versionBadge = document.getElementById("versionBadge");
     if (versionBadge && modelName !== "No model") versionBadge.textContent = modelName;
-  } catch {
-    // Silently fail — hardware API may not be available
-  }
-}
 
-/** Update status bar with connection info */
-async function updateStatusBar() {
-  const dot = document.getElementById("brainPulse");
-  const connEl = document.getElementById("brainStatus");
-  try {
-    // Check server health via version endpoint
-    const vr = await fetch(`${API}/api/version`);
-    if (vr.ok) {
-      statusFailCount = 0;
-      const vd = await vr.json();
-      if (dot) dot.style.backgroundColor = "#4fdbc8";
-      if (connEl) connEl.textContent = "Online";
+    // ⚡ Bolt: Consolidate version and memory updates to save requests
+    if (hw.version) {
+      const vd = hw.version;
       const versionEl = document.querySelector(".version-badge");
       if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
-    } else {
-      statusFailCount++;
-      if (statusFailCount >= OFFLINE_THRESHOLD) {
-        if (dot) dot.style.backgroundColor = "#ff6b98";
-        if (connEl) connEl.textContent = "Degraded";
-      }
     }
-
-    // Ideas count for reasoning grid
-    try {
-      const mr = await fetch(`${API}/api/memories`);
-      if (mr.ok) {
-        const memories = await mr.json();
-        const ideasEl = document.getElementById("brainIdeas");
-        if (ideasEl) ideasEl.textContent = Array.isArray(memories) ? memories.length : "0";
-      }
-    } catch {
-      /* ignore */
+    if (hw.memory_count !== undefined) {
+      const ideasEl = document.getElementById("brainIdeas");
+      if (ideasEl) ideasEl.textContent = hw.memory_count;
     }
   } catch {
+    handleFail();
+  }
+
+  function handleFail() {
     statusFailCount++;
     if (statusFailCount >= OFFLINE_THRESHOLD) {
-      const dot = document.getElementById("brainPulse");
-      const connEl = document.getElementById("brainStatus");
       if (dot) dot.style.backgroundColor = "#ff6b98";
       if (connEl) connEl.textContent = "Offline";
     }
@@ -96,12 +80,10 @@ async function updateStatusBar() {
 
 /** Initialize dashboard data feeds */
 function initDashboard() {
+  // ⚡ Bolt: Consolidate polling into a single call every 3s.
+  // updateDashboardMetrics now handles hardware, version, memory count, and connection status.
   updateDashboardMetrics();
-  updateStatusBar();
-  dashboardInterval = setInterval(() => {
-    updateDashboardMetrics();
-    updateStatusBar();
-  }, 3000);
+  dashboardInterval = setInterval(updateDashboardMetrics, 3000);
 }
 
 /** Stop dashboard updates */
@@ -113,3 +95,7 @@ function stopDashboard() {
 }
 
 export { initDashboard, stopDashboard, updateDashboardMetrics, updateStatusBar };
+
+async function updateStatusBar() {
+  // ⚡ Bolt: This is now handled within updateDashboardMetrics to avoid redundant calls.
+}
