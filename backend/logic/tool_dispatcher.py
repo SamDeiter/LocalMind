@@ -89,6 +89,38 @@ class ToolDispatcher:
                 return {"function": {"name": "gmail", "arguments": {"action": "list_messages", "max_results": 10}}}
             return {"function": {"name": "gmail", "arguments": {"action": "list_messages", "max_results": 5}}}
 
+        # PowerPoint / presentation patterns (includes common typo "point point")
+        if any(kw in msg for kw in [
+            "powerpoint", "power point", "point point", "pptx", "presentation",
+            "slide deck", "slides", "make a deck", "create a deck", "new deck",
+        ]):
+            # If user references an existing file, route to pptx tool for reading
+            file_match = re.search(r'["\']?([^\s"\']+\.pptx)["\']?', user_message, re.IGNORECASE)
+            if file_match:
+                return {"function": {"name": "pptx", "arguments": {
+                    "action": "extract_content", "file_path": file_match.group(1),
+                }}}
+            # For creating from scratch, let the LLM handle it via the pptx
+            # tool's create action — return None so the model sees the full
+            # pptx tool schema and can build the slides list itself.
+            return None
+
+        # Word / document patterns
+        if any(kw in msg for kw in ["word doc", "docx", "write a document"]):
+            file_match = re.search(r'["\']?([^\s"\']+\.docx)["\']?', user_message, re.IGNORECASE)
+            if file_match:
+                return {"function": {"name": "word", "arguments": {
+                    "action": "read", "file_path": file_match.group(1),
+                }}}
+
+        # Excel / spreadsheet patterns
+        if any(kw in msg for kw in ["excel", "xlsx", "spreadsheet"]):
+            file_match = re.search(r'["\']?([^\s"\']+\.xlsx)["\']?', user_message, re.IGNORECASE)
+            if file_match:
+                return {"function": {"name": "excel", "arguments": {
+                    "action": "read_range", "file_path": file_match.group(1),
+                }}}
+
         # Web search patterns
         if any(kw in msg for kw in [
             "search", "look up", "look into", "look over", "look at what",
@@ -168,7 +200,43 @@ class ToolDispatcher:
                     if isinstance(args, dict):
                         calls.append({"function": {"name": name, "arguments": args}})
             i = idx + 1
+
+        # Fallback: detect unwrapped tool calls where the model outputs raw
+        # arguments (e.g. {"action": "create", "slides": [...]}) instead of
+        # the expected {"name": "...", "arguments": {...}} wrapper.
+        if not calls:
+            calls = self._parse_unwrapped_tool_call(text)
+
         return calls
+
+    def _parse_unwrapped_tool_call(self, text: str) -> List[Dict[str, Any]]:
+        """Match a bare JSON argument block to a registered tool.
+
+        Some models (especially with native tool calling enabled) output the
+        tool arguments directly instead of wrapping them in the
+        ``{"name": ..., "arguments": ...}`` envelope.  This fallback extracts
+        the first JSON object, checks for an ``action`` field, and matches
+        its value against registered tools' action enums.
+        """
+        start = text.find('{')
+        if start == -1:
+            return []
+        obj = self.extract_json_object(text, start)
+        if not obj or not isinstance(obj, dict):
+            return []
+
+        action = obj.get("action")
+        if not action:
+            return []
+
+        for tool in self.registry.tools:
+            params = tool.parameters
+            action_prop = params.get("properties", {}).get("action", {})
+            if action in action_prop.get("enum", []):
+                logger.info("Matched unwrapped tool call: %s(action=%s)", tool.name, action)
+                return [{"function": {"name": tool.name, "arguments": obj}}]
+
+        return []
 
     @staticmethod
     def extract_json_object(text: str, start: int) -> Optional[Dict]:
@@ -250,7 +318,61 @@ class ToolDispatcher:
                 i = start
             else:
                 i = idx + 1
+
+        # Strip unwrapped tool call JSON (raw arguments with "action" key)
+        result = self._strip_unwrapped_tool_json(result)
+
         return result
+
+    def _strip_unwrapped_tool_json(self, text: str) -> str:
+        """Remove unwrapped tool argument JSON blocks from text.
+
+        Handles the case where the model outputs raw ``{"action": "...", ...}``
+        without the name/arguments wrapper.
+        """
+        stripped = self._strip_markdown_fences(text)
+        start = stripped.find('{')
+        if start == -1:
+            return text
+        obj = self.extract_json_object(stripped, start)
+        if not obj or not isinstance(obj, dict) or "action" not in obj:
+            return text
+
+        action = obj.get("action")
+        is_tool_args = any(
+            action in tool.parameters.get("properties", {}).get("action", {}).get("enum", [])
+            for tool in self.registry.tools
+        )
+        if not is_tool_args:
+            return text
+
+        # Find and remove the JSON block from the original text
+        orig_start = text.find('{')
+        if orig_start == -1:
+            return text
+        depth = 0
+        in_str = False
+        esc = False
+        for j in range(orig_start, len(text)):
+            c = text[j]
+            if esc:
+                esc = False
+                continue
+            if c == '\\' and in_str:
+                esc = True
+                continue
+            if c == '"' and not esc:
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    return text[:orig_start] + text[j + 1:]
+        return text
 
 
 # ------------------------------------------------------------------
@@ -283,6 +405,21 @@ _TRAILING_NOISE = re.compile(
     r"|\s+and\s+report\s+what\s+was\s+done.*$",
     re.IGNORECASE,
 )
+
+
+def _extract_presentation_topic(raw_message: str) -> str:
+    """Extract the topic from a presentation creation request."""
+    msg = raw_message.strip()
+    # Remove common prefixes
+    msg = re.sub(
+        r"^(?:create|make|build|generate|write)\s+"
+        r"(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:power\s*point|point\s+point|powerpoint|pptx|presentation|slide\s+deck|deck|slides?)\s+"
+        r"(?:about|on|for|regarding|titled|called)?\s*",
+        "", msg, flags=re.IGNORECASE,
+    ).strip()
+    # Remove trailing punctuation
+    msg = re.sub(r"[.,;:!?]+$", "", msg).strip()
+    return msg[:80] if msg else "Untitled Presentation"
 
 
 def _extract_search_query(raw_message: str) -> str:
