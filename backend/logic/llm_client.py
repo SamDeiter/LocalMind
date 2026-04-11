@@ -72,6 +72,7 @@ class LLMClient:
                             return
 
                         line_count = 0
+                        _in_think = False
                         async for line in response.aiter_lines():
                             if not line:
                                 continue
@@ -83,6 +84,17 @@ class LLMClient:
                                     token = data["message"].get("content", "")
                                 elif "response" in data:
                                     token = data.get("response", "")
+
+                                # Filter out qwen3-style <think>…</think> blocks
+                                if "<think>" in token:
+                                    _in_think = True
+                                    token = token.split("<think>")[0]
+                                if _in_think:
+                                    if "</think>" in token:
+                                        _in_think = False
+                                        token = token.split("</think>", 1)[-1]
+                                    else:
+                                        token = ""
 
                                 yield {
                                     "token": token,

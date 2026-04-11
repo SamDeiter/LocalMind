@@ -115,16 +115,10 @@ class ChatService:
         except Exception as e:
             logger.debug("Session cache user_intent save failed (non-fatal): %s", e)
 
-        # 8. Choose loop
-        use_react = (
-            task_estimate["score"] >= 5
-            and task_estimate.get("needs_tools")
-            and provider == "ollama"
-            and body.get("agent_mode") != "disabled"
-        )
-        if use_react:
-            return self._react_agent_loop(conversation_id, model, message, task_estimate, is_new_conversation, provider)
-
+        # 8. Always use the standard agent loop — it has proper conversation
+        # history, native Ollama tool calling, and synthetic tool fallback.
+        # The ReAct loop (_react_agent_loop) doesn't pass history and uses a
+        # text-based tool format that smaller models don't reliably produce.
         return self._agent_loop(conversation_id, model, provider, messages, task_estimate, metacog_decision, is_new_conversation, message)
 
     # ------------------------------------------------------------------
@@ -208,6 +202,11 @@ class ChatService:
                 num_ctx = 16384
 
             llm_options = {"num_ctx": num_ctx, "num_gpu": 99}
+            # Disable qwen3 extended thinking for light/medium tasks — it
+            # generates hidden <think> tokens that eat time without visible
+            # output, making the response feel much slower than it is.
+            if "qwen3" in model and task_estimate["tier"] in ("light", "medium"):
+                llm_options["num_predict"] = 2048  # cap output length
             ollama_tools = [t.to_ollama_tool() for t in self.registry.tools]
 
             chunk_text = ""

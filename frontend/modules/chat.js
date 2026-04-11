@@ -81,6 +81,7 @@ export async function loadModels() {
 
 // ── Send Message ────────────────────────────────────────────────
 export async function sendMessage() {
+  if (!messageInput) return;
   const text = messageInput.value.trim();
   if (!text || state.streaming) return;
 
@@ -109,6 +110,16 @@ export async function sendMessage() {
   const stopBtn = document.getElementById("stopBtn");
   if (stopBtn) stopBtn.style.display = "";
   state.abortController = new AbortController();
+
+  // Safety: auto-reset streaming flag after 2 min to prevent permanent lock-out
+  const streamingTimeout = setTimeout(() => {
+    if (state.streaming) {
+      console.warn("[LocalMind] Streaming safety timeout — resetting stuck state");
+      state.streaming = false;
+      if (sendBtn) sendBtn.disabled = false;
+      if (state.abortController) { state.abortController.abort(); state.abortController = null; }
+    }
+  }, 120_000);
 
   resetTokenPanel();
 
@@ -329,6 +340,7 @@ export async function sendMessage() {
       }
     }
   } finally {
+    clearTimeout(streamingTimeout);
     state.streaming = false;
     if (sendBtn) sendBtn.disabled = false;
     state.abortController = null;
@@ -409,8 +421,10 @@ export function addTypingIndicator(el) {
 export function renderMarkdown(text) {
   if (!text) return "";
   try {
+    // Strip qwen3-style <think>…</think> reasoning blocks (full content, not just tags)
+    let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
     // Strip model XML wrapper tags that marked treats as invisible custom HTML elements
-    let cleaned = text.replace(/<\/?(?:tool_response|tool_call|function_call|function_response|result|observation|thinking)[^>]*>/gi, "");
+    cleaned = cleaned.replace(/<\/?(?:tool_response|tool_call|function_call|function_response|result|observation|thinking|think)[^>]*>/gi, "");
     // Collapse any leftover blank lines from tag removal
     cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
     return marked.parse(cleaned, { breaks: true, gfm: true });

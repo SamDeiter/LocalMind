@@ -40,6 +40,10 @@ class ContextBuilder:
             "screenshot", "search the web", "look up",
             "run code", "execute", "terminal",
             "git commit", "git status", "git diff",
+            "powerpoint", "power point", "pptx", "presentation", "slide deck", "slides",
+            "create a file", "write a file", "save a file", "make a file",
+            "read file", "open file", "list files",
+            "web search", "google",
         ]
         needs_tools = any(kw in msg_lower for kw in tool_keywords)
         if needs_tools:
