@@ -189,6 +189,25 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.debug("Memory encryption migration skipped (non-critical)")
 
+    # ── MemPalace (Tier-3 long-term memory) ────────────────────
+    try:
+        from backend.memory.palace_manager import initialize_palace, get_status
+        palace_ready = initialize_palace()
+        if palace_ready:
+            status = get_status()
+            logger.info(
+                "MemPalace Tier-3 ready — %s drawers at %s",
+                status.get("drawer_count", "?"),
+                status.get("palace_path", "?"),
+            )
+        else:
+            logger.info(
+                "MemPalace not configured — Tier-3 memory disabled. "
+                "Run 'mempalace init' to enable palace memory."
+            )
+    except Exception as _mp_exc:
+        logger.debug("MemPalace init skipped (non-critical): %s", _mp_exc)
+
     # ── Data protection background tasks ─────────────────────────
     asyncio.create_task(schedule_vacuum(DB_PATH, interval_hours=VACUUM_INTERVAL_HOURS))
     asyncio.create_task(daily_purge_loop(WORKSPACE_ROOT, retention_days=JOB_RETENTION_DAYS))
