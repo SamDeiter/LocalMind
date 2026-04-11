@@ -65,7 +65,7 @@ class ContextBuilder:
 
         if override and override != "auto":
             if estimate.get("needs_tools"):
-                small_models = {"gemma3:4b", "gemma4:e4b", "qwen2.5-coder:7b"}
+                small_models = set(config.MODELS_NO_NATIVE_TOOLS)
                 if override in small_models:
                     logger.warning(f"Override '{override}' too small for tool calling — upgrading to medium tier")
                 else:
@@ -81,15 +81,10 @@ class ContextBuilder:
             if reuse:
                 return reuse, "ollama"
 
-        if estimate.get("needs_tools"):
-            try:
-                from src.agent.config import detect_hardware, select_model
-                hw = detect_hardware()
-                spec = select_model(hw, task_type="tool_calling", prefer_tool_calling=True)
-                logger.info(f"Hardware-aware routing: {spec.name} (tool_score={spec.tool_calling_score})")
-                return spec.name, "ollama"
-            except Exception as e:
-                logger.warning(f"Hardware-aware routing failed, using tier defaults: {e}")
+        # For tool-calling tasks, use at least medium tier (small models lack
+        # reliable tool-call formatting).
+        if estimate.get("needs_tools") and tier == "light":
+            tier = "medium"
 
         return config.MODEL_TIERS.get(tier, "gemma3:4b"), "ollama"
 

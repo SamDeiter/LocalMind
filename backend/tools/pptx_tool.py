@@ -65,7 +65,8 @@ def _color_hex(color_obj) -> str | None:
         if color_obj is None:
             return None
         rgb = color_obj.rgb
-        return f"#{rgb:06X}"
+        # RGBColor.__format__ does not support :06X — use str() instead.
+        return f"#{rgb}"
     except Exception:
         return None
 
@@ -775,6 +776,110 @@ def _do_apply_edits(
     }
 
 
+def _do_create(
+    file_path: str,
+    title: str,
+    slides: list[dict],
+) -> dict:
+    """
+    Create a new .pptx presentation from scratch.
+
+    *slides* is a list of dicts, each with:
+      layout  — layout name (e.g. "Title Slide", "Title and Content", "Blank")
+      title   — slide title text (optional)
+      body    — body / content text (optional, supports newline-separated bullets)
+      notes   — speaker notes text (optional)
+
+    The file is written atomically to *file_path*.
+    """
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+
+    from backend.core.atomic_io import AtomicFileWriter
+
+    resolved = _safe_path(file_path)
+    resolved.parent.mkdir(parents=True, exist_ok=True)
+
+    prs = Presentation()  # blank default template
+
+    # Map of available layout names for user feedback
+    layout_map: dict[str, Any] = {}
+    for layout in prs.slide_layouts:
+        layout_map[layout.name] = layout
+
+    available_names = list(layout_map.keys())
+    slides_added: list[dict] = []
+
+    for i, slide_def in enumerate(slides):
+        layout_name = slide_def.get("layout", "Blank")
+        slide_title = slide_def.get("title", "")
+        slide_body = slide_def.get("body", "")
+        slide_notes = slide_def.get("notes", "")
+
+        # Find layout — fall back to first available if not found
+        layout = layout_map.get(layout_name)
+        if layout is None:
+            # Try case-insensitive match
+            for name, lay in layout_map.items():
+                if name.lower() == layout_name.lower():
+                    layout = lay
+                    layout_name = name
+                    break
+            if layout is None:
+                layout = prs.slide_layouts[0]
+                layout_name = layout.name
+
+        slide = prs.slides.add_slide(layout)
+
+        # Populate placeholders by index convention:
+        #   idx 0 = title, idx 1 = body/content
+        applied = {}
+        for ph in slide.placeholders:
+            idx = ph.placeholder_format.idx
+            if idx == 0 and slide_title and ph.has_text_frame:
+                ph.text_frame.paragraphs[0].text = slide_title
+                applied["title"] = slide_title
+            elif idx == 1 and slide_body and ph.has_text_frame:
+                # Support bullet points via newlines
+                lines = slide_body.split("\n")
+                ph.text_frame.paragraphs[0].text = lines[0]
+                for line in lines[1:]:
+                    p = ph.text_frame.add_paragraph()
+                    p.text = line
+                applied["body"] = slide_body
+
+        # Speaker notes
+        if slide_notes:
+            notes_slide = slide.notes_slide
+            notes_slide.notes_text_frame.text = slide_notes
+            applied["notes"] = slide_notes
+
+        slides_added.append({
+            "index": i,
+            "layout": layout_name,
+            "applied": applied,
+        })
+
+    # Set presentation title metadata
+    if title:
+        prs.core_properties.title = title
+
+    writer = AtomicFileWriter()
+    result = writer.write_atomic(resolved, lambda tmp: prs.save(str(tmp)))
+
+    return {
+        "success": True,
+        "result": {
+            "output_path": str(result.path),
+            "sha256": result.sha256,
+            "size_bytes": result.size_bytes,
+            "slide_count": len(slides_added),
+            "slides": slides_added,
+            "available_layouts": available_names,
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # Tool class
 # ---------------------------------------------------------------------------
@@ -790,11 +895,12 @@ class PptxTool(BaseTool):
     @property
     def description(self) -> str:
         return (
-            "Work with PowerPoint (.pptx) files: read metadata and structure, "
-            "extract style guides (fonts/colors/sizes) for format matching, "
-            "extract per-slide content, edit slide text while preserving run-level "
-            "formatting, add new slides from existing layouts, and apply bulk "
-            "multi-slide edits in a single atomic write."
+            "Work with PowerPoint (.pptx) files: create new presentations from "
+            "scratch, read metadata and structure, extract style guides "
+            "(fonts/colors/sizes) for format matching, extract per-slide content, "
+            "edit slide text while preserving run-level formatting, add new slides "
+            "from existing layouts, and apply bulk multi-slide edits in a single "
+            "atomic write."
         )
 
     @property
@@ -805,6 +911,7 @@ class PptxTool(BaseTool):
                 "action": {
                     "type": "string",
                     "enum": [
+                        "create",
                         "read_metadata",
                         "extract_styles",
                         "extract_content",
@@ -867,6 +974,28 @@ class PptxTool(BaseTool):
                         "If omitted, a sibling file is auto-named (e.g. 'deck_edited.pptx')."
                     ),
                 },
+                "title": {
+                    "type": "string",
+                    "description": "Presentation title metadata (for create action).",
+                },
+                "slides": {
+                    "type": "array",
+                    "description": (
+                        "List of slide defs for create action. Each is "
+                        '{"layout": "Title Slide", "title": "...", "body": "...", "notes": "..."}. '
+                        "Common layouts: 'Title Slide', 'Title and Content', 'Section Header', 'Blank'. "
+                        "Body text supports newline-separated bullet points."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "layout": {"type": "string"},
+                            "title": {"type": "string"},
+                            "body": {"type": "string"},
+                            "notes": {"type": "string"},
+                        },
+                    },
+                },
             },
             "required": ["action", "file_path"],
         }
@@ -886,6 +1015,7 @@ class PptxTool(BaseTool):
         loop = asyncio.get_event_loop()
 
         dispatch = {
+            "create": self._create,
             "read_metadata": self._read_metadata,
             "extract_styles": self._extract_styles,
             "extract_content": self._extract_content,
@@ -905,6 +1035,19 @@ class PptxTool(BaseTool):
             return {"success": False, "error": str(exc)}
 
     # ── Action handlers ───────────────────────────────────────────────────────
+
+    def _create(self, kwargs: dict) -> dict:
+        title = kwargs.get("title", "")
+        slides = kwargs.get("slides")
+        if not slides:
+            return {
+                "success": False,
+                "error": (
+                    "slides list is required for create. Provide a list of "
+                    '{"layout": "Title Slide", "title": "...", "body": "...", "notes": "..."}.'
+                ),
+            }
+        return _do_create(kwargs["file_path"], title, slides)
 
     def _read_metadata(self, kwargs: dict) -> dict:
         return _do_read_metadata(kwargs["file_path"])

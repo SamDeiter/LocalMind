@@ -222,6 +222,7 @@ def main():
         "workers": workers if workers > 1 else None,
         "reload": reload_enabled,
         "log_level": log_level,
+        "timeout_graceful_shutdown": 5,
     }
 
     # In reload mode, watch specific directories

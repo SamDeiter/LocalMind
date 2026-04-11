@@ -63,6 +63,28 @@ const TOOL_LABELS = {
   android_emulator: "Android Emulator",
 };
 
+// Descriptions shown as tooltips on hover for each tool
+const TOOL_DESCRIPTIONS = {
+  web_search: "Search the web for real-time information and research",
+  read_file: "Read the contents of a file from your local filesystem",
+  write_file: "Create or overwrite a file on your local filesystem",
+  list_files: "List files and directories in a given path",
+  run_code: "Execute a code snippet (Python, JavaScript, shell, etc.)",
+  save_memory: "Save important information to long-term memory for future recall",
+  recall_memories: "Retrieve previously saved memories relevant to the current task",
+  analyze_image: "Analyze an image using the vision model to describe or extract information",
+  take_screenshot: "Capture a screenshot of your desktop for analysis",
+  clipboard_read: "Read the current contents of your system clipboard",
+  git_status: "Show the current Git working tree status (modified, staged files)",
+  git_diff: "Show changes between commits, working tree, and staging area",
+  git_log: "View the Git commit history for the current repository",
+  git_commit: "Create a Git commit with the staged changes",
+  project_context: "Retrieve project structure, dependencies, and configuration",
+  gmail: "Read and send emails through your Gmail account",
+  browser: "Open, navigate, and interact with web pages in a headless browser",
+  android_emulator: "Control an Android emulator via ADB for mobile testing",
+};
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -87,14 +109,16 @@ function _buildHTML() {
 <div class="bg-slate-900/50 border border-slate-800/40 rounded-xl p-5" id="tcCard">
   <!-- Header -->
   <div class="flex items-center gap-2.5 mb-4">
-    <span class="material-symbols-outlined text-primary text-lg">add_task</span>
+    <span class="material-symbols-outlined text-primary text-lg" aria-hidden="true">add_task</span>
     <h2 class="font-headline font-semibold text-sm text-slate-200">New Task</h2>
   </div>
 
   <!-- Task description textarea -->
   <div class="mb-3">
+    <label for="tcDescription" class="sr-only">Task description</label>
     <textarea
       id="tcDescription"
+      aria-label="Task description"
       class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 resize-none custom-scrollbar transition-all"
       rows="2"
       placeholder="What would you like me to do? e.g., Research competitor pricing and create a summary report"
@@ -105,16 +129,18 @@ function _buildHTML() {
   <!-- File drop zone -->
   <div
     id="tcDropZone"
-    class="mb-3 border border-dashed border-slate-700/60 rounded-lg px-4 py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all group"
+    tabindex="0"
+    role="button"
+    aria-label="Drag and drop files here or click to select files"
+    class="mb-3 border border-dashed border-slate-700/60 rounded-lg px-4 py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all group focus:outline-none focus:ring-2 focus:ring-primary/30"
     title="Drag and drop files here, or click to browse for files to attach"
   >
-    <span class="material-symbols-outlined text-lg text-slate-500 group-hover:text-primary transition-colors">cloud_upload</span>
+    <span class="material-symbols-outlined text-lg text-slate-500 group-hover:text-primary transition-colors" aria-hidden="true">cloud_upload</span>
     <span class="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Drop files or click to upload</span>
-    <input type="file" id="tcFileInput" class="hidden" multiple title="Select files to attach to this task" />
+    <input type="file" id="tcFileInput" class="hidden" multiple aria-label="Select files to attach to this task" />
   </div>
-
   <!-- File preview list -->
-  <div id="tcFilePreview" class="mb-3 flex flex-wrap gap-2 empty:hidden"></div>
+  <div id="tcFilePreview" class="mb-3 flex flex-wrap gap-2 empty:hidden" aria-live="polite"></div>
 
   <!-- Action buttons -->
   <div class="flex items-center gap-2.5">
@@ -122,15 +148,18 @@ function _buildHTML() {
       id="tcRunNowBtn"
       class="btn-base btn-primary flex items-center gap-1.5"
       title="Submit this task immediately for quick AI processing"
+      aria-label="Run task now in quick mode"
     >
-      <span class="material-symbols-outlined text-sm">bolt</span> Run Now
+      <span class="material-symbols-outlined text-sm" aria-hidden="true">bolt</span> Run Now
     </button>
     <button
       id="tcCustomizeBtn"
       class="btn-base btn-ghost flex items-center gap-1.5"
       title="Expand the pipeline editor to customize individual steps, choose tools, and set priority"
+      aria-label="Customize pipeline steps"
+      aria-expanded="false"
     >
-      <span class="material-symbols-outlined text-sm" id="tcCustomizeIcon">tune</span>
+      <span class="material-symbols-outlined text-sm" aria-hidden="true" id="tcCustomizeIcon">tune</span>
       <span id="tcCustomizeLabel">Customize Pipeline</span>
     </button>
   </div>
@@ -198,8 +227,9 @@ function _buildHTML() {
 function _buildNodeCard(index, node) {
   const toolCheckboxes = AVAILABLE_TOOLS.map((t) => {
     const checked = (node.tools_allowed || []).includes(t) ? "checked" : "";
+    const desc = TOOL_DESCRIPTIONS[t] || `Allow this step to use the ${TOOL_LABELS[t]} tool`;
     return `
-      <label class="flex items-center gap-1 cursor-pointer" title="Allow this step to use the ${TOOL_LABELS[t]} tool">
+      <label class="flex items-center gap-1 cursor-pointer" title="${escapeHtml(desc)}" aria-label="${escapeHtml(TOOL_LABELS[t])}: ${escapeHtml(desc)}">
         <input type="checkbox" class="tc-node-tool accent-indigo-500 rounded" data-node="${index}" data-tool="${t}" ${checked} />
         <span class="text-xs text-slate-400">${TOOL_LABELS[t]}</span>
       </label>`;
@@ -226,6 +256,7 @@ function _buildNodeCard(index, node) {
     data-node="${index}"
     value="${escapeHtml(node.title || "")}"
     title="Name this pipeline step"
+    aria-label="Step ${index + 1} title"
   />
 
   <!-- Instructions -->
@@ -235,6 +266,7 @@ function _buildNodeCard(index, node) {
     placeholder="Instructions for this step..."
     data-node="${index}"
     title="Provide detailed instructions for what the AI should do in this step"
+    aria-label="Step ${index + 1} instructions"
   >${escapeHtml(node.instructions || "")}</textarea>
 
   <!-- Tool checkboxes -->
@@ -287,12 +319,14 @@ function togglePipelineMode() {
   const editor = el("tcPipelineEditor");
   const icon = el("tcCustomizeIcon");
   const label = el("tcCustomizeLabel");
+  const btn = el("tcCustomizeBtn");
   if (!editor) return;
 
   if (_pipelineExpanded) {
     editor.classList.remove("hidden");
     if (icon) icon.textContent = "expand_less";
     if (label) label.textContent = "Hide Pipeline";
+    if (btn) btn.setAttribute("aria-expanded", "true");
     // Seed with one node if empty
     if (_nodes.length === 0) addNode();
     loadTemplateList();
@@ -300,6 +334,7 @@ function togglePipelineMode() {
     editor.classList.add("hidden");
     if (icon) icon.textContent = "tune";
     if (label) label.textContent = "Customize Pipeline";
+    if (btn) btn.setAttribute("aria-expanded", "false");
   }
 }
 
@@ -450,7 +485,7 @@ export async function submitQuickTask(description, files) {
     _renderFilePreview();
   } catch (err) {
     console.error("[task_creation] submitQuickTask error:", err);
-    showToast("Network error creating task", "error");
+    showToast("Couldn't create the task. Check that the backend is running and try again.", "error");
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -521,7 +556,7 @@ async function submitPipelineTask(nodes, priority, files) {
     togglePipelineMode(); // collapse
   } catch (err) {
     console.error("[task_creation] submitPipelineTask error:", err);
-    showToast("Network error creating pipeline", "error");
+    showToast("Couldn't create the pipeline. Check that the backend is running and try again.", "error");
   } finally {
     if (btn) btn.disabled = false;
   }

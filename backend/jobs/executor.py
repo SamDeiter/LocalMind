@@ -38,7 +38,14 @@ logger = logging.getLogger("localmind.jobs.executor")
 _MAX_ITERATIONS: int = 20
 
 # Timeout for a single Ollama chat call (seconds).
-_OLLAMA_CALL_TIMEOUT: float = 120.0
+# Bumped from 120 → 180 to handle VRAM-constrained cards where model swap
+# alone can take 60-90s before inference even starts.
+_OLLAMA_CALL_TIMEOUT: float = 180.0
+
+# Timeout for the pre-warm request that loads a model into VRAM before the
+# first real inference call.  This is a separate budget so model swaps don't
+# eat into the inference timeout.
+_WARM_MODEL_TIMEOUT: float = 300.0
 
 
 # ---------------------------------------------------------------------------
@@ -89,10 +96,102 @@ class NodeExecutor:
         self._prompt_guard = PromptGuard(level=PROMPT_GUARD_LEVEL)
         self._model_selector = model_selector
         self._best_of_n_sampler = best_of_n_sampler
+        # Persistent httpx client — reuses TCP connections across calls.
+        self._client: httpx.AsyncClient | None = None
+        # Track which model was last warmed to skip redundant warm calls.
+        self._warm_model_name: str | None = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Return or lazily create a persistent async HTTP client."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(_OLLAMA_CALL_TIMEOUT, connect=10.0)
+            )
+        return self._client
+
+    async def warm_model(self, model: str) -> None:
+        """Pre-load a model into Ollama VRAM before the timed inference call.
+
+        Sends a generate request with ``num_predict=0`` so Ollama loads the
+        model but produces zero tokens.  This must be called *outside* the
+        per-node timeout so model-swap latency doesn't eat into inference time.
+        Skips if the same model is already warm.
+        """
+        if model == self._warm_model_name:
+            return
+
+        url = f"{self._ollama_url}/api/generate"
+        # num_predict=0 tells Ollama "load the model, generate nothing".
+        payload = {
+            "model": model,
+            "prompt": "",
+            "stream": False,
+            "keep_alive": "10m",
+            "options": {"num_predict": 0},
+        }
+
+        logger.info("Pre-warming model '%s' in Ollama VRAM…", model)
+        t0 = time.monotonic()
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(_WARM_MODEL_TIMEOUT, connect=10.0)
+            ) as warm_client:
+                resp = await warm_client.post(url, json=payload)
+            elapsed = time.monotonic() - t0
+            if resp.status_code == 200:
+                self._warm_model_name = model
+                logger.info("Model '%s' warm in %.1fs.", model, elapsed)
+            else:
+                logger.warning(
+                    "Model warm returned HTTP %d (%.1fs): %s",
+                    resp.status_code, elapsed, resp.text[:200],
+                )
+        except httpx.TimeoutException:
+            elapsed = time.monotonic() - t0
+            logger.error(
+                "Model warm timed out after %.0fs for '%s'. "
+                "Proceeding anyway — inference call may also timeout.",
+                elapsed, model,
+            )
+        except Exception as exc:
+            logger.warning("Model warm failed for '%s': %s", model, exc)
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def _resolve_model(self, node: Node, job: Job) -> tuple[str, int]:
+        """Pick the model and best-of-N count for a node (no I/O)."""
+        best_of_n = 1
+        if self._model_selector is not None:
+            try:
+                node_dict = {
+                    "title": node.title,
+                    "instructions": node.instructions,
+                    "tools_allowed": node.tools_allowed,
+                    "output_schema_json": getattr(node, "output_schema_json", None),
+                    "depends_on": getattr(node, "depends_on", None),
+                }
+                job_dict = {"priority": job.priority}
+                selection = self._model_selector.select_model(node_dict, job_dict)
+                model = selection.model_id
+                best_of_n = selection.best_of_n
+                logger.info(
+                    "ModelSelector chose '%s' for node '%s' "
+                    "(lora=%s, best_of_n=%d, reason=%s).",
+                    model, node.id,
+                    selection.lora_id or "none",
+                    best_of_n,
+                    selection.reasoning,
+                )
+                return model, best_of_n
+            except Exception as exc:
+                logger.warning(
+                    "ModelSelector failed for node '%s', falling back to default: %s",
+                    node.id, exc,
+                )
+        from backend.config import MODEL_TIERS
+        return MODEL_TIERS.get("medium", "qwen2.5-coder:14b"), best_of_n
 
     async def execute_node(
         self,
@@ -103,15 +202,22 @@ class NodeExecutor:
     ) -> NodeResult:
         """Execute a single node (car in the train) with timeout enforcement.
 
-        1. Build system prompt with node instructions.
-        2. Scope tools to only ``node.tools_allowed``.
-        3. Inject ``input_data`` from the previous node.
-        4. Run the agent loop: LLM -> tool calls -> results -> LLM -> …
-        5. Validate output against ``node.output_schema_json`` if provided.
-        6. Return a ``NodeResult`` with output, token counts, and duration.
+        1. Resolve model and pre-warm it in VRAM (outside timeout budget).
+        2. Build system prompt with node instructions.
+        3. Scope tools to only ``node.tools_allowed``.
+        4. Inject ``input_data`` from the previous node.
+        5. Run the agent loop: LLM -> tool calls -> results -> LLM -> …
+        6. Validate output against ``node.output_schema_json`` if provided.
+        7. Return a ``NodeResult`` with output, token counts, and duration.
 
         ``progress_callback(event, data)`` is called on each significant step.
         """
+        # ── Model selection + pre-warm happen BEFORE the timeout clock ──
+        # This is critical: on a 10GB card, model swaps take 60-90s.  That
+        # latency must not eat into the inference timeout.
+        model, best_of_n = self._resolve_model(node, job)
+        await self.warm_model(model)
+
         start_ms = _now_ms()
 
         async def _run() -> NodeResult:
@@ -121,6 +227,8 @@ class NodeExecutor:
                 input_data=input_data,
                 progress_callback=progress_callback,
                 start_ms=start_ms,
+                model=model,
+                best_of_n=best_of_n,
             )
 
         try:
@@ -155,43 +263,16 @@ class NodeExecutor:
         input_data: dict[str, Any] | None,
         progress_callback: Callable[[str, dict], Awaitable[None]] | None,
         start_ms: int,
+        model: str = "",
+        best_of_n: int = 1,
     ) -> NodeResult:
-        """Core execution logic without timeout."""
+        """Core execution logic without timeout.
 
-        # Determine model via ModelSelector (if available) or fall back to
-        # the medium-tier default from config.
-        best_of_n = 1
-        if self._model_selector is not None:
-            try:
-                node_dict = {
-                    "title": node.title,
-                    "instructions": node.instructions,
-                    "tools_allowed": node.tools_allowed,
-                    "output_schema_json": getattr(node, "output_schema_json", None),
-                    "depends_on": getattr(node, "depends_on", None),
-                }
-                job_dict = {
-                    "priority": job.priority,
-                }
-                selection = self._model_selector.select_model(node_dict, job_dict)
-                model = selection.model_id
-                best_of_n = selection.best_of_n
-                logger.info(
-                    "ModelSelector chose '%s' for node '%s' "
-                    "(lora=%s, best_of_n=%d, reason=%s).",
-                    model, node.id,
-                    selection.lora_id or "none",
-                    best_of_n,
-                    selection.reasoning,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "ModelSelector failed for node '%s', falling back to default: %s",
-                    node.id, exc,
-                )
-                from backend.config import MODEL_TIERS
-                model = MODEL_TIERS.get("medium", "qwen2.5-coder:14b")
-        else:
+        ``model`` and ``best_of_n`` are pre-resolved by ``execute_node`` so
+        that model selection and VRAM warm-up happen *before* the timeout
+        clock starts.
+        """
+        if not model:
             from backend.config import MODEL_TIERS
             model = MODEL_TIERS.get("medium", "qwen2.5-coder:14b")
 
@@ -625,31 +706,62 @@ class NodeExecutor:
                     continue
 
                 if decision.result == PolicyResult.REQUIRE_APPROVAL:
-                    # For now: block and surface to the caller.  A future
-                    # iteration can park the node and resume on approval.
                     logger.info(
-                        "Tool '%s' requires approval (approval_id='%s') in node '%s'.",
+                        "Tool '%s' requires approval (approval_id='%s') in node '%s'. "
+                        "Pausing node execution until approval is resolved.",
                         tool_name, decision.approval_id, node.id,
                     )
-                    tool_result = {
-                        "success": False,
-                        "requires_approval": True,
-                        "approval_id": decision.approval_id,
-                        "message": (
-                            f"Tool '{tool_name}' requires human approval "
-                            f"(approval_id={decision.approval_id})."
-                        ),
-                    }
-                    messages.append({
-                        "role": "tool",
-                        "content": json.dumps(tool_result),
-                    })
                     await _emit(progress_callback, "tool_call_approval_required", {
                         "node_id": node.id,
                         "tool": tool_name,
                         "approval_id": decision.approval_id,
                     })
-                    continue
+
+                    # ── Poll for approval decision ────────────────────────
+                    # Park the agent loop and wait for a human to approve or
+                    # deny. Polls every 2s, respects the approval's expiry.
+                    resolved_status = await self._wait_for_approval(
+                        decision.approval_id, progress_callback, node.id,
+                    )
+
+                    if resolved_status == "approved":
+                        logger.info(
+                            "Approval '%s' APPROVED — executing tool '%s'.",
+                            decision.approval_id, tool_name,
+                        )
+                        await _emit(progress_callback, "tool_call_approval_granted", {
+                            "node_id": node.id,
+                            "tool": tool_name,
+                            "approval_id": decision.approval_id,
+                        })
+                        # Fall through to the tool execution block below.
+                    else:
+                        # denied or expired
+                        logger.info(
+                            "Approval '%s' %s — blocking tool '%s'.",
+                            decision.approval_id, resolved_status, tool_name,
+                        )
+                        tool_result = {
+                            "success": False,
+                            "requires_approval": True,
+                            "approval_id": decision.approval_id,
+                            "approval_status": resolved_status,
+                            "message": (
+                                f"Tool '{tool_name}' was {resolved_status} "
+                                f"(approval_id={decision.approval_id})."
+                            ),
+                        }
+                        messages.append({
+                            "role": "tool",
+                            "content": json.dumps(tool_result),
+                        })
+                        await _emit(progress_callback, "tool_call_approval_rejected", {
+                            "node_id": node.id,
+                            "tool": tool_name,
+                            "approval_id": decision.approval_id,
+                            "status": resolved_status,
+                        })
+                        continue
 
                 # ── Execute tool ───────────────────────────────────────
                 # Auto-inject Google credentials for google_* tools
@@ -714,6 +826,47 @@ class NodeExecutor:
         )
 
     # ------------------------------------------------------------------
+    # Approval polling
+    # ------------------------------------------------------------------
+
+    _APPROVAL_POLL_INTERVAL: float = 2.0  # seconds
+    _APPROVAL_MAX_WAIT: float = 1800.0    # 30 minutes hard cap
+
+    async def _wait_for_approval(
+        self,
+        approval_id: str,
+        progress_callback: Callable[[str, dict], Awaitable[None]] | None,
+        node_id: str,
+    ) -> str:
+        """Poll the approval record until it is resolved or expired.
+
+        Returns the final status: 'approved', 'denied', or 'expired'.
+        """
+        start = time.monotonic()
+        while (time.monotonic() - start) < self._APPROVAL_MAX_WAIT:
+            try:
+                status = self._policy_engine.check_approval(approval_id)
+            except ValueError:
+                return "denied"  # approval record vanished
+
+            if status != "pending":
+                return status
+
+            await _emit(progress_callback, "approval_poll", {
+                "node_id": node_id,
+                "approval_id": approval_id,
+                "elapsed_sec": int(time.monotonic() - start),
+            })
+            await asyncio.sleep(self._APPROVAL_POLL_INTERVAL)
+
+        # Timed out waiting — treat as expired
+        logger.warning(
+            "Approval '%s' wait exceeded hard cap of %ds.",
+            approval_id, self._APPROVAL_MAX_WAIT,
+        )
+        return "expired"
+
+    # ------------------------------------------------------------------
     # Ollama API call
     # ------------------------------------------------------------------
 
@@ -739,10 +892,8 @@ class NodeExecutor:
         url = f"{self._ollama_url}/api/chat"
 
         try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(_OLLAMA_CALL_TIMEOUT, connect=10.0)
-            ) as client:
-                resp = await client.post(url, json=payload)
+            client = await self._get_client()
+            resp = await client.post(url, json=payload)
 
             if resp.status_code != 200:
                 body = resp.text[:500]
@@ -752,8 +903,14 @@ class NodeExecutor:
             return resp.json()
 
         except httpx.TimeoutException as exc:
-            logger.error("Ollama call timed out: %s", exc)
-            return {"error": f"Ollama call timed out: {exc}"}
+            logger.error("Ollama call timed out after %.0fs: %s", _OLLAMA_CALL_TIMEOUT, exc)
+            return {
+                "error": (
+                    f"Ollama call timed out after {_OLLAMA_CALL_TIMEOUT:.0f}s. "
+                    f"Ensure Ollama is running and the model is loaded. "
+                    f"Detail: {exc}"
+                ),
+            }
         except Exception as exc:
             logger.error("Ollama call failed: %s", exc)
             return {"error": str(exc)}

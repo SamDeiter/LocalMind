@@ -181,10 +181,17 @@ class ChatService:
         if metacog_decision:
             from backend.metacognition.models.actions import Action
             if metacog_decision.action == Action.ASK:
-                yield f"data: {json.dumps({'token': metacog_decision.clarification_question, 'conversation_id': conversation_id, 'metacog': metacog_decision.to_dict()})}\n\n"
-                await self._save_msg(conversation_id, "assistant", metacog_decision.clarification_question)
-                yield f"data: {json.dumps({'done': True})}\n\n"
-                return
+                # Don't block with clarification questions when we can infer
+                # the tool to call.  Action-oriented requests like "make me a
+                # powerpoint" should just execute, not interrogate the user.
+                synthetic_override = self.tools.infer_tool_call(user_message) if task_estimate.get("needs_tools") else None
+                if not synthetic_override:
+                    yield f"data: {json.dumps({'token': metacog_decision.clarification_question, 'conversation_id': conversation_id, 'metacog': metacog_decision.to_dict()})}\n\n"
+                    await self._save_msg(conversation_id, "assistant", metacog_decision.clarification_question)
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+                    return
+                else:
+                    logger.info("Metacog wanted to ASK, but synthetic tool call available — proceeding with action")
 
         # Fast-path synthetic tool call
         _pre_synthetic = None

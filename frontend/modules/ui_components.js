@@ -112,7 +112,7 @@ export function cardGrid({ ariaLabel = "Items", id = "", innerHTML = "" }) {
 // ── Empty State ──────────────────────────────────────────────────
 
 export function emptyState({ icon = "inbox", message = "Nothing here yet", action = "" }) {
-  return `<div class="empty-state" role="status">
+  return `<div class="empty-state" role="status" aria-label="${escapeHtml(message)}">
     <span class="material-symbols-outlined" aria-hidden="true">${escapeHtml(icon)}</span>
     <p>${escapeHtml(message)}</p>
     ${action}

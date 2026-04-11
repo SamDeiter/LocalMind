@@ -115,11 +115,48 @@ async function _runTemplate(templateId) {
     }
     const job = await res.json();
     showToast(`Job started: ${escapeHtml(job.title || job.id)}`, "info");
+    // Navigate to the job detail view
+    if (job.id) _navigateToJobDetail(job.id);
     return job;
   } catch (err) {
     console.error("[templates_ui] Run template failed:", err);
     showToast(`Failed to run template: ${err.message}`, "error");
     return null;
+  }
+}
+
+async function _deleteTemplate(templateId) {
+  try {
+    const res = await fetch(`${API}/api/jobs/templates/${templateId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    showToast("Template deleted", "info");
+    _templates = _templates.filter((t) => t.id !== templateId);
+    return true;
+  } catch (err) {
+    console.error("[templates_ui] Delete template failed:", err);
+    showToast(`Delete failed: ${err.message}`, "error");
+    return false;
+  }
+}
+
+/** Navigate to job detail via jobs_ui module. */
+function _navigateToJobDetail(jobId) {
+  try {
+    import("./nav_rail.js").then((m) => m.switchNav("pipeline")).catch(() => {});
+    import("./jobs_ui.js").then((mod) => {
+      if (mod.showJobsView) mod.showJobsView();
+      setTimeout(() => {
+        const card = document.querySelector(`[data-job-id="${jobId}"]`);
+        if (card) card.click();
+      }, 300);
+    }).catch(() => {});
+  } catch {
+    // Fallback -- ignore
   }
 }
 
@@ -219,7 +256,7 @@ function _renderList() {
   if (_templates.length === 0) {
     view.innerHTML = `<div class="flex-1 flex flex-col p-5 lg:p-7 overflow-y-auto custom-scrollbar gap-5">
       ${headerHtml}
-      ${emptyState({ icon: "layers", message: "No templates yet — complete a job and save it as a template to see it here." })}
+      ${emptyState({ icon: "layers", message: "No templates yet. Complete a pipeline job, then save it as a reusable template from the job detail view." })}
     </div>`;
     _wireRefreshBtn();
     return;
@@ -227,6 +264,7 @@ function _renderList() {
 
   const cardsHtml = _templates.map((t, idx) => {
     const nodeCount = Array.isArray(t.nodes) ? t.nodes.length : 0;
+    const miniPipeline = _renderMiniPipeline(t.nodes || []);
     return card({
       id: t.id,
       dataAttr: "tpl-id",
@@ -240,6 +278,7 @@ function _renderList() {
           </div>
           <span class="text-[11px] font-mono text-slate-600 ml-3 whitespace-nowrap">${escapeHtml(t.id.slice(0, 8))}</span>
         </div>
+        ${miniPipeline}
         <div class="flex items-center gap-4 text-xs text-slate-500 font-mono mb-4">
           <span class="flex items-center gap-1" title="Number of pipeline nodes">
             <span class="material-symbols-outlined text-xs text-indigo-400" aria-hidden="true">account_tree</span>
@@ -348,6 +387,10 @@ function _renderDetail() {
             <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">save</span> Save
           </button>
         ` : `
+          <button id="tplDeleteBtn" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-red-500/20"
+                  aria-label="Delete this template">
+            <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">delete</span> Delete
+          </button>
           <button id="tplEditBtn" class="bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition-colors border border-slate-700/40"
                   aria-label="Edit template">
             <span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">edit</span> Edit
@@ -456,10 +499,61 @@ function _renderDetail() {
     });
   }
 
+  const deleteBtn = _el("tplDeleteBtn");
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async () => {
+      const confirmed = window.confirm(`Delete template "${_activeTemplate.name}"? This cannot be undone.`);
+      if (!confirmed) return;
+      deleteBtn.disabled = true;
+      deleteBtn.innerHTML = '<span class="material-symbols-outlined text-xs align-middle mr-1 animate-spin" aria-hidden="true">progress_activity</span> Deleting...';
+      const ok = await _deleteTemplate(_activeTemplate.id);
+      if (ok) {
+        _activeTemplate = null;
+        _renderList();
+      } else {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = '<span class="material-symbols-outlined text-xs align-middle mr-1" aria-hidden="true">delete</span> Delete';
+      }
+    });
+  }
+
   // Wire node editor events if editing
   if (_isEditing) {
     _wireNodeEditorEvents();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Mini pipeline flow (compact horizontal preview for list cards)
+// ---------------------------------------------------------------------------
+
+function _renderMiniPipeline(nodes) {
+  if (!nodes || nodes.length === 0) return "";
+
+  // Show up to 5 nodes in a compact horizontal flow
+  const maxShow = 5;
+  const visible = nodes.slice(0, maxShow);
+  const overflow = nodes.length - maxShow;
+
+  const pills = visible.map((n, i) => {
+    const title = n.title || `Step ${i + 1}`;
+    const truncated = title.length > 12 ? title.slice(0, 11) + "\u2026" : title;
+    return `<span class="inline-flex items-center gap-1 bg-indigo-500/10 text-indigo-400/80 text-[10px] font-mono px-1.5 py-0.5 rounded border border-indigo-500/15 whitespace-nowrap" title="${escapeHtml(title)}">${escapeHtml(truncated)}</span>`;
+  });
+
+  const arrows = pills.reduce((acc, pill, i) => {
+    acc.push(pill);
+    if (i < pills.length - 1) {
+      acc.push('<span class="text-slate-700 text-[10px]" aria-hidden="true">\u2192</span>');
+    }
+    return acc;
+  }, []);
+
+  if (overflow > 0) {
+    arrows.push(`<span class="text-[10px] text-slate-600 font-mono">+${overflow}</span>`);
+  }
+
+  return `<div class="flex items-center gap-1 mb-3 overflow-x-auto custom-scrollbar pb-1" aria-label="Pipeline flow preview">${arrows.join("")}</div>`;
 }
 
 // ---------------------------------------------------------------------------

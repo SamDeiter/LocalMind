@@ -15,5 +15,14 @@ select = ["E", "F", "W", "I"]
 known-first-party = ["backend"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "backend/tests"]
 asyncio_mode = "strict"
+addopts = "-v --tb=short"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests that need external services (Ollama, etc.)",
+    "unit: marks pure unit tests with no external dependencies",
+]

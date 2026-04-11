@@ -220,6 +220,15 @@ def load_cases_to_db(db_path: str) -> int:
     now = datetime.now(timezone.utc).isoformat()
 
     try:
+        # Look up the actual workspace id for the default workspace.
+        row = conn.execute(
+            "SELECT id FROM workspaces WHERE slug = 'default'"
+        ).fetchone()
+        if row is None:
+            conn.close()
+            return 0
+        ws_id = row[0]
+
         for case in _SEED_CASES:
             # Check if this seed case already exists by id.
             row = conn.execute(
@@ -251,7 +260,7 @@ def load_cases_to_db(db_path: str) -> int:
                 """,
                 (
                     case["id"],
-                    "default",
+                    ws_id,
                     case["title"],
                     f"Seed eval case: {case['title']}",
                     input_json,

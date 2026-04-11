@@ -44,7 +44,7 @@ export async function checkHealth() {
       loadingStatus.textContent = d.status === "ok" ? "Connected to Ollama" : "Ollama not found";
     }
   } catch {
-    if (loadingStatus) loadingStatus.textContent = "Cannot reach server";
+    if (loadingStatus) loadingStatus.textContent = "Cannot reach server — check that the backend is running";
   }
 }
 
@@ -89,11 +89,7 @@ export async function sendMessage() {
   autoResize();
 
   // Switch to chat view if not already visible
-  const chatPanel = document.getElementById("chatPanel");
-  if (chatPanel && chatPanel.classList.contains("hidden")) {
-    const tabChat = document.getElementById("tabChat");
-    if (tabChat) tabChat.click();
-  }
+  import("./nav_rail.js").then((m) => m.switchNav("chat")).catch(() => {});
 
   state.messages.push({ role: "user", content: text });
   appendMessage("user", text);
@@ -156,18 +152,33 @@ export async function sendMessage() {
     }
   };
 
+  // Debounce streaming DOM updates — batch token renders via rAF instead
+  // of re-rendering full markdown on every single token (~10x fewer reflows).
+  let _pendingText = "";
+  let _rafId = null;
+
+  function _flushTokenRender() {
+    _rafId = null;
+    if (contentEl && _pendingText) {
+      contentEl.innerHTML = renderMarkdown(_pendingText);
+      highlightCode();
+      scrollToBottom();
+    }
+  }
+
   try {
     const fullText = await streamChat(
       body,
       {
         onToken(_token, fullText) {
           removeTyping();
-          if (contentEl) {
-            contentEl.innerHTML = renderMarkdown(fullText);
-            highlightCode();
-          }
+          _pendingText = fullText;
           updateTokenStream(fullText.length);
-          scrollToBottom();
+          // Coalesce renders into a single rAF — avoids re-rendering
+          // markdown + forcing layout on every individual token.
+          if (!_rafId) {
+            _rafId = requestAnimationFrame(_flushTokenRender);
+          }
         },
 
         onToolCall(tc) {
@@ -310,6 +321,11 @@ export async function sendMessage() {
       state.abortController.signal,
     );
 
+    // Final flush — ensure the last batch of tokens is rendered
+    if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+    _pendingText = fullText;
+    _flushTokenRender();
+
     state.messages.push({ role: "assistant", content: fullText });
 
     // Auto-play TTS for new AI responses when enabled
@@ -336,7 +352,10 @@ export async function sendMessage() {
     } else {
       console.error("[LocalMind] Stream error:", e);
       if (contentEl) {
-        contentEl.innerHTML = `<div class="flex items-center gap-2 text-red-400 text-sm"><span class="material-symbols-outlined text-base">cloud_off</span> Connection error: ${escapeHtml(e.message)}</div>`;
+        const hint = e.message?.includes("fetch")
+          ? "Check that Ollama is running and the backend server is accessible, then try again."
+          : "This may be a temporary issue. Try sending your message again.";
+        contentEl.innerHTML = `<div class="flex flex-col gap-1 text-sm"><div class="flex items-center gap-2 text-red-400"><span class="material-symbols-outlined text-base" aria-hidden="true">cloud_off</span> Couldn't reach the AI model</div><p class="text-xs text-slate-500 ml-6">${escapeHtml(hint)}</p></div>`;
       }
     }
   } finally {
@@ -361,15 +380,10 @@ export function clearMessages() {
 export function renderMessages() {
   if (!messagesContainer) return;
   // messagesContainer.innerHTML = ""; // Managed by clearMessages
-  const chatPanel = document.getElementById("chatPanel");
-  if (chatPanel) {
-    if (state.messages.length > 0) {
-      chatPanel.classList.remove("hidden");
-      chatPanel.style.display = "flex";
-    } else {
-      chatPanel.style.display = "none";
-    }
-  }
+  // Only toggle the empty-state hint; never hide the entire chatPanel
+  // (it wraps the input area too, so hiding it blocks follow-up messages)
+  const emptyState = document.getElementById("chatEmptyState");
+  if (emptyState) emptyState.style.display = state.messages.length > 0 ? "none" : "";
   state.messages.forEach((m) => {
     createMessageEl(m.role, m.content);
   });
@@ -389,6 +403,8 @@ export function createMessageEl(role, content) {
   const wrapper = document.createElement("div");
   const isUser = role === "user";
   wrapper.className = `message ${role}-message flex w-full mb-3 ${isUser ? "justify-end" : "justify-start"}`;
+  wrapper.setAttribute("role", "article");
+  wrapper.setAttribute("aria-label", isUser ? "You said" : "LocalMind said");
 
   const contentDiv = document.createElement("div");
   contentDiv.className = `message-content max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
@@ -413,7 +429,9 @@ export function createMessageEl(role, content) {
 export function addTypingIndicator(el) {
   const dots = document.createElement("div");
   dots.className = "typing-dots";
-  dots.innerHTML = "<span></span><span></span><span></span>";
+  dots.setAttribute("role", "status");
+  dots.setAttribute("aria-label", "LocalMind is typing");
+  dots.innerHTML = "<span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span>";
   el.querySelector(".message-content")?.appendChild(dots);
 }
 

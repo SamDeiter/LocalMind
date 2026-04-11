@@ -440,6 +440,9 @@ def init_phase0_schema():
             max_reviews INTEGER NOT NULL DEFAULT 3,
             error TEXT,
             cost_cents REAL DEFAULT 0,
+            cloud_cost_cents REAL DEFAULT 0,
+            tokens_in_total INTEGER DEFAULT 0,
+            tokens_out_total INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
@@ -709,6 +712,15 @@ def init_phase0_schema():
     """)
 
     # ── Migrations: add columns to existing tables ──────────────
+    # jobs: add cloud cost + token total columns for savings tracking
+    _job_cols = {r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+    if "cloud_cost_cents" not in _job_cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN cloud_cost_cents REAL DEFAULT 0")
+    if "tokens_in_total" not in _job_cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN tokens_in_total INTEGER DEFAULT 0")
+    if "tokens_out_total" not in _job_cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN tokens_out_total INTEGER DEFAULT 0")
+
     # eval_runs: add token tracking columns
     _eval_cols = {r[1] for r in conn.execute("PRAGMA table_info(eval_runs)").fetchall()}
     if "tokens_in" not in _eval_cols:
@@ -761,6 +773,90 @@ def ensure_default_tenant():
         (user_id, ws_id, "admin"),
     )
 
+    # ── Seed default approval policies ─────────────────────────────────
+    _seed_default_approval_policies(conn, ws_id, now)
+
     conn.commit()
     conn.close()
     logger.info(f"Default tenant created: org={org_id}, workspace={ws_id}, user={user_id}")
+
+
+def _seed_default_approval_policies(conn: sqlite3.Connection, workspace_id: str, now: str) -> None:
+    """Insert default approval policies for a newly-created workspace.
+
+    These provide sensible guardrails out of the box:
+      1. Require approval for file deletes (catches accidental bulk deletes)
+      2. Require approval for external API calls in strict-local mode
+      3. Require approval for large file writes (write_file tool)
+    """
+    import json as _json
+    import uuid as _uuid
+
+    default_policies = [
+        {
+            "name": "Require approval for bulk file deletes",
+            "description": (
+                "Any file delete operation requires human approval. "
+                "Built-in policy blocks >10 deletes outright; this catches individual deletes."
+            ),
+            "conditions": {"tool": ["delete_file", "remove_file", "file_delete", "unlink"]},
+            "actions": {
+                "type": "require_approval",
+                "reason": "File deletion requires human approval.",
+                "expires_minutes": 30,
+            },
+            "priority": 10,
+        },
+        {
+            "name": "Require approval for external API calls in strict-local mode",
+            "description": (
+                "In strict-local deployment mode, any tool that requires "
+                "network egress must be approved by a human operator."
+            ),
+            "conditions": {
+                "tool_requires_egress": True,
+                "deployment_mode": "strict-local",
+            },
+            "actions": {
+                "type": "require_approval",
+                "reason": "External API calls require approval in strict-local mode.",
+                "expires_minutes": 30,
+            },
+            "priority": 20,
+        },
+        {
+            "name": "Require approval for large file writes",
+            "description": (
+                "File write operations require human approval to prevent "
+                "unintended overwrites or excessively large outputs."
+            ),
+            "conditions": {"tool": ["write_file", "save_file", "file_write", "create_file", "append_file"]},
+            "actions": {
+                "type": "require_approval",
+                "reason": "File write operation requires human approval.",
+                "expires_minutes": 30,
+            },
+            "priority": 5,
+        },
+    ]
+
+    for policy in default_policies:
+        policy_id = str(_uuid.uuid4())
+        conn.execute(
+            """
+            INSERT INTO approval_policies
+                (id, workspace_id, name, description, conditions_json,
+                 actions_json, priority, enabled, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+            """,
+            (
+                policy_id,
+                workspace_id,
+                policy["name"],
+                policy["description"],
+                _json.dumps(policy["conditions"]),
+                _json.dumps(policy["actions"]),
+                policy["priority"],
+                now,
+            ),
+        )

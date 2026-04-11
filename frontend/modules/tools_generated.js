@@ -37,6 +37,7 @@ export async function loadGeneratedTools() {
     const res = await fetch(`${API}/api/tools/generated`);
     const data = res.ok ? await res.json() : { tools: [], count: 0 };
     _renderPanel(container, data);
+    _renderSidebarList(data.tools || []);
   } catch {
     container.innerHTML = `<div class="gt-empty">Unable to load generated tools</div>`;
   }
@@ -426,6 +427,25 @@ async function _handleRemove(toolName) {
   } catch {
     showToast("Network error removing tool", "error");
   }
+}
+
+// ── Sidebar List ──────────────────────────────────────────────
+
+function _renderSidebarList(tools) {
+  const el = document.getElementById("toolsSidebarGenerated");
+  if (!el) return;
+  if (!tools.length) {
+    el.innerHTML = `<div class="text-[9px] text-slate-600 italic">No generated tools</div>`;
+    return;
+  }
+  el.innerHTML = tools
+    .map((t) => {
+      const name = escapeHtml(t.tool_name || "unnamed");
+      const status = t.status || "active";
+      const color = STATUS_COLORS[status] || DEFAULT_STATUS_COLOR;
+      return `<div class="tool-list-item"><div class="flex items-center gap-2"><div class="text-[11px] font-bold text-slate-300">${name}</div><span class="text-[8px] font-bold uppercase" style="color:${color}">${escapeHtml(status)}</span></div></div>`;
+    })
+    .join("");
 }
 
 // ── Helpers ────────────────────────────────────────────────────

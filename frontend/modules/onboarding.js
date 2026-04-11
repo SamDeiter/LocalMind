@@ -9,9 +9,10 @@
  * Persists completion to localStorage so it only shows once.
  */
 
-import { API } from "./state.js";
+import { API, state } from "./state.js";
 
 const LS_KEY = "localmind_onboarding_complete";
+const LS_WELCOME_KEY = "localmind_welcome_dismissed";
 const LS_NAME_KEY = "localmind_user_name";
 const LS_PROFILE_KEY = "localmind_user_profile";
 
@@ -158,9 +159,92 @@ let _userProfile = {
 // ── Public API ──────────────────────────────────────────────────────
 
 export function initOnboarding() {
-  if (localStorage.getItem(LS_KEY) === "done") return;
-  // Small delay to let the DOM settle after app.js init
-  setTimeout(_start, 600);
+  // Show full onboarding wizard if never completed
+  if (localStorage.getItem(LS_KEY) !== "done") {
+    setTimeout(_start, 600);
+    return;
+  }
+
+  // Otherwise, show the lightweight welcome overlay if not yet dismissed
+  // and the user has no conversations or messages
+  if (localStorage.getItem(LS_WELCOME_KEY) !== "done") {
+    setTimeout(_showWelcomeOverlay, 800);
+  }
+}
+
+// ── Lightweight Welcome Overlay ────────────────────────────────────
+
+function _showWelcomeOverlay() {
+  // Only show if user has no active conversations
+  if (state.conversations && state.conversations.length > 0) return;
+  if (state.messages && state.messages.length > 0) return;
+
+  const overlay = document.createElement("div");
+  overlay.className = "welcome-overlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Welcome to LocalMind");
+
+  overlay.innerHTML = `
+    <div class="welcome-overlay-card bg-slate-900 border border-slate-700/50 shadow-2xl">
+      <span class="material-symbols-outlined text-indigo-400 mb-3" style="font-size:48px" aria-hidden="true">neurology</span>
+      <h2 class="text-xl font-bold text-white mb-2" style="font-family:'Space Grotesk',sans-serif">Welcome to LocalMind</h2>
+      <p class="text-sm text-slate-400 mb-5 leading-relaxed">Your autonomous AI task worker, running 100% locally. Here are some things you can do:</p>
+
+      <div class="flex flex-col gap-1 mb-6">
+        <div class="welcome-feature" aria-label="Drop a file to analyze it">
+          <span class="material-symbols-outlined text-indigo-400 text-lg mt-0.5" aria-hidden="true">upload_file</span>
+          <div>
+            <p class="text-sm font-semibold text-slate-200">Drop a file to get started</p>
+            <p class="text-xs text-slate-500">Analyze documents, images, code, and more</p>
+          </div>
+        </div>
+        <div class="welcome-feature" aria-label="Ask LocalMind to research something">
+          <span class="material-symbols-outlined text-emerald-400 text-lg mt-0.5" aria-hidden="true">travel_explore</span>
+          <div>
+            <p class="text-sm font-semibold text-slate-200">Ask me to research something</p>
+            <p class="text-xs text-slate-500">Web search, summarize findings, generate reports</p>
+          </div>
+        </div>
+        <div class="welcome-feature" aria-label="Create a PowerPoint deck or document">
+          <span class="material-symbols-outlined text-amber-400 text-lg mt-0.5" aria-hidden="true">slideshow</span>
+          <div>
+            <p class="text-sm font-semibold text-slate-200">Create a PowerPoint deck</p>
+            <p class="text-xs text-slate-500">Generate presentations, spreadsheets, and documents</p>
+          </div>
+        </div>
+        <div class="welcome-feature" aria-label="Write and run code">
+          <span class="material-symbols-outlined text-cyan-400 text-lg mt-0.5" aria-hidden="true">code</span>
+          <div>
+            <p class="text-sm font-semibold text-slate-200">Write and run code</p>
+            <p class="text-xs text-slate-500">Python, JavaScript, shell scripts, and more</p>
+          </div>
+        </div>
+      </div>
+
+      <button
+        id="welcomeDismissBtn"
+        class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+        aria-label="Dismiss welcome message"
+      >Got it</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const dismissBtn = overlay.querySelector("#welcomeDismissBtn");
+  const dismiss = () => {
+    localStorage.setItem(LS_WELCOME_KEY, "done");
+    overlay.classList.add("welcome-fade-out");
+    setTimeout(() => overlay.remove(), 250);
+  };
+
+  dismissBtn.addEventListener("click", dismiss);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) dismiss();
+  });
+  // Focus the dismiss button for keyboard accessibility
+  dismissBtn.focus();
 }
 
 // ── Internal ────────────────────────────────────────────────────────

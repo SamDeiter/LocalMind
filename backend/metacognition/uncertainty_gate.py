@@ -29,7 +29,29 @@ class UncertaintyGate:
     Scores uncertainty using observable signals, not self-reported confidence.
 
     Returns an UncertaintyScore that the router uses to decide the action.
+
+    Bias: LocalMind is an action-oriented task worker.  When the user asks
+    us to *do* something (create, make, send, search, …) we should act,
+    not interrogate.  Uncertainty penalties are dampened for tool-backed
+    requests because the tool itself provides guardrails.
     """
+
+    # Verbs that signal "just do it" intent
+    _ACTION_VERBS = {
+        "make", "create", "build", "generate", "write", "send", "open",
+        "run", "execute", "install", "search", "find", "take", "do",
+        "browse", "navigate", "draft", "list", "show", "get", "download",
+    }
+
+    def _is_action_request(self, text: str) -> bool:
+        words = text.lower().split()
+        skip = {"i", "can", "could", "please", "you", "need", "want", "a", "an", "the", "to", "me"}
+        for w in words[:6]:
+            if w in self._ACTION_VERBS:
+                return True
+            if w not in skip:
+                break
+        return False
 
     def score(self, intent: IntentState) -> UncertaintyScore:
         """
@@ -41,32 +63,41 @@ class UncertaintyGate:
         reasons = []
         score_components = []
 
-        # 1. Ambiguity check
+        is_action = self._is_action_request(intent.explicit_request)
+
+        # 1. Ambiguity check — heavily dampened for action requests
         if intent.has_ambiguity():
-            ambiguity_penalty = min(0.3, len(intent.unresolved_ambiguities) * 0.1)
-            score_components.append(ambiguity_penalty)
+            penalty = min(0.3, len(intent.unresolved_ambiguities) * 0.1)
+            if is_action:
+                penalty *= 0.3  # Action requests: just pick a reasonable default
+            score_components.append(penalty)
             reasons.append(
                 f"Ambiguous: {intent.unresolved_ambiguities[0]}"
             )
-            uncertainty.questions = [
-                f"Could you clarify: {a}?" for a in intent.unresolved_ambiguities[:2]
-            ]
+            if not is_action:
+                uncertainty.questions = [
+                    f"Could you clarify: {a}?" for a in intent.unresolved_ambiguities[:2]
+                ]
 
-        # 2. Risky assumptions
+        # 2. Risky assumptions — dampened for action requests
         risky = intent.risky_assumptions()
         if risky:
-            assumption_penalty = min(0.3, len(risky) * 0.15)
-            score_components.append(assumption_penalty)
+            penalty = min(0.3, len(risky) * 0.15)
+            if is_action:
+                penalty *= 0.3
+            score_components.append(penalty)
             reasons.append(
                 f"Low-confidence assumption: {risky[0].statement}"
             )
-            uncertainty.missing_critical_info = any(
-                a.confidence == ConfidenceLevel.NONE for a in risky
-            )
+            # Only flag missing_critical_info for non-action requests
+            if not is_action:
+                uncertainty.missing_critical_info = any(
+                    a.confidence == ConfidenceLevel.NONE for a in risky
+                )
 
         # 3. Needs external state
         if intent.needs_tool:
-            score_components.append(0.1)  # Small penalty — tools can resolve it
+            score_components.append(0.05)  # Tiny penalty — tools handle it
             uncertainty.needs_tool = True
             reasons.append("Requires external data (tool use needed)")
 
@@ -85,8 +116,8 @@ class UncertaintyGate:
                 reasons.append(f"High-risk domain: {domain}")
                 break
 
-        # 6. Vagueness (very short request with no clear goal)
-        if intent.needs_clarification:
+        # 6. Vagueness — only for truly vague requests (< 3 words, no tool match)
+        if intent.needs_clarification and not is_action and not intent.needs_tool:
             score_components.append(0.25)
             uncertainty.missing_critical_info = True
             reasons.append("Request is too vague to act on")
@@ -97,7 +128,6 @@ class UncertaintyGate:
 
         # 7. Contradicting constraints
         if len(intent.constraints) > 2:
-            # Simple contradiction heuristic: look for opposing keywords
             constraint_text = " ".join(intent.constraints).lower()
             contradictions = [
                 ("fast", "thorough"), ("simple", "comprehensive"),
@@ -120,7 +150,6 @@ class UncertaintyGate:
 
         # Compute final score (capped at 1.0)
         if score_components:
-            # Use max component + dampened sum of others
             final = max(score_components) + sum(s * 0.3 for s in score_components[1:])
             uncertainty.score = min(1.0, final)
         else:

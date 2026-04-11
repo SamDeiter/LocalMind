@@ -224,21 +224,40 @@ async def lifespan(app: FastAPI):
                 VACUUM_INTERVAL_HOURS, JOB_RETENTION_DAYS)
 
     # ── Start main workers ──────────────────────────────────────
-    asyncio.create_task(job_worker.start())
+    _worker_task = asyncio.create_task(job_worker.start())
 
     # ── Background learning loop (self-discovery + skill learning) ──
     from backend.autonomy.loops.research import run_learning_loop
-    asyncio.create_task(run_learning_loop())
+    _learning_task = asyncio.create_task(run_learning_loop())
 
     logger.info("LocalMind server initialized (job worker + learning loop + GC active)")
     yield
 
     # ── Graceful shutdown ───────────────────────────────────────
+    # Signal SSE streams to close so uvicorn doesn't hang waiting for connections
+    from backend.routes.jobs import signal_sse_shutdown
+    signal_sse_shutdown()
+
     await job_worker.stop()
     if gc_worker:
         await gc_worker.stop()
     if slack_bot:
         await slack_bot.stop()
+
+    # Close shared HTTP clients to release TCP connections
+    from backend.routes.chat import _chat_service
+    if _chat_service and hasattr(_chat_service, 'llm'):
+        await _chat_service.llm.close()
+
+    from backend.routes.system import _ollama_client
+    if _ollama_client and not _ollama_client.is_closed:
+        await _ollama_client.aclose()
+
+    # Cancel background tasks and give them a short grace period to exit
+    for task in (_worker_task, _learning_task):
+        if task and not task.done():
+            task.cancel()
+    await asyncio.gather(_worker_task, _learning_task, return_exceptions=True)
 
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""

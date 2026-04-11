@@ -24,13 +24,17 @@ import logging
 import time
 from typing import Any, Callable, Awaitable
 
-from backend.config import OLLAMA_BASE_URL, JOBS_DIR, MAX_JOB_TIMEOUT_SEC
+from backend.config import (
+    OLLAMA_BASE_URL, JOBS_DIR, MAX_JOB_TIMEOUT_SEC,
+    CLOUD_PRICING_PER_1K, CLOUD_PRICING_DEFAULT,
+)
 from backend.jobs.models import Job, Node, JobStatus, NodeStatus
 from backend.jobs.queue import JobQueue
 from backend.jobs.planner import JobPlanner
 from backend.jobs.executor import NodeExecutor
 from backend.jobs.reviewer import JobReviewer
 from backend.autonomy.services.reflection_service import ReflectionService
+from backend.core.error_strategy import classify_error, DegradationCascade
 from backend.swarm.delegation import DelegationEngine
 from backend.swarm.shared_memory import SharedMemoryStore
 
@@ -482,8 +486,13 @@ class JobWorker:
     async def _execute_nodes(self, job: Job, nodes: list[Node]) -> bool:
         """Execute all pending nodes in DAG order, piping outputs as inputs.
 
+        Respects each node's ``retry_policy`` — transient failures (Ollama
+        timeouts, network errors, etc.) are retried with backoff before
+        marking the node as permanently failed.
+
         Returns True if every node completed successfully.
         """
+        cascade = DegradationCascade()
         node_outputs: dict[str, dict[str, Any]] = {}
         # Pre-load outputs of already-completed nodes (resume support).
         for node in nodes:
@@ -520,160 +529,309 @@ class JobWorker:
             # Build input from the most recently completed predecessor.
             input_data = self._resolve_input(node, node_outputs)
 
-            # Mark running.
-            self.queue.update_node(
-                node.id,
-                status=NodeStatus.RUNNING.value,
-                input_json=json.dumps(input_data) if input_data else None,
-            )
-            self.queue.add_audit(
-                job.id,
-                action="node_started",
-                detail=f"seq={node.sequence} title={node.title!r}",
-                actor="worker",
-                node_id=node.id,
-            )
+            # ── Retry loop for this node ──────────────────────────────
+            max_attempts = node.retry_policy.max_attempts
+            last_error_msg: str = ""
+            node_succeeded = False
 
-            node_start_times[node.id] = time.monotonic()
-            all_nodes = self.queue.get_nodes(job.id)
-            await self._emit_progress(job, all_nodes, current_node=node)
+            for attempt in range(max_attempts):
+                # Cancel check between retry attempts.
+                if not self._running or self._is_cancelled(job):
+                    return False
 
-            # Execute with the overall job timeout as a hard cap.
-            elapsed_so_far = time.monotonic()
-            try:
-                result = await asyncio.wait_for(
-                    self.executor.execute_node(
-                        node=node,
-                        job=job,
-                        input_data=input_data,
-                        progress_callback=self._activity_callback,
-                    ),
-                    timeout=float(node.timeout_sec),
-                )
-            except asyncio.TimeoutError:
-                duration = time.monotonic() - elapsed_so_far
-                node_durations.append(duration)
-                error_msg = f"Node '{node.title}' timed out after {node.timeout_sec}s."
-                logger.error(error_msg)
+                # Mark running.
                 self.queue.update_node(
                     node.id,
-                    status=NodeStatus.FAILED.value,
-                    error=error_msg,
+                    status=NodeStatus.RUNNING.value,
+                    input_json=json.dumps(input_data) if input_data else None,
                 )
                 self.queue.add_audit(
                     job.id,
-                    action="node_failed",
-                    detail=error_msg,
+                    action="node_started",
+                    detail=f"seq={node.sequence} title={node.title!r} attempt={attempt + 1}/{max_attempts}",
                     actor="worker",
                     node_id=node.id,
                 )
-                await self._emit("node_failed", {
-                    "job_id": job.id,
-                    "node_id": node.id,
-                    "error": error_msg,
-                })
-                return False
-            except Exception as exc:
-                duration = time.monotonic() - elapsed_so_far
-                node_durations.append(duration)
-                error_msg = f"Node '{node.title}' raised exception: {exc}"
-                self.reflection.log_step_failure(
-                    task_id=job.id,
-                    stage="node_execution",
-                    validator=node.title,
-                    error_msg=error_msg
-                )
-                logger.exception(error_msg)
-                self.queue.update_node(
-                    node.id,
-                    status=NodeStatus.FAILED.value,
-                    error=error_msg,
-                )
-                self.queue.add_audit(
-                    job.id,
-                    action="node_failed",
-                    detail=error_msg,
-                    actor="worker",
-                    node_id=node.id,
-                )
-                await self._emit("node_failed", {
-                    "job_id": job.id,
-                    "node_id": node.id,
-                    "error": error_msg,
-                })
-                return False
 
-            duration = time.monotonic() - node_start_times.get(node.id, elapsed_so_far)
-            node_durations.append(duration)
-
-            if result.success:
-                output_json = json.dumps(result.output, ensure_ascii=False)
-                self.queue.update_node(
-                    node.id,
-                    status=NodeStatus.COMPLETED.value,
-                    output_json=output_json,
-                )
-                self.queue.add_audit(
-                    job.id,
-                    action="node_completed",
-                    detail=(
-                        f"seq={node.sequence} duration={duration:.1f}s "
-                        f"tokens_in={result.tokens_in} tokens_out={result.tokens_out}"
-                    ),
-                    actor="worker",
-                    node_id=node.id,
-                )
-                node_outputs[node.id] = result.output
-
+                node_start_times[node.id] = time.monotonic()
                 all_nodes = self.queue.get_nodes(job.id)
-                await self._emit_progress(job, all_nodes, current_node=None)
-                await self._emit("node_completed", {
-                    "job_id": job.id,
-                    "node_id": node.id,
-                    "sequence": node.sequence,
-                    "title": node.title,
-                    "duration_sec": round(duration, 2),
-                    "tokens_in": result.tokens_in,
-                    "tokens_out": result.tokens_out,
-                    "tool_calls_made": result.tool_calls_made,
-                })
+                await self._emit_progress(job, all_nodes, current_node=node)
 
-                # ── Delegation check ──────────────────────────────
-                # If the node output contains a "delegate" key, spawn
-                # a child job via the DelegationEngine.
-                if isinstance(result.output, dict) and "delegate" in result.output:
+                # Execute with the overall job timeout as a hard cap.
+                elapsed_so_far = time.monotonic()
+                result = None
+                node_error: Exception | None = None
+                try:
+                    result = await asyncio.wait_for(
+                        self.executor.execute_node(
+                            node=node,
+                            job=job,
+                            input_data=input_data,
+                            progress_callback=self._activity_callback,
+                        ),
+                        timeout=float(node.timeout_sec),
+                    )
+                except asyncio.TimeoutError as exc:
+                    node_error = exc
+                except Exception as exc:
+                    node_error = exc
+
+                duration = time.monotonic() - node_start_times.get(node.id, elapsed_so_far)
+                node_durations.append(duration)
+
+                # ── Handle hard exceptions (timeout or crash) ─────
+                if node_error is not None:
+                    last_error_msg = (
+                        f"Node '{node.title}' timed out after {node.timeout_sec}s."
+                        if isinstance(node_error, asyncio.TimeoutError)
+                        else f"Node '{node.title}' raised exception: {node_error}"
+                    )
+                    self.reflection.log_step_failure(
+                        task_id=job.id,
+                        stage="node_execution",
+                        validator=node.title,
+                        error_msg=last_error_msg,
+                    )
+                    logger.error(last_error_msg)
+
+                    category = classify_error(node_error)
+                    action = cascade.next_action(category, attempt)
+
+                    if action == "retry" and attempt + 1 < max_attempts:
+                        backoff_ms = cascade.backoff_for(category, attempt)
+                        logger.info(
+                            "Node '%s' (job '%s') attempt %d/%d failed (%s); "
+                            "retrying in %d ms.",
+                            node.id, job.id, attempt + 1, max_attempts,
+                            category.value, backoff_ms,
+                        )
+                        self.queue.update_node(
+                            node.id,
+                            status=NodeStatus.PENDING.value,
+                            error=last_error_msg,
+                        )
+                        self.queue.add_audit(
+                            job.id,
+                            action="node_retry",
+                            detail=(
+                                f"attempt={attempt + 1}/{max_attempts} "
+                                f"category={category.value} backoff={backoff_ms}ms "
+                                f"error={last_error_msg[:200]}"
+                            ),
+                            actor="worker",
+                            node_id=node.id,
+                        )
+                        await self._emit("node_retry", {
+                            "job_id": job.id,
+                            "node_id": node.id,
+                            "attempt": attempt + 1,
+                            "max_attempts": max_attempts,
+                            "backoff_ms": backoff_ms,
+                            "error": last_error_msg,
+                        })
+                        if backoff_ms > 0:
+                            await asyncio.sleep(backoff_ms / 1000.0)
+                        continue  # retry
+
+                    # Exhausted retries or non-retryable action.
+                    self.queue.update_node(
+                        node.id,
+                        status=NodeStatus.FAILED.value,
+                        error=last_error_msg,
+                    )
+                    self.queue.add_audit(
+                        job.id,
+                        action="node_failed",
+                        detail=last_error_msg,
+                        actor="worker",
+                        node_id=node.id,
+                    )
+                    await self._emit("node_failed", {
+                        "job_id": job.id,
+                        "node_id": node.id,
+                        "error": last_error_msg,
+                    })
+                    return False
+
+                # ── Handle executor-level result ──────────────────
+                if result is not None and result.success:
+                    output_json = json.dumps(result.output, ensure_ascii=False)
+                    self.queue.update_node(
+                        node.id,
+                        status=NodeStatus.COMPLETED.value,
+                        output_json=output_json,
+                    )
+                    self.queue.add_audit(
+                        job.id,
+                        action="node_completed",
+                        detail=(
+                            f"seq={node.sequence} duration={duration:.1f}s "
+                            f"tokens_in={result.tokens_in} tokens_out={result.tokens_out}"
+                        ),
+                        actor="worker",
+                        node_id=node.id,
+                    )
+                    node_outputs[node.id] = result.output
+
+                    # ── Track cost + cloud savings on the job row ─
+                    model = getattr(result, "model_used", "") or ""
+                    in_rate, out_rate = CLOUD_PRICING_PER_1K.get(
+                        model, CLOUD_PRICING_DEFAULT,
+                    )
+                    cloud_cents = (
+                        (result.tokens_in / 1000.0) * in_rate
+                        + (result.tokens_out / 1000.0) * out_rate
+                    )
+                    self.queue.track_usage(
+                        job.id,
+                        tokens_in=result.tokens_in,
+                        tokens_out=result.tokens_out,
+                        cloud_cost_cents=cloud_cents,
+                    )
+
+                    # ── Register artifacts for output files ──────
                     try:
-                        await self._handle_delegation(job, result.output["delegate"])
-                    except Exception as e:
-                        logger.warning("Delegation failed (non-fatal): %s", e)
-            else:
-                # Node reported failure (e.g. schema validation).
-                error_msg = result.error or "Node execution failed."
-                self.reflection.log_step_failure(
-                    task_id=job.id,
-                    stage="node_logic",
-                    validator=node.title,
-                    error_msg=error_msg
-                )
+                        self._register_node_artifacts(
+                            job=job,
+                            node=node,
+                            previous_node_ids=[
+                                n.id for n in nodes
+                                if n.sequence < node.sequence
+                                and n.status == NodeStatus.COMPLETED.value
+                            ],
+                        )
+                    except Exception as art_exc:
+                        logger.warning(
+                            "Artifact registration failed for node %s (non-fatal): %s",
+                            node.id, art_exc,
+                        )
+
+                    all_nodes = self.queue.get_nodes(job.id)
+                    await self._emit_progress(job, all_nodes, current_node=None)
+                    await self._emit("node_completed", {
+                        "job_id": job.id,
+                        "node_id": node.id,
+                        "sequence": node.sequence,
+                        "title": node.title,
+                        "duration_sec": round(duration, 2),
+                        "tokens_in": result.tokens_in,
+                        "tokens_out": result.tokens_out,
+                        "tool_calls_made": result.tool_calls_made,
+                    })
+
+                    # ── Delegation check ──────────────────────────
+                    if isinstance(result.output, dict) and "delegate" in result.output:
+                        try:
+                            await self._handle_delegation(job, result.output["delegate"])
+                        except Exception as e:
+                            logger.warning("Delegation failed (non-fatal): %s", e)
+                    node_succeeded = True
+                    break  # Node done, move to next node.
+
+                elif result is not None and not result.success:
+                    # Node reported failure (e.g. Ollama error, schema validation).
+                    last_error_msg = result.error or "Node execution failed."
+                    self.reflection.log_step_failure(
+                        task_id=job.id,
+                        stage="node_logic",
+                        validator=node.title,
+                        error_msg=last_error_msg,
+                    )
+
+                    # Classify the error to decide if retryable.  Build a
+                    # synthetic exception from the error string so the
+                    # classifier can pattern-match.
+                    #
+                    # Note: "Ollama call timed out" is a transient HTTP
+                    # timeout (ConnectionError), NOT a node-level timeout.
+                    # Reserve TimeoutError for actual node timeout_sec
+                    # breaches (caught as asyncio.TimeoutError above).
+                    err_lower = last_error_msg.lower()
+                    if "connection" in err_lower or "ollama" in err_lower:
+                        synth_exc = ConnectionError(last_error_msg)
+                    else:
+                        synth_exc = RuntimeError(last_error_msg)
+
+                    category = classify_error(synth_exc)
+                    action = cascade.next_action(category, attempt)
+
+                    if action == "retry" and attempt + 1 < max_attempts:
+                        backoff_ms = cascade.backoff_for(category, attempt)
+                        logger.info(
+                            "Node '%s' (job '%s') attempt %d/%d returned error (%s); "
+                            "retrying in %d ms. Error: %s",
+                            node.id, job.id, attempt + 1, max_attempts,
+                            category.value, backoff_ms, last_error_msg[:200],
+                        )
+                        self.queue.update_node(
+                            node.id,
+                            status=NodeStatus.PENDING.value,
+                            error=last_error_msg,
+                        )
+                        self.queue.add_audit(
+                            job.id,
+                            action="node_retry",
+                            detail=(
+                                f"attempt={attempt + 1}/{max_attempts} "
+                                f"category={category.value} backoff={backoff_ms}ms "
+                                f"error={last_error_msg[:200]}"
+                            ),
+                            actor="worker",
+                            node_id=node.id,
+                        )
+                        await self._emit("node_retry", {
+                            "job_id": job.id,
+                            "node_id": node.id,
+                            "attempt": attempt + 1,
+                            "max_attempts": max_attempts,
+                            "backoff_ms": backoff_ms,
+                            "error": last_error_msg,
+                        })
+                        if backoff_ms > 0:
+                            await asyncio.sleep(backoff_ms / 1000.0)
+                        continue  # retry
+
+                    # Exhausted retries or non-retryable.
+                    self.queue.update_node(
+                        node.id,
+                        status=NodeStatus.FAILED.value,
+                        output_json=json.dumps(result.output, ensure_ascii=False)
+                        if result.output
+                        else None,
+                        error=last_error_msg,
+                    )
+                    self.queue.add_audit(
+                        job.id,
+                        action="node_failed",
+                        detail=last_error_msg,
+                        actor="worker",
+                        node_id=node.id,
+                    )
+                    await self._emit("node_failed", {
+                        "job_id": job.id,
+                        "node_id": node.id,
+                        "error": last_error_msg,
+                    })
+                    return False
+
+            if not node_succeeded:
+                # All retry attempts exhausted without success.
                 self.queue.update_node(
                     node.id,
                     status=NodeStatus.FAILED.value,
-                    output_json=json.dumps(result.output, ensure_ascii=False)
-                    if result.output
-                    else None,
-                    error=error_msg,
+                    error=last_error_msg or "Node execution failed after all retry attempts.",
                 )
                 self.queue.add_audit(
                     job.id,
                     action="node_failed",
-                    detail=error_msg,
+                    detail=f"Exhausted {max_attempts} attempt(s): {last_error_msg[:200]}",
                     actor="worker",
                     node_id=node.id,
                 )
                 await self._emit("node_failed", {
                     "job_id": job.id,
                     "node_id": node.id,
-                    "error": error_msg,
+                    "error": last_error_msg,
                 })
                 return False
 
@@ -935,6 +1093,84 @@ class JobWorker:
             )
         except Exception:
             return False
+
+    def _register_node_artifacts(
+        self,
+        job: Job,
+        node: Node,
+        previous_node_ids: list[str],
+    ) -> None:
+        """Scan for output files created by this node and register as artifacts.
+
+        Looks in JOBS_DIR/{job_id}/artifacts/ and JOBS_DIR/{job_id}/output/ for
+        files that appeared during node execution.  Each file becomes an artifact
+        with a version linked to this node.
+
+        For lineage, if a previous node created an artifact, the new version's
+        parent_version_id points to the most recent artifact from the
+        immediately preceding node.
+        """
+        from backend.core.artifacts import ArtifactManager
+
+        mgr = ArtifactManager()
+        output_dirs = [
+            JOBS_DIR / job.id / "artifacts",
+            JOBS_DIR / job.id / "output",
+        ]
+
+        # Collect existing output files registered as job_files
+        existing_files = self.queue.get_files(job.id, file_type="output")
+        existing_paths = {f.file_path for f in existing_files}
+
+        # Find the latest artifact version from previous nodes (for lineage)
+        parent_version_id = None
+        if previous_node_ids:
+            existing_artifacts = mgr.get_artifacts_by_job(job.id)
+            for art in reversed(existing_artifacts):
+                ver = mgr.get_current_version(art["id"])
+                if ver and ver.get("node_attempt_id") in previous_node_ids:
+                    parent_version_id = ver["id"]
+                    break
+
+        for out_dir in output_dirs:
+            if not out_dir.exists():
+                continue
+            for fpath in out_dir.iterdir():
+                if not fpath.is_file():
+                    continue
+                # Skip files already registered
+                if str(fpath) in existing_paths:
+                    # Still register as artifact if not already done
+                    pass
+
+                suffix = fpath.suffix.lstrip(".").lower() or "bin"
+                try:
+                    artifact_id = mgr.create_artifact(
+                        job_id=job.id,
+                        workspace_id=job.workspace_id,
+                        name=fpath.stem,
+                        artifact_type=suffix,
+                    )
+                    mgr.add_version(
+                        artifact_id=artifact_id,
+                        file_path=str(fpath),
+                        created_by=f"node:{node.id}",
+                        node_attempt_id=node.id,
+                        parent_version_id=parent_version_id,
+                        metadata_json=json.dumps({
+                            "node_title": node.title,
+                            "node_sequence": node.sequence,
+                        }),
+                    )
+                    logger.info(
+                        "Registered artifact '%s' for node %s (job %s)",
+                        fpath.name, node.id[:12], job.id[:12],
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to register artifact '%s': %s",
+                        fpath.name, exc,
+                    )
 
     def _resolve_input(
         self,

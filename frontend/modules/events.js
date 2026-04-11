@@ -1,6 +1,6 @@
 /**
- * events.js — Tab-based event binding for LocalMind 3-tab shell.
- * Replaces the old 9-nav-item sidebar system.
+ * events.js — Event bindings for LocalMind (accordions, chat input, media, settings).
+ * Navigation is handled by nav_rail.js.
  */
 
 import {
@@ -27,69 +27,39 @@ import { submitQuickTask } from "./task_creation.js";
 import { loadLearningData } from "./learning_ui.js";
 import { loadProfile } from "./ai_profile.js";
 
-// ── Tab State ────────────────────────────────────────────────────
-const TABS = ["workPanel", "chatPanel", "systemPanel"];
-const TAB_BTNS = ["tabWork", "tabChat", "tabSystem"];
-
-/** Switch the active tab. panelId: 'workPanel' | 'chatPanel' | 'systemPanel' */
-export function switchTab(panelId) {
-  TABS.forEach((id) => {
-  // Close sidebar and clear temporary media on tab switch
-  document.getElementById("chatSidebar")?.classList.remove("open");
-  document.getElementById("sidebarBackdrop")?.classList.remove("visible");
-  clearCapturedImage?.();
-
-    const panel = document.getElementById(id);
-    if (!panel) return;
-    if (id === panelId) {
-      panel.classList.remove("hidden");
-    } else {
-      panel.classList.add("hidden");
-    }
-  });
-
-  const btnMap = { workPanel: "tabWork", chatPanel: "tabChat", systemPanel: "tabSystem" };
-  TAB_BTNS.forEach((btnId) => {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    if (btnId === btnMap[panelId]) {
-      btn.classList.add("tab-active");
-      btn.setAttribute("aria-selected", "true");
-    } else {
-      btn.classList.remove("tab-active");
-      btn.setAttribute("aria-selected", "false");
-    }
-  });
-
-  // Lazy-load System tab sections on first open
-  if (panelId === "systemPanel") {
-    _initSystemTabOnce();
-  }
+// ── Legacy Tab Compat ────────────────────────────────────────────
+// Old 3-tab shell replaced by nav_rail.js. Keep switchTab as no-op
+// so any callers don't crash.
+export function switchTab(_panelId) {
+  // Navigation is now handled by nav_rail.js switchNav()
 }
 
 // ── Accordion Logic ──────────────────────────────────────────────
 const _accordionInited = new Set();
 
 function _initAccordions() {
-  document.querySelectorAll("[data-accordion]").forEach((headerBtn) => {
-    headerBtn.addEventListener("click", () => {
-      const bodyId = headerBtn.getAttribute("data-accordion");
+  document.querySelectorAll("[data-accordion]").forEach((headerEl) => {
+    const toggle = () => {
+      const bodyId = headerEl.getAttribute("data-accordion");
       const body = document.getElementById(bodyId);
       if (!body) return;
-
-      // Use aria-expanded as single source of truth (CSS chevron rotation reads it too)
-      const isOpen = headerBtn.getAttribute("aria-expanded") === "true";
-
+      const isOpen = headerEl.getAttribute("aria-expanded") === "true";
       if (isOpen) {
         body.classList.add("hidden");
-        headerBtn.setAttribute("aria-expanded", "false");
+        headerEl.setAttribute("aria-expanded", "false");
       } else {
         body.classList.remove("hidden");
-        headerBtn.setAttribute("aria-expanded", "true");
-        // Lazy init on first expand
+        headerEl.setAttribute("aria-expanded", "true");
         _lazyInitAccordion(bodyId);
       }
-    });
+    };
+    headerEl.addEventListener("click", toggle);
+    // Support Enter/Space for div[role=button] accordion headers
+    if (headerEl.tagName !== "BUTTON") {
+      headerEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+      });
+    }
   });
 }
 
@@ -126,20 +96,9 @@ function _lazyInitAccordion(bodyId) {
   }
 }
 
-let _systemTabInited = false;
-function _initSystemTabOnce() {
-  if (_systemTabInited) return;
-  _systemTabInited = true;
-  // Worker Pool accordion starts collapsed — polling is lazy-started on first expand
-  // (handled in _lazyInitAccordion case 'accordionWorkerPoolBody')
-}
-
 // ── Main Event Binding ───────────────────────────────────────────
 export function bindEvents() {
-  // ── Tab Buttons ──────────────────────────────────────────────
-  document.getElementById("tabWork")?.addEventListener("click", () => switchTab("workPanel"));
-  document.getElementById("tabChat")?.addEventListener("click", () => switchTab("chatPanel"));
-  document.getElementById("tabSystem")?.addEventListener("click", () => switchTab("systemPanel"));
+  // Tab buttons are now hidden shims — nav_rail.js handles navigation.
 
   // ── Accordions ───────────────────────────────────────────────
   _initAccordions();

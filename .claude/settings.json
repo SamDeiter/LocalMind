@@ -66,7 +66,7 @@
       "mcp__claude_ai_Hodor__google_slides_create",
       "mcp__claude_ai_Hodor__hodor_status",
       "WebFetch(domain:stitch.withgoogle.com)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://stitch.googleapis.com/mcp\" -H \"X-Goog-Api-Key: AQ.Ab8RN6K1nFBwSsZAXrzOxGV7MCmwq6YIQMqAGOc4ATkc9m2dUg\")",
+
       "Bash(claude mcp:*)"
     ]
   }

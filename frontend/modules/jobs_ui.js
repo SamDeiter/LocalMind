@@ -318,6 +318,32 @@ function buildShellHTML() {
       </div>
     </div>
 
+    <!-- Job Cost Summary -->
+    <div id="jobCostSummary" class="hidden bg-slate-900/40 border border-slate-800/60 rounded-xl p-4">
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
+        <span class="material-symbols-outlined text-xs align-middle text-emerald-400 mr-1" aria-hidden="true">payments</span>
+        Job Cost
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" role="region" aria-label="Job cost summary">
+        <div class="text-center">
+          <div class="text-sm font-bold text-emerald-400 font-mono" id="jobTotalCost">--</div>
+          <div class="text-[10px] text-slate-600 uppercase tracking-widest">Total Cost</div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-bold text-cyan-400 font-mono" id="jobTotalTokensIn">--</div>
+          <div class="text-[10px] text-slate-600 uppercase tracking-widest">Tokens In</div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-bold text-purple-400 font-mono" id="jobTotalTokensOut">--</div>
+          <div class="text-[10px] text-slate-600 uppercase tracking-widest">Tokens Out</div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-bold text-amber-400 font-mono" id="jobTotalTokens">--</div>
+          <div class="text-[10px] text-slate-600 uppercase tracking-widest">Total Tokens</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Node Pipeline Timeline -->
     <div>
       <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Node Pipeline</div>
@@ -345,6 +371,27 @@ function buildShellHTML() {
         </div>
         <div id="nodeProgressText" class="text-[11px] font-mono text-slate-600 mt-1"></div>
       </div>
+      <!-- Node Cost/Token Metrics -->
+      <div id="nodeDetailCostSection" class="hidden">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" role="region" aria-label="Node execution metrics">
+          <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-2.5 text-center">
+            <div class="text-xs font-bold text-cyan-400 font-mono" id="nodeDetailTokensIn">--</div>
+            <div class="text-[10px] text-slate-600 uppercase tracking-widest">Tokens In</div>
+          </div>
+          <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-2.5 text-center">
+            <div class="text-xs font-bold text-purple-400 font-mono" id="nodeDetailTokensOut">--</div>
+            <div class="text-[10px] text-slate-600 uppercase tracking-widest">Tokens Out</div>
+          </div>
+          <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-2.5 text-center">
+            <div class="text-xs font-bold text-emerald-400 font-mono" id="nodeDetailCost">--</div>
+            <div class="text-[10px] text-slate-600 uppercase tracking-widest">Cost</div>
+          </div>
+          <div class="bg-slate-800/40 border border-slate-700/30 rounded-lg p-2.5 text-center">
+            <div class="text-xs font-bold text-amber-400 font-mono" id="nodeDetailDuration">--</div>
+            <div class="text-[10px] text-slate-600 uppercase tracking-widest">Duration</div>
+          </div>
+        </div>
+      </div>
       <div id="nodeDetailInstructions" class="text-xs text-slate-400 leading-relaxed"></div>
       <div id="nodeDetailTools" class="flex flex-wrap gap-1.5"></div>
       <div id="nodeDetailOutputSection" class="hidden">
@@ -363,6 +410,15 @@ function buildShellHTML() {
     <div id="jobFilesSection" class="hidden">
       <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Output Files</div>
       <div id="jobFilesList" class="space-y-2" role="list" aria-label="Job output files"></div>
+    </div>
+
+    <!-- Artifacts (versioned outputs with provenance) -->
+    <div id="jobArtifactsSection" class="hidden">
+      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1">
+        <span class="material-symbols-outlined text-xs text-violet-400" aria-hidden="true">inventory_2</span>
+        Artifacts
+      </div>
+      <div id="jobArtifactsList" class="space-y-2" role="list" aria-label="Job artifacts with provenance"></div>
     </div>
 
     <!-- Audit Trail -->
@@ -664,9 +720,6 @@ export function initJobsUI() {
   el("jobBackBtn")?.addEventListener("click", () => {
     const prevId = _selectedJobId;
     _showListView();
-    // Hide the overlay
-    const view = el("jobsView");
-    if (view) view.classList.add("hidden");
     // Restore focus to the job card that was clicked (if still present)
     if (prevId) {
       const card = document.querySelector(`[data-work-job-id="${prevId}"]`) ||
@@ -710,14 +763,13 @@ export function initJobsUI() {
     }
   });
 
-  // Keyboard: Escape from detail closes the overlay
+  // Keyboard: Escape from detail returns to list view
   view.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       const detail = el("jobsDetailView");
       if (detail && !detail.classList.contains("hidden")) {
         e.preventDefault();
         _showListView();
-        view.classList.add("hidden");
       }
     }
   });
@@ -827,6 +879,7 @@ async function _loadTemplatesForSelector() {
 function _startPolling() {
   _stopPolling();
   _pollTimer = setInterval(() => {
+    if (document.hidden) return; // Skip when tab is in background
     _loadJobs();
     if (_selectedJobId) _loadJobDetail(_selectedJobId);
   }, 5000);
@@ -1068,7 +1121,7 @@ async function _createJob() {
     if (job.id) _showDetailView(job.id);
   } catch (err) {
     console.error("[jobs_ui] Create job error:", err);
-    showToast("Failed to create job", "error");
+    showToast("Couldn't create the job. Check that the backend is running, then try again.", "error");
   } finally {
     if (runBtn) runBtn.disabled = false;
     if (customBtn) customBtn.disabled = false;
@@ -1099,7 +1152,7 @@ async function _cancelCurrentJob() {
       showToast(errData.detail || "Cancel failed", "error");
     }
   } catch {
-    showToast("Cancel request failed", "error");
+    showToast("Couldn't cancel the job. Check your connection and try again.", "error");
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -1132,7 +1185,7 @@ async function _deleteCurrentJob() {
       showToast(errData.detail || "Delete failed", "error");
     }
   } catch {
-    showToast("Delete request failed", "error");
+    showToast("Couldn't delete the job. Check your connection and try again.", "error");
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -1163,7 +1216,7 @@ async function _reviewJob(action) {
       showToast(errData.detail || `${action} failed`, "error");
     }
   } catch {
-    showToast(`${action} request failed`, "error");
+    showToast(`Couldn't ${action} the job. Check your connection and try again.`, "error");
   } finally {
     if (approveBtn) approveBtn.disabled = false;
     if (rejectBtn) rejectBtn.disabled = false;
@@ -1195,7 +1248,7 @@ async function _saveAsTemplate() {
       showToast(errData.detail || "Failed to save template", "error");
     }
   } catch {
-    showToast("Failed to save template", "error");
+    showToast("Couldn't save the template. Check your connection and try again.", "error");
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -1315,8 +1368,19 @@ function _renderJobCards() {
   }
 
   if (filtered.length === 0) {
-    grid.innerHTML =
-      '<div class="text-sm text-slate-500 italic col-span-full py-8 text-center" role="status">No jobs found</div>';
+    const filterMsg = _currentFilter === "all"
+      ? "No active jobs — create one from the chat or use the task creation form above."
+      : _currentFilter === "running"
+        ? "No running jobs right now. Submit a new task to get started."
+        : _currentFilter === "completed"
+          ? "No completed jobs yet. Jobs will appear here once they finish."
+          : "No failed jobs — that's a good thing!";
+    grid.innerHTML = `
+      <div class="col-span-full flex flex-col items-center justify-center py-12 text-center" role="status" aria-label="No jobs found">
+        <span class="material-symbols-outlined text-3xl text-slate-700 mb-3" aria-hidden="true">work_history</span>
+        <p class="text-sm text-slate-400 font-medium mb-1">No jobs found</p>
+        <p class="text-xs text-slate-600 max-w-xs">${escapeHtml(filterMsg)}</p>
+      </div>`;
     return;
   }
 
@@ -1544,6 +1608,9 @@ function _renderJobDetail(job) {
   const nodes = job.nodes || [];
   _renderNodes(nodes, job.status);
 
+  // Job cost summary (uses job.cost_cents + audit trail token data)
+  _renderJobCostSummary(job);
+
   // Progress bar
   const completedCount = nodes.filter((n) => n.status === "completed").length;
   const runningCount = nodes.filter((n) => n.status === "running").length;
@@ -1599,6 +1666,84 @@ function _renderJobDetail(job) {
         .join("");
     } else {
       filesSection.classList.add("hidden");
+    }
+  }
+
+  // Artifacts section (versioned outputs with provenance)
+  const artifacts = job.artifacts || [];
+  const artifactsSection = el("jobArtifactsSection");
+  const artifactsList = el("jobArtifactsList");
+  if (artifactsSection && artifactsList) {
+    if (artifacts.length > 0) {
+      artifactsSection.classList.remove("hidden");
+      artifactsList.innerHTML = artifacts
+        .map((art) => {
+          const ver = art.current_version;
+          const sizeStr = ver && ver.file_size_bytes ? _formatSize(ver.file_size_bytes) : "";
+          const mimeStr = ver ? (ver.mime_type || "unknown") : "";
+          const nodeStr = ver && ver.node_attempt_id ? ver.node_attempt_id.substring(0, 12) : "";
+          const hasLineage = ver && ver.parent_version_id;
+          const downloadUrl = `${API}/api/jobs/${encodeURIComponent(job.id)}/artifacts/${encodeURIComponent(art.id)}/download`;
+          const lineageUrl = `${API}/api/jobs/${encodeURIComponent(job.id)}/artifacts/${encodeURIComponent(art.id)}/lineage`;
+          return `
+          <div class="bg-slate-800/40 border border-slate-700/40 rounded-lg px-4 py-3" role="listitem">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-violet-400 text-lg" aria-hidden="true">inventory_2</span>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-medium text-slate-200 truncate">${escapeHtml(art.name)}.${escapeHtml(art.artifact_type)}</div>
+                <div class="text-[11px] font-mono text-slate-500">${mimeStr}${sizeStr ? " - " + sizeStr : ""}${nodeStr ? " - node:" + escapeHtml(nodeStr) : ""}</div>
+              </div>
+              <a
+                href="${downloadUrl}"
+                download
+                class="inline-flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded px-2 py-1"
+                aria-label="Download ${escapeHtml(art.name)}"
+              >
+                <span class="material-symbols-outlined text-sm" aria-hidden="true">download</span>
+                Download
+              </a>
+              ${hasLineage ? `
+              <button
+                class="inline-flex items-center gap-1 text-xs font-medium text-violet-400 hover:text-violet-300 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400 rounded px-2 py-1 jobs-lineage-btn"
+                data-lineage-url="${lineageUrl}"
+                data-artifact-name="${escapeHtml(art.name)}"
+                aria-label="View provenance for ${escapeHtml(art.name)}"
+              >
+                <span class="material-symbols-outlined text-sm" aria-hidden="true">account_tree</span>
+                Provenance
+              </button>` : ""}
+            </div>
+            ${ver ? `<div class="text-[10px] font-mono text-slate-600 mt-1 truncate" title="SHA-256: ${ver.sha256 || ""}">sha256: ${(ver.sha256 || "").substring(0, 16)}...</div>` : ""}
+          </div>`;
+        })
+        .join("");
+
+      // Wire provenance buttons
+      artifactsList.querySelectorAll(".jobs-lineage-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const url = btn.dataset.lineageUrl;
+          const name = btn.dataset.artifactName;
+          try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            const chain = data.lineage || [];
+            if (chain.length === 0) {
+              alert("No lineage data available for this artifact.");
+              return;
+            }
+            const lines = chain.map(
+              (v, i) => `${i + 1}. Version ${v.version_number} (node: ${v.node_attempt_id || "unknown"}) - ${v.mime_type} - ${_formatSize(v.file_size_bytes)}`
+            );
+            alert(`Provenance chain for "${name}":\n\n${lines.join("\n")}`);
+          } catch (err) {
+            console.error("Failed to fetch lineage:", err);
+            alert("Failed to load provenance data.");
+          }
+        });
+      });
+    } else {
+      artifactsSection.classList.add("hidden");
     }
   }
 
@@ -1769,6 +1914,9 @@ function _renderNodeDetail(node) {
     const elapsed = _nodeElapsed(node);
     elapsedEl.textContent = elapsed ? `Elapsed: ${elapsed}` : "";
   }
+
+  // Node cost/token metrics
+  _renderNodeCostMetrics(node);
 
   // Node progress bar (running nodes)
   const progressSection = el("nodeProgressSection");
@@ -2024,6 +2172,99 @@ function _formatSize(bytes) {
   const units = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+// ---------------------------------------------------------------------------
+// Cost / token formatting helpers
+// ---------------------------------------------------------------------------
+
+function _formatCents(cents) {
+  if (cents == null || cents === 0) return "$0.00";
+  if (cents < 1) return `${cents.toFixed(3)}\u00a2`;
+  if (cents < 100) return `${cents.toFixed(2)}\u00a2`;
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function _formatTokenCount(n) {
+  if (n == null) return "--";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function _formatMs(ms) {
+  if (ms == null || ms === 0) return "--";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+}
+
+/**
+ * Render the job-level cost summary panel.
+ * Called from _renderJobDetail after nodes are rendered.
+ */
+function _renderJobCostSummary(job) {
+  const section = el("jobCostSummary");
+  if (!section) return;
+
+  const costCents = job.cost_cents;
+
+  // If the job has cost data, show the summary
+  if (costCents != null && costCents > 0) {
+    section.classList.remove("hidden");
+
+    const totalCostEl = el("jobTotalCost");
+    if (totalCostEl) totalCostEl.textContent = _formatCents(costCents);
+
+    // Extract token counts from audit trail detail strings
+    let totalIn = 0;
+    let totalOut = 0;
+    const audit = job.audit || [];
+    for (const a of audit) {
+      if (a.action === "node_completed" && a.detail) {
+        const inMatch = a.detail.match(/tokens_in=(\d+)/);
+        const outMatch = a.detail.match(/tokens_out=(\d+)/);
+        if (inMatch) totalIn += parseInt(inMatch[1], 10);
+        if (outMatch) totalOut += parseInt(outMatch[1], 10);
+      }
+    }
+
+    const tokInEl = el("jobTotalTokensIn");
+    const tokOutEl = el("jobTotalTokensOut");
+    const tokTotalEl = el("jobTotalTokens");
+    if (tokInEl) tokInEl.textContent = totalIn > 0 ? _formatTokenCount(totalIn) : "--";
+    if (tokOutEl) tokOutEl.textContent = totalOut > 0 ? _formatTokenCount(totalOut) : "--";
+    if (tokTotalEl) tokTotalEl.textContent = (totalIn + totalOut) > 0 ? _formatTokenCount(totalIn + totalOut) : "--";
+  } else {
+    section.classList.add("hidden");
+  }
+}
+
+/**
+ * Render cost/token metrics in the expanded node detail panel.
+ */
+function _renderNodeCostMetrics(node) {
+  const section = el("nodeDetailCostSection");
+  if (!section) return;
+
+  const hasData = (node.tokens_in != null && node.tokens_in > 0) ||
+                  (node.tokens_out != null && node.tokens_out > 0) ||
+                  (node.cost_cents != null && node.cost_cents > 0) ||
+                  (node.duration_ms != null && node.duration_ms > 0);
+
+  if (hasData) {
+    section.classList.remove("hidden");
+    const tokInEl = el("nodeDetailTokensIn");
+    const tokOutEl = el("nodeDetailTokensOut");
+    const costEl = el("nodeDetailCost");
+    const durEl = el("nodeDetailDuration");
+    if (tokInEl) tokInEl.textContent = _formatTokenCount(node.tokens_in);
+    if (tokOutEl) tokOutEl.textContent = _formatTokenCount(node.tokens_out);
+    if (costEl) costEl.textContent = _formatCents(node.cost_cents);
+    if (durEl) durEl.textContent = _formatMs(node.duration_ms);
+  } else {
+    section.classList.add("hidden");
+  }
 }
 
 // ---------------------------------------------------------------------------

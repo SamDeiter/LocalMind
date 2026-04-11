@@ -197,7 +197,7 @@ PowerPoint (2-3 nodes) — "Create a presentation about quarterly results":
   },
   {
     "title": "Create PowerPoint file",
-    "instructions": "Using the pptx tool, create a new .pptx presentation. Add slides following the outline: set titles, body text, and speaker notes for each slide. Save the final file.",
+    "instructions": "Using the pptx tool with action='create', create a new .pptx presentation. Provide a 'slides' list with layout, title, body (newline-separated bullets), and notes for each slide. Common layouts: 'Title Slide', 'Title and Content', 'Section Header', 'Blank'.",
     "tools_allowed": ["pptx", "read_file", "write_file"],
     "expected_output": "A .pptx file saved in the workspace.",
     "depends_on": ["Research and outline"],

@@ -57,12 +57,49 @@ function isImage(filename) {
 }
 
 // ── Data fetching ──────────────────────────────────────────────
+
+// Pending policy-engine approvals (DB-backed, from the approvals table)
+let _policyApprovals = [];
+
 async function fetchApprovals() {
   try {
+    // Fetch jobs in reviewing status (output review / human review gate)
     const res = await fetch(`${API}/api/jobs?status=reviewing`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    _approvals = Array.isArray(data) ? data : (data.jobs || data.items || []);
+    const reviewJobs = Array.isArray(data) ? data : (data.jobs || data.items || []);
+
+    // Fetch pending policy-engine approvals (tool call approval gate)
+    let policyPending = [];
+    try {
+      const pRes = await fetch(`${API}/api/jobs/approvals/pending`);
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        policyPending = pData.pending || [];
+        _policyApprovals = policyPending;
+      }
+    } catch (pErr) {
+      console.warn("[Approvals] policy approvals fetch error:", pErr);
+    }
+
+    // Merge: each policy approval becomes an item with type "approval_gate"
+    const policyItems = policyPending.map(pa => ({
+      id: pa.id,
+      job_id: pa.job_id,
+      node_id: pa.node_id,
+      title: `Tool approval: ${pa.tool_call?.name || "unknown"}`,
+      description: pa.policy_name || "Policy-gated tool call",
+      status: "reviewing",
+      review_type: "approval_gate",
+      created_at: pa.requested_at,
+      expires_at: pa.expires_at,
+      tool_call: pa.tool_call,
+      policy_name: pa.policy_name,
+      _is_policy_approval: true,
+    }));
+
+    _approvals = [...reviewJobs, ...policyItems];
+
     // Sort oldest first so stale reviews surface
     _approvals.sort((a, b) => {
       const ta = a.created_at || a.timestamp || 0;
@@ -86,6 +123,26 @@ async function fetchCorrections() {
   }
 }
 
+async function submitPolicyApprovalDecision(approvalId, approved, reason) {
+  try {
+    const res = await fetch(`${API}/api/jobs/approvals/${approvalId}/decide`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approved, reason: reason || "", decided_by: "operator" }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const msg = approved ? "Tool call approved -- execution resuming" : "Tool call denied";
+    showToast(msg, approved ? "info" : "error");
+    _announce(msg);
+    return data;
+  } catch (err) {
+    console.error("[Approvals] policy approval decide error:", err);
+    showToast("Couldn't submit the approval decision. Check your connection and try again.", "error");
+    return null;
+  }
+}
+
 async function submitReview(jobId, action, feedback) {
   try {
     const res = await fetch(`${API}/api/jobs/${jobId}/review`, {
@@ -95,16 +152,15 @@ async function submitReview(jobId, action, feedback) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    showToast(
-      action === "approve" ? "Approved -- pipeline continuing" :
+    const msg = action === "approve" ? "Approved -- pipeline continuing" :
       action === "reject" ? "Rejected -- job cancelled" :
-      "Changes requested -- pipeline paused",
-      action === "reject" ? "error" : "info",
-    );
+      "Changes requested -- pipeline paused";
+    showToast(msg, action === "reject" ? "error" : "info");
+    _announce(msg);
     return data;
   } catch (err) {
     console.error("[Approvals] review submit error:", err);
-    showToast("Failed to submit review", "error");
+    showToast("Couldn't submit the review. Check your connection and try again.", "error");
     return null;
   }
 }
@@ -121,7 +177,7 @@ async function submitCorrection(correction) {
     return await res.json();
   } catch (err) {
     console.error("[Approvals] correction submit error:", err);
-    showToast("Failed to submit correction", "error");
+    showToast("Couldn't submit the correction. Check your connection and try again.", "error");
     return null;
   }
 }
@@ -134,8 +190,17 @@ async function promoteCorrection(correctionId) {
     return await res.json();
   } catch (err) {
     console.error("[Approvals] promote error:", err);
-    showToast("Failed to promote correction", "error");
+    showToast("Couldn't promote the correction. Check your connection and try again.", "error");
     return null;
+  }
+}
+
+// ── Accessibility: announce to screen readers ─────────────────
+function _announce(message) {
+  const region = document.getElementById("approvalsLiveRegion");
+  if (region) {
+    region.textContent = message;
+    setTimeout(() => { region.textContent = ""; }, 3000);
   }
 }
 
@@ -214,10 +279,13 @@ function buildContainer() {
 
 function buildShell() {
   return `
+    <!-- ARIA live region for status announcements -->
+    <div id="approvalsLiveRegion" class="sr-only" aria-live="polite" aria-atomic="true" role="status"></div>
+
     <!-- Header -->
     <div class="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
       <div class="flex items-center gap-3">
-        <span class="material-symbols-outlined text-indigo-400 text-2xl">approval</span>
+        <span class="material-symbols-outlined text-indigo-400 text-2xl" aria-hidden="true">approval</span>
         <h2 class="text-xl font-headline font-bold tracking-tight text-slate-100">Approval Queue</h2>
         <span id="approvalsLiveCount" class="text-[11px] font-bold uppercase tracking-widest bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full">0 pending</span>
       </div>
@@ -247,7 +315,7 @@ function buildShell() {
       <!-- Queue panel -->
       <div id="panelQueue" role="tabpanel" aria-labelledby="tabQueue" class="flex gap-6 h-full">
         <!-- Left: list -->
-        <div class="w-[380px] flex-shrink-0 flex flex-col h-full">
+        <div class="w-full max-w-[380px] flex-shrink-0 flex flex-col h-full">
           <div id="approvalsList" class="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2" role="list" aria-label="Pending approvals"></div>
         </div>
         <!-- Right: review panel -->
@@ -338,10 +406,10 @@ function renderQueue() {
 
   if (_approvals.length === 0) {
     listEl.innerHTML = `
-      <div class="flex flex-col items-center justify-center py-16 text-slate-500">
-        <span class="material-symbols-outlined text-4xl mb-3 text-slate-600">check_circle</span>
-        <p class="text-sm font-medium">No pending reviews</p>
-        <p class="text-xs text-slate-600 mt-1">All caught up</p>
+      <div class="flex flex-col items-center justify-center py-16 text-slate-500" role="status" aria-label="No pending approvals">
+        <span class="material-symbols-outlined text-4xl mb-3 text-slate-600" aria-hidden="true">check_circle</span>
+        <p class="text-sm font-medium text-slate-400">No pending reviews</p>
+        <p class="text-xs text-slate-600 mt-1 max-w-xs">All caught up! Approvals will appear here when a job needs your review or when a tool action requires confirmation.</p>
       </div>`;
     return;
   }
@@ -550,7 +618,7 @@ function renderFileSection(filePath, fileName) {
       <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">File Output</div>
       <div class="bg-slate-950/60 border border-slate-800/40 rounded-lg p-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <span class="material-symbols-outlined text-indigo-400">description</span>
+          <span class="material-symbols-outlined text-indigo-400" aria-hidden="true">description</span>
           <div>
             <div class="text-xs text-slate-200 font-medium">${escapeHtml(fileName)}</div>
             <div class="text-xs text-slate-500">${escapeHtml(filePath)}</div>
@@ -721,10 +789,10 @@ function renderHistory() {
 
   if (_corrections.length === 0) {
     listEl.innerHTML = `
-      <div class="flex flex-col items-center justify-center py-16 text-slate-500">
-        <span class="material-symbols-outlined text-4xl mb-3 text-slate-600">history</span>
-        <p class="text-sm font-medium">No corrections yet</p>
-        <p class="text-xs text-slate-600 mt-1">Corrections from change requests will appear here</p>
+      <div class="flex flex-col items-center justify-center py-16 text-slate-500" role="status" aria-label="No corrections">
+        <span class="material-symbols-outlined text-4xl mb-3 text-slate-600" aria-hidden="true">history</span>
+        <p class="text-sm font-medium text-slate-400">No corrections yet</p>
+        <p class="text-xs text-slate-600 mt-1 max-w-xs">When you request changes on a job review, corrections will appear here. You can promote useful corrections to long-term memory.</p>
       </div>`;
     return;
   }

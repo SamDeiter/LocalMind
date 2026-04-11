@@ -116,7 +116,8 @@ class RetryPolicy:
 
 # Fields excluded from the public API response
 _JOB_INTERNAL_FIELDS: frozenset[str] = frozenset(
-    {"error", "cost_cents", "review_count", "max_reviews"}
+    {"error", "cost_cents", "cloud_cost_cents", "tokens_in_total",
+     "tokens_out_total", "review_count", "max_reviews"}
 )
 
 
@@ -142,6 +143,9 @@ class Job:
     max_reviews: int
     error: str | None
     cost_cents: float
+    cloud_cost_cents: float
+    tokens_in_total: int
+    tokens_out_total: int
     created_at: str
     updated_at: str
     # Delegation awareness — may be NULL for jobs not part of a delegation tree
@@ -178,6 +182,9 @@ class Job:
             max_reviews=row_dict["max_reviews"],
             error=row_dict["error"],
             cost_cents=float(row_dict["cost_cents"] or 0),
+            cloud_cost_cents=float(row_dict.get("cloud_cost_cents") or 0),
+            tokens_in_total=int(row_dict.get("tokens_in_total") or 0),
+            tokens_out_total=int(row_dict.get("tokens_out_total") or 0),
             created_at=row_dict["created_at"],
             updated_at=row_dict["updated_at"],
             parent_job_id=row_dict.get("parent_job_id"),
@@ -207,6 +214,9 @@ class Job:
             "max_reviews": self.max_reviews,
             "error": self.error,
             "cost_cents": self.cost_cents,
+            "cloud_cost_cents": self.cloud_cost_cents,
+            "tokens_in_total": self.tokens_in_total,
+            "tokens_out_total": self.tokens_out_total,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "parent_job_id": self.parent_job_id,
