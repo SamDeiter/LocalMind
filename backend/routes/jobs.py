@@ -257,6 +257,18 @@ async def create_template(request: Request) -> JSONResponse:
     return JSONResponse({"template": template.to_dict()}, status_code=201)
 
 
+@router.post("/worker/reset")
+async def reset_worker(request: Request) -> JSONResponse:
+    """Reset the job worker circuit breaker so pending jobs can run again."""
+    worker = getattr(request.app.state, "job_worker", None)
+    if worker is None:
+        raise HTTPException(status_code=503, detail="Job worker not initialized")
+    worker._consecutive_failures = 0
+    worker._circuit_open_until = 0.0
+    logger.info("Circuit breaker reset by user.")
+    return JSONResponse({"reset": True})
+
+
 # ---------------------------------------------------------------------------
 # Routes — parameterised by job_id
 # ---------------------------------------------------------------------------
@@ -491,8 +503,8 @@ async def delete_job(
 ) -> JSONResponse:
     """Permanently delete a job and all its related data.
 
-    Only jobs in a terminal state (done, failed, cancelled) can be deleted.
-    Returns 404 if not found, 422 if the job is still running.
+    If the job is still active it will be force-cancelled first, then deleted.
+    Returns 404 if not found.
     """
     queue = _queue()
     job = queue.get_job(job_id)
@@ -501,10 +513,12 @@ async def delete_job(
 
     terminal_statuses = {JobStatus.DONE.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value}
     if job.status not in terminal_statuses:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Cannot delete job '{job_id}' — it is still active ('{job.status}'). Cancel it first.",
-        )
+        try:
+            queue.cancel_job(job_id)
+        except Exception:
+            pass
+        queue.update_job_status(job_id, JobStatus.CANCELLED.value)
+        queue.add_audit(job_id, action="force_cancelled_for_delete", actor="user")
 
     try:
         queue.delete_job(job_id)

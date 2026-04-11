@@ -119,6 +119,7 @@ LORA_ADAPTERS_DIR = WORKSPACE_ROOT / "lora_adapters"
 
 # --- Job Pipeline Paths ---
 JOBS_DIR = WORKSPACE_ROOT / "jobs"
+LOG_FILE_PATH = PROJECT_ROOT / "logs" / "localmind.log"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 RECYCLE_DIR = WORKSPACE_ROOT / ".recycle"
 RECYCLE_DIR.mkdir(parents=True, exist_ok=True)

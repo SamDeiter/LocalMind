@@ -184,6 +184,34 @@ Google Workspace (2-3 nodes) — "Research competitors and write a Google Doc re
     "timeout_sec": 120
   }
 ]
+
+PowerPoint (2-3 nodes) — "Create a presentation about quarterly results":
+[
+  {
+    "title": "Research and outline",
+    "instructions": "Gather the key data points and draft a slide-by-slide outline with titles, bullet points, and speaker notes.",
+    "tools_allowed": ["web_search", "read_file", "query_documents", "write_file"],
+    "expected_output": "A structured outline saved to a temporary file.",
+    "depends_on": [],
+    "timeout_sec": 180
+  },
+  {
+    "title": "Create PowerPoint file",
+    "instructions": "Using the pptx tool, create a new .pptx presentation. Add slides following the outline: set titles, body text, and speaker notes for each slide. Save the final file.",
+    "tools_allowed": ["pptx", "read_file", "write_file"],
+    "expected_output": "A .pptx file saved in the workspace.",
+    "depends_on": ["Research and outline"],
+    "timeout_sec": 300
+  },
+  {
+    "title": "Review and polish",
+    "instructions": "Re-read the generated presentation with pptx extract_content. Fix any formatting issues, missing content, or typos using edit_slide.",
+    "tools_allowed": ["pptx"],
+    "expected_output": "Final polished .pptx file.",
+    "depends_on": ["Create PowerPoint file"],
+    "timeout_sec": 180
+  }
+]
 """
 
 

@@ -10,6 +10,7 @@ Constants live in backend/config.py.
 """
 
 import logging
+from logging.handlers import RotatingFileHandler
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -41,10 +42,18 @@ from backend.security.data_protection import (
 )
 
 # -- Logging --
+# Ensure logs directory exists
+from backend.config import LOG_FILE_PATH
+LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
+    handlers=[
+        logging.StreamHandler(),
+        RotatingFileHandler(LOG_FILE_PATH, maxBytes=10*1024*1024, backupCount=5)
+    ]
 )
 logger = logging.getLogger("localmind")
 

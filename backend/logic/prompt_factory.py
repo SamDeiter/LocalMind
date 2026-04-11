@@ -20,10 +20,10 @@ class PromptFactory:
         """Assembles a comprehensive system prompt string with strict truncation."""
         prompt = base_prompt if base_prompt else ""
 
-        # 1. Inject RAG context (Strictly truncated)
+        # 1. Inject RAG context
         if rag_context:
-            truncated_rag = TokenManager.truncate_text(rag_context, max_tokens=500)
-            prompt += f"\n\nRelevant document context:\n{truncated_rag}"
+            truncated_rag = TokenManager.truncate_text(rag_context, max_tokens=2000)
+            prompt += f"\n\nRelevant document context (use this to ground your response):\n{truncated_rag}"
 
         # 2. Add task-specific suffix (Coding)
         if task_tier in ("medium", "heavy", "ultra"):

@@ -314,7 +314,7 @@ class ChatService:
                 break
 
         # Finalize
-                # Phase 3: Automated Root Cause Analysis if task failed or exhausted iterations
+        # Phase 3: Automated Root Cause Analysis if task failed or exhausted iterations
         if iteration >= config.MAX_AGENT_ITERATIONS - 1:
             logger.warning(f"Conversation {conversation_id} exhausted max iterations. Triggering RCA.")
             rca_result = await self.reflection.analyze_failure(conversation_id)

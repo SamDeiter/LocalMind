@@ -88,11 +88,10 @@ export async function sendMessage() {
   autoResize();
 
   // Switch to chat view if not already visible
-  const chatScreen = document.getElementById("chatScreen");
-  if (chatScreen && chatScreen.classList.contains("hidden")) {
-    // Trigger the chat nav button to properly hide other views
-    const chatBtn = document.getElementById("chatBtn");
-    if (chatBtn) chatBtn.click();
+  const chatPanel = document.getElementById("chatPanel");
+  if (chatPanel && chatPanel.classList.contains("hidden")) {
+    const tabChat = document.getElementById("tabChat");
+    if (tabChat) tabChat.click();
   }
 
   state.messages.push({ role: "user", content: text });
@@ -341,14 +340,13 @@ export function clearMessages() {
 export function renderMessages() {
   if (!messagesContainer) return;
   // messagesContainer.innerHTML = ""; // Managed by clearMessages
-  const chatScreen = document.getElementById("chatScreen");
-  // Dashboard UI is no longer obscured when chatting
-  if (chatScreen) {
+  const chatPanel = document.getElementById("chatPanel");
+  if (chatPanel) {
     if (state.messages.length > 0) {
-      chatScreen.classList.remove("hidden");
-      chatScreen.style.display = "flex";
+      chatPanel.classList.remove("hidden");
+      chatPanel.style.display = "flex";
     } else {
-      chatScreen.style.display = "none";
+      chatPanel.style.display = "none";
     }
   }
   state.messages.forEach((m) => {
@@ -402,7 +400,11 @@ export function addTypingIndicator(el) {
 export function renderMarkdown(text) {
   if (!text) return "";
   try {
-    return marked.parse(text, { breaks: true, gfm: true });
+    // Strip model XML wrapper tags that marked treats as invisible custom HTML elements
+    let cleaned = text.replace(/<\/?(?:tool_response|tool_call|function_call|function_response|result|observation|thinking)[^>]*>/gi, "");
+    // Collapse any leftover blank lines from tag removal
+    cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+    return marked.parse(cleaned, { breaks: true, gfm: true });
   } catch {
     return escapeHtml(text);
   }

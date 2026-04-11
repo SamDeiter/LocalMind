@@ -159,7 +159,11 @@ class ContextBuilder:
             )
             if not res or not res.get("results"):
                 return None
-            return "\n".join([f"[{r['source']}]: {r['content'][:500]}" for r in res["results"]])
+            # Filter out low-relevance chunks (cosine similarity < 0.3)
+            results = [r for r in res["results"] if r.get("relevance") is None or r.get("relevance", 0) >= 0.3]
+            if not results:
+                return None
+            return "\n".join([f"[{r['source']} chunk {r.get('chunk_index', '?')}]: {r['content']}" for r in results])
         except Exception:
             return None
 

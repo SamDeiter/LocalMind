@@ -6,7 +6,7 @@
 let apiOrigin = window.location.origin;
 // If running dev server on a different port locally, force backend port 8000
 if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-  apiOrigin = `http://${window.location.hostname}:8001`;
+  apiOrigin = `http://${window.location.hostname}:8000`;
 }
 export const API = apiOrigin;
 
@@ -58,7 +58,7 @@ export const sendBtn = $("#sendBtn");
 export const messageInput = $("#messageInput");
 export const messagesContainer = $("#messagesContainer");
 export const welcomeScreen = $("#welcomeScreen");
-export const chatScreen = document.getElementById("chatScreen");
+export const chatScreen = document.getElementById("chatPanel");
 // Voice / camera
 export const micBtn = $("#micBtn");
 export const voiceBtn = $("#voiceBtn");

@@ -19,12 +19,29 @@ from .base import BaseTool
 RAG_DATA_DIR = Path(__file__).parent.parent / "rag_data"
 RAG_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# ChromaDB client — persistent, local, no server needed
-_client = chromadb.PersistentClient(path=str(RAG_DATA_DIR))
-_collection = _client.get_or_create_collection(
-    name="localmind_docs",
-    metadata={"hnsw:space": "cosine"},
-)
+# Lazy-initialized — created on first use to avoid import-time crashes
+_client = None
+_collection = None
+
+
+def _get_collection():
+    """Return the ChromaDB collection, initializing lazily on first call."""
+    global _client, _collection
+    if _collection is not None:
+        return _collection
+    try:
+        _client = chromadb.PersistentClient(path=str(RAG_DATA_DIR))
+        _collection = _client.get_or_create_collection(
+            name="localmind_docs",
+            metadata={"hnsw:space": "cosine"},
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger("localmind.tools.rag").warning(
+            "ChromaDB RAG collection init failed (RAG disabled): %s", e
+        )
+        _collection = None
+    return _collection
 
 
 def _chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
@@ -61,13 +78,17 @@ def _doc_id(filename: str, chunk_idx: int) -> str:
 
 def index_document(filename: str, content: str) -> dict:
     """Index a document into ChromaDB for RAG queries."""
+    col = _get_collection()
+    if col is None:
+        return {"success": False, "error": "RAG unavailable (ChromaDB init failed)"}
+
     chunks = _chunk_text(content)
 
     # Remove old chunks for this file (re-index)
     h = hashlib.md5(filename.encode()).hexdigest()[:8]
-    existing = _collection.get(where={"source": filename})
+    existing = col.get(where={"source": filename})
     if existing and existing["ids"]:
-        _collection.delete(ids=existing["ids"])
+        col.delete(ids=existing["ids"])
 
     # Add new chunks
     ids = [_doc_id(filename, i) for i in range(len(chunks))]
@@ -76,7 +97,7 @@ def index_document(filename: str, content: str) -> dict:
         for i in range(len(chunks))
     ]
 
-    _collection.add(
+    col.add(
         documents=chunks,
         ids=ids,
         metadatas=metadatas,
@@ -92,12 +113,15 @@ def index_document(filename: str, content: str) -> dict:
 
 def query_documents(query: str, n_results: int = 5, use_nlp: bool = False) -> dict:
     """Search indexed documents for relevant chunks."""
-    if _collection.count() == 0:
+    col = _get_collection()
+    if col is None:
+        return {"success": True, "results": [], "message": "RAG unavailable (ChromaDB init failed)"}
+    if col.count() == 0:
         return {"success": True, "results": [], "message": "No documents indexed yet."}
 
-    results = _collection.query(
+    results = col.query(
         query_texts=[query],
-        n_results=min(n_results, _collection.count()),
+        n_results=min(n_results, col.count()),
     )
 
     formatted = []
@@ -116,10 +140,11 @@ def query_documents(query: str, n_results: int = 5, use_nlp: bool = False) -> di
 
 def list_indexed_documents() -> dict:
     """List all unique documents in the index."""
-    if _collection.count() == 0:
+    col = _get_collection()
+    if col is None or col.count() == 0:
         return {"success": True, "documents": []}
 
-    all_meta = _collection.get()
+    all_meta = col.get()
     sources = {}
     for meta in all_meta["metadatas"]:
         src = meta.get("source", "unknown")
@@ -132,9 +157,12 @@ def list_indexed_documents() -> dict:
 
 def delete_document(filename: str) -> dict:
     """Remove a document from the index."""
-    existing = _collection.get(where={"source": filename})
+    col = _get_collection()
+    if col is None:
+        return {"success": False, "error": "RAG unavailable (ChromaDB init failed)"}
+    existing = col.get(where={"source": filename})
     if existing and existing["ids"]:
-        _collection.delete(ids=existing["ids"])
+        col.delete(ids=existing["ids"])
         return {"success": True, "deleted": filename, "chunks_removed": len(existing["ids"])}
     return {"success": False, "error": f"Document not found: {filename}"}
 

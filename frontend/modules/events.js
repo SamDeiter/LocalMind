@@ -28,10 +28,10 @@ import { loadLearningData } from "./learning_ui.js";
 import { loadProfile } from "./ai_profile.js";
 
 // ── Tab State ────────────────────────────────────────────────────
-const TABS = ["workTab", "chatTab", "systemTab"];
+const TABS = ["workPanel", "chatPanel", "systemPanel"];
 const TAB_BTNS = ["tabWork", "tabChat", "tabSystem"];
 
-/** Switch the active tab. panelId: 'workTab' | 'chatTab' | 'systemTab' */
+/** Switch the active tab. panelId: 'workPanel' | 'chatPanel' | 'systemPanel' */
 export function switchTab(panelId) {
   TABS.forEach((id) => {
   // Close sidebar and clear temporary media on tab switch
@@ -48,7 +48,7 @@ export function switchTab(panelId) {
     }
   });
 
-  const btnMap = { workTab: "tabWork", chatTab: "tabChat", systemTab: "tabSystem" };
+  const btnMap = { workPanel: "tabWork", chatPanel: "tabChat", systemPanel: "tabSystem" };
   TAB_BTNS.forEach((btnId) => {
     const btn = document.getElementById(btnId);
     if (!btn) return;
@@ -62,7 +62,7 @@ export function switchTab(panelId) {
   });
 
   // Lazy-load System tab sections on first open
-  if (panelId === "systemTab") {
+  if (panelId === "systemPanel") {
     _initSystemTabOnce();
   }
 }
@@ -137,9 +137,9 @@ function _initSystemTabOnce() {
 // ── Main Event Binding ───────────────────────────────────────────
 export function bindEvents() {
   // ── Tab Buttons ──────────────────────────────────────────────
-  document.getElementById("tabWork")?.addEventListener("click", () => switchTab("workTab"));
-  document.getElementById("tabChat")?.addEventListener("click", () => switchTab("chatTab"));
-  document.getElementById("tabSystem")?.addEventListener("click", () => switchTab("systemTab"));
+  document.getElementById("tabWork")?.addEventListener("click", () => switchTab("workPanel"));
+  document.getElementById("tabChat")?.addEventListener("click", () => switchTab("chatPanel"));
+  document.getElementById("tabSystem")?.addEventListener("click", () => switchTab("systemPanel"));
 
   // ── Accordions ───────────────────────────────────────────────
   _initAccordions();

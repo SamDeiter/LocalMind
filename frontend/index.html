@@ -6,202 +6,704 @@
     <title>LocalMind</title>
     <meta name="description" content="LocalMind — local-first AI assistant with autonomous task execution, multi-model routing, and safety-first tool use."/>
 
-    <!-- Tailwind & Fonts -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <link rel="icon" type="image/png" href="icon.png" />
     <link rel="apple-touch-icon" href="icon.png" />
     <link rel="manifest" href="manifest.json" />
 
-    <!-- Monaco & Highlight.js -->
+    <!-- Tailwind CSS (required: HTML uses Tailwind utility classes throughout) -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'slate': {
+                            950: '#020617', 900: '#0f172a', 800: '#1e293b',
+                            700: '#334155', 600: '#475569', 500: '#64748b',
+                            400: '#94a3b8', 300: '#cbd5e1', 200: '#e2e8f0',
+                            100: '#f1f5f9', 50: '#f8fafc'
+                        },
+                        'indigo': {
+                            400: '#818cf8', 500: '#6366f1', 600: '#4f46e5',
+                        },
+                        'violet': { 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed' },
+                        'emerald': { 400: '#34d399', 500: '#10b981' },
+                        'cyan': { 400: '#22d3ee', 500: '#06b6d4' },
+                        'amber': { 400: '#fbbf24', 500: '#f59e0b' },
+                        'red': { 400: '#f87171', 500: '#ef4444' },
+                        'purple': { 400: '#c084fc', 500: '#a855f7' },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        headline: ['Space Grotesk', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- Highlight.js + Marked + Monaco -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" />
     <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "surface-container-lowest": "#020617",
-                        "on-surface-variant": "#94a3b8",
-                        "background": "#020617",
-                        "surface": "#0f172a",
-                        "surface-container-low": "#0f172a",
-                        "surface-container": "#1e293b",
-                        "surface-container-high": "#334155",
-                        "surface-container-highest": "#475569",
-                        "primary": "#6366f1",
-                        "secondary": "#10b981",
-                        "tertiary": "#8b5cf6",
-                        "on-background": "#f8fafc",
-                        "on-surface": "#f1f5f9",
-                        "on-primary": "#ffffff",
-                        "outline": "#64748b",
-                        "outline-variant": "#334155",
-                        "error": "#ef4444",
-                        "surface-variant": "#1e293b",
-                        "surface-bright": "#334155",
-                    },
-                    fontFamily: {
-                        "headline": ["Space Grotesk", "sans-serif"],
-                        "body": ["Inter", "sans-serif"],
-                        "mono": ["JetBrains Mono", "monospace"]
-                    },
-                },
-            },
-        }
-    </script>
     <link rel="stylesheet" href="styles.css" />
+
+    <style>
+        /* ── Named component classes missing from styles.css ─────────── */
+
+        /* Skip link */
+        .skip-link {
+            position: absolute; left: -9999px; top: 0; z-index: 9999;
+            background: #6366f1; color: #fff; padding: 0.5rem 1rem;
+            border-radius: 0 0 0.5rem 0; font-size: 0.875rem; font-weight: 600;
+        }
+        .skip-link:focus { left: 0; }
+
+        /* Top Bar */
+        #topBar {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0 1rem; height: 52px; flex-shrink: 0;
+            background: rgba(2, 6, 23, 0.95);
+            border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+            position: relative; z-index: 50;
+        }
+        .topbar-brand {
+            display: flex; align-items: center; gap: 0.625rem; flex-shrink: 0;
+        }
+        .brand-logo {
+            width: 32px; height: 32px; border-radius: 0.5rem;
+            background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .brand-logo .material-symbols-outlined { font-size: 1.125rem; color: #fff; }
+        .brand-text { display: flex; align-items: baseline; gap: 0.375rem; }
+        .brand-name {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+            font-size: 0.9375rem; color: #f1f5f9; letter-spacing: -0.01em;
+        }
+        .version-badge {
+            font-size: 0.625rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+            background: rgba(99,102,241,0.12); color: #818cf8;
+            border: 1px solid rgba(99,102,241,0.2); border-radius: 0.3rem;
+            padding: 0.1rem 0.35rem; letter-spacing: 0.04em;
+        }
+        .status-pill {
+            display: flex; align-items: center; gap: 0.375rem;
+            background: rgba(15,23,42,0.6); border: 1px solid rgba(51,65,85,0.4);
+            border-radius: 999px; padding: 0.2rem 0.6rem;
+        }
+        .status-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.6);
+            animation: pulse-dot 2s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes pulse-dot {
+            0%,100% { opacity:1; } 50% { opacity:0.5; }
+        }
+        .status-text { font-size: 0.6875rem; font-weight: 600; color: #34d399; }
+
+        /* Nav pills */
+        .topbar-nav { display: flex; align-items: center; gap: 0.25rem; margin-left: 0.5rem; }
+        .nav-pill {
+            display: inline-flex; align-items: center; gap: 0.375rem;
+            padding: 0.375rem 0.875rem; border-radius: 0.5rem;
+            font-size: 0.8125rem; font-weight: 600; color: #64748b;
+            background: transparent; border: 1px solid transparent;
+            cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+            position: relative;
+        }
+        .nav-pill .material-symbols-outlined { font-size: 1.1rem; }
+        .nav-pill:hover { background: rgba(30,41,59,0.6); color: #e2e8f0; border-color: rgba(51,65,85,0.4); }
+        .nav-pill-active {
+            background: rgba(99,102,241,0.12); color: #818cf8;
+            border-color: rgba(99,102,241,0.25);
+        }
+        .nav-pill-active .material-symbols-outlined { color: #6366f1; }
+
+        /* Nav badges */
+        .nav-badge {
+            font-size: 0.5625rem; font-weight: 800; padding: 0.1rem 0.35rem;
+            border-radius: 999px; line-height: 1.2; letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .nav-badge-red { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+        .nav-badge-amber { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+        .nav-badge-green { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+        .nav-badge-dim { background: rgba(30,41,59,0.6); color: #64748b; border: 1px solid rgba(51,65,85,0.4); }
+
+        /* Topbar right */
+        .topbar-right { display: flex; align-items: center; gap: 0.625rem; margin-left: auto; flex-shrink: 0; }
+        .metrics-row { display: flex; align-items: center; gap: 0.5rem; }
+        .metric-chip {
+            display: flex; align-items: center; gap: 0.25rem;
+            background: rgba(15,23,42,0.5); border: 1px solid rgba(51,65,85,0.35);
+            border-radius: 0.375rem; padding: 0.2rem 0.5rem;
+        }
+        .metric-label {
+            font-size: 0.5625rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.08em; color: #475569;
+        }
+        .metric-value {
+            font-size: 0.6875rem; font-weight: 700;
+            font-family: 'JetBrains Mono', monospace; color: #94a3b8;
+        }
+        .token-counter {
+            font-size: 0.625rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+            color: #475569; letter-spacing: 0.04em;
+        }
+        .icon-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 0.5rem;
+            background: rgba(30,41,59,0.5); border: 1px solid rgba(51,65,85,0.4);
+            color: #64748b; cursor: pointer; transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        .icon-btn:hover { background: rgba(51,65,85,0.6); color: #e2e8f0; border-color: rgba(99,102,241,0.3); }
+        .icon-btn .material-symbols-outlined { font-size: 1.125rem; }
+        .icon-btn-sm { width: 28px; height: 28px; border-radius: 0.375rem; }
+        .icon-btn-sm .material-symbols-outlined { font-size: 1rem; }
+
+        /* App Shell */
+        #appShell {
+            display: flex; flex: 1; overflow: hidden; position: relative;
+        }
+
+        /* Sidebar */
+        #chatSidebar {
+            width: 220px; flex-shrink: 0; display: flex; flex-direction: column;
+            background: rgba(5,10,25,0.98);
+            border-right: 1px solid rgba(51,65,85,0.35);
+            transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
+            overflow: hidden;
+            position: relative; z-index: 30;
+        }
+        #chatSidebar.sidebar-collapsed { width: 0; border-right: none; }
+        .sidebar-header {
+            display: flex; align-items: center; gap: 0.25rem;
+            padding: 0.625rem 0.625rem 0.625rem 0.75rem;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+            flex-shrink: 0;
+        }
+        .sidebar-title {
+            font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.1em; color: #475569; flex: 1;
+        }
+        .sidebar-list { flex: 1; overflow-y: auto; padding: 0.5rem; }
+        .sidebar-footer {
+            padding: 0.625rem 0.75rem;
+            border-top: 1px solid rgba(51,65,85,0.25);
+            flex-shrink: 0;
+        }
+        .palace-badge {
+            display: flex; align-items: center; gap: 0.375rem;
+            font-size: 0.6875rem; color: #475569;
+        }
+        .palace-badge .material-symbols-outlined { font-size: 0.875rem; color: #6366f1; opacity: 0.6; }
+
+        .sidebar-expand-btn {
+            position: absolute; top: 0.625rem; left: 0.25rem; z-index: 35;
+            display: none; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 0.5rem;
+            background: rgba(15,23,42,0.9); border: 1px solid rgba(51,65,85,0.4);
+            color: #64748b; cursor: pointer; transition: all 0.15s ease;
+        }
+        .sidebar-expand-btn:hover { color: #e2e8f0; border-color: rgba(99,102,241,0.3); }
+
+        /* Chat panel */
+        #chatPanel {
+            display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden;
+        }
+        .chat-topstrip {
+            display: flex; align-items: center; gap: 0.625rem;
+            padding: 0.5rem 1.25rem; flex-shrink: 0;
+            border-bottom: 1px solid rgba(51,65,85,0.25);
+        }
+        .chat-indicator {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #6366f1; opacity: 0.7;
+        }
+        .chat-title {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+            font-size: 0.9375rem; color: #e2e8f0; letter-spacing: -0.01em;
+        }
+        .chat-model-label {
+            font-size: 0.6875rem; font-weight: 600; font-family: 'JetBrains Mono', monospace;
+            color: #475569; background: rgba(30,41,59,0.5);
+            border: 1px solid rgba(51,65,85,0.35); border-radius: 0.3rem;
+            padding: 0.15rem 0.4rem;
+        }
+
+        .messages-area {
+            flex: 1; overflow-y: auto; padding: 1.5rem 1.25rem;
+            display: flex; flex-direction: column; gap: 1rem;
+        }
+        .empty-icon { font-size: 2.5rem; opacity: 0.2; margin-bottom: 1rem; color: #6366f1; }
+        .empty-title {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+            font-size: 1.25rem; color: #94a3b8; margin-bottom: 0.5rem;
+        }
+        .empty-sub { font-size: 0.8125rem; color: #475569; line-height: 1.6; max-width: 300px; text-align: center; }
+        .prompt-pills {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1.5rem;
+        }
+        .prompt-pill {
+            font-size: 0.75rem; font-weight: 500; color: #64748b;
+            background: rgba(15,23,42,0.6); border: 1px solid rgba(51,65,85,0.4);
+            border-radius: 999px; padding: 0.375rem 0.875rem;
+            cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+        }
+        .prompt-pill:hover { color: #818cf8; border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.08); }
+
+        /* Input zone */
+        .input-zone {
+            padding: 0.75rem 1rem 0.625rem; flex-shrink: 0;
+            border-top: 1px solid rgba(51,65,85,0.25);
+        }
+        .input-shell {
+            background: rgba(15,23,42,0.7); border: 1px solid rgba(51,65,85,0.5);
+            border-radius: 0.875rem; overflow: hidden;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .input-shell:focus-within {
+            border-color: rgba(99,102,241,0.4);
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.1), 0 4px 24px rgba(99,102,241,0.08);
+        }
+        .message-textarea {
+            width: 100%; background: transparent; border: none; outline: none;
+            resize: none; padding: 0.75rem 1rem 0.25rem;
+            color: #e2e8f0; font-family: 'Inter', sans-serif;
+            font-size: 0.875rem; line-height: 1.6;
+            max-height: 200px; overflow-y: auto;
+        }
+        .message-textarea::placeholder { color: #475569; }
+        .input-actions {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.375rem 0.625rem;
+        }
+        .input-left-actions { display: flex; align-items: center; gap: 0.25rem; }
+        .tool-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px; border-radius: 0.5rem;
+            background: transparent; border: 1px solid transparent;
+            color: #475569; cursor: pointer; transition: all 0.15s ease;
+        }
+        .tool-btn:hover { background: rgba(51,65,85,0.4); color: #94a3b8; border-color: rgba(51,65,85,0.4); }
+        .tool-btn .material-symbols-outlined { font-size: 1.1rem; }
+        .send-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 0.625rem;
+            background: linear-gradient(135deg, #6366f1, #7c3aed);
+            color: #fff; cursor: pointer; border: none;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+            transition: all 0.15s ease;
+        }
+        .send-btn:hover { box-shadow: 0 4px 16px rgba(99,102,241,0.4); filter: brightness(1.08); }
+        .send-btn:active { transform: scale(0.95); }
+        .send-btn .material-symbols-outlined { font-size: 1.125rem; }
+        .input-disclaimer { font-size: 0.625rem; color: #334155; text-align: center; margin-top: 0.375rem; }
+
+        /* Side panels (Work / System slide-over) */
+        .side-panel {
+            position: absolute; top: 0; right: 0; bottom: 0;
+            width: min(380px, 92vw);
+            background: rgba(5,10,25,0.98); backdrop-filter: blur(16px);
+            border-left: 1px solid rgba(51,65,85,0.4);
+            display: flex; flex-direction: column; z-index: 40;
+            transform: translateX(100%);
+            transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+            box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+        }
+        .side-panel.panel-open { transform: translateX(0); }
+        .side-panel-header {
+            display: flex; align-items: center; gap: 0.625rem;
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+            flex-shrink: 0;
+        }
+        .side-panel-header .material-symbols-outlined { font-size: 1.25rem; }
+        .side-panel-title {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+            font-size: 0.9375rem; color: #e2e8f0; letter-spacing: -0.01em;
+        }
+        .side-panel-body { flex: 1; overflow-y: auto; padding: 0.875rem; display: flex; flex-direction: column; gap: 0.75rem; }
+        .panel-card {
+            background: rgba(15,23,42,0.5); border: 1px solid rgba(51,65,85,0.4);
+            border-radius: 0.75rem; overflow: hidden;
+        }
+        .panel-card-header {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.75rem 0.875rem;
+            border-bottom: 1px solid rgba(51,65,85,0.25);
+        }
+        .panel-card-title {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+            font-size: 0.875rem; color: #e2e8f0;
+        }
+        .panel-section { display: flex; flex-direction: column; gap: 0.5rem; }
+        .panel-section-header {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.25rem 0;
+        }
+        .panel-close-btn { margin-left: auto; }
+
+        /* Workflow stepper */
+        .workflow-stepper {
+            display: flex; align-items: center; gap: 0; padding: 0.75rem;
+        }
+        .workflow-step {
+            display: flex; align-items: center; gap: 0.375rem;
+            padding: 0.375rem 0.625rem; border-radius: 0.5rem;
+            border: 1px solid rgba(51,65,85,0.35);
+            background: rgba(15,23,42,0.4);
+            transition: all 0.15s ease;
+        }
+        .step-label { font-size: 0.6875rem; font-weight: 600; color: #64748b; }
+        .step-active-default {
+            background: rgba(99,102,241,0.12) !important;
+            border-color: rgba(99,102,241,0.3) !important;
+        }
+        .step-active-default .step-label { color: #818cf8; }
+        .step-connector {
+            flex: 1; height: 1px; background: rgba(51,65,85,0.4);
+            min-width: 8px;
+        }
+        .pipeline-feed { max-height: 180px; overflow-y: auto; padding: 0.5rem 0.75rem; }
+
+        /* Thinking terminal (slide-up) */
+        .thinking-terminal {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 200px; z-index: 40;
+            background: rgba(2,6,23,0.97); backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(51,65,85,0.4);
+            display: flex; flex-direction: column;
+            box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+            transform: translateY(100%);
+            transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .thinking-terminal.open { transform: translateY(0); }
+        .thinking-terminal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.5rem 1rem; border-bottom: 1px solid rgba(51,65,85,0.3);
+            flex-shrink: 0;
+        }
+
+        /* Panel Backdrop */
+        .panel-backdrop {
+            position: absolute; inset: 0; z-index: 35;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+        }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed; inset: 0; z-index: 100;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+            display: flex; align-items: center; justify-content: center;
+            padding: 1rem;
+        }
+        .modal-panel {
+            background: rgba(10,15,30,0.98); border: 1px solid rgba(51,65,85,0.5);
+            border-radius: 1rem; width: 100%; max-width: 520px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; max-height: 90vh;
+        }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+            flex-shrink: 0;
+        }
+        .modal-body { flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
+        .modal-footer {
+            display: flex; align-items: center; justify-content: flex-end; gap: 0.625rem;
+            padding: 0.875rem 1.25rem;
+            border-top: 1px solid rgba(51,65,85,0.3);
+            flex-shrink: 0;
+        }
+
+        /* Settings */
+        .settings-section { display: flex; flex-direction: column; gap: 0.75rem; }
+        .settings-section-title {
+            font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+            font-size: 0.9375rem; color: #e2e8f0;
+        }
+        .settings-section-sub { font-size: 0.8125rem; color: #64748b; line-height: 1.5; }
+        .settings-fields { display: flex; flex-direction: column; gap: 0.75rem; }
+        .field-group { display: flex; flex-direction: column; gap: 0.375rem; }
+        .field-label { font-size: 0.75rem; font-weight: 600; color: #64748b; }
+        .field-input {
+            background: rgba(15,23,42,0.7); border: 1px solid rgba(51,65,85,0.5);
+            border-radius: 0.5rem; padding: 0.5rem 0.75rem;
+            color: #e2e8f0; font-size: 0.875rem; width: 100%;
+            outline: none; transition: border-color 0.15s ease;
+        }
+        .field-input:focus { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
+        .field-input::placeholder { color: #334155; }
+
+        /* Toggle switch */
+        .toggle-switch { position: relative; display: inline-flex; cursor: pointer; }
+        .toggle-track {
+            width: 40px; height: 22px; border-radius: 999px;
+            background: rgba(30,41,59,0.8); border: 1px solid rgba(51,65,85,0.5);
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .toggle-track::after {
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #64748b; transition: transform 0.2s ease, background 0.2s ease;
+        }
+        .peer:checked ~ .toggle-track { background: #10b981; border-color: #10b981; }
+        .peer:checked ~ .toggle-track::after { transform: translateX(18px); background: #fff; }
+
+        /* ml-auto utility */
+        .ml-auto { margin-left: auto; }
+
+        /* Message bubbles */
+        .msg-user, .msg-ai {
+            display: flex; flex-direction: column; gap: 0.25rem; max-width: 85%;
+        }
+        .msg-user { align-self: flex-end; align-items: flex-end; }
+        .msg-ai { align-self: flex-start; align-items: flex-start; }
+        .msg-bubble-user {
+            background: linear-gradient(135deg, #6366f1, #7c3aed);
+            color: #fff; padding: 0.625rem 1rem; border-radius: 1rem 1rem 0.25rem 1rem;
+            font-size: 0.875rem; line-height: 1.6;
+        }
+        .msg-bubble-ai {
+            background: rgba(15,23,42,0.7); border: 1px solid rgba(51,65,85,0.4);
+            color: #e2e8f0; padding: 0.75rem 1rem; border-radius: 1rem 1rem 1rem 0.25rem;
+            font-size: 0.875rem; line-height: 1.6;
+        }
+
+        /* Active panel */
+        .active-panel { display: flex; }
+
+        @media (max-width: 768px) {
+            .metrics-row { display: none; }
+            .token-counter { display: none; }
+            #chatSidebar {
+                position: absolute; top: 0; left: 0; bottom: 0;
+                z-index: 70; width: 260px;
+                transform: translateX(-100%);
+                transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+                box-shadow: 8px 0 24px rgba(0,0,0,0.4);
+            }
+            #chatSidebar.open { transform: translateX(0); }
+        }
+    </style>
 </head>
 
-<body class="bg-[#020617] text-slate-300 font-body selection:bg-indigo-500/30 overflow-hidden h-screen flex flex-col">
-<a href="#workTab" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">Skip to main content</a>
+<body>
+<a href="#chatScreen" class="skip-link">Skip to chat</a>
 
 <!-- ════════════════════════════════════════════════════════════════
-     TOP BAR
+     TOP BAR — slim, brand-left, actions-right
      ════════════════════════════════════════════════════════════════ -->
-<header id="topBar" class="h-12 z-50 flex-shrink-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/40 flex items-center justify-between px-4 gap-4">
-    <!-- Left: Logo + status -->
-    <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
-                <span class="material-symbols-outlined text-white text-sm">psychology</span>
-            </div>
-            <div class="hidden sm:block">
-                <div class="text-sm font-black tracking-tight text-white font-headline leading-none">LocalMind</div>
-                <div class="text-[10px] font-mono text-indigo-400/70 tracking-widest uppercase font-bold version-badge leading-none mt-0.5" title="Application version">v0.0.0</div>
-            </div>
+<header id="topBar">
+    <!-- Brand -->
+    <div class="topbar-brand">
+        <div class="brand-logo">
+            <span class="material-symbols-outlined">psychology</span>
         </div>
-        <div class="flex items-center gap-1.5 pl-3 border-l border-slate-800/60">
-            <span id="brainPulse" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" title="Server connection status" aria-hidden="true"></span>
-            <span id="brainStatus" class="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Online</span>
+        <div class="brand-text">
+            <span class="brand-name">LocalMind</span>
+            <span class="brand-version version-badge" title="Application version">v0.0.0</span>
         </div>
-        <span class="text-slate-600 font-mono text-[11px] tracking-wider uppercase hidden lg:inline-block" id="tokenCounter" title="Tokens used in current conversation context">0 / 16384 TX</span>
+        <div class="status-pill">
+            <span id="brainPulse" class="status-dot" title="Server status" aria-hidden="true"></span>
+            <span id="brainStatus" class="status-text">Online</span>
+        </div>
     </div>
 
-    <!-- Right: Metrics + Settings -->
-    <div class="flex items-center gap-1.5">
-        <!-- System Metrics -->
-        <div class="hidden md:flex items-center gap-1" role="status" aria-live="polite">
-            <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-900/50 border border-slate-800/30" title="Current CPU usage">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">CPU</span>
-                <span class="text-[10px] font-bold text-slate-400 tabular-nums font-mono" id="cpuVal">--%</span>
-            </div>
-            <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-900/50 border border-slate-800/30" title="GPU video memory usage">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">VRAM</span>
-                <span class="text-[10px] font-bold text-slate-400 tabular-nums font-mono" id="vramVal">--</span>
-            </div>
-            <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-900/50 border border-slate-800/30" title="System RAM usage">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">RAM</span>
-                <span class="text-[10px] font-bold text-slate-400 tabular-nums font-mono" id="ramVal">--</span>
-            </div>
-            <!-- Token panel injected here by token_panel.js -->
-        </div>
+    <!-- Nav pills -->
+    <nav class="topbar-nav" role="tablist" aria-label="Main navigation">
+        <button id="tabChat" role="tab" aria-selected="true" aria-controls="chatPanel"
+            class="nav-pill nav-pill-active">
+            <span class="material-symbols-outlined">chat</span>
+            <span>Chat</span>
+        </button>
+        <button id="tabWork" role="tab" aria-selected="false" aria-controls="workPanel"
+            class="nav-pill">
+            <span class="material-symbols-outlined">rocket_launch</span>
+            <span>Work</span>
+            <span id="workApprovalBadge" class="hidden nav-badge nav-badge-red" aria-label="0 approvals pending">0</span>
+        </button>
+        <button id="tabSystem" role="tab" aria-selected="false" aria-controls="systemPanel"
+            class="nav-pill">
+            <span class="material-symbols-outlined">settings_suggest</span>
+            <span>System</span>
+            <span id="swarmAgentCount" class="nav-badge nav-badge-amber" aria-label="0 active workers">0</span>
+        </button>
+    </nav>
 
-        <!-- Settings -->
-        <button id="systemPromptBtn" title="Open Settings" aria-label="Open Settings"
-            class="ml-1 p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800/50 transition-colors">
-            <span class="material-symbols-outlined text-lg">settings</span>
+    <!-- Right: metrics + settings -->
+    <div class="topbar-right">
+        <div class="metrics-row" role="status" aria-live="polite">
+            <div class="metric-chip" title="CPU usage">
+                <span class="metric-label">CPU</span>
+                <span class="metric-value" id="cpuVal">--%</span>
+            </div>
+            <div class="metric-chip" title="GPU VRAM">
+                <span class="metric-label">VRAM</span>
+                <span class="metric-value" id="vramVal">--</span>
+            </div>
+            <div class="metric-chip" title="System RAM">
+                <span class="metric-label">RAM</span>
+                <span class="metric-value" id="ramVal">--</span>
+            </div>
+        </div>
+        <span class="token-counter" id="tokenCounter" title="Tokens used">0 / 16384 TX</span>
+        <button id="systemPromptBtn" title="Open Settings" aria-label="Open Settings" class="icon-btn">
+            <span class="material-symbols-outlined">settings</span>
         </button>
     </div>
 </header>
 
 <!-- ════════════════════════════════════════════════════════════════
-     TAB BAR
+     MAIN — sidebar + chat panel, full height
      ════════════════════════════════════════════════════════════════ -->
-<nav id="tabBar" class="flex-shrink-0 flex items-center gap-1 px-4 bg-slate-950/70 border-b border-slate-800/40 backdrop-blur-sm" role="tablist" aria-label="Main navigation">
-    <button id="tabWork" role="tab" aria-selected="true" aria-controls="workTab"
-        class="tab-btn tab-active flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all">
-        <span class="material-symbols-outlined text-base pointer-events-none">rocket_launch</span>
-        <span>Work</span>
-        <span id="workApprovalBadge" class="hidden text-[10px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full" title="Pending approvals" aria-label="0 approvals pending">0</span>
-    </button>
-    <button id="tabChat" role="tab" aria-selected="false" aria-controls="chatTab"
-        class="tab-btn flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all text-slate-500 hover:text-slate-200">
-        <span class="material-symbols-outlined text-base pointer-events-none">chat</span>
-        <span>Chat</span>
-    </button>
-    <button id="tabSystem" role="tab" aria-selected="false" aria-controls="systemTab"
-        class="tab-btn flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all text-slate-500 hover:text-slate-200">
-        <span class="material-symbols-outlined text-base pointer-events-none">settings_suggest</span>
-        <span>System</span>
-        <span id="swarmAgentCount" class="text-[10px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full" title="Active worker agents" aria-label="0 active workers">0</span>
-    </button>
-</nav>
+<main id="appShell">
 
-<!-- ════════════════════════════════════════════════════════════════
-     TAB CONTENT
-     ════════════════════════════════════════════════════════════════ -->
-<main class="flex-1 overflow-hidden relative bg-[#020617]" id="tabContent">
+    <!-- ── Conversation Sidebar ──────────────────────────────────── -->
+    <aside id="chatSidebar">
+        <div class="sidebar-header">
+            <button id="sidebarCollapseBtn" class="icon-btn icon-btn-sm" title="Collapse sidebar" aria-label="Collapse sidebar">
+                <span class="material-symbols-outlined">menu_open</span>
+            </button>
+            <span class="sidebar-title">Conversations</span>
+            <button id="newChatInlineBtn" class="icon-btn icon-btn-sm" title="New conversation" aria-label="New conversation">
+                <span class="material-symbols-outlined">edit_square</span>
+            </button>
+        </div>
+        <div id="conversationList" class="sidebar-list custom-scrollbar">
+            <!-- Populated by conversations.js -->
+        </div>
+        <div class="sidebar-footer">
+            <span class="palace-badge" id="palaceBadge" title="MemPalace memories">
+                <span class="material-symbols-outlined">castle</span>
+                <span id="palaceDrawerCount">—</span> memories
+            </span>
+        </div>
+    </aside>
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB 1 — WORK (Default)
-         ══════════════════════════════════════════════════════════ -->
-    <section id="workTab" role="tabpanel" aria-labelledby="tabWork"
-        class="tab-panel flex flex-col h-full overflow-y-auto custom-scrollbar">
-        <div class="flex flex-col gap-5 p-5 lg:p-7 max-w-5xl w-full mx-auto">
+    <!-- Sidebar collapse toggle (shown when sidebar is collapsed) -->
+    <button id="sidebarExpandBtn" class="sidebar-expand-btn hidden" title="Expand sidebar" aria-label="Expand sidebar">
+        <span class="material-symbols-outlined">menu</span>
+    </button>
 
-            <!-- ── Welcome / Header ─────────────────────────────────────── -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="font-headline font-bold text-xl text-slate-100 tracking-tight">Work</h1>
-                    <p class="text-xs text-slate-500 mt-0.5">Autonomous task execution &amp; pipeline management</p>
-                </div>
-            <div class="flex items-center gap-2">
-                    <span id="taskPipelineCountHeader" class="text-[11px] font-semibold text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-full font-mono">0 Active</span>
+    <!-- ── Chat Panel (default, always rendered) ────────────────── -->
+    <section id="chatPanel" role="tabpanel" aria-labelledby="tabChat" class="tab-panel active-panel">
+        <!-- Chat top strip -->
+        <div class="chat-topstrip">
+            <span class="chat-indicator" id="chatIndicator" aria-hidden="true"></span>
+            <h1 class="chat-title">Chat</h1>
+            <span id="chatModelLabel" class="chat-model-label">auto</span>
+        </div>
+
+        <!-- Messages area -->
+        <div id="messagesContainer" class="messages-area custom-scrollbar">
+            <div id="chatEmptyState" class="empty-state">
+                <span class="material-symbols-outlined empty-icon">neurology</span>
+                <h2 class="empty-title">How can I help you today?</h2>
+                <p class="empty-sub">Ask a question, analyze a file, generate code, or explore ideas.</p>
+                <div class="prompt-pills">
+                    <button class="prompt-pill">Summarize this project</button>
+                    <button class="prompt-pill">Write a Python script to...</button>
+                    <button class="prompt-pill">Explain how RAG works</button>
+                    <button class="prompt-pill">Debug this error</button>
+                    <button class="prompt-pill">Check the MemPalace status</button>
                 </div>
             </div>
+        </div>
 
-            <!-- ── Task Creation (injected by task_creation.js) ────────── -->
+        <!-- Input bar -->
+        <div class="input-zone">
+            <div class="input-shell" id="chatInputShell">
+                <textarea id="messageInput" aria-label="Message Input" title="Type your message here"
+                    class="message-textarea"
+                    placeholder="Message LocalMind..." rows="1"></textarea>
+                <div class="input-actions">
+                    <div class="input-left-actions">
+                        <button id="micBtn" aria-label="Voice Input" title="Voice input" class="tool-btn">
+                            <span class="material-symbols-outlined">mic</span>
+                        </button>
+                        <button id="openCameraBtn" aria-label="Open Camera" title="Take a photo" class="tool-btn">
+                            <span class="material-symbols-outlined">photo_camera</span>
+                        </button>
+                        <button id="ttsToggleBtn" aria-label="Toggle TTS" title="Text-to-speech" class="tool-btn">
+                            <span class="material-symbols-outlined">volume_up</span>
+                        </button>
+                    </div>
+                    <button id="sendBtn" aria-label="Send Message" title="Send" class="send-btn">
+                        <span class="material-symbols-outlined">arrow_upward</span>
+                    </button>
+                </div>
+            </div>
+            <p class="input-disclaimer">LocalMind runs locally. Your data stays on your machine.</p>
+        </div>
+    </section>
+
+    <!-- ── Work Slide-over Panel ─────────────────────────────────── -->
+    <section id="workPanel" role="tabpanel" aria-labelledby="tabWork" class="tab-panel side-panel hidden">
+        <div class="side-panel-header">
+            <span class="material-symbols-outlined text-indigo-400">rocket_launch</span>
+            <h2 class="side-panel-title">Work</h2>
+            <span id="taskPipelineCountHeader" class="nav-badge nav-badge-dim">0 Active</span>
+            <button class="panel-close-btn icon-btn icon-btn-sm ml-auto" data-close-panel="workPanel" title="Close" aria-label="Close Work panel">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="side-panel-body custom-scrollbar">
+
+            <!-- Task Creation -->
             <div id="taskCreationArea"></div>
 
-
-            <!-- ── Pipeline ─────────────────────────────────────────── -->
-            <div class="bg-slate-900/40 border border-slate-800/40 rounded-xl p-5 flex flex-col gap-4" id="aiThinkingPanel">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-primary text-lg">alt_route</span>
-                        <h2 class="font-headline font-semibold text-sm tracking-tight text-slate-200">Pipeline</h2>
-                        <span class="text-[11px] text-slate-600 font-mono uppercase tracking-widest">Live</span>
-                    </div>
+            <!-- Pipeline -->
+            <div class="panel-card" id="aiThinkingPanel">
+                <div class="panel-card-header">
+                    <span class="material-symbols-outlined text-indigo-400">alt_route</span>
+                    <h3 class="panel-card-title">Pipeline</h3>
+                    <span class="text-[11px] text-slate-600 font-mono uppercase tracking-widest ml-1">Live</span>
                 </div>
-
-                <!-- Workflow Stepper -->
-                <div id="agent-workflow-stepper" class="flex items-center z-10 w-full" role="list" aria-label="Agent workflow steps">
+                <div id="agent-workflow-stepper" class="workflow-stepper" role="list" aria-label="Workflow steps">
                     <div class="flex items-center gap-2 flex-1" role="listitem" aria-label="Step 1: Planner">
-                        <div id="step-planner" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-500/15 border border-indigo-500/40 transition-all duration-300">
+                        <div id="step-planner" class="workflow-step step-active-default">
                             <span class="material-symbols-outlined text-indigo-400 text-base">schema</span>
-                            <span class="text-xs font-bold text-indigo-400">Planner</span>
+                            <span class="step-label">Planner</span>
                         </div>
                     </div>
-                    <div class="w-6 h-px bg-slate-700/40 flex-shrink-0" aria-hidden="true"></div>
+                    <div class="step-connector" aria-hidden="true"></div>
                     <div class="flex items-center gap-2 flex-1" role="listitem" aria-label="Step 2: Coder">
-                        <div id="step-coder" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
+                        <div id="step-coder" class="workflow-step">
                             <span class="material-symbols-outlined text-slate-500 text-base">code_blocks</span>
-                            <span class="text-xs font-bold text-slate-500">Coder</span>
+                            <span class="step-label text-slate-500">Coder</span>
                         </div>
                     </div>
-                    <div class="w-6 h-px bg-slate-700/40 flex-shrink-0" aria-hidden="true"></div>
+                    <div class="step-connector" aria-hidden="true"></div>
                     <div class="flex items-center gap-2 flex-1" role="listitem" aria-label="Step 3: Execute">
-                        <div id="step-execute" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
+                        <div id="step-execute" class="workflow-step">
                             <span class="material-symbols-outlined text-slate-500 text-base">terminal</span>
-                            <span class="text-xs font-bold text-slate-500">Execute</span>
+                            <span class="step-label text-slate-500">Execute</span>
                         </div>
                     </div>
-                    <div class="w-6 h-px bg-slate-700/40 flex-shrink-0" aria-hidden="true"></div>
+                    <div class="step-connector" aria-hidden="true"></div>
                     <div class="flex items-center gap-2 flex-1" role="listitem" aria-label="Step 4: Review">
-                        <div id="step-reviewer" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
+                        <div id="step-reviewer" class="workflow-step">
                             <span class="material-symbols-outlined text-slate-500 text-base">verified_user</span>
-                            <span class="text-xs font-bold text-slate-500">Review</span>
+                            <span class="step-label text-slate-500">Review</span>
                         </div>
                     </div>
                 </div>
-
-                <div id="aiThinkingFeed" class="flex-1 space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-2 z-10 text-sm" aria-live="polite">
+                <div id="aiThinkingFeed" class="pipeline-feed custom-scrollbar" aria-live="polite">
                     <div class="empty-state py-6">
                         <span class="material-symbols-outlined">hourglass_empty</span>
                         <p>No pipeline activity yet. Submit a task to get started.</p>
@@ -209,166 +711,74 @@
                 </div>
             </div>
 
-            <!-- ── Active Jobs ──────────────────────────────────────── -->
-            <div>
-                <div class="flex justify-between items-center mb-3">
+            <!-- Active Jobs -->
+            <div class="panel-section">
+                <div class="panel-section-header">
                     <h3 class="section-label flex items-center gap-2">
                         <span class="material-symbols-outlined text-sm text-slate-500">work</span>
                         Active Jobs
                     </h3>
-                    <span class="text-[11px] font-semibold text-slate-400 bg-slate-800/60 px-2.5 py-0.5 rounded-full font-mono" id="taskPipelineCount">0 Active</span>
+                    <span class="nav-badge nav-badge-dim" id="taskPipelineCount">0 Active</span>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="taskPipelineBody">
-                    <!-- Populated by jobs_ui.js -->
-                </div>
+                <div class="grid grid-cols-1 gap-3" id="taskPipelineBody"></div>
             </div>
 
-            <!-- ── Needs Approval (conditional) ────────────────────── -->
-            <div id="approvalsInlineSection" class="hidden">
-                <div class="flex items-center gap-2 mb-3">
+            <!-- Approvals -->
+            <div id="approvalsInlineSection" class="hidden panel-section">
+                <div class="panel-section-header">
                     <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
                     <h3 class="section-label text-red-400">Needs Approval</h3>
-                    <span id="approvalsBadge" class="text-[10px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full" aria-label="0 approvals pending">0</span>
+                    <span id="approvalsBadge" class="nav-badge nav-badge-red" aria-label="0 approvals pending">0</span>
                 </div>
-                <div id="approvalsView" class="space-y-3" role="region" aria-label="Approval queue and corrections history">
-                    <!-- Populated by approvals_ui.js -->
-                </div>
+                <div id="approvalsView" class="space-y-3" role="region" aria-label="Approval queue"></div>
             </div>
 
-            <!-- ── Templates ────────────────────────────────────────── -->
-            <div id="templatesSection">
-                <div class="flex justify-between items-center mb-3">
+            <!-- Templates -->
+            <div id="templatesSection" class="panel-section">
+                <div class="panel-section-header">
                     <h3 class="section-label flex items-center gap-2">
                         <span class="material-symbols-outlined text-sm text-slate-500">library_books</span>
                         Templates
                     </h3>
                 </div>
-                <div id="templatesView">
-                    <!-- Populated by templates_ui.js -->
-                </div>
+                <div id="templatesView"></div>
             </div>
 
-            <!-- ── Generated Tools ──────────────────────────────────── -->
+            <!-- Generated Tools -->
             <div id="generatedToolsPanel"></div>
-
         </div>
     </section>
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB 2 — CHAT
-         ══════════════════════════════════════════════════════════ -->
-    <section id="chatTab" role="tabpanel" aria-labelledby="tabChat"
-        class="tab-panel hidden flex-col h-full">
-
-        <div class="flex flex-1 h-full overflow-hidden">
-
-            <!-- Left: Conversation List -->
-            <aside id="chatSidebar" class="chat-sidebar w-56 flex-shrink-0 flex flex-col border-r border-slate-800/40 bg-slate-950/40">
-                <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800/30">
-                    <span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Conversations</span>
-                    <button id="newChatInlineBtn" title="Start a new conversation" aria-label="New conversation"
-                        class="p-1 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-800/50 transition-colors">
-                        <span class="material-symbols-outlined text-base">add</span>
-                    </button>
-                </div>
-                <div id="conversationList" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-0.5">
-                    <!-- Populated by conversations.js -->
-                </div>
-            </aside>
-
-            <!-- Toggle sidebar on mobile -->
-            <button id="chatSidebarToggle" title="Toggle conversations panel" aria-label="Toggle conversations"
-                class="absolute top-14 left-0 z-30 hidden md:hidden p-1.5 bg-slate-900 border border-slate-700/40 rounded-r-lg text-slate-400">
-                <span class="material-symbols-outlined text-sm">chevron_right</span>
+    <!-- ── System Slide-over Panel ───────────────────────────────── -->
+    <section id="systemPanel" role="tabpanel" aria-labelledby="tabSystem" class="tab-panel side-panel hidden">
+        <div class="side-panel-header">
+            <span class="material-symbols-outlined text-violet-400">settings_suggest</span>
+            <h2 class="side-panel-title">System</h2>
+            <span id="swarmStatusBadge" class="nav-badge nav-badge-green">Initializing</span>
+            <button class="panel-close-btn icon-btn icon-btn-sm ml-auto" data-close-panel="systemPanel" title="Close" aria-label="Close System panel">
+                <span class="material-symbols-outlined">close</span>
             </button>
-
-            <!-- Right: Chat Panel -->
-            <section id="chatScreen" class="flex-1 flex flex-col overflow-hidden">
-                <!-- Chat Header -->
-                <div class="flex items-center justify-between px-5 py-2.5 border-b border-slate-800/25 flex-shrink-0">
-                    <h2 class="font-headline text-sm font-semibold text-slate-300 flex items-center gap-2">
-                        <span id="chatIndicator" class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                        Chat
-                    </h2>
-                    <span id="chatModelLabel" class="text-[11px] text-slate-600 font-mono uppercase tracking-wider">auto</span>
-                </div>
-
-                <!-- Messages -->
-                <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar px-5 sm:px-8 py-6 space-y-4">
-                    <div id="chatEmptyState" class="flex flex-col items-center justify-center h-full select-none">
-                        <span class="material-symbols-outlined text-primary/40 text-5xl mb-4">chat</span>
-                        <h3 class="text-base font-headline font-semibold text-slate-300 mb-1">Start a conversation</h3>
-                        <p class="text-sm text-slate-500 max-w-xs text-center mb-6">Ask a question, analyze a file, generate code, or explore ideas.</p>
-                        <div class="flex flex-wrap justify-center gap-2 max-w-md">
-                            <button class="prompt-pill px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-xs text-slate-400 hover:text-white hover:border-primary/30 transition-all cursor-pointer">Summarize this project</button>
-                            <button class="prompt-pill px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-xs text-slate-400 hover:text-white hover:border-primary/30 transition-all cursor-pointer">Write a Python script to...</button>
-                            <button class="prompt-pill px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-xs text-slate-400 hover:text-white hover:border-primary/30 transition-all cursor-pointer">Explain how RAG works</button>
-                            <button class="prompt-pill px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-xs text-slate-400 hover:text-white hover:border-primary/30 transition-all cursor-pointer">Debug this error</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chat Input -->
-                <div class="px-4 py-3 border-t border-slate-800/25 flex-shrink-0">
-                    <div class="max-w-3xl mx-auto">
-                        <div class="bg-slate-900/50 rounded-xl border border-slate-800/40 focus-within:border-primary/30 transition-all">
-                            <textarea id="messageInput" aria-label="Message Input" title="Type your message here"
-                                class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-slate-600 font-body resize-none overflow-y-auto min-h-[48px] px-4 pt-3 pb-2"
-                                placeholder="Ask a question or describe what you need..." rows="1"></textarea>
-                            <div class="flex items-center justify-between px-2.5 pb-2.5">
-                                <div class="flex items-center gap-0.5">
-                                    <button id="micBtn" aria-label="Voice Input" title="Use voice input"
-                                        class="p-1.5 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-lg">
-                                        <span class="material-symbols-outlined text-lg">mic</span>
-                                    </button>
-                                    <button id="openCameraBtn" aria-label="Open Camera" title="Take a photo"
-                                        class="p-1.5 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-lg">
-                                        <span class="material-symbols-outlined text-lg">photo_camera</span>
-                                    </button>
-                                    <button id="ttsToggleBtn" aria-label="Toggle TTS" title="Toggle text-to-speech"
-                                        class="p-1.5 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-lg">
-                                        <span class="material-symbols-outlined text-lg">volume_up</span>
-                                    </button>
-                                </div>
-                                <button id="sendBtn" aria-label="Send Message" title="Send this message"
-                                    class="primary-gradient p-2 rounded-lg text-on-primary transition-all">
-                                    <span class="material-symbols-outlined text-lg">arrow_upward</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
         </div>
-    </section>
+        <div class="side-panel-body custom-scrollbar">
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB 3 — SYSTEM
-         ══════════════════════════════════════════════════════════ -->
-    <section id="systemTab" role="tabpanel" aria-labelledby="tabSystem"
-        class="tab-panel hidden flex-col h-full overflow-y-auto custom-scrollbar">
-        <div class="flex flex-col p-5 lg:p-7 max-w-5xl w-full mx-auto gap-3">
-
-            <!-- ── Worker Pool ──────────────────────────────────────── -->
+            <!-- Worker Pool -->
             <div class="accordion-section" id="accordionWorkerPool">
                 <button class="accordion-header" aria-expanded="false" aria-controls="accordionWorkerPoolBody"
                     data-accordion="accordionWorkerPoolBody">
                     <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-amber-400 text-lg">hive</span>
                         <span class="accordion-title">Worker Pool</span>
-                        <span id="swarmStatusBadge" class="text-[11px] font-semibold uppercase tracking-widest bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full">Initializing</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <button id="swarmScanBtn" title="Scan for worker agents" aria-label="Scan for worker agents"
-                            class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[11px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider transition-colors border border-amber-500/20"
+                            class="btn-base btn-ghost text-amber-400 border-amber-500/20 hover:bg-amber-500/10 text-[11px]"
                             onclick="event.stopPropagation()">
                             <span class="material-symbols-outlined text-xs align-middle mr-1">radar</span>Scan
                         </button>
-                        <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform">expand_more</span>
+                        <span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span>
                     </div>
                 </button>
                 <div id="accordionWorkerPoolBody" class="accordion-body hidden">
-                    <!-- Metrics bar -->
                     <div class="flex items-center gap-4 text-xs text-slate-500 font-mono mb-4">
                         <span class="flex items-center gap-1.5">
                             <span id="swarmHeartbeat" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -378,36 +788,31 @@
                         <span>Failed: <span id="swarmTotalFailed" class="text-red-400">0</span></span>
                         <span class="ml-auto">Last poll: <span id="swarmLastPoll" class="text-slate-400">--</span></span>
                     </div>
-                    <!-- Metrics grid -->
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="swarmMetrics">
-                        <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Tasks Done</div>
-                            <div class="text-2xl font-bold text-cyan-400 font-mono" id="swarmActiveCount">0</div>
+                    <div class="grid grid-cols-2 gap-3 mb-4" id="swarmMetrics">
+                        <div class="stat-card">
+                            <div class="stat-card-label">Tasks Done</div>
+                            <div class="stat-card-value text-cyan-400" id="swarmActiveCount">0</div>
                         </div>
-                        <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">GPU Slots</div>
-                            <div class="text-2xl font-bold font-mono">
+                        <div class="stat-card">
+                            <div class="stat-card-label">GPU Slots</div>
+                            <div class="stat-card-value">
                                 <span id="swarmGpuUsed" class="text-violet-400">0</span>
                                 <span class="text-slate-600">/</span>
                                 <span id="swarmGpuTotal" class="text-slate-400">3</span>
                             </div>
                         </div>
-                        <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1 flex justify-between">
-                                Queue<span class="text-xs text-amber-500/50">PEAK: <span id="swarmQueuePeak">0</span></span>
-                            </div>
-                            <div class="text-2xl font-bold text-amber-400 font-mono" id="swarmQueueDepth">0</div>
+                        <div class="stat-card">
+                            <div class="stat-card-label flex justify-between">Queue<span class="text-amber-500/50">PEAK: <span id="swarmQueuePeak">0</span></span></div>
+                            <div class="stat-card-value text-amber-400" id="swarmQueueDepth">0</div>
                         </div>
-                        <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Success Rate</div>
-                            <div class="text-2xl font-bold text-emerald-400 font-mono" id="swarmSuccessRate">--</div>
+                        <div class="stat-card">
+                            <div class="stat-card-label">Success Rate</div>
+                            <div class="stat-card-value text-emerald-400" id="swarmSuccessRate">--</div>
                         </div>
                     </div>
-                    <!-- Agent grid -->
                     <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Agent Pool</div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="swarmAgentGrid"></div>
-                    <!-- Result streams -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-4">
+                    <div class="grid grid-cols-1 gap-3" id="swarmAgentGrid"></div>
+                    <div class="grid grid-cols-1 gap-5 mt-4">
                         <div>
                             <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Recent Task Results</div>
                             <div class="space-y-1 max-h-48 overflow-y-auto custom-scrollbar" id="swarmResultStream">
@@ -421,7 +826,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Swarm tab bar (populated by swarm_ui.js) -->
                     <div id="swarmTabBar" class="flex gap-2 mt-4 p-3 border-t border-slate-700/30"></div>
                     <div id="swarmTreeView" class="hidden p-3"></div>
                     <div id="swarmMemoryView" class="hidden p-3"></div>
@@ -430,110 +834,92 @@
                 </div>
             </div>
 
-            <!-- ── Learning Lab ─────────────────────────────────────── -->
+            <!-- Learning Lab -->
             <div class="accordion-section" id="accordionLearning">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionLearningBody"
-                    data-accordion="accordionLearningBody">
+                <button class="accordion-header" aria-expanded="false" aria-controls="accordionLearningBody" data-accordion="accordionLearningBody">
                     <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-violet-400 text-lg">school</span>
                         <span class="accordion-title">Learning Lab</span>
                     </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
+                    <span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span>
                 </button>
                 <div id="accordionLearningBody" class="accordion-body hidden">
-                    <div id="learningPage" class="flex flex-col">
-                        <!-- Populated by learning_ui.js on first expand -->
-                    </div>
+                    <div id="learningPage" class="flex flex-col"></div>
                 </div>
             </div>
 
-            <!-- ── AI Profile ───────────────────────────────────────── -->
+            <!-- AI Profile -->
             <div class="accordion-section" id="accordionAIProfile">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionAIProfileBody"
-                    data-accordion="accordionAIProfileBody">
+                <button class="accordion-header" aria-expanded="false" aria-controls="accordionAIProfileBody" data-accordion="accordionAIProfileBody">
                     <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-purple-400 text-lg">auto_awesome</span>
                         <span class="accordion-title">AI Profile</span>
                     </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
+                    <span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span>
                 </button>
                 <div id="accordionAIProfileBody" class="accordion-body hidden">
-                    <div id="aiProfileView" class="flex flex-col">
-                        <!-- Populated by ai_profile.js on first expand -->
-                    </div>
+                    <div id="aiProfileView" class="flex flex-col"></div>
                 </div>
             </div>
 
-            <!-- ── Monitoring & Health ──────────────────────────────── -->
+            <!-- Monitoring -->
             <div class="accordion-section" id="accordionMonitoring">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionMonitoringBody"
-                    data-accordion="accordionMonitoringBody">
+                <button class="accordion-header" aria-expanded="false" aria-controls="accordionMonitoringBody" data-accordion="accordionMonitoringBody">
                     <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-emerald-400 text-lg">monitor_heart</span>
-                        <span class="accordion-title">Monitoring & Health</span>
+                        <span class="accordion-title">Monitoring &amp; Health</span>
                     </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
+                    <span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span>
                 </button>
                 <div id="accordionMonitoringBody" class="accordion-body hidden">
-                    <div id="monitoringView" class="flex flex-col gap-4">
-                        <!-- Populated by monitoring_ui.js on first expand -->
-                    </div>
+                    <div id="monitoringView" class="flex flex-col gap-4"></div>
                 </div>
             </div>
 
-            <!-- ── Evaluations ─────────────────────────────────────────── -->
+            <!-- Evaluations -->
             <div class="accordion-section" id="accordionEvals">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionEvalsBody"
-                    data-accordion="accordionEvalsBody">
+                <button class="accordion-header" aria-expanded="false" aria-controls="accordionEvalsBody" data-accordion="accordionEvalsBody">
                     <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-indigo-300 text-lg">labs</span>
                         <span class="accordion-title">Evaluations</span>
-                        <span id="evalStatusBadge" class="text-[11px] font-semibold uppercase tracking-widest bg-slate-700/50 text-slate-500 px-2 py-0.5 rounded-full">Ready</span>
+                        <span id="evalStatusBadge" class="nav-badge nav-badge-dim">Ready</span>
                     </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
+                    <span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span>
                 </button>
                 <div id="accordionEvalsBody" class="accordion-body hidden">
-                    <div id="evalView" class="flex flex-col">
-                        <!-- Populated by eval_ui.js on first expand -->
-                    </div>
+                    <div id="evalView" class="flex flex-col"></div>
                 </div>
             </div>
 
-            <!-- ── Token Usage ──────────────────────────────────────── -->
+            <!-- Token Usage -->
             <div class="accordion-section" id="accordionTokens">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionTokensBody"
-                    data-accordion="accordionTokensBody">
+                <button class="accordion-header" aria-expanded="false" aria-controls="accordionTokensBody" data-accordion="accordionTokensBody">
                     <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-indigo-400 text-lg">toll</span>
                         <span class="accordion-title">Token Usage</span>
                     </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
+                    <span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span>
                 </button>
                 <div id="accordionTokensBody" class="accordion-body hidden">
-                    <div id="tokenPanelContent" class="flex flex-col gap-4">
-                        <!-- Populated by token_panel.js on first expand -->
-                    </div>
+                    <div id="tokenPanelContent" class="flex flex-col gap-4"></div>
                 </div>
             </div>
 
-            <!-- ── Generated Tools ─────────────────────────────────── -->
+            <!-- Generated Tools -->
             <div class="accordion-section" id="accordionTools">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionToolsBody"
-                    data-accordion="accordionToolsBody">
+                <button class="accordion-header" aria-expanded="false" aria-controls="accordionToolsBody" data-accordion="accordionToolsBody">
                     <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-cyan-400 text-lg">build</span>
                         <span class="accordion-title">Generated Tools</span>
                     </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
+                    <span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span>
                 </button>
                 <div id="accordionToolsBody" class="accordion-body hidden">
-                    <div id="generatedToolsList" class="flex flex-col gap-3">
-                        <!-- Populated by tools_generated.js on first expand -->
-                    </div>
+                    <div id="generatedToolsList" class="flex flex-col gap-3"></div>
                 </div>
             </div>
 
-            <!-- ── Code Editor ─────────────────────────────────────── -->
+            <!-- Code Editor -->
             <div class="accordion-section" id="accordionEditor">
                 <button class="accordion-header" aria-expanded="false" aria-controls="accordionEditorBody"
                     data-accordion="accordionEditorBody" id="editorToggle">
@@ -542,24 +928,22 @@
                         <span class="accordion-title">Code Editor</span>
                     </div>
                     <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-                        <button id="editorRunBtn" title="Execute the current Python script"
-                            class="bg-primary/20 hover:bg-primary/30 text-primary text-[11px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider transition-colors">Run Script</button>
-                        <button id="editorSendToAI" title="Send current file to AI as context"
-                            class="bg-surface-variant hover:bg-surface-bright text-on-surface text-[11px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider transition-colors border border-outline-variant/30">Attach to Context</button>
-                        <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
+                        <button id="editorRunBtn" title="Execute the current Python script" class="btn-base btn-ghost text-[11px]">Run Script</button>
+                        <button id="editorSendToAI" title="Send current file to AI as context" class="btn-base btn-ghost text-[11px]">Attach to Context</button>
+                        <span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span>
                     </div>
                 </button>
                 <div id="accordionEditorBody" class="accordion-body accordion-editor hidden">
                     <div class="flex overflow-hidden" style="height: calc(100vh - 220px)">
-                        <div id="editorFileTree" class="w-56 border-r border-slate-800/15 bg-transparent p-2 overflow-y-auto custom-scrollbar flex-shrink-0">
-                            <div id="editorFileList" class="space-y-0.5 text-xs text-outline"></div>
+                        <div id="editorFileTree" class="w-52 border-r border-slate-800/15 bg-transparent p-2 overflow-y-auto custom-scrollbar flex-shrink-0">
+                            <div id="editorFileList" class="space-y-0.5 text-xs text-slate-500"></div>
                         </div>
-                        <div id="panelDivider" class="w-1 cursor-col-resize bg-outline-variant/10 hover:bg-primary/50 transition-colors z-50 flex-shrink-0" title="Drag to resize" tabindex="-1" aria-hidden="true"></div>
+                        <div id="panelDivider" class="w-1 cursor-col-resize bg-slate-700/10 hover:bg-indigo-500/50 transition-colors z-50 flex-shrink-0" title="Drag to resize" tabindex="-1" aria-hidden="true"></div>
                         <div class="flex-1 relative">
                             <div id="monacoContainer" class="absolute inset-0"></div>
                         </div>
                     </div>
-                    <div id="editorStatus" class="p-2 border-t border-outline-variant/20 bg-transparent text-[11px] text-outline uppercase tracking-widest flex justify-between">
+                    <div id="editorStatus" class="p-2 border-t border-slate-800/20 text-[11px] text-slate-600 uppercase tracking-widest flex justify-between">
                         <span id="editorPath">No file open</span>
                         <span id="editorLang">plaintext</span>
                     </div>
@@ -569,112 +953,98 @@
         </div>
     </section>
 
-    <!-- ── Thinking Terminal (slide-up panel, shared) ──────────── -->
-    <div id="thinking-terminal" class="absolute bottom-0 left-0 right-0 h-[240px] bg-slate-950 border-t border-slate-800/60 flex flex-col z-40 transform translate-y-full transition-transform duration-300">
-        <div class="flex items-center justify-between px-5 py-2 border-b border-slate-800/40">
+    <!-- ── Thinking Terminal (shared slide-up) ───────────────────── -->
+    <div id="thinking-terminal" class="thinking-terminal">
+        <div class="thinking-terminal-header">
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-emerald-400 text-sm">terminal</span>
                 <span class="font-mono text-[11px] text-emerald-400 font-semibold uppercase tracking-widest">Task Output</span>
             </div>
-            <button id="closeThinkingTerminalBtn" aria-label="Close Terminal" title="Close Terminal"
-                class="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded">
+            <button id="closeThinkingTerminalBtn" aria-label="Close Terminal" title="Close Terminal" class="icon-btn icon-btn-sm">
                 <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
             </button>
         </div>
-        <div id="mini-stepper" class="flex items-center gap-2.5 px-5 py-1.5 border-b border-slate-800/30">
+        <div id="mini-stepper" class="px-5 py-1.5 border-b border-slate-800/30 flex items-center gap-2.5">
             <span class="text-[11px] uppercase font-semibold text-slate-500 tracking-widest">Step:</span>
-            <span id="miniStepperLabel" class="text-[11px] uppercase font-semibold text-primary flex items-center gap-1">
+            <span id="miniStepperLabel" class="text-[11px] uppercase font-semibold text-indigo-400 flex items-center gap-1">
                 <span class="material-symbols-outlined text-[11px]">schema</span> Planner
             </span>
         </div>
         <div id="thinkingTerminalOutput" class="flex-1 overflow-y-auto p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap custom-scrollbar">Initializing sandbox...</div>
     </div>
 
+    <!-- Panel backdrop (for slide-over close) -->
+    <div id="panelBackdrop" class="panel-backdrop hidden" aria-hidden="true"></div>
+
 </main>
 
 <!-- ════════════════════════════════════════════════════════════════
      SETTINGS MODAL
      ════════════════════════════════════════════════════════════════ -->
-<div id="settingsModal" class="hidden fixed inset-0 z-[100] items-center justify-center bg-black/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Settings">
-    <div class="glass-panel w-full max-w-lg rounded-xl border border-outline-variant/25 flex flex-col max-h-[90vh] overflow-hidden">
-        <div class="px-5 py-4 border-b border-outline-variant/15 flex items-center justify-between">
+<div id="settingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="modal-panel">
+        <div class="modal-header">
             <div class="flex items-center gap-2.5">
-                <span class="material-symbols-outlined text-primary text-xl">settings</span>
-                <h2 class="font-headline font-bold text-lg tracking-tight text-on-background">Settings</h2>
+                <span class="material-symbols-outlined text-indigo-400 text-xl">settings</span>
+                <h2 class="font-bold text-lg tracking-tight text-white" style="font-family: 'Space Grotesk', sans-serif">Settings</h2>
             </div>
-            <button id="closeSettingsBtn" aria-label="Close Settings" title="Close Settings"
-                class="text-slate-500 hover:text-slate-300 transition-colors p-1.5 rounded-lg hover:bg-white/5">
-                <span class="material-symbols-outlined text-xl">close</span>
+            <button id="closeSettingsBtn" aria-label="Close Settings" title="Close Settings" class="icon-btn">
+                <span class="material-symbols-outlined">close</span>
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
+        <div class="modal-body custom-scrollbar">
             <!-- SMS Notifications -->
-            <div class="space-y-5">
+            <div class="settings-section">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="font-headline font-bold text-sm text-slate-100">SMS Notifications</h3>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Get alerts via Twilio when tasks complete or need approval.</p>
+                        <h3 class="settings-section-title">SMS Notifications</h3>
+                        <p class="settings-section-sub">Get alerts via Twilio when tasks complete or need approval.</p>
                     </div>
-                    <label class="relative inline-flex items-center cursor-pointer" title="Enable or disable SMS notifications">
+                    <label class="toggle-switch" title="Enable or disable SMS notifications">
                         <input type="checkbox" id="smsEnabled" class="sr-only peer" title="Toggle SMS notifications">
-                        <div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+                        <div class="toggle-track peer peer-checked:bg-emerald-500"></div>
                     </label>
                 </div>
-                <div class="grid grid-cols-1 gap-4">
-                    <div class="space-y-2">
-                        <label for="twilioSid" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Account SID</label>
-                        <input type="text" id="twilioSid" title="Twilio Account SID"
-                            class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                <div class="settings-fields">
+                    <div class="field-group">
+                        <label for="twilioSid" class="field-label">Account SID</label>
+                        <input type="text" id="twilioSid" title="Twilio Account SID" class="field-input" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
                     </div>
-                    <div class="space-y-2">
-                        <label for="twilioToken" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Auth Token</label>
-                        <input type="password" id="twilioToken" title="Twilio Auth Token"
-                            class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                            placeholder="••••••••••••••••••••••••••••••••">
+                    <div class="field-group">
+                        <label for="twilioToken" class="field-label">Auth Token</label>
+                        <input type="password" id="twilioToken" title="Twilio Auth Token" class="field-input" placeholder="••••••••••••••••••••••••••••••••">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-2">
-                            <label for="twilioPhone" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Twilio Number</label>
-                            <input type="text" id="twilioPhone" title="Twilio Phone Number"
-                                class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                                placeholder="+15550000000">
+                        <div class="field-group">
+                            <label for="twilioPhone" class="field-label">Twilio Number</label>
+                            <input type="text" id="twilioPhone" title="Twilio Phone Number" class="field-input" placeholder="+15550000000">
                         </div>
-                        <div class="space-y-2">
-                            <label for="targetPhone" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Your Number</label>
-                            <input type="text" id="targetPhone" title="Target Phone Number"
-                                class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                                placeholder="+15559998888">
+                        <div class="field-group">
+                            <label for="targetPhone" class="field-label">Your Number</label>
+                            <input type="text" id="targetPhone" title="Target Phone Number" class="field-input" placeholder="+15559998888">
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Cloud Intelligence -->
-            <div class="pt-5 border-t border-outline-variant/15">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="font-headline font-bold text-sm text-slate-100">Cloud Intelligence</h3>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Enable complex reasoning with Google Gemini.</p>
+            <div class="settings-section">
+                <h3 class="settings-section-title">Cloud Intelligence</h3>
+                <p class="settings-section-sub">Enable complex reasoning with Google Gemini.</p>
+                <div class="settings-fields">
+                    <div class="field-group">
+                        <label for="geminiKey" class="field-label">Gemini API Key</label>
+                        <input type="password" id="geminiKey" title="Gemini API Key" class="field-input" placeholder="AIzaSy...">
                     </div>
-                </div>
-                <div class="space-y-3">
-                    <div class="space-y-2">
-                        <label for="geminiKey" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Gemini API Key</label>
-                        <input type="password" id="geminiKey" title="Gemini API Key"
-                            class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                            placeholder="AIzaSy...">
-                    </div>
-                    <button id="testGeminiBtn" title="Test Gemini API connection"
-                        class="w-full py-2 bg-surface-variant/50 hover:bg-surface-variant text-xs font-bold rounded-lg uppercase tracking-widest transition-all border border-outline-variant/20 flex items-center justify-center gap-2">
+                    <button id="testGeminiBtn" title="Test Gemini API connection" class="btn-base btn-ghost w-full justify-center gap-2">
                         <span class="material-symbols-outlined text-xs">analytics</span> Verify Connection
                     </button>
                 </div>
             </div>
         </div>
 
-        <div class="px-5 py-4 border-t border-outline-variant/15 flex justify-between gap-3">
+        <div class="modal-footer">
             <button id="testSmsBtn" title="Send a test SMS notification" class="btn-base btn-ghost flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-sm">send</span> Test Alert
             </button>
@@ -685,17 +1055,38 @@
     </div>
 </div>
 
-<!-- Hidden compatibility shims (consumed by modules not yet refactored) -->
+<!-- Camera Modal -->
+<div id="cameraModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Camera">
+    <div class="modal-panel max-w-md">
+        <div class="modal-header">
+            <h2 class="font-semibold text-slate-200" style="font-family: 'Space Grotesk', sans-serif">Camera</h2>
+            <button id="closeCameraBtn" class="icon-btn" aria-label="Close camera"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="p-4">
+            <video id="cameraPreview" autoplay class="w-full rounded-lg bg-black aspect-video"></video>
+            <canvas id="captureCanvas" class="hidden"></canvas>
+            <div class="flex justify-center mt-3 gap-3">
+                <button id="snapBtn" class="btn-base btn-primary gap-2">
+                    <span class="material-symbols-outlined text-sm">photo_camera</span>Capture
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="false"></div>
+
+<!-- Hidden compatibility shims -->
 <div class="hidden" aria-hidden="true">
     <textarea id="systemPromptText"></textarea>
     <div id="systemPromptEditor"></div>
     <button id="saveSystemPrompt"></button>
-    <select id="modelSelect" title="Select the AI model routing mode">
+    <select id="modelSelect" title="Select AI model routing mode">
         <option value="auto">Auto</option>
         <option value="fast">Fast</option>
         <option value="deep">Deep</option>
     </select>
-    <!-- Legacy view containers (kept as shims until modules are refactored) -->
     <div id="mainScrollArea"></div>
     <div id="welcomeScreen"></div>
     <div id="mainDashboardView"></div>
@@ -708,17 +1099,103 @@
     <button id="memoryToggleBtn"></button>
     <button id="sidebarUploadBtn"></button>
     <button id="sidebarCameraBtn"></button>
-    <!-- Work tab shims for state.js / events.js back-compat -->
     <textarea id="priorityInput" aria-hidden="true" tabindex="-1"></textarea>
     <div id="priorityList"></div>
     <button id="addPriorityBtn" aria-hidden="true" tabindex="-1"></button>
     <div id="workImagePreview"><img id="workPreviewImg" alt=""/><button id="workRemoveImageBtn"></button></div>
-    <!-- SM/mobile shims -->
+    <button id="workAttachBtn" aria-hidden="true" tabindex="-1"></button>
+    <button id="workCameraBtn" aria-hidden="true" tabindex="-1"></button>
     <div id="chatSidebarShim"></div>
+    <div id="learningToggle"></div>
+    <div id="loadingStatus"></div>
+    <select id="voiceSelect"></select>
+    <button id="voiceBtn"></button>
+    <div id="sidebarBackdrop"></div>
 </div>
 
-<script type="module" src="app.js?v=4"></script>
-    <!-- Mobile Sidebar Backdrop -->
-    <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-20 hidden"></div>
+<script type="module" src="app.js?v=5"></script>
+<!-- Inline nav + sidebar logic that augments (not replaces) tab switching in events.js -->
+<script>
+(function() {
+    function initShell() {
+        // Tab nav: Work & System become slide-over panels
+        const panels = { workPanel: null, systemPanel: null, chatPanel: null };
+        ['workPanel','systemPanel','chatPanel'].forEach(id => panels[id] = document.getElementById(id));
+        const backdrop = document.getElementById('panelBackdrop');
+
+        function closeSidePanels() {
+            ['workPanel','systemPanel'].forEach(id => {
+                const p = panels[id];
+                if (p) { p.classList.add('hidden'); p.classList.remove('panel-open'); }
+            });
+            if (backdrop) backdrop.classList.add('hidden');
+        }
+
+        function openPanel(id) {
+            closeSidePanels();
+            const p = panels[id];
+            if (!p) return;
+            p.classList.remove('hidden');
+            requestAnimationFrame(() => p.classList.add('panel-open'));
+            if (backdrop) backdrop.classList.remove('hidden');
+        }
+
+        document.getElementById('tabWork')?.addEventListener('click', () => openPanel('workPanel'));
+        document.getElementById('tabSystem')?.addEventListener('click', () => openPanel('systemPanel'));
+        document.getElementById('tabChat')?.addEventListener('click', closeSidePanels);
+
+        document.querySelectorAll('[data-close-panel]').forEach(btn => {
+            btn.addEventListener('click', closeSidePanels);
+        });
+        backdrop?.addEventListener('click', closeSidePanels);
+
+        // Sidebar collapse
+        const sidebar = document.getElementById('chatSidebar');
+        const collapseBtn = document.getElementById('sidebarCollapseBtn');
+        const expandBtn = document.getElementById('sidebarExpandBtn');
+        collapseBtn?.addEventListener('click', () => {
+            sidebar?.classList.add('sidebar-collapsed');
+            expandBtn?.classList.remove('hidden');
+        });
+        expandBtn?.addEventListener('click', () => {
+            sidebar?.classList.remove('sidebar-collapsed');
+            expandBtn?.classList.add('hidden');
+        });
+
+        // Close button for settings modal (already handled by events.js, but add fallback)
+        document.getElementById('closeSettingsBtn')?.addEventListener('click', () => {
+            document.getElementById('settingsModal')?.classList.add('hidden');
+        });
+        document.getElementById('systemPromptBtn')?.addEventListener('click', () => {
+            document.getElementById('settingsModal')?.classList.remove('hidden');
+            document.getElementById('settingsModal')?.classList.add('flex');
+        });
+
+        // Prompt pills → populate messageInput
+        document.querySelectorAll('.prompt-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const inp = document.getElementById('messageInput');
+                if (inp) { inp.value = btn.textContent.trim(); inp.focus(); }
+            });
+        });
+
+        // Fetch palace drawer count for badge
+        fetch('/api/memories/palace/status')
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                if (d?.drawer_count != null) {
+                    const el = document.getElementById('palaceDrawerCount');
+                    if (el) el.textContent = d.drawer_count.toLocaleString();
+                }
+            }).catch(() => {});
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initShell);
+    } else {
+        initShell();
+    }
+})();
+</script>
 </body>
 </html>
