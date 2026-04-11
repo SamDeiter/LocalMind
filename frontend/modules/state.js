@@ -12,8 +12,8 @@ if (window.location.hostname === "127.0.0.1" || window.location.hostname === "lo
 export const API = apiOrigin;
 
 export const MODE_MODELS = {
-  fast: "qwen2.5-coder:7b",
-  deep: "qwen2.5-coder:32b",
+  fast: "gemma3:4b",
+  deep: "deepseek-r1:14b",
   auto: "auto",
 };
 

@@ -47,9 +47,13 @@ class LLMClient:
         # Merge extra options (num_ctx, num_gpu, etc.)
         if "options" in kwargs:
             payload["options"] = kwargs.pop("options")
-        # Pass tool definitions for native tool calling
+        # Pass tool definitions for native tool calling (skip for models that don't support it)
         if "tools" in kwargs:
-            payload["tools"] = kwargs.pop("tools")
+            tools = kwargs.pop("tools")
+            if model not in config.MODELS_NO_NATIVE_TOOLS:
+                payload["tools"] = tools
+            else:
+                logger.info(f"Skipping native tools for {model} (not supported)")
         payload.update(kwargs)
 
         max_retries = 3

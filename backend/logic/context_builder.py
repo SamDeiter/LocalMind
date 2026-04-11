@@ -87,11 +87,7 @@ class ContextBuilder:
             except Exception as e:
                 logger.warning(f"Hardware-aware routing failed, using tier defaults: {e}")
 
-        from backend import gemini_client
-        if tier == "heavy" and gemini_client.is_available():
-            return "gemini-1.5-pro", "gemini"
-
-        return config.MODEL_TIERS.get(tier, "gemma4:e4b"), "ollama"
+        return config.MODEL_TIERS.get(tier, "gemma3:4b"), "ollama"
 
     @staticmethod
     def escalate_model(current_model: str) -> Optional[str]:

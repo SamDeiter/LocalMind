@@ -60,13 +60,14 @@ TOOL_CALLING_SUFFIX = """
 IMPORTANT: You have tools available. When the user asks you to DO something (install an app, send an email, take a screenshot, search the web, etc.), you MUST call the appropriate tool immediately. Do NOT explain how to do it manually. Do NOT give step-by-step instructions. Just call the tool. The user is asking YOU to do it, not asking for instructions."""
 
 # --- Model Tiers ---
-# Gemma 4 (April 2026) is the default for light/medium tiers.
+# Tuned for 10 GB VRAM (RTX 3080).  Every tier must fit *entirely* in VRAM
+# so Ollama never spills to CPU RAM (which tanks speed 10-50×).
 # Override any tier via env vars: MODEL_LIGHT, MODEL_MEDIUM, etc.
 MODEL_TIERS = {
-    "light":  os.getenv("MODEL_LIGHT", "gemma4:e4b"),
-    "medium": os.getenv("MODEL_MEDIUM", "qwen2.5-coder:14b"),
-    "heavy":  os.getenv("MODEL_HEAVY", "qwen2.5-coder:32b"),
-    "ultra":  os.getenv("MODEL_ULTRA", "qwen2.5-coder:70b"),
+    "light":  os.getenv("MODEL_LIGHT", "gemma3:4b"),          # 3.1 GB — instant
+    "medium": os.getenv("MODEL_MEDIUM", "qwen3:8b"),          # 4.9 GB — fast, hybrid thinking
+    "heavy":  os.getenv("MODEL_HEAVY", "deepseek-r1:14b"),    # 8.4 GB — chain-of-thought reasoning
+    "ultra":  os.getenv("MODEL_ULTRA", "deepseek-r1:14b"),    # cap at 14b for 10 GB card
 }
 
 # --- GPU Config ---
@@ -74,17 +75,23 @@ GPU_VRAM_GB = int(os.getenv("GPU_VRAM_GB", "10"))  # RTX 3080 = 10GB
 
 # --- Model Capabilities (which tiers each model can handle) ---
 # Used by LoadMonitor to decide if a loaded model can be reused for a request.
+# Only includes models that fit in VRAM (10 GB).  Larger models are still
+# *installed* in Ollama but won't be auto-routed — users can force them via
+# the mode selector if they're willing to wait.
 MODEL_CAPABILITIES = {
-    "gemma4:e4b":         ["light"],
-    "gemma4:26b":         ["light", "medium"],
-    "gemma4:31b":         ["light", "medium", "heavy"],
-    "qwen2.5-coder:7b":  ["light"],
-    "qwen2.5-coder:14b": ["light", "medium"],
-    "qwen2.5-coder:32b": ["light", "medium", "heavy"],
-    "qwen2.5-coder:70b": ["light", "medium", "heavy", "ultra"],
-    "llama3.3:70b":       ["light", "medium", "heavy", "ultra"],
     "gemma3:4b":          ["light"],
-    "phi4-reasoning":     ["light", "medium", "heavy"],
+    "qwen3:8b":           ["light", "medium"],
+    "deepseek-r1:7b":     ["light", "medium"],
+    "deepseek-r1:14b":    ["light", "medium", "heavy", "ultra"],
+}
+
+# Models that do NOT support Ollama's native tool-calling API.
+# These will skip sending `tools` in the request and rely on text-based
+# tool parsing instead.
+MODELS_NO_NATIVE_TOOLS = {
+    "gemma3:4b",
+    "deepseek-r1:7b",
+    "deepseek-r1:14b",
 }
 
 # --- Context Windows ---

@@ -23,7 +23,7 @@ import {
   autoResize,
 } from "./state.js";
 import { escapeHtml, getLang } from "./utils.js";
-import { loadConversations } from "./conversations.js";
+import { loadConversations, renderConversations } from "./conversations.js";
 import { clearCapturedImage } from "./media.js";
 import { loadMemories } from "./sidebar.js";
 import { streamChat } from "./streaming.js";
@@ -104,7 +104,7 @@ export async function sendMessage() {
   let typingRemoved = false;
 
   state.streaming = true;
-  sendBtn.disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
   resetAutoScroll();
   const stopBtn = document.getElementById("stopBtn");
   if (stopBtn) stopBtn.style.display = "";
@@ -116,7 +116,7 @@ export async function sendMessage() {
     model: resolveModel(),
     message: text,
     conversation_id: state.currentConvId || undefined,
-    system_prompt: systemPromptText.value || undefined,
+    system_prompt: systemPromptText?.value || undefined,
   };
 
   // Auto-inject editor context if a file is open
@@ -251,6 +251,15 @@ export async function sendMessage() {
           // Currently just logged in streaming.js
         },
 
+        onTitleUpdate(data) {
+          // Update the conversation title in state and re-render sidebar
+          const conv = state.conversations.find((c) => c.id === data.conversation_id);
+          if (conv) {
+            conv.title = data.title;
+            renderConversations();
+          }
+        },
+
         onAnalytics(a) {
           removeTyping();
           updateTokenAnalytics(a);
@@ -321,10 +330,10 @@ export async function sendMessage() {
     }
   } finally {
     state.streaming = false;
-    sendBtn.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
     state.abortController = null;
-    const stopBtn = document.getElementById("stopBtn");
-    if (stopBtn) stopBtn.style.display = "none";
+    const stopBtn2 = document.getElementById("stopBtn");
+    if (stopBtn2) stopBtn2.style.display = "none";
   }
 }
 

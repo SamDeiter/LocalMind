@@ -477,8 +477,17 @@ async def cancel_job(
             detail=f"Job '{job_id}' is already in a terminal state ('{job.status}')",
         )
 
+    # If the job isn't actively being processed by a worker (executing),
+    # skip the 'cancelling' intermediate state and go straight to 'cancelled'
+    # — no worker will pick it up to complete the transition.
+    active_statuses = {JobStatus.EXECUTING.value, JobStatus.PLANNING.value}
+    immediate_cancel = job.status not in active_statuses
+
     try:
-        queue.cancel_job(job_id)
+        if immediate_cancel:
+            queue.update_job_status(job_id, JobStatus.CANCELLED.value)
+        else:
+            queue.cancel_job(job_id)
     except Exception as exc:
         logger.exception("Failed to cancel job %s", job_id)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -487,11 +496,12 @@ async def cancel_job(
 
     # Fetch the refreshed job to return current state
     updated = queue.get_job(job_id)
-    logger.info("Cancellation requested for job %s", job_id)
+    final_status = updated.status if updated else JobStatus.CANCELLED.value
+    logger.info("Cancellation requested for job %s (immediate=%s)", job_id, immediate_cancel)
 
     await emit_activity("job_status_changed", {
         "job_id": job_id,
-        "status": updated.status if updated else JobStatus.CANCELLING.value,
+        "status": final_status,
     })
 
     return JSONResponse((updated or job).to_api_dict())
@@ -511,12 +521,14 @@ async def delete_job(
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
 
-    terminal_statuses = {JobStatus.DONE.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value}
+    terminal_statuses = {JobStatus.DONE.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value, JobStatus.CANCELLING.value}
     if job.status not in terminal_statuses:
         try:
             queue.cancel_job(job_id)
         except Exception:
             pass
+    # Ensure status is fully terminal before delete
+    if job.status not in {JobStatus.DONE.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value}:
         queue.update_job_status(job_id, JobStatus.CANCELLED.value)
         queue.add_audit(job_id, action="force_cancelled_for_delete", actor="user")
 

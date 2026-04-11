@@ -1077,6 +1077,9 @@
 <!-- Toast container -->
 <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="false"></div>
 
+<!-- Jobs overlay (full-screen detail view, shown when a job card is clicked) -->
+<div id="jobsView" class="hidden" style="position:fixed;inset:0;z-index:900;background:rgba(15,23,42,.97);overflow-y:auto;"></div>
+
 <!-- Hidden compatibility shims -->
 <div class="hidden" aria-hidden="true">
     <textarea id="systemPromptText"></textarea>
@@ -1092,7 +1095,6 @@
     <div id="mainDashboardView"></div>
     <div id="swarmDashboardView"></div>
     <div id="crossProjectHub"></div>
-    <div id="jobsView"></div>
     <div id="sidebarImagePreview"><img id="sidebarPreviewImg" alt=""/><button id="sidebarRemoveImageBtn"></button></div>
     <input id="docUploadInput" type="file" multiple/>
     <button id="uploadDocsBtn"></button>

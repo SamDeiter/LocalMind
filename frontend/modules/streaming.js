@@ -20,6 +20,7 @@ const MAX_RETRIES = 2;
  * @param {function} callbacks.onThinking    – (thinking: object) => void
  * @param {function} callbacks.onEstimate    – (estimate: object) => void
  * @param {function} callbacks.onAnalytics   – (analytics: object) => void
+ * @param {function} callbacks.onTitleUpdate  – (data: {conversation_id, title}) => void
  * @param {function} callbacks.onDone        – (evt: object) => void
  * @param {function} callbacks.onError       – (error: string) => void
  * @param {function} [callbacks.onReconnecting] – (attempt: number, maxRetries: number) => void
@@ -35,6 +36,7 @@ export async function streamChat(body, callbacks, signal) {
     onThinking,
     onEstimate,
     onAnalytics,
+    onTitleUpdate,
     onDone,
     onError,
     onReconnecting,
@@ -109,6 +111,8 @@ export async function streamChat(body, callbacks, signal) {
             if (onEstimate) onEstimate(evt.task_estimate);
           } else if (evt.analytics) {
             if (onAnalytics) onAnalytics(evt.analytics);
+          } else if (evt.title_update) {
+            if (onTitleUpdate) onTitleUpdate(evt.title_update);
           } else if (evt.done) {
             if (onDone) onDone(evt);
             reader.cancel();

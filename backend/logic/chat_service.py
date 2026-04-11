@@ -68,7 +68,8 @@ class ChatService:
         model, provider = await self.ctx.route_model(task_estimate, model_override)
 
         # 2. Build or load conversation
-        if not conversation_id:
+        is_new_conversation = not conversation_id
+        if is_new_conversation:
             conversation_id = await self._create_conversation(message, model, system_prompt)
 
         # 3. Load history
@@ -122,18 +123,19 @@ class ChatService:
             and body.get("agent_mode") != "disabled"
         )
         if use_react:
-            return self._react_agent_loop(conversation_id, model, message, task_estimate)
+            return self._react_agent_loop(conversation_id, model, message, task_estimate, is_new_conversation, provider)
 
-        return self._agent_loop(conversation_id, model, provider, messages, task_estimate, metacog_decision)
+        return self._agent_loop(conversation_id, model, provider, messages, task_estimate, metacog_decision, is_new_conversation, message)
 
     # ------------------------------------------------------------------
     # ReAct agent loop
     # ------------------------------------------------------------------
 
-    async def _react_agent_loop(self, conversation_id, model, message, task_estimate):
+    async def _react_agent_loop(self, conversation_id, model, message, task_estimate, is_new_conversation=False, provider="ollama"):
         start_time = time.time()
         yield f"data: {json.dumps({'thinking': {'model': model, 'provider': 'react_agent', 'tier': task_estimate['tier']}})}\n\n"
 
+        response = ""
         try:
             from src.agent.core import Agent
             from src.agent.adapter import import_backend_tools
@@ -156,8 +158,15 @@ class ChatService:
         except Exception as e:
             logger.error(f"ReAct agent failed: {e}", exc_info=True)
             error_msg = f"Agent encountered an error: {e}"
+            response = error_msg
             yield f"data: {json.dumps({'token': error_msg, 'conversation_id': conversation_id})}\n\n"
             await self._save_msg(conversation_id, "assistant", error_msg)
+
+        # Generate AI title for new conversations
+        if is_new_conversation and response:
+            title = await self._generate_title(conversation_id, message, response, model, provider)
+            if title:
+                yield f"data: {json.dumps({'title_update': {'conversation_id': conversation_id, 'title': title}})}\n\n"
 
         elapsed = time.time() - start_time
         yield f"data: {json.dumps({'analytics': {'elapsed': round(elapsed, 2), 'model': model, 'provider': 'react_agent', 'tier': task_estimate['tier']}})}\n\n"
@@ -167,7 +176,7 @@ class ChatService:
     # Standard streaming + tool execution loop
     # ------------------------------------------------------------------
 
-    async def _agent_loop(self, conversation_id, model, provider, messages, task_estimate, metacog_decision):
+    async def _agent_loop(self, conversation_id, model, provider, messages, task_estimate, metacog_decision, is_new_conversation=False, user_message=""):
         full_response = ""
         total_tokens = 0
         total_tool_calls = 0
@@ -325,6 +334,12 @@ class ChatService:
         
         await self._save_msg(conversation_id, "assistant", full_response)
 
+        # Generate AI title for new conversations
+        if is_new_conversation and full_response:
+            title = await self._generate_title(conversation_id, user_message, full_response, model, provider)
+            if title:
+                yield f"data: {json.dumps({'title_update': {'conversation_id': conversation_id, 'title': title}})}\n\n"
+
         elapsed = time.time() - start_time
         yield f"data: {json.dumps({'analytics': {'elapsed': round(elapsed, 2), 'tokens': total_tokens, 'tps': round(total_tokens / elapsed, 1) if elapsed > 0 else 0, 'model': model, 'total_tokens': total_tokens, 'tokens_per_sec': round(total_tokens / elapsed, 1) if elapsed > 0 else 0, 'elapsed_sec': round(elapsed, 2), 'tool_calls': total_tool_calls}})}\n\n"
         yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id})}\n\n"
@@ -477,6 +492,30 @@ class ChatService:
         db.commit()
         db.close()
         return cid
+
+    async def _generate_title(self, conversation_id: str, user_msg: str, assistant_msg: str, model: str, provider: str):
+        """Ask the LLM to produce a short summary title for the conversation."""
+        try:
+            prompt_messages = [
+                {"role": "system", "content": "Generate a short title (max 6 words) that summarizes this conversation. Reply with ONLY the title, no quotes, no punctuation at the end."},
+                {"role": "user", "content": user_msg},
+                {"role": "assistant", "content": assistant_msg[:300]},
+                {"role": "user", "content": "Give a short title for this conversation."},
+            ]
+            result = await self.llm.generate(model, prompt_messages, provider=provider)
+            title = (result.get("content") or "").strip().strip('"').strip("'")
+            if not title or len(title) > 80:
+                title = user_msg[:50] + ("..." if len(user_msg) > 50 else "")
+            # Persist updated title
+            db = self.db_factory()
+            db.execute("UPDATE conversations SET title = ? WHERE id = ?", (title, conversation_id))
+            db.commit()
+            db.close()
+            logger.info(f"Generated title for {conversation_id}: {title}")
+            return title
+        except Exception as e:
+            logger.warning(f"Title generation failed (non-fatal): {e}")
+            return None
 
     async def _auto_save_facts(self, last_user_message: str, enabled: bool):
         if not enabled:

@@ -347,7 +347,15 @@ function buildShellHTML() {
       </div>
       <div id="nodeDetailInstructions" class="text-xs text-slate-400 leading-relaxed"></div>
       <div id="nodeDetailTools" class="flex flex-wrap gap-1.5"></div>
-      <div id="nodeDetailOutput" class="hidden bg-slate-950/50 border border-slate-800/40 rounded-lg p-3 text-xs font-mono text-slate-400 max-h-40 overflow-y-auto custom-scrollbar whitespace-pre-wrap"></div>
+      <div id="nodeDetailOutputSection" class="hidden">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Output</span>
+          <button id="nodeDetailCopyBtn" class="text-[11px] text-slate-600 hover:text-slate-400 transition-colors flex items-center gap-0.5 focus:outline-none" title="Copy output">
+            <span class="material-symbols-outlined text-xs">content_copy</span> Copy
+          </button>
+        </div>
+        <div id="nodeDetailOutput" class="bg-slate-950/50 border border-slate-800/40 rounded-lg p-4 text-sm text-slate-300 max-h-[480px] overflow-y-auto custom-scrollbar leading-relaxed node-output-rendered"></div>
+      </div>
       <div id="nodeDetailFiles" class="hidden flex flex-wrap gap-2"></div>
     </div>
 
@@ -493,6 +501,44 @@ function _injectStyles() {
     .jobs-priority-high { color: #f87171; }
     .jobs-priority-low  { color: #64748b; }
 
+    /* ---- Rendered node output (markdown / JSON) ---- */
+    .node-output-rendered { word-break: break-word; }
+    .node-output-rendered p { margin: 0.25em 0; }
+    .node-output-rendered ul, .node-output-rendered ol { margin: 0.25em 0 0.25em 1.25em; }
+    .node-output-rendered li { margin: 0.125em 0; }
+    .node-output-rendered h1, .node-output-rendered h2, .node-output-rendered h3 {
+      font-weight: 700; color: #e2e8f0; margin: 0.5em 0 0.25em;
+    }
+    .node-output-rendered h1 { font-size: 1.1em; }
+    .node-output-rendered h2 { font-size: 1em; }
+    .node-output-rendered h3 { font-size: 0.95em; }
+    .node-output-rendered code {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.85em;
+      background: rgba(30,41,59,0.6); border-radius: 3px; padding: 0.1em 0.35em;
+    }
+    .node-output-rendered pre {
+      background: rgba(15,23,42,0.8); border: 1px solid rgba(51,65,85,0.4);
+      border-radius: 0.5rem; padding: 0.75rem; margin: 0.5em 0;
+      overflow-x: auto; font-size: 0.8em;
+    }
+    .node-output-rendered pre code { background: none; padding: 0; }
+    .node-output-rendered a { color: rgb(129,140,248); text-decoration: underline; }
+    .node-output-rendered blockquote {
+      border-left: 3px solid rgba(99,102,241,0.4); padding-left: 0.75em;
+      color: rgb(148,163,184); margin: 0.5em 0;
+    }
+    .node-output-rendered table { border-collapse: collapse; margin: 0.5em 0; font-size: 0.85em; }
+    .node-output-rendered th, .node-output-rendered td {
+      border: 1px solid rgba(51,65,85,0.5); padding: 0.3em 0.6em;
+    }
+    .node-output-rendered th { background: rgba(30,41,59,0.5); font-weight: 600; }
+    .node-output-json { white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; font-size: 0.8em; color: rgb(148,163,184); }
+    .node-output-json .json-key { color: rgb(129,140,248); }
+    .node-output-json .json-string { color: rgb(110,231,183); }
+    .node-output-json .json-number { color: rgb(251,191,36); }
+    .node-output-json .json-boolean { color: rgb(248,113,113); }
+    .node-output-json .json-null { color: rgb(100,116,139); }
+
     /* ---- Responsive ---- */
     @media (max-width: 640px) {
       .jobs-list-view { padding: 1rem; gap: 1rem; }
@@ -614,12 +660,17 @@ export function initJobsUI() {
     }
   });
 
-  // Detail view: back
+  // Detail view: back — close the overlay
   el("jobBackBtn")?.addEventListener("click", () => {
+    const prevId = _selectedJobId;
     _showListView();
+    // Hide the overlay
+    const view = el("jobsView");
+    if (view) view.classList.add("hidden");
     // Restore focus to the job card that was clicked (if still present)
-    if (_selectedJobId) {
-      const card = document.querySelector(`[data-job-id="${_selectedJobId}"]`);
+    if (prevId) {
+      const card = document.querySelector(`[data-work-job-id="${prevId}"]`) ||
+                   document.querySelector(`[data-job-id="${prevId}"]`);
       if (card) card.focus();
     }
   });
@@ -659,13 +710,14 @@ export function initJobsUI() {
     }
   });
 
-  // Keyboard: Escape from detail goes back to list
+  // Keyboard: Escape from detail closes the overlay
   view.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       const detail = el("jobsDetailView");
       if (detail && !detail.classList.contains("hidden")) {
         e.preventDefault();
         _showListView();
+        view.classList.add("hidden");
       }
     }
   });
@@ -704,11 +756,15 @@ function _showListView() {
   el("jobsDetailView")?.classList.add("hidden");
   el("jobNodeDetail")?.classList.add("hidden");
   _selectedJobId = null;
-  // Focus the title input for keyboard users
-  el("jobTitleInput")?.focus();
 }
 
 function _showDetailView(jobId) {
+  // Ensure the overlay container is visible
+  const view = el("jobsView");
+  if (view) {
+    view.classList.remove("hidden");
+    view.style.display = "";
+  }
   el("jobsListView")?.classList.add("hidden");
   const detail = el("jobsDetailView");
   if (detail) {
@@ -932,6 +988,7 @@ async function _loadJobDetail(jobId) {
       if (res.status === 404) {
         showToast("Job not found", "error");
         _showListView();
+        el("jobsView")?.classList.add("hidden");
       }
       return;
     }
@@ -1068,6 +1125,7 @@ async function _deleteCurrentJob() {
       showToast("Job deleted", "info");
       _announceStatus("Job deleted");
       _showListView();
+      el("jobsView")?.classList.add("hidden");
       _loadJobs();
     } else {
       const errData = await res.json().catch(() => ({}));
@@ -1430,7 +1488,7 @@ function _renderJobDetail(job) {
 
   // Cancel button -- only visible for non-terminal jobs
   const cancelBtn = el("jobCancelBtn");
-  const terminalStates = ["done", "failed", "cancelled"];
+  const terminalStates = ["done", "failed", "cancelled", "cancelling"];
   if (cancelBtn) {
     if (terminalStates.includes(job.status)) {
       cancelBtn.classList.add("hidden");
@@ -1751,22 +1809,41 @@ function _renderNodeDetail(node) {
         : '<span class="text-[11px] text-slate-600 italic">No tool restrictions</span>';
   }
 
-  // Output preview
+  // Output preview (rendered markdown / highlighted JSON)
+  const outputSection = el("nodeDetailOutputSection");
   const outputEl = el("nodeDetailOutput");
-  if (outputEl) {
+  if (outputSection && outputEl) {
     if (node.output_json) {
+      let parsed;
       try {
-        const parsed =
+        parsed =
           typeof node.output_json === "string"
             ? JSON.parse(node.output_json)
             : node.output_json;
-        outputEl.textContent = JSON.stringify(parsed, null, 2);
       } catch {
-        outputEl.textContent = String(node.output_json);
+        parsed = String(node.output_json);
       }
-      outputEl.classList.remove("hidden");
+      outputEl.innerHTML = _renderOutputHtml(parsed);
+      outputSection.classList.remove("hidden");
+
+      // Wire copy button
+      const copyBtn = el("nodeDetailCopyBtn");
+      if (copyBtn) {
+        const newBtn = copyBtn.cloneNode(true);
+        copyBtn.parentNode.replaceChild(newBtn, copyBtn);
+        newBtn.id = "nodeDetailCopyBtn";
+        newBtn.addEventListener("click", () => {
+          const text = _outputPlainText(parsed);
+          navigator.clipboard.writeText(text).then(() => {
+            newBtn.innerHTML = '<span class="material-symbols-outlined text-xs">check</span> Copied';
+            setTimeout(() => {
+              newBtn.innerHTML = '<span class="material-symbols-outlined text-xs">content_copy</span> Copy';
+            }, 1500);
+          });
+        });
+      }
     } else {
-      outputEl.classList.add("hidden");
+      outputSection.classList.add("hidden");
     }
   }
 
@@ -1947,4 +2024,97 @@ function _formatSize(bytes) {
   const units = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+// ---------------------------------------------------------------------------
+// Output formatting helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Syntax-highlight a JSON value as HTML with colored spans.
+ */
+function _highlightJson(obj, indent = 0) {
+  const pad = "  ".repeat(indent);
+  const pad1 = "  ".repeat(indent + 1);
+
+  if (obj === null) return '<span class="json-null">null</span>';
+  if (typeof obj === "boolean") return `<span class="json-boolean">${obj}</span>`;
+  if (typeof obj === "number") return `<span class="json-number">${obj}</span>`;
+  if (typeof obj === "string") {
+    const escaped = escapeHtml(JSON.stringify(obj));
+    return `<span class="json-string">${escaped}</span>`;
+  }
+
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return "[]";
+    const items = obj.map((v) => pad1 + _highlightJson(v, indent + 1));
+    return `[\n${items.join(",\n")}\n${pad}]`;
+  }
+
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return "{}";
+  const entries = keys.map(
+    (k) =>
+      `${pad1}<span class="json-key">${escapeHtml(JSON.stringify(k))}</span>: ${_highlightJson(obj[k], indent + 1)}`,
+  );
+  return `{\n${entries.join(",\n")}\n${pad}}`;
+}
+
+/**
+ * Render parsed node output as rich HTML.
+ *
+ * Strategy:
+ * 1. If the object is { result: <string> }, treat the string as markdown.
+ * 2. If the object has a single string value under any key, render it as markdown.
+ * 3. For objects with multiple keys, render each key as a labeled section:
+ *    - string values → markdown
+ *    - other values → syntax-highlighted JSON
+ */
+function _renderOutputHtml(parsed) {
+  // Handle non-object (string, number, etc.)
+  if (typeof parsed !== "object" || parsed === null) {
+    const text = String(parsed);
+    if (typeof marked !== "undefined") {
+      return marked.parse(text, { breaks: true, gfm: true });
+    }
+    return `<div class="whitespace-pre-wrap">${escapeHtml(text)}</div>`;
+  }
+
+  const keys = Object.keys(parsed);
+
+  // Single-key object with a string value → render as rich text
+  if (keys.length === 1 && typeof parsed[keys[0]] === "string") {
+    const text = parsed[keys[0]];
+    if (typeof marked !== "undefined") {
+      return marked.parse(text, { breaks: true, gfm: true });
+    }
+    return `<div class="whitespace-pre-wrap">${escapeHtml(text)}</div>`;
+  }
+
+  // Multi-key object → render each key as a section
+  const sections = keys.map((key) => {
+    const val = parsed[key];
+    let body;
+    if (typeof val === "string") {
+      body =
+        typeof marked !== "undefined"
+          ? marked.parse(val, { breaks: true, gfm: true })
+          : `<div class="whitespace-pre-wrap">${escapeHtml(val)}</div>`;
+    } else {
+      body = `<div class="node-output-json">${_highlightJson(val)}</div>`;
+    }
+    return `<div class="mb-3"><div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">${escapeHtml(key)}</div>${body}</div>`;
+  });
+
+  return sections.join("");
+}
+
+/**
+ * Get the raw text content of parsed output for clipboard copy.
+ */
+function _outputPlainText(parsed) {
+  if (typeof parsed !== "object" || parsed === null) return String(parsed);
+  const keys = Object.keys(parsed);
+  if (keys.length === 1 && typeof parsed[keys[0]] === "string") return parsed[keys[0]];
+  return JSON.stringify(parsed, null, 2);
 }
