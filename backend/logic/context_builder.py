@@ -164,13 +164,36 @@ class ContextBuilder:
             return None
 
     async def _inject_memory(self, message: str, sys_prompt: str, estimate: Dict[str, Any]) -> str:
+        # ── Tier-2: FTS5 recall (semantic short-term) ───────────────────
         try:
             mem_tool = self.registry.get_tool("recall_memories")
             if mem_tool:
                 res = await mem_tool.execute(query=message, limit=5)
                 text = res.get("result", "") if isinstance(res, dict) else str(res)
                 if text and "No memories" not in text:
-                    return sys_prompt + f"\n\n[MEMORIES]\n{text}\n[/MEMORIES]"
-            return sys_prompt
+                    sys_prompt += f"\n\n[MEMORIES]\n{text}\n[/MEMORIES]"
         except Exception:
-            return sys_prompt
+            pass
+
+        # ── Tier-3: MemPalace wake-up context (palace L0 + L1) ──────────
+        try:
+            from backend.memory.palace_manager import is_ready, get_wakeup_context, search
+            if is_ready():
+                # Wake-up: ~170 tokens of critical facts (always loaded)
+                wakeup = get_wakeup_context()
+                if wakeup:
+                    sys_prompt += f"\n\n[PALACE_CONTEXT]\n{wakeup}\n[/PALACE_CONTEXT]"
+
+                # On-demand: semantic search for query-relevant palace memories
+                palace_results = search(query=message, limit=3)
+                if palace_results:
+                    snippets = []
+                    for r in palace_results:
+                        loc = "/".join(filter(None, [r.get("wing", ""), r.get("room", "")]))
+                        content = r.get("content", r.get("document", ""))[:300]
+                        snippets.append(f"[{loc}]: {content}")
+                    sys_prompt += f"\n\n[PALACE_SEARCH]\n" + "\n".join(snippets) + "\n[/PALACE_SEARCH]"
+        except Exception as _mp_exc:
+            logger.debug("MemPalace memory injection skipped (non-fatal): %s", _mp_exc)
+
+        return sys_prompt

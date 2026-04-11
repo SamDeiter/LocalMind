@@ -335,6 +335,19 @@ class ChatService:
         except Exception as e:
             logger.warning(f"Auto-save facts failed: {e}")
 
+        # ── MemPalace Tier-3 auto-save (verbatim turn archival) ──────────
+        try:
+            import asyncio
+            if full_response and len(full_response) > 100:
+                user_content = messages[-2]["content"] if len(messages) >= 2 else ""
+                asyncio.create_task(self._palace_save_turn(
+                    user_msg=user_content,
+                    assistant_msg=full_response,
+                    conversation_id=conversation_id,
+                ))
+        except Exception as e:
+            logger.debug("MemPalace auto-save task creation failed (non-fatal): %s", e)
+
     # ------------------------------------------------------------------
     # Tool execution (extracted from inner loop for clarity)
     # ------------------------------------------------------------------
@@ -480,3 +493,33 @@ class ChatService:
                 )
             except Exception as e:
                 logger.warning(f"Episodic memory save failed: {e}")
+
+    async def _palace_save_turn(self, user_msg: str, assistant_msg: str, conversation_id: str):
+        """Save a full conversation turn verbatim to MemPalace (Tier-3).
+
+        Fires as a background task after each completed turn. Stores the
+        exchange in hall_events so it can be recalled months later with
+        semantic search. Non-blocking — any failure is silently logged.
+        """
+        try:
+            from backend.memory.palace_manager import is_ready, save
+            if not is_ready():
+                return
+
+            # Format the turn as a verbatim exchange block
+            content = (
+                f"[CONVERSATION: {conversation_id[:8]}]\n"
+                f"USER: {user_msg[:800]}\n"
+                f"ASSISTANT: {assistant_msg[:1200]}"
+            )
+
+            save(
+                content=content,
+                wing="wing_localmind",
+                hall="hall_events",
+                room="chat-sessions",
+            )
+            logger.debug("MemPalace: auto-saved turn for conversation %s", conversation_id[:8])
+        except Exception as exc:
+            logger.debug("MemPalace turn save failed (non-fatal): %s", exc)
+
