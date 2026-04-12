@@ -13,7 +13,7 @@
  *   initTaskCreation()  -- inject HTML into #taskCreationArea, bind events
  */
 
-import { API } from "./state.js";
+import { API, autoResize } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 
 // ---------------------------------------------------------------------------
@@ -123,7 +123,8 @@ function _buildHTML() {
       class="btn-base btn-primary flex items-center gap-1.5"
       title="Submit this task immediately for quick AI processing"
     >
-      <span class="material-symbols-outlined text-sm">bolt</span> Run Now
+      <span class="material-symbols-outlined text-sm" id="tcRunNowIcon">bolt</span>
+      <span id="tcRunNowLabel">Run Now</span>
     </button>
     <button
       id="tcCustomizeBtn"
@@ -183,7 +184,8 @@ function _buildHTML() {
         class="btn-base btn-primary flex items-center gap-1.5"
         title="Submit this multi-step pipeline for the AI to execute"
       >
-        <span class="material-symbols-outlined text-sm">rocket_launch</span> Run Pipeline
+        <span class="material-symbols-outlined text-sm" id="tcRunPipelineIcon">rocket_launch</span>
+        <span id="tcRunPipelineLabel">Run Pipeline</span>
       </button>
     </div>
   </div>
@@ -213,7 +215,7 @@ function _buildNodeCard(index, node) {
       <span class="flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-bold">${index + 1}</span>
       <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Step ${index + 1}</span>
     </div>
-    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline">
+    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline" aria-label="Remove step ${index + 1}">
       <span class="material-symbols-outlined text-sm pointer-events-none">close</span>
     </button>
   </div>
@@ -270,7 +272,7 @@ function _renderFilePreview() {
     <div class="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/40 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
       <span class="material-symbols-outlined text-xs text-slate-500">description</span>
       <span class="max-w-[120px] truncate" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
-      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file">
+      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file" aria-label="Remove file ${escapeHtml(f.name)}">
         <span class="material-symbols-outlined text-xs pointer-events-none">close</span>
       </button>
     </div>`
@@ -410,7 +412,14 @@ export async function submitQuickTask(description, files) {
   }
 
   const btn = el("tcRunNowBtn");
+  const icon = el("tcRunNowIcon");
+  const label = el("tcRunNowLabel");
   if (btn) btn.disabled = true;
+  if (icon) {
+    icon.textContent = "progress_activity";
+    icon.classList.add("animate-spin");
+  }
+  if (label) label.textContent = "Running...";
 
   try {
     const payload = {
@@ -453,6 +462,11 @@ export async function submitQuickTask(description, files) {
     showToast("Network error creating task", "error");
   } finally {
     if (btn) btn.disabled = false;
+    if (icon) {
+      icon.textContent = "bolt";
+      icon.classList.remove("animate-spin");
+    }
+    if (label) label.textContent = "Run Now";
   }
 }
 
@@ -473,7 +487,14 @@ async function submitPipelineTask(nodes, priority, files) {
   const title = description || nodes[0].title || "Pipeline Task";
 
   const btn = el("tcRunPipelineBtn");
+  const icon = el("tcRunPipelineIcon");
+  const label = el("tcRunPipelineLabel");
   if (btn) btn.disabled = true;
+  if (icon) {
+    icon.textContent = "progress_activity";
+    icon.classList.add("animate-spin");
+  }
+  if (label) label.textContent = "Running...";
 
   try {
     const payload = {
@@ -524,6 +545,11 @@ async function submitPipelineTask(nodes, priority, files) {
     showToast("Network error creating pipeline", "error");
   } finally {
     if (btn) btn.disabled = false;
+    if (icon) {
+      icon.textContent = "rocket_launch";
+      icon.classList.remove("animate-spin");
+    }
+    if (label) label.textContent = "Run Pipeline";
   }
 }
 
@@ -540,6 +566,16 @@ function _bindEvents() {
 
   // Customize Pipeline toggle
   el("tcCustomizeBtn")?.addEventListener("click", togglePipelineMode);
+
+  // Auto-resize description
+  el("tcDescription")?.addEventListener("input", (e) => autoResize(e.target));
+
+  // Auto-resize node instructions (delegated)
+  el("tcNodeContainer")?.addEventListener("input", (e) => {
+    if (e.target.classList.contains("tc-node-instructions")) {
+      autoResize(e.target);
+    }
+  });
 
   // Run Pipeline
   el("tcRunPipelineBtn")?.addEventListener("click", () => {
