@@ -1,9 +1,11 @@
-## 2024-05-24 - Path Traversal bypass via `.startswith()`
-**Vulnerability:** In Python, verifying if a target path is inside a workspace using `str(target).startswith(str(workspace))` is vulnerable to directory traversal bypasses. For example, `/home/user/workspace_evil/file.txt` will pass the check against `/home/user/workspace` because it shares the same string prefix, even though it is in a different directory.
-**Learning:** `startswith()` only checks string prefixes and does not respect path boundaries or directory separators.
-**Prevention:** Use `os.path.commonpath([workspace, target]) == workspace` or `target.relative_to(workspace)` instead. These functions parse path segments properly and ensure the target is strictly a child directory or file of the workspace.
+# Sentinel Security Journal
 
-## 2024-06-12 - Command Injection bypass via Shell Operators
-**Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
-**Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
-**Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+## 2025-05-15 - Masking & Preservation of Sensitive Settings
+**Vulnerability:** API endpoints returning sensitive configuration (SMTP passwords, API keys) in plaintext allows any user with read access to the settings UI (or anyone intercepting the API response) to steal credentials.
+**Learning:** Simply masking the field on the way out is insufficient if the UI sends the mask back during a save operation, as it would overwrite the real secret with asterisks.
+**Prevention:** Implement a "mask-on-read, preserve-on-write" pattern. GET endpoints redact secrets with a fixed placeholder (e.g., `****`). POST endpoints check for this placeholder; if found, they restore the existing secret from backend storage instead of overwriting.
+
+## 2025-05-15 - Security Test Failures due to Graceful Fallbacks
+**Vulnerability:** `MemoryEncryption` fell back to Base64 when `cryptography` was missing. While this allowed the app to "work", it meant that a test providing a "wrong key" still successfully "decrypted" the data (because Base64 doesn't use a key), leading to a silent security failure.
+**Learning:** Security modules that provide graceful fallbacks for development can mask critical failures in security-themed unit tests.
+**Prevention:** Ensure `cryptography` is a mandatory dependency for environments running security tests. Validate that "wrong key" scenarios actually raise errors or return `None` only when true encryption is active.
