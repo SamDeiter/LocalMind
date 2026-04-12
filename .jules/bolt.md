@@ -4,3 +4,7 @@
 ## 2025-05-15 - Non-blocking System Metrics in FastAPI
 **Learning:** Using `psutil.cpu_percent(interval=0.1)` in an async FastAPI route blocks the entire event loop for 100ms. This significantly increases latency for all concurrent requests.
 **Action:** Always prime `psutil.cpu_percent(interval=None)` at module load or startup and use `interval=None` in async handlers to retrieve metrics instantly without blocking.
+
+## 2026-04-12 - Polling Consolidation and Connection Pooling
+**Learning:** Consolidating multiple frequent polling requests (/hardware, /version, /memories) into a single summary endpoint (/hardware) reduces network round-trips and frontend complexity. Additionally, using a singleton HTTP client for backend-to-backend calls (e.g., to Ollama) ensures TCP/TLS connection reuse, further reducing latency.
+**Action:** Always look for opportunities to batch related status/metric requests into a single "summary" endpoint to optimize dashboard performance.

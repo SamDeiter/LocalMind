@@ -13,6 +13,11 @@ async function updateDashboardMetrics() {
     const sys = hw.system || {};
     const models = hw.models || [];
 
+    // ⚡ Bolt: Use consolidated metrics from hardware response
+    // to reduce redundant polling requests to /api/version and /api/memories.
+    const version = hw.version || {};
+    const memoryCount = hw.memory_count ?? 0;
+
     // ── CPU ──
     const cpuPct = sys.cpu_percent ?? 0;
     const cpuEl = document.getElementById("cpuVal");
@@ -45,6 +50,18 @@ async function updateDashboardMetrics() {
     // Update status badge with model
     const versionBadge = document.getElementById("versionBadge");
     if (versionBadge && modelName !== "No model") versionBadge.textContent = modelName;
+
+    // ⚡ Bolt: Update status bar metrics using consolidated data
+    const brainStatus = document.getElementById("brainStatus");
+    const versionBadgeEl = document.querySelector(".version-badge");
+    const brainIdeas = document.getElementById("brainIdeas");
+
+    statusFailCount = 0;
+    if (brainPulse) brainPulse.style.backgroundColor = "#4fdbc8";
+    if (brainStatus) brainStatus.textContent = "Online";
+    if (versionBadgeEl) versionBadgeEl.textContent = `v${version.version || "0.0.0"}`;
+    if (brainIdeas) brainIdeas.textContent = memoryCount;
+
   } catch {
     // Silently fail — hardware API may not be available
   }
@@ -55,15 +72,12 @@ async function updateStatusBar() {
   const dot = document.getElementById("brainPulse");
   const connEl = document.getElementById("brainStatus");
   try {
-    // Check server health via version endpoint
+    // Check server health — we can still use /api/version as a minimal heartbeat
     const vr = await fetch(`${API}/api/version`);
     if (vr.ok) {
       statusFailCount = 0;
-      const vd = await vr.json();
       if (dot) dot.style.backgroundColor = "#4fdbc8";
       if (connEl) connEl.textContent = "Online";
-      const versionEl = document.querySelector(".version-badge");
-      if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
     } else {
       statusFailCount++;
       if (statusFailCount >= OFFLINE_THRESHOLD) {
@@ -72,17 +86,6 @@ async function updateStatusBar() {
       }
     }
 
-    // Ideas count for reasoning grid
-    try {
-      const mr = await fetch(`${API}/api/memories`);
-      if (mr.ok) {
-        const memories = await mr.json();
-        const ideasEl = document.getElementById("brainIdeas");
-        if (ideasEl) ideasEl.textContent = Array.isArray(memories) ? memories.length : "0";
-      }
-    } catch {
-      /* ignore */
-    }
   } catch {
     statusFailCount++;
     if (statusFailCount >= OFFLINE_THRESHOLD) {
