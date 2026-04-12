@@ -24,10 +24,10 @@ from backend.config import (
     WORKSPACE_ROOT, BEST_OF_N_ENABLED, PRM_MODEL, LORA_ADAPTERS_DIR,
     MODEL_TIERS,
 )
-from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
+from backend.utils.server_utils import kill_existing_server
 from backend.tools.registry import ToolRegistry
 from backend.metacognition.controller import MetaCognitiveController
-from backend import notifications, gemini_client, db
+from backend import db
 from backend.db import DB_PATH, get_db
 from backend.core.schema import init_phase0_schema, ensure_default_tenant
 from backend.core.telemetry import (
