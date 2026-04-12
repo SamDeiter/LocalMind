@@ -161,47 +161,61 @@ class DelegationEngine:
 
         If *job_id* has no parent it is already the root.
         """
-        current = job_id
-        visited: set[str] = set()
         conn = get_db()
         try:
-            while True:
-                if current in visited:
-                    logger.warning("Cycle detected in delegation tree at %s", current)
-                    return current
-                visited.add(current)
+            # Use a recursive CTE to find all ancestors in one query.
+            # We limit recursion to 100 levels as a safety guard against cycles,
+            # which is far beyond the typical MAX_DELEGATION_DEPTH.
+            rows = conn.execute(
+                """
+                WITH RECURSIVE ancestors(id, depth) AS (
+                    SELECT ? AS id, 0 AS depth
+                    UNION ALL
+                    SELECT jd.parent_job_id, a.depth + 1
+                    FROM job_delegation jd
+                    JOIN ancestors a ON jd.child_job_id = a.id
+                    WHERE a.depth < 100
+                )
+                SELECT id, depth FROM ancestors ORDER BY depth DESC
+                """,
+                (job_id,),
+            ).fetchall()
 
-                row = conn.execute(
-                    "SELECT parent_job_id FROM job_delegation WHERE child_job_id = ?",
-                    (current,),
-                ).fetchone()
-                if row is None:
-                    return current
-                current = row["parent_job_id"]
+            if not rows:
+                return job_id
+
+            # Check for potential cycle (reached limit)
+            if any(r["depth"] >= 100 for r in rows):
+                logger.warning("Cycle or extreme depth detected in delegation tree at %s", job_id)
+
+            return rows[0]["id"]
         finally:
             conn.close()
 
     def get_depth(self, job_id: str) -> int:
         """Return the depth of *job_id* in its delegation tree (root = 0)."""
-        depth = 0
-        current = job_id
-        visited: set[str] = set()
         conn = get_db()
         try:
-            while True:
-                if current in visited:
-                    logger.warning("Cycle detected in delegation tree at %s", current)
-                    return depth
-                visited.add(current)
+            # Use a recursive CTE to find the depth in one query.
+            row = conn.execute(
+                """
+                WITH RECURSIVE ancestors(id, depth) AS (
+                    SELECT ? AS id, 0 AS depth
+                    UNION ALL
+                    SELECT jd.parent_job_id, a.depth + 1
+                    FROM job_delegation jd
+                    JOIN ancestors a ON jd.child_job_id = a.id
+                    WHERE a.depth < 100
+                )
+                SELECT MAX(depth) AS max_depth FROM ancestors
+                """,
+                (job_id,),
+            ).fetchone()
 
-                row = conn.execute(
-                    "SELECT parent_job_id FROM job_delegation WHERE child_job_id = ?",
-                    (current,),
-                ).fetchone()
-                if row is None:
-                    return depth
-                current = row["parent_job_id"]
-                depth += 1
+            depth = row["max_depth"] if row and row["max_depth"] is not None else 0
+            if depth >= 100:
+                logger.warning("Cycle or extreme depth detected in delegation tree at %s", job_id)
+            return depth
         finally:
             conn.close()
 
