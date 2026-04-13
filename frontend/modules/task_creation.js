@@ -13,7 +13,7 @@
  *   initTaskCreation()  -- inject HTML into #taskCreationArea, bind events
  */
 
-import { API } from "./state.js";
+import { API, autoResize } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 
 // ---------------------------------------------------------------------------
@@ -255,6 +255,11 @@ function _renderNodes() {
   const container = el("tcNodeContainer");
   if (!container) return;
   container.innerHTML = _nodes.map((n, i) => _buildNodeCard(i, n)).join("");
+
+  // Re-bind auto-resize to new node textareas
+  container.querySelectorAll(".tc-node-instructions").forEach((ta) => {
+    ta.addEventListener("input", autoResize);
+  });
 }
 
 function _renderFilePreview() {
@@ -532,6 +537,9 @@ async function submitPipelineTask(nodes, priority, files) {
 // ---------------------------------------------------------------------------
 
 function _bindEvents() {
+  // Auto-resize for main description
+  el("tcDescription")?.addEventListener("input", autoResize);
+
   // Run Now
   el("tcRunNowBtn")?.addEventListener("click", () => {
     const desc = el("tcDescription")?.value?.trim() || "";
