@@ -1,0 +1,180 @@
+INFO:     Will watch for changes in these directories: ['/app/backend', '/app/frontend']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [77639] using WatchFiles
+  v0.9.1 build #263
+
+╔══════════════════════════════════════════╗
+║         🧠 LocalMind Server             ║
+╠══════════════════════════════════════════╣
+║  Build:    v0.9.1 (build #263)           ║
+║  Mode:     DEVELOPMENT                   ║
+║  Port:     8001                          ║
+║  Workers:  1                             ║
+║  Reload:   True                          ║
+║  Log:      debug                         ║
+╚══════════════════════════════════════════╝
+
+02:12:17 [localmind] INFO: RAG module loaded successfully
+02:12:17 [localmind.tools] INFO: Discovered tool: android_emulator
+02:12:17 [localmind.tools] INFO: Discovered tool: ast_analyzer
+02:12:17 [localmind.tools] INFO: Discovered tool: browser
+02:12:17 [localmind.tools] INFO: Discovered tool: clipboard_read
+02:12:17 [localmind.tools] INFO: Discovered tool: install_package
+02:12:17 [localmind.tools] INFO: Discovered tool: list_dependencies
+02:12:17 [localmind.tools] INFO: Discovered tool: uninstall_package
+02:12:17 [localmind.tools] INFO: Discovered tool: excel
+02:12:17 [localmind.tools] INFO: Discovered tool: list_files
+02:12:17 [localmind.tools] INFO: Discovered tool: read_file
+02:12:17 [localmind.tools] INFO: Discovered tool: write_file
+02:12:17 [localmind.tools] INFO: Discovered tool: generate_ui
+02:12:17 [localmind.tools] INFO: Discovered tool: git_branch
+02:12:17 [localmind.tools] INFO: Discovered tool: git_commit
+02:12:17 [localmind.tools] INFO: Discovered tool: git_diff
+02:12:17 [localmind.tools] INFO: Discovered tool: git_log
+02:12:17 [localmind.tools] INFO: Discovered tool: git_status
+02:12:17 [localmind.tools] INFO: Discovered tool: gmail
+02:12:17 [localmind.tools] INFO: Discovered tool: google_docs
+02:12:17 [localmind.tools] INFO: Discovered tool: google_drive
+02:12:17 [localmind.tools] INFO: Discovered tool: google_sheets
+02:12:17 [localmind.tools] INFO: Discovered tool: google_slides
+02:12:17 [localmind.tools] INFO: Discovered tool: manage_model
+02:12:17 [localmind.tools] INFO: Discovered tool: browse_web
+02:12:17 [localmind.tools] INFO: Discovered tool: recall_memories
+02:12:17 [localmind.tools] INFO: Discovered tool: save_memory
+02:12:17 [localmind.memory.palace_manager] INFO: MemPalace initialized at /home/jules/.mempalace/palace
+02:12:17 [localmind.tools] INFO: Discovered tool: mempalace_save
+02:12:17 [localmind.tools] INFO: Discovered tool: mempalace_search
+02:12:17 [localmind.tools] INFO: Discovered tool: mempalace_status
+02:12:17 [localmind.tools] INFO: Discovered tool: pdf
+02:12:17 [localmind.tools] INFO: Discovered tool: pptx
+02:12:17 [localmind.tools] INFO: Discovered tool: project_context
+02:12:17 [localmind.tools] INFO: Discovered tool: propose_action
+02:12:17 [localmind.tools] INFO: Discovered tool: query_documents
+02:12:17 [localmind.tools] INFO: Discovered tool: upload_document
+02:12:17 [localmind.tools] INFO: Discovered tool: run_code
+02:12:17 [localmind.tools] INFO: Discovered tool: take_screenshot
+02:12:17 [localmind.tools] INFO: Discovered tool: self_edit
+02:12:17 [localmind.tools] INFO: Discovered tool: self_list
+02:12:17 [localmind.tools] INFO: Discovered tool: self_read
+02:12:17 [localmind.tools] INFO: Discovered tool: self_extend
+02:12:17 [localmind.tools] INFO: Discovered tool: list_proposals
+02:12:17 [localmind.tools] INFO: Discovered tool: self_reflect
+02:12:17 [localmind.tools] INFO: Discovered tool: self_test
+02:12:17 [localmind.tools] INFO: Discovered tool: propose_action
+02:12:17 [localmind.tools] INFO: Discovered tool: terminal
+02:12:17 [localmind.tools] INFO: Discovered tool: analyze_image
+02:12:17 [localmind.tools] INFO: Discovered tool: web_search
+02:12:17 [localmind.tools] INFO: Discovered tool: word
+02:12:17 [localmind.tools] INFO: Registry loaded 49 tools: ['android_emulator', 'ast_analyzer', 'browser', 'clipboard_read', 'install_package', 'list_dependencies', 'uninstall_package', 'excel', 'list_files', 'read_file', 'write_file', 'generate_ui', 'git_branch', 'git_commit', 'git_diff', 'git_log', 'git_status', 'gmail', 'google_docs', 'google_drive', 'google_sheets', 'google_slides', 'manage_model', 'browse_web', 'recall_memories', 'save_memory', 'mempalace_save', 'mempalace_search', 'mempalace_status', 'pdf', 'pptx', 'project_context', 'propose_action', 'query_documents', 'upload_document', 'run_code', 'take_screenshot', 'self_edit', 'self_list', 'self_read', 'self_extend', 'list_proposals', 'self_reflect', 'self_test', 'propose_action', 'terminal', 'analyze_image', 'web_search', 'word']
+02:12:17 [localmind.routes.google_auth] WARNING: google-auth not installed. Google OAuth will be unavailable. Install with: pip install google-auth google-auth-oauthlib
+02:12:17 [localmind.routes.push] WARNING: pywebpush not installed — push notifications will be unavailable
+INFO:     Started server process [78227]
+INFO:     Waiting for application startup.
+02:12:18 [localmind.security.redact] INFO: Redacting log filter installed on root logger and 1 handlers
+02:12:18 [localmind.core.schema] INFO: Phase 0 enterprise schema initialized
+02:12:18 [localmind.core.telemetry] INFO: Telemetry schema initialized (trace_spans, metrics)
+02:12:18 [localmind.security.data_protection] INFO: Set DB file permissions to 600: /home/jules/LocalMind_Workspace/localmind.db
+02:12:18 [localmind.core.secret_manager] WARNING: cryptography library not installed. SecretEncryption will fall back to base64 encoding (NOT secure). Install with: pip install cryptography
+02:12:18 [localmind.core.secret_manager] INFO: Migrated secret_refs: ALTER TABLE secret_refs ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
+02:12:18 [localmind.core.secret_manager] INFO: Migrated secret_refs: ALTER TABLE secret_refs ADD COLUMN last_used_at TEXT
+02:12:18 [localmind.core.secret_manager] INFO: Migrated secret_refs: ALTER TABLE secret_refs ADD COLUMN revoked_at TEXT
+02:12:18 [localmind.core.secret_manager] INFO: Migrated secret_refs: ALTER TABLE secret_refs ADD COLUMN revoke_reason TEXT
+02:12:18 [localmind.core.secret_manager] INFO: Migrated secret_refs: ALTER TABLE secret_refs ADD COLUMN successor_id TEXT
+02:12:18 [localmind.inference.lora_manager] INFO: LoRAManager initialised (adapters_dir=/home/jules/LocalMind_Workspace/lora_adapters)
+02:12:18 [localmind] INFO: ModelSelector initialised (tiers=['light', 'medium', 'heavy', 'ultra'])
+02:12:18 [localmind.security.prompt_guard] INFO: PromptGuard initialized at level=strict
+02:12:18 [localmind] INFO: GC worker started
+02:12:18 [localmind.security.memory_encryption] WARNING: cryptography library not installed -- memory encryption will use base64-only encoding (NOT secure, dev-only mode)
+02:12:18 [localmind] INFO: MemPalace Tier-3 ready — 0 drawers at /home/jules/.mempalace/palace
+02:12:18 [localmind] INFO: Data protection tasks started (VACUUM every 24h, purge retention 90d)
+02:12:18 [localmind] INFO: LocalMind server initialized (job worker + learning loop + GC active)
+02:12:18 [localmind.core.gc] INFO: GCWorker starting
+02:12:18 [localmind.core.gc] INFO: GCWorker: running startup cleanup
+02:12:18 [localmind.security.data_protection] INFO: VACUUM scheduler started — will run every 24 hours on /home/jules/LocalMind_Workspace/localmind.db
+02:12:18 [localmind.security.data_protection] INFO: Daily purge loop started — retention=90 days, interval=24 hours
+02:12:18 [localmind.jobs.worker] INFO: JobWorker starting.
+02:12:18 [localmind.core.gc] INFO: cleanup_orphaned_temps: deleted 0 files, freed 0 bytes (3ms)
+02:12:18 [localmind.jobs.worker] INFO: JobWorker entering main poll loop.
+INFO:     Application startup complete.
+02:12:18 [localmind.core.gc] INFO: GCWorker startup cleanup: 0 files, 0 bytes freed
+INFO:     127.0.0.1:44264 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44264 - "GET /styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /app.js?v=4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /modules/chat.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44264 - "GET /modules/conversations.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44296 - "GET /modules/media.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /modules/events.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /modules/sidebar.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /modules/editor.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /modules/live_reload.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /modules/templates_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /modules/jobs_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /modules/settings_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44296 - "GET /modules/swarm_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44264 - "GET /modules/dashboard.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /modules/approvals_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /modules/task_creation.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /modules/tools_generated.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /modules/pwa.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44264 - "GET /modules/monitoring_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44296 - "GET /modules/eval_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /modules/tts.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /modules/learning_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /modules/token_panel.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44264 - "GET /modules/utils.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /modules/tools.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /modules/ui_components.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /modules/streaming.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44296 - "GET /modules/ai_profile.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /modules/state.js HTTP/1.1" 200 OK
+02:13:19 [agent.memory.store] INFO: Memory store initialized at /home/jules/LocalMind_Workspace/agent_memory.db
+02:13:19 [localmind.tools.memory] INFO: FTS5 memory store connected
+INFO:     127.0.0.1:44264 - "GET /api/conversations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /api/memories HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /api/version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44296 - "GET /api/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /api/hardware HTTP/1.1" 200 OK
+02:13:19 [localmind.tts.piper] INFO: PiperTTSService initialised  cache=/home/jules/LocalMind_Workspace/tts_cache  voices=/home/jules/LocalMind_Workspace/piper_voices
+INFO:     127.0.0.1:44280 - "GET /api/jobs?status=reviewing HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44264 - "GET /api/tools/generated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /api/metrics/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/alerts/recent HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44296 - "GET /api/tts/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /api/ai-profile HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44264 - "GET /api/jobs/activity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /sw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /styles.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44280 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44306 - "GET /manifest.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /icon.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /modules/chat.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44322 - "GET /modules/conversations.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44306 - "GET /modules/media.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44280 - "GET /modules/sidebar.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44322 - "GET /modules/events.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44306 - "GET /modules/research_ui.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /modules/editor.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44322 - "GET /modules/live_reload.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44306 - "GET /modules/settings_ui.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44280 - "GET /modules/dashboard.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44280 - "GET /modules/swarm_ui.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44322 - "GET /modules/jobs_ui.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44306 - "GET /modules/templates_ui.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44322 - "GET /modules/approvals_ui.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44306 - "GET /modules/task_creation.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44280 - "GET /modules/brain_graph.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /modules/onboarding.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44306 - "GET /modules/time_machine.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /modules/hub.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44280 - "GET /modules/state.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44306 - "GET /modules/streaming.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44322 - "GET /modules/tools.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44306 - "GET /modules/utils.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:44280 - "GET /modules/proposals_ui.js HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:44322 - "GET /api/documents/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /api/version HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /api/hardware HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44322 - "GET /api/version HTTP/1.1" 200 OK
