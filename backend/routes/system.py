@@ -21,6 +21,31 @@ logger = logging.getLogger("localmind.routes.system")
 # Module-level start time for uptime calculation
 _START_TIME = time.time()
 
+# ⚡ Bolt: Reusable HTTP client for connection pooling.
+# Using a singleton AsyncClient ensures TCP/TLS connection reuse across requests.
+_HTTP_CLIENT = None
+
+
+def get_httpx_client() -> httpx.AsyncClient:
+    """Get or create the singleton HTTP client."""
+    global _HTTP_CLIENT
+    if _HTTP_CLIENT is None:
+        # Default timeouts: 5s connect, 30s read/write/pool
+        _HTTP_CLIENT = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0, connect=5.0),
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10)
+        )
+    return _HTTP_CLIENT
+
+
+async def close_httpx_client():
+    """Close the singleton HTTP client if it exists."""
+    global _HTTP_CLIENT
+    if _HTTP_CLIENT is not None:
+        await _HTTP_CLIENT.aclose()
+        _HTTP_CLIENT = None
+
+
 # ⚡ Bolt: Prime psutil CPU calculation at module load.
 # This allows us to use interval=None in the route handler for non-blocking
 # CPU percentage retrieval, saving ~100ms of event loop block per request.
@@ -85,9 +110,9 @@ async def health_check():
     """Check server and Ollama connectivity with enhanced system metrics."""
     # Ollama status
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        client = get_httpx_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
     except Exception:
         ollama_ok = False
 
@@ -132,49 +157,67 @@ async def get_version():
             pass
     return {"version": "unknown", "build": 0}
 
+def _get_memory_count() -> int:
+    """Get total number of memories stored in the FTS store."""
+    try:
+        from backend.tools.memory import _get_fts_store
+        store = _get_fts_store()
+        return store.count() if store else 0
+    except Exception:
+        return 0
+
+
 @router.get("/hardware")
 async def hardware_status():
-    """Get system and Ollama hardware usage."""
+    """Get system, Ollama hardware, version, and memory stats (consolidated)."""
     # ⚡ Bolt: Use interval=None to avoid blocking the event loop for 100ms.
-    # Returns the average CPU usage since the last call (or module load).
-    cpu_pct = psutil.cpu_percent(interval=None)
-    mem = psutil.virtual_memory()
+    cpu_pct = psutil.cpu_percent(interval=None) if _PSUTIL_AVAILABLE else 0
+    mem = psutil.virtual_memory() if _PSUTIL_AVAILABLE else None
     system = {
         "cpu_percent": cpu_pct,
-        "ram_used_gb": round(mem.used / (1024**3), 1),
-        "ram_total_gb": round(mem.total / (1024**3), 1),
-        "ram_percent": mem.percent,
+        "ram_used_gb": round(mem.used / (1024**3), 1) if mem else 0,
+        "ram_total_gb": round(mem.total / (1024**3), 1) if mem else 0,
+        "ram_percent": mem.percent if mem else 0,
     }
 
     models = []
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
-            data = r.json()
-            for m in data.get("models", []):
-                models.append({
-                    "name": m.get("name", "unknown"),
-                    "size_gb": round(m.get("size", 0) / (1024**3), 1),
-                    "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
-                    "processor": m.get("details", {}).get("quantization_level", ""),
-                })
+        client = get_httpx_client()
+        r = await client.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=2.0)
+        data = r.json()
+        for m in data.get("models", []):
+            models.append({
+                "name": m.get("name", "unknown"),
+                "size_gb": round(m.get("size", 0) / (1024**3), 1),
+                "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
+                "processor": m.get("details", {}).get("quantization_level", ""),
+            })
     except Exception:
         pass
 
-    return {"loaded": len(models) > 0, "models": models, "system": system}
+    # ⚡ Bolt: Consolidate version and memory_count to reduce polling requests from frontend.
+    version_info = await get_version()
+
+    return {
+        "loaded": len(models) > 0,
+        "models": models,
+        "system": system,
+        "version": version_info.get("version", "unknown"),
+        "memory_count": _get_memory_count()
+    }
 
 @router.get("/models")
 async def list_models():
     """List available Ollama models."""
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
-            data = resp.json()
-            models = [
-                {"name": m["name"], "size": m.get("size", 0)}
-                for m in data.get("models", [])
-            ]
-            return {"models": models}
+        client = get_httpx_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
+        data = resp.json()
+        models = [
+            {"name": m["name"], "size": m.get("size", 0)}
+            for m in data.get("models", [])
+        ]
+        return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
 
@@ -202,9 +245,9 @@ async def health_ready():
     # Ollama check
     ollama_ok = False
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        client = get_httpx_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
         checks["ollama"] = "pass" if ollama_ok else "fail"
     except Exception:
         checks["ollama"] = "fail"
