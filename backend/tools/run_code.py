@@ -3,6 +3,7 @@ Run Code Tool — execute Python in a sandboxed subprocess.
 Pre-execution blocklist prevents dangerous operations.
 """
 
+import ast
 import asyncio
 import re
 import tempfile
@@ -24,23 +25,41 @@ BLOCKLIST_PATTERNS = [
     r"\bpathlib\.Path\([^)]*\)\.unlink\b",
     r"\.unlink\s*\(",
     r"\.rmdir\s*\(",
-    r"\bsubprocess\b.*\brm\b",
-    r"\bsubprocess\b.*\bdel\b",
-    r"\bsubprocess\b.*\brmdir\b",
-    r"\bsubprocess\b.*\bformat\b",
-    r"\bsend2trash\b",
-    r"\b__import__\s*\(\s*['\"]os['\"]\s*\)\s*\.remove\b",
+    r"\bsubprocess\b",
+    r"\bos\.system\b",
+    r"\bos\.popen\b",
+    r"\bos\.spawn\b",
+    r"\bshutil\b",
+    r"\bgetattr\b",
+    r"\b__import__\b",
     r"\bexec\s*\(",
     r"\beval\s*\(",
 ]
 
 
 def _safety_check(code: str) -> str | None:
-    """Scan code for dangerous patterns. Returns error message or None if safe."""
+    """Scan code for dangerous patterns using regex and AST. Returns error message or None if safe."""
+    # Stage 1: Fast Regex Check
     for pattern in BLOCKLIST_PATTERNS:
         match = re.search(pattern, code, re.IGNORECASE)
         if match:
-            return f"BLOCKED: Code contains dangerous operation: '{match.group()}'. LocalMind cannot delete files."
+            return f"BLOCKED: Code contains dangerous operation: '{match.group()}'. LocalMind cannot delete files or run system commands."
+
+    # Stage 2: AST Analysis (detect obfuscated calls)
+    try:
+        tree = ast.parse(code)
+        for node in ast.walk(tree):
+            # Block direct calls: eval(), exec(), __import__(), getattr()
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                if node.func.id in {"eval", "exec", "__import__", "getattr"}:
+                    return f"BLOCKED: Call to dangerous builtin '{node.func.id}'"
+            # Block attribute access: os.system, subprocess.run, etc.
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                if node.value.id in {"os", "subprocess", "shutil"} and not node.attr.startswith("_"):
+                    return f"BLOCKED: Access to dangerous module attribute '{node.value.id}.{node.attr}'"
+    except SyntaxError:
+        pass  # Subprocess will catch syntax errors during execution
+
     return None
 
 
