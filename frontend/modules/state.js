@@ -130,9 +130,16 @@ export function resetAutoScroll() {
   _userScrolledUp = false;
 }
 
-export function autoResize() {
-  if (messageInput) {
-    messageInput.style.height = "auto";
-    messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + "px";
+export function autoResize(elOrEvt) {
+  let target = messageInput;
+  if (elOrEvt instanceof HTMLElement) {
+    target = elOrEvt;
+  } else if (elOrEvt && elOrEvt.target instanceof HTMLElement) {
+    target = elOrEvt.target;
+  }
+
+  if (target) {
+    target.style.height = "auto";
+    target.style.height = Math.min(target.scrollHeight, 150) + "px";
   }
 }

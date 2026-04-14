@@ -13,7 +13,7 @@
  *   initTaskCreation()  -- inject HTML into #taskCreationArea, bind events
  */
 
-import { API } from "./state.js";
+import { API, autoResize } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 
 // ---------------------------------------------------------------------------
@@ -122,6 +122,7 @@ function _buildHTML() {
       id="tcRunNowBtn"
       class="btn-base btn-primary flex items-center gap-1.5"
       title="Submit this task immediately for quick AI processing"
+      aria-label="Run task now"
     >
       <span class="material-symbols-outlined text-sm">bolt</span> Run Now
     </button>
@@ -129,6 +130,7 @@ function _buildHTML() {
       id="tcCustomizeBtn"
       class="btn-base btn-ghost flex items-center gap-1.5"
       title="Expand the pipeline editor to customize individual steps, choose tools, and set priority"
+      aria-label="Customize pipeline"
     >
       <span class="material-symbols-outlined text-sm" id="tcCustomizeIcon">tune</span>
       <span id="tcCustomizeLabel">Customize Pipeline</span>
@@ -168,6 +170,7 @@ function _buildHTML() {
         id="tcAddNodeBtn"
         class="btn-base btn-ghost flex items-center gap-1"
         title="Add another step to the pipeline"
+        aria-label="Add pipeline step"
       >
         <span class="material-symbols-outlined text-sm">add</span> Add Step
       </button>
@@ -182,6 +185,7 @@ function _buildHTML() {
         id="tcRunPipelineBtn"
         class="btn-base btn-primary flex items-center gap-1.5"
         title="Submit this multi-step pipeline for the AI to execute"
+        aria-label="Run full pipeline"
       >
         <span class="material-symbols-outlined text-sm">rocket_launch</span> Run Pipeline
       </button>
@@ -213,7 +217,7 @@ function _buildNodeCard(index, node) {
       <span class="flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-bold">${index + 1}</span>
       <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Step ${index + 1}</span>
     </div>
-    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline">
+    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline" aria-label="Remove step ${index + 1}">
       <span class="material-symbols-outlined text-sm pointer-events-none">close</span>
     </button>
   </div>
@@ -270,10 +274,10 @@ function _renderFilePreview() {
     <div class="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/40 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
       <span class="material-symbols-outlined text-xs text-slate-500">description</span>
       <span class="max-w-[120px] truncate" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
-      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file">
+      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file" aria-label="Remove file ${escapeHtml(f.name)}">
         <span class="material-symbols-outlined text-xs pointer-events-none">close</span>
       </button>
-    </div>`
+    </div>`,
     )
     .join("");
 }
@@ -575,7 +579,19 @@ function _bindEvents() {
   const dropZone = el("tcDropZone");
   const fileInput = el("tcFileInput");
 
+  if (dropZone) {
+    dropZone.setAttribute("role", "button");
+    dropZone.setAttribute("tabindex", "0");
+    dropZone.setAttribute("aria-label", "Drop files or click to upload");
+  }
+
   dropZone?.addEventListener("click", () => fileInput?.click());
+  dropZone?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInput?.click();
+    }
+  });
 
   fileInput?.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
@@ -618,7 +634,8 @@ function _bindEvents() {
   });
 
   // Ctrl+Enter / Cmd+Enter to submit from textarea
-  el("tcDescription")?.addEventListener("keydown", (e) => {
+  const desc = el("tcDescription");
+  desc?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       if (_pipelineExpanded) {
@@ -626,9 +643,17 @@ function _bindEvents() {
         const priority = parseInt(el("tcPriorityRange")?.value || "5", 10);
         submitPipelineTask(_nodes, priority, _droppedFiles);
       } else {
-        const desc = el("tcDescription")?.value?.trim() || "";
-        submitQuickTask(desc, _droppedFiles);
+        const descVal = desc.value?.trim() || "";
+        submitQuickTask(descVal, _droppedFiles);
       }
+    }
+  });
+
+  // Auto-resize for main description and delegated for nodes
+  desc?.addEventListener("input", autoResize);
+  el("tcNodeContainer")?.addEventListener("input", (e) => {
+    if (e.target.classList.contains("tc-node-instructions")) {
+      autoResize(e);
     }
   });
 }
