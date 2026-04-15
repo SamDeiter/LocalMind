@@ -155,6 +155,8 @@ _SECRET_RAW: list[str] = [
     # OpenAI
     r"sk-[A-Za-z0-9\-_]{20,}",
     r"sk-proj-[A-Za-z0-9\-_]{20,}",
+    # Google API Key
+    r"AIza[a-zA-Z0-9_-]{35}",
     # Slack
     r"xox[bpars]-[A-Za-z0-9\-]{10,}",
     # AWS
