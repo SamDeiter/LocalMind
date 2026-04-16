@@ -130,9 +130,10 @@ export function resetAutoScroll() {
   _userScrolledUp = false;
 }
 
-export function autoResize() {
-  if (messageInput) {
-    messageInput.style.height = "auto";
-    messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + "px";
+export function autoResize(elOrEvt) {
+  const el = elOrEvt?.target || elOrEvt || messageInput;
+  if (el) {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 150) + "px";
   }
 }
