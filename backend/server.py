@@ -25,6 +25,7 @@ from backend.config import (
     MODEL_TIERS,
 )
 from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
+from backend.utils.http_client import get_async_client, close_async_client
 from backend.tools.registry import ToolRegistry
 from backend.metacognition.controller import MetaCognitiveController
 from backend import notifications, gemini_client, db
@@ -214,6 +215,9 @@ async def lifespan(app: FastAPI):
     logger.info("Data protection tasks started (VACUUM every %dh, purge retention %dd)",
                 VACUUM_INTERVAL_HOURS, JOB_RETENTION_DAYS)
 
+    # ── HTTP Connection Pooling ────────────────────────────────
+    get_async_client()
+
     # ── Start main workers ──────────────────────────────────────
     asyncio.create_task(job_worker.start())
 
@@ -226,6 +230,7 @@ async def lifespan(app: FastAPI):
 
     # ── Graceful shutdown ───────────────────────────────────────
     await job_worker.stop()
+    await close_async_client()
     if gc_worker:
         await gc_worker.stop()
     if slack_bot:
