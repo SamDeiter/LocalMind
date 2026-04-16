@@ -13,7 +13,7 @@
  *   initTaskCreation()  -- inject HTML into #taskCreationArea, bind events
  */
 
-import { API } from "./state.js";
+import { API, autoResize } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 
 // ---------------------------------------------------------------------------
@@ -105,8 +105,11 @@ function _buildHTML() {
   <!-- File drop zone -->
   <div
     id="tcDropZone"
-    class="mb-3 border border-dashed border-slate-700/60 rounded-lg px-4 py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all group"
+    role="button"
+    tabindex="0"
+    class="mb-3 border border-dashed border-slate-700/60 rounded-lg px-4 py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all group focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
     title="Drag and drop files here, or click to browse for files to attach"
+    aria-label="Upload files"
   >
     <span class="material-symbols-outlined text-lg text-slate-500 group-hover:text-primary transition-colors">cloud_upload</span>
     <span class="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">Drop files or click to upload</span>
@@ -314,6 +317,14 @@ function addNode() {
 
 function removeNode(index) {
   if (index < 0 || index >= _nodes.length) return;
+  const node = _nodes[index];
+  const hasContent = node.title?.trim() || node.instructions?.trim();
+  if (
+    hasContent &&
+    !confirm("Are you sure you want to remove this step? Your progress will be lost.")
+  ) {
+    return;
+  }
   _nodes.splice(index, 1);
   if (_nodes.length === 0) addNode(); // always keep at least one
   _renderNodes();
@@ -577,6 +588,14 @@ function _bindEvents() {
 
   dropZone?.addEventListener("click", () => fileInput?.click());
 
+  // Keyboard support for drop zone
+  dropZone?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInput?.click();
+    }
+  });
+
   fileInput?.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
     _droppedFiles.push(...files);
@@ -615,6 +634,16 @@ function _bindEvents() {
     const idx = parseInt(removeBtn.dataset.index, 10);
     _droppedFiles.splice(idx, 1);
     _renderFilePreview();
+  });
+
+  // Auto-resize task description
+  el("tcDescription")?.addEventListener("input", autoResize);
+
+  // Auto-resize node instructions (delegated)
+  el("tcNodeContainer")?.addEventListener("input", (e) => {
+    if (e.target.classList.contains("tc-node-instructions")) {
+      autoResize(e.target);
+    }
   });
 
   // Ctrl+Enter / Cmd+Enter to submit from textarea
