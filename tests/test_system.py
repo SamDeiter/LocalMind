@@ -9,7 +9,7 @@ def client():
 
 def test_hardware_status_success(client):
     """Test the /api/hardware endpoint returns correct structure."""
-    with patch("backend.routes.system.httpx.AsyncClient") as MockClient:
+    with patch("backend.routes.system.get_async_client") as mock_get_client:
         # Mock Ollama API response
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -17,9 +17,7 @@ def test_hardware_status_success(client):
 
         instance = AsyncMock()
         instance.get.return_value = mock_resp
-        instance.__aenter__ = AsyncMock(return_value=instance)
-        instance.__aexit__ = AsyncMock(return_value=False)
-        MockClient.return_value = instance
+        mock_get_client.return_value = instance
 
         response = client.get("/api/hardware")
         assert response.status_code == 200
