@@ -5,6 +5,7 @@ Pre-execution blocklist prevents dangerous operations.
 
 import asyncio
 import re
+import ast
 import tempfile
 from pathlib import Path
 
@@ -32,15 +33,66 @@ BLOCKLIST_PATTERNS = [
     r"\b__import__\s*\(\s*['\"]os['\"]\s*\)\s*\.remove\b",
     r"\bexec\s*\(",
     r"\beval\s*\(",
+    # Obfuscation prevention
+    r"\bbase64\b",
+    r"\bbinascii\b",
 ]
 
 
 def _safety_check(code: str) -> str | None:
-    """Scan code for dangerous patterns. Returns error message or None if safe."""
+    """Scan code for dangerous patterns using Regex and AST analysis.
+    Returns error message or None if safe.
+    """
+    # Layer 1: Regex first-pass
     for pattern in BLOCKLIST_PATTERNS:
         match = re.search(pattern, code, re.IGNORECASE)
         if match:
-            return f"BLOCKED: Code contains dangerous operation: '{match.group()}'. LocalMind cannot delete files."
+            return f"BLOCKED: Code contains dangerous operation (regex): '{match.group()}'. LocalMind cannot delete files."
+
+    # Layer 2: AST analysis for deeper detection (aliasing, getattr obfuscation)
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return f"Syntax error in code: {e}"
+
+    BLOCKED_MODULES = {"os", "subprocess", "shutil", "pty", "commands", "runpy", "pickle", "marshal", "shelve"}
+    BLOCKED_FUNCS = {"eval", "exec", "__import__", "getattr", "setattr", "delattr", "compile"}
+
+    issues = []
+    for node in ast.walk(tree):
+        # 1. Direct Name Access (blocking 'os', 'eval', etc. even as variables)
+        if isinstance(node, ast.Name):
+            if node.id in BLOCKED_MODULES or node.id in BLOCKED_FUNCS:
+                issues.append(f"use of blocked name '{node.id}'")
+
+        # 2. Imports
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            modules = []
+            if isinstance(node, ast.Import):
+                modules = [alias.name.split('.')[0] for alias in node.names]
+            else:
+                if node.module:
+                    modules = [node.module.split('.')[0]]
+
+            for mod in modules:
+                if mod in BLOCKED_MODULES:
+                    issues.append(f"importing blocked module '{mod}'")
+
+        # 3. Attribute Access (e.g. builtins.eval)
+        elif isinstance(node, ast.Attribute):
+            if node.attr in BLOCKED_FUNCS:
+                issues.append(f"accessing blocked attribute '{node.attr}'")
+
+        # 4. Function Calls with dynamic string building (getattr(os, 'sys' + 'tem'))
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id == "getattr":
+                # Already caught by Name check, but here we can check for string concatenation
+                if len(node.args) >= 2 and isinstance(node.args[1], ast.BinOp):
+                    issues.append("dynamic attribute access via string concatenation")
+
+    if issues:
+        return f"BLOCKED: Code failed safety check: {', '.join(issues)}. LocalMind restricts dangerous operations."
+
     return None
 
 
