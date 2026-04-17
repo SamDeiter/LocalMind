@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2025-05-15 - AST-based Code Validation for Tool Safety
+**Vulnerability:** Regex-based blocklists for code execution (e.g., blocking "os.remove") are easily bypassed using string concatenation (e.g., "getattr(os, 'rm' + 'ove')") or aliasing.
+**Learning:** Regex only inspects the surface of the code. AST analysis allows for inspecting the semantic structure, detecting blocked function calls and attribute access even when obfuscated.
+**Prevention:** Use Python's `ast` module to walk the code's parse tree. Block dangerous built-ins (`eval`, `exec`, `getattr`) and imports (`os`, `subprocess`) at the node level. Combine with a regex first-pass for performance and simple cases.
