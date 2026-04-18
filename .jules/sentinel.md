@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2024-07-05 - Masked Secret Preservation Pattern
+**Vulnerability:** Redacting secrets in API responses (e.g., `****`) can lead to accidental corruption if the client submits the masked string back during a settings update, overwriting the real secret with the mask.
+**Learning:** Manual masking in individual routes is error-prone and often inconsistent (e.g., different mask lengths or omitted fields).
+**Prevention:** Use a centralized `_mask_settings` helper for all GET responses. In POST handlers, explicitly check if a sensitive field matches the mask string and restore the original value from persistent storage before saving.
