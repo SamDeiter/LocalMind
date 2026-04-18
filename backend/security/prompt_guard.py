@@ -166,6 +166,8 @@ _SECRET_RAW: list[str] = [
     r"ghs_[A-Za-z0-9]{36}",
     r"gho_[A-Za-z0-9]{36}",
     r"github_pat_[A-Za-z0-9_]{82}",
+    # Google API Key
+    r"AIza[a-zA-Z0-9_-]{35}",
     # Generic high-entropy tokens (≥32 alphanum chars in non-prose context)
     r'(?<![A-Za-z0-9])([A-Za-z0-9+/=]{32,})(?![A-Za-z0-9])',
 ]
