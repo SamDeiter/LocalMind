@@ -11,6 +11,7 @@ import httpx
 from typing import Dict, Any, List, Optional
 
 from backend import config
+from backend.utils.http_client import get_async_client
 
 logger = logging.getLogger("localmind.logic.load_monitor")
 
@@ -25,40 +26,34 @@ class LoadMonitor:
     async def get_gpu_state(self) -> Dict[str, Any]:
         """Query Ollama /api/ps for currently loaded models and VRAM usage.
 
-        Returns:
-            {
-                "loaded_models": [{"name": "gemma4:26b", "size_gb": 17.0, "vram_gb": 10.0}],
-                "total_vram_used_gb": 10.0,
-                "gpu_busy": True/False,
-            }
+        ⚡ Bolt: Reuses global pooled AsyncClient to optimize frequent polls.
         """
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.get(f"{self.ollama_url}/api/ps")
-                if resp.status_code != 200:
-                    logger.warning(f"Ollama /api/ps returned {resp.status_code}")
-                    return self._empty_state()
+            client = get_async_client()
+            resp = await client.get(f"{self.ollama_url}/api/ps", timeout=self._timeout)
+            if resp.status_code != 200:
+                logger.warning(f"Ollama /api/ps returned {resp.status_code}")
+                return self._empty_state()
 
-                data = resp.json()
-                loaded = []
-                total_vram = 0.0
+            data = resp.json()
+            loaded = []
+            total_vram = 0.0
 
-                for m in data.get("models", []):
-                    vram_gb = round(m.get("size_vram", 0) / (1024**3), 1)
-                    size_gb = round(m.get("size", 0) / (1024**3), 1)
-                    loaded.append({
-                        "name": m.get("name", "unknown"),
-                        "size_gb": size_gb,
-                        "vram_gb": vram_gb,
-                    })
-                    total_vram += vram_gb
+            for m in data.get("models", []):
+                vram_gb = round(m.get("size_vram", 0) / (1024**3), 1)
+                size_gb = round(m.get("size", 0) / (1024**3), 1)
+                loaded.append({
+                    "name": m.get("name", "unknown"),
+                    "size_gb": size_gb,
+                    "vram_gb": vram_gb,
+                })
+                total_vram += vram_gb
 
-                return {
-                    "loaded_models": loaded,
-                    "total_vram_used_gb": round(total_vram, 1),
-                    "gpu_busy": len(loaded) > 0,
-                }
-
+            return {
+                "loaded_models": loaded,
+                "total_vram_used_gb": round(total_vram, 1),
+                "gpu_busy": len(loaded) > 0,
+            }
         except Exception as e:
             logger.warning(f"Failed to query GPU state: {e}")
             return self._empty_state()
