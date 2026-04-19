@@ -487,18 +487,16 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
-                            issues.append(
-                                f"Arg '{arg_name}' escapes job directory: {resolved}"
-                            )
-                            logger.warning(
-                                "Path escape attempt in tool arg %s.%s: %r -> %s",
-                                tool_name, arg_name, arg_value, resolved,
-                            )
+                        # safe_resolve canonicalizes and enforces the jail; it raises
+                        # SecurityError (or other OS errors) if it escapes or is invalid.
+                        safe_resolve(job_dir, arg_value)
                     except Exception as exc:
                         issues.append(
-                            f"Arg '{arg_name}' path resolution failed: {exc}"
+                            f"Arg '{arg_name}' path validation failed: {exc}"
+                        )
+                        logger.warning(
+                            "Path validation failure in tool arg %s.%s: %r -> %s",
+                            tool_name, arg_name, arg_value, exc,
                         )
 
         valid = len(issues) == 0
