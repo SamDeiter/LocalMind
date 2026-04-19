@@ -179,26 +179,26 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
             f"Cannot resolve candidate path {candidate!r}: {exc}"
         ) from exc
 
-    # --- Enforce jail via string prefix comparison -------------------------
-    # We must compare strings (not Path parents) so that a jail at
-    # /data/uploads does NOT match /data/uploads_evil.
-    # Add the OS separator to avoid that exact prefix-collision scenario.
-    resolved_base_str = str(resolved_base)
-    resolved_candidate_str = str(resolved_candidate)
-
-    # Normalise case on Windows (NTFS is case-insensitive).
-    if os.name == "nt":
-        resolved_base_str = resolved_base_str.lower()
-        resolved_candidate_str = resolved_candidate_str.lower()
-
-    jail_prefix = resolved_base_str.rstrip(os.sep) + os.sep
-
-    if not (
-        resolved_candidate_str == resolved_base_str.rstrip(os.sep)
-        or resolved_candidate_str.startswith(jail_prefix)
-    ):
+    # --- Enforce jail ------------------------------------------------------
+    # Use is_relative_to (Python 3.9+) to ensure the candidate is strictly
+    # within the base directory. This handles path components correctly
+    # and avoids string-prefix bypasses (e.g. /tmp/jail matching /tmp/jail_evil).
+    try:
+        if not resolved_candidate.is_relative_to(resolved_base):
+            logger.warning(
+                "Path escape attempt: %r resolved to %r, outside jail %r",
+                user_path_str,
+                resolved_candidate,
+                resolved_base,
+            )
+            raise SecurityError(
+                f"Path {user_path_str!r} escapes the jail {resolved_base!r}"
+            )
+    except ValueError:
+        # is_relative_to raises ValueError if the paths are on different drives (Windows)
+        # or otherwise not relative.
         logger.warning(
-            "Path escape attempt: %r resolved to %r, outside jail %r",
+            "Path escape attempt (ValueError): %r resolved to %r, outside jail %r",
             user_path_str,
             resolved_candidate,
             resolved_base,
