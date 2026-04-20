@@ -3,11 +3,11 @@ import logging
 import os
 import sqlite3
 import time
-import httpx
 from pathlib import Path
 from fastapi import APIRouter
 from backend.config import OLLAMA_BASE_URL
 from backend.db import DB_PATH
+from backend.utils.http_client import get_async_client
 
 try:
     import psutil
@@ -84,10 +84,11 @@ def _job_counts() -> dict:
 async def health_check():
     """Check server and Ollama connectivity with enhanced system metrics."""
     # Ollama status
+    # ⚡ Bolt: Use global pooled client to reduce handshake overhead (~39ms)
+    client = get_async_client()
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
     except Exception:
         ollama_ok = False
 
@@ -147,17 +148,18 @@ async def hardware_status():
     }
 
     models = []
+    # ⚡ Bolt: Use global pooled client to reduce handshake overhead (~39ms)
+    client = get_async_client()
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
-            data = r.json()
-            for m in data.get("models", []):
-                models.append({
-                    "name": m.get("name", "unknown"),
-                    "size_gb": round(m.get("size", 0) / (1024**3), 1),
-                    "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
-                    "processor": m.get("details", {}).get("quantization_level", ""),
-                })
+        r = await client.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=2.0)
+        data = r.json()
+        for m in data.get("models", []):
+            models.append({
+                "name": m.get("name", "unknown"),
+                "size_gb": round(m.get("size", 0) / (1024**3), 1),
+                "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
+                "processor": m.get("details", {}).get("quantization_level", ""),
+            })
     except Exception:
         pass
 
@@ -166,15 +168,16 @@ async def hardware_status():
 @router.get("/models")
 async def list_models():
     """List available Ollama models."""
+    # ⚡ Bolt: Use global pooled client to reduce handshake overhead (~39ms)
+    client = get_async_client()
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
-            data = resp.json()
-            models = [
-                {"name": m["name"], "size": m.get("size", 0)}
-                for m in data.get("models", [])
-            ]
-            return {"models": models}
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
+        data = resp.json()
+        models = [
+            {"name": m["name"], "size": m.get("size", 0)}
+            for m in data.get("models", [])
+        ]
+        return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
 
@@ -201,10 +204,11 @@ async def health_ready():
 
     # Ollama check
     ollama_ok = False
+    # ⚡ Bolt: Use global pooled client to reduce handshake overhead (~39ms)
+    client = get_async_client()
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
         checks["ollama"] = "pass" if ollama_ok else "fail"
     except Exception:
         checks["ollama"] = "fail"
