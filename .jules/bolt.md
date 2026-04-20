@@ -4,3 +4,6 @@
 ## 2025-05-15 - Non-blocking System Metrics in FastAPI
 **Learning:** Using `psutil.cpu_percent(interval=0.1)` in an async FastAPI route blocks the entire event loop for 100ms. This significantly increases latency for all concurrent requests.
 **Action:** Always prime `psutil.cpu_percent(interval=None)` at module load or startup and use `interval=None` in async handlers to retrieve metrics instantly without blocking.
+## 2025-04-20 - Pooled HTTP Client for Reduced Latency
+**Learning:** Profiling revealed that creating a new `httpx.AsyncClient` per request (common in LLM streaming and polling tasks) adds ~39ms of overhead per lifecycle event due to connection handshakes.
+**Action:** Implement a singleton pooled `AsyncClient` in a utility module and refactor hot paths to reuse it, ensuring proper cleanup during application shutdown.

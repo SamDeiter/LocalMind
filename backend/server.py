@@ -39,6 +39,7 @@ from backend.security.redact import install_redacting_filter
 from backend.security.data_protection import (
     harden_db_permissions, schedule_vacuum, daily_purge_loop,
 )
+from backend.utils.http_client import close_async_client
 
 # -- Logging --
 logging.basicConfig(
@@ -230,6 +231,7 @@ async def lifespan(app: FastAPI):
         await gc_worker.stop()
     if slack_bot:
         await slack_bot.stop()
+    await close_async_client()
 
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""
