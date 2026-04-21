@@ -99,6 +99,9 @@ function _skeleton() {
       </div>
 
       <div class="lm-page__actions" id="jdActions">
+        <button type="button" class="lm-btn lm-btn--ghost lm-btn--sm lm-job-detail__inspector-toggle" id="jdInspectorToggle" aria-label="Toggle inspector panel" aria-pressed="false">
+          <span class="material-symbols-outlined" aria-hidden="true">info</span>
+        </button>
         <button type="button" class="lm-btn lm-btn--ghost lm-btn--sm" id="jdSaveTemplate" hidden>
           <span class="material-symbols-outlined" aria-hidden="true">bookmark_add</span> Save as template
         </button>
@@ -236,6 +239,19 @@ function _bindStaticEvents(root) {
   root.querySelector("#jdSaveTemplate")?.addEventListener("click", _saveAsTemplate);
   root.querySelector("#jdApprove")?.addEventListener("click", () => _review("approve"));
   root.querySelector("#jdReject")?.addEventListener("click", () => _review("reject"));
+
+  // Inspector toggle (mobile only — CSS hides the button on desktop)
+  root.querySelector("#jdInspectorToggle")?.addEventListener("click", () => {
+    const panel = document.getElementById("jobDetailPanel");
+    if (!panel) return;
+    const hidden = panel.dataset.inspector === "hidden";
+    if (hidden) {
+      panel.removeAttribute("data-inspector");
+    } else {
+      panel.dataset.inspector = "hidden";
+    }
+    root.querySelector("#jdInspectorToggle")?.setAttribute("aria-pressed", String(!hidden));
+  });
 
   // Tab switching
   root.querySelectorAll("[data-tab]").forEach((btn) => {
@@ -420,38 +436,94 @@ function _timelineRow(step) {
 function _renderOutput(job) {
   const el = document.getElementById("jdOutput");
   if (!el) return;
-  const out = job.output || job.result || job.summary || job.final_output;
+
+  // Prefer explicit top-level output; fall back to walking node outputs.
+  let out = job.output || job.result || job.summary || job.final_output;
+  if (!out) {
+    const pieces = [];
+    for (const node of Array.isArray(job.nodes) ? job.nodes : []) {
+      const raw = node.output_json;
+      if (!raw) continue;
+      let parsed = raw;
+      if (typeof raw === "string") {
+        try { parsed = JSON.parse(raw); } catch (_) { parsed = { result: raw }; }
+      }
+      const text = parsed?.result ?? parsed?.output ?? parsed?.text ??
+                   (typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2));
+      if (text) {
+        const header = node.title ? `## ${node.title}\n\n` : "";
+        pieces.push(header + String(text));
+      }
+    }
+    if (pieces.length) out = pieces.join("\n\n---\n\n");
+    else if (job.result_summary) out = job.result_summary;
+  }
+
   if (!out) {
     el.innerHTML = `<div class="lm-home__empty">Waiting for output…</div>`;
     return;
   }
-  const text = typeof out === "string" ? out : JSON.stringify(out, null, 2);
-  // Render markdown if the global marked lib is present
+  let text = typeof out === "string" ? out : JSON.stringify(out, null, 2);
+  text = _normalizeMarkdown(text);
+
   if (typeof window !== "undefined" && window.marked) {
     try {
+      if (typeof window.marked.setOptions === "function") {
+        window.marked.setOptions({ gfm: true, breaks: true });
+      }
       el.innerHTML = window.marked.parse(text);
+      if (window.hljs) {
+        el.querySelectorAll("pre code").forEach((block) => {
+          try { window.hljs.highlightElement(block); } catch (_) {}
+        });
+      }
       return;
     } catch (_) { /* fallthrough */ }
   }
   el.innerHTML = `<pre class="lm-output__pre">${escapeHtml(text)}</pre>`;
 }
 
+/**
+ * Normalize loose agent markdown so `marked` renders it with proper separation:
+ *  - Insert a blank line before lines that start with "**Label:**" so each
+ *    becomes its own paragraph instead of gluing to the prior one.
+ *  - Collapse runs of 3+ blank lines.
+ */
+function _normalizeMarkdown(src) {
+  if (!src) return "";
+  const lines = String(src).replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  const labelLine = /^\s*\*\*[^*\n]+:\*\*\s*/;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const prev = out.length ? out[out.length - 1] : "";
+    if (labelLine.test(line) && prev.trim() !== "") {
+      out.push("");
+    }
+    out.push(line);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
 function _renderLogs(job) {
   const el = document.getElementById("jdLogs");
   if (!el) return;
-  const logs = job.logs || job.trace || job.events || [];
+  // Backend exposes the execution trail as `audit` (list of {timestamp, actor, action, detail, node_id}).
+  const logs = job.logs || job.trace || job.events || job.audit || [];
   if (!Array.isArray(logs) || logs.length === 0) {
     el.textContent = "";
     el.innerHTML = `<div class="lm-home__empty" style="padding:var(--lm-space-4);">No log entries.</div>`;
     return;
   }
-  el.textContent = logs
+  // Audit events come newest-first; show oldest-first for a readable log.
+  const ordered = [...logs].reverse();
+  el.textContent = ordered
     .map((l) => {
       if (typeof l === "string") return l;
       const t = l.time || l.timestamp || "";
-      const lvl = l.level || "info";
-      const msg = l.message || l.text || JSON.stringify(l);
-      return `${t ? `[${t}] ` : ""}${lvl.padEnd(5)} ${msg}`;
+      const lvl = l.level || l.actor || l.action || "info";
+      const msg = l.message || l.text || l.detail || (l.action && !l.detail ? l.action : "") || JSON.stringify(l);
+      return `${t ? `[${t}] ` : ""}${String(lvl).padEnd(10)} ${msg}`;
     })
     .join("\n");
 }
@@ -489,18 +561,85 @@ function _renderEvidence(job) {
   const el = document.getElementById("jdEvidence");
   if (!el) return;
 
-  const sources    = job.sources || job.citations || [];
-  const checks     = job.safety_checks || job.checks || [];
-  const qa         = job.qa || job.quality || {};
-  const toolTrace  = job.tool_calls || job.tool_trace || [];
+  // Top-level review summary (backend emits `result_summary`, e.g. "Review PASSED (score=1.00)").
+  const resultSummary = job.result_summary || "";
+  const reviewCount   = job.review_count ?? null;
+  const maxReviews    = job.max_reviews ?? null;
 
-  const hasAny = sources.length || checks.length || Object.keys(qa).length || toolTrace.length;
+  // Pull tool & review events out of the audit trail (newest-first).
+  const audit = Array.isArray(job.audit) ? job.audit : [];
+  const toolEvents   = audit.filter((a) => {
+    const act = String(a.action || "").toLowerCase();
+    return act.includes("tool") || a.tool || a.tool_name;
+  });
+  const reviewEvents = audit.filter((a) => {
+    const act = String(a.action || "").toLowerCase();
+    return act.includes("review") || act === "qa" || act === "revise";
+  });
+
+  // Legacy fields (kept as a fallback if a backend ever populates them).
+  const sources   = job.sources || job.citations || [];
+  const checks    = job.safety_checks || job.checks || [];
+  const qa        = job.qa || job.quality || {};
+  const toolTrace = job.tool_calls || job.tool_trace || [];
+
+  const hasAny =
+    resultSummary ||
+    reviewCount != null ||
+    toolEvents.length ||
+    reviewEvents.length ||
+    sources.length ||
+    checks.length ||
+    Object.keys(qa).length ||
+    toolTrace.length;
+
   if (!hasAny) {
     el.innerHTML = `<div class="lm-home__empty">No evidence recorded yet.</div>`;
     return;
   }
 
   el.innerHTML = `
+    ${resultSummary || reviewCount != null ? `
+      <div class="lm-evidence__group">
+        <div class="lm-label">Review</div>
+        ${resultSummary ? `<div class="lm-evidence__summary">${escapeHtml(resultSummary)}</div>` : ""}
+        ${reviewCount != null ? `
+          <div class="lm-mute lm-mono" style="margin-top:4px;">
+            ${escapeHtml(String(reviewCount))}${maxReviews != null ? ` / ${escapeHtml(String(maxReviews))}` : ""} review${reviewCount === 1 ? "" : "s"}
+          </div>
+        ` : ""}
+      </div>
+    ` : ""}
+
+    ${reviewEvents.length ? `
+      <div class="lm-evidence__group">
+        <div class="lm-label">Review events (${reviewEvents.length})</div>
+        <ol class="lm-evidence__trace">
+          ${[...reviewEvents].reverse().map((e) => `
+            <li>
+              <span class="lm-mono">${escapeHtml(e.action || e.actor || "review")}</span>
+              ${e.detail ? `<span class="lm-mute">— ${escapeHtml(String(e.detail))}</span>` : ""}
+              ${e.timestamp ? `<span class="lm-mute lm-mono" style="margin-left:auto;">${escapeHtml(String(e.timestamp))}</span>` : ""}
+            </li>
+          `).join("")}
+        </ol>
+      </div>
+    ` : ""}
+
+    ${toolEvents.length ? `
+      <div class="lm-evidence__group">
+        <div class="lm-label">Tool events (${toolEvents.length})</div>
+        <ol class="lm-evidence__trace">
+          ${[...toolEvents].reverse().map((t) => `
+            <li>
+              <span class="lm-mono">${escapeHtml(t.tool || t.tool_name || t.action || "tool")}</span>
+              ${t.detail ? `<span class="lm-mute">— ${escapeHtml(String(t.detail))}</span>` : ""}
+            </li>
+          `).join("")}
+        </ol>
+      </div>
+    ` : ""}
+
     ${Object.keys(qa).length ? `
       <div class="lm-evidence__group">
         <div class="lm-label">Quality</div>

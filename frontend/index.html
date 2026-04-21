@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css"/>
     <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 
     <link rel="stylesheet" href="design/tokens.css"/>
     <link rel="stylesheet" href="design/shell.css"/>
@@ -98,8 +99,14 @@
     </div>
   </aside>
 
+  <!-- ── NAV SCRIM (mobile off-canvas backdrop) ────────────────── -->
+  <div class="lm-nav-scrim" id="navScrim" aria-hidden="true"></div>
+
   <!-- ── TOP BAR ───────────────────────────────────────────────── -->
   <header class="lm-topbar" role="banner">
+    <button type="button" class="lm-topbar__hamburger" id="navHamburger" aria-label="Open navigation" aria-controls="navRail" aria-expanded="false">
+      <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+    </button>
     <div class="lm-topbar__search">
       <span class="material-symbols-outlined" aria-hidden="true">search</span>
       <input type="search" id="globalSearch" placeholder="Search jobs, artifacts, memory…" aria-label="Global search"/>

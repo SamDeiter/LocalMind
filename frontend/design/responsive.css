@@ -17,6 +17,106 @@
 
 
 /* ═════════════════════════════════════════════════════════════
+ * ── MOBILE-TOGGLE ELEMENTS (hidden on desktop by default) ──
+ * Hamburger button, nav scrim, job-detail inspector toggle,
+ * artifact preview close button. Revealed inside the phone
+ * / tablet breakpoints below.
+ * ═════════════════════════════════════════════════════════════ */
+.lm-topbar__hamburger,
+.lm-nav-scrim,
+.lm-job-detail__inspector-toggle,
+.lm-artifacts-page__preview-close {
+  display: none;
+}
+
+/* Hamburger: topbar icon button, large tap target */
+.lm-topbar__hamburger {
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: var(--lm-space-2);
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--lm-radius);
+  color: var(--lm-text-secondary);
+  cursor: pointer;
+  transition: background var(--lm-dur-quick) var(--lm-ease),
+              border-color var(--lm-dur-quick) var(--lm-ease),
+              color var(--lm-dur-quick) var(--lm-ease);
+}
+.lm-topbar__hamburger:hover {
+  background: var(--lm-surface-3);
+  border-color: var(--lm-border-strong);
+  color: var(--lm-text-primary);
+}
+.lm-topbar__hamburger:focus-visible {
+  outline: none;
+  box-shadow: var(--lm-focus-ring);
+}
+
+/* Nav scrim: fullscreen backdrop behind the off-canvas nav */
+.lm-nav-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--lm-scrim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--lm-dur-base) var(--lm-ease);
+  z-index: calc(var(--lm-z-drawer) - 1);
+}
+.lm-nav-scrim[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Inspector toggle in job detail header — shown on phone only */
+.lm-job-detail__inspector-toggle {
+  align-items: center;
+  justify-content: center;
+}
+
+/* Artifact preview close — slide-up sheet dismiss button */
+.lm-artifacts-page__preview-close {
+  position: absolute;
+  top: var(--lm-space-3);
+  right: var(--lm-space-3);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  background: var(--lm-surface-2);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: var(--lm-radius-pill);
+  color: var(--lm-text-secondary);
+  cursor: pointer;
+  z-index: 1;
+}
+.lm-artifacts-page__preview-close:hover {
+  background: var(--lm-surface-3);
+  color: var(--lm-text-primary);
+}
+
+/* Reveal the hamburger + scrim at tablet and below */
+@media (max-width: 960px) {
+  .lm-topbar__hamburger,
+  .lm-nav-scrim {
+    display: flex;
+  }
+}
+
+/* Reveal the inspector + preview close at phone only */
+@media (max-width: 640px) {
+  .lm-job-detail__inspector-toggle,
+  .lm-artifacts-page__preview-close {
+    display: flex;
+  }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
  * ── COMPACT DESKTOP / LARGE TABLET LANDSCAPE  ≤1280px ──
  * Nav rail collapses to icon rail. Topbar tightens.
  * Utility strip sheds optional metrics (GPU sparkline, Workers)
@@ -164,21 +264,8 @@
     transform: translateX(0);
   }
 
-  /* Scrim — a pseudo-element on .lm-app shows while nav is open. */
-  .lm-app::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: var(--lm-scrim);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--lm-dur-base) var(--lm-ease);
-    z-index: calc(var(--lm-z-drawer) - 1);
-  }
-  .lm-app:has(.lm-nav[data-open="true"])::after {
-    opacity: 1;
-    pointer-events: auto;
-  }
+  /* Scrim is a real element (#navScrim) wired by nav_rail.js so it
+     can receive clicks — see the shared mobile-toggle block above. */
 
   /* Also honour the legacy [data-nav-collapsed] attribute by
      keeping the rail off-canvas regardless — on tablet there is

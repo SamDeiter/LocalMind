@@ -10,6 +10,23 @@ and this project adheres to semantic versioning.
 
 ### Added
 
+- _(nothing yet)_
+
+## [2.0.0] - Mission Control - 2026-04-21
+
+### Added
+
+- **Mobile nav toggles wired end-to-end.** Hamburger button in the topbar
+  (visible ≤960 px) opens the off-canvas nav via `[data-open="true"]`;
+  real `#navScrim` element receives clicks and closes the nav (replaces
+  the earlier `::after` pseudo-scrim that couldn't intercept pointer events).
+  Esc closes the nav; tapping any nav item auto-closes on phone.
+- **Job Detail inspector toggle.** Phone-only info button in the detail
+  header flips `[data-inspector="hidden"]` on the panel, hiding the right
+  pane for reading-friendly layout.
+- **Artifact preview slide-up sheet on phone.** Selecting a row sets
+  `[data-preview="open"]` on the page root; a close button in the preview
+  head slides it back down. Desktop two-pane layout is unchanged.
 - **v2 IA redesign — Phase 3** — Operations, Knowledge, Settings, responsive pass,
   and legacy cleanup. All five shipped in parallel, each in exclusive files.
   - **Operations page** (`frontend/modules/ops_ui.js` + `frontend/design/ops.css`):

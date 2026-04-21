@@ -36,6 +36,7 @@ export function initArtifactsUI() {
   const target = document.getElementById("artifactsContainer");
   if (!target) return;
 
+  target.classList.add("lm-artifacts-page");
   target.innerHTML = /* html */ `
     <header class="lm-page__header">
       <div>
@@ -76,6 +77,9 @@ export function initArtifactsUI() {
         ${_skeletonRows(6)}
       </aside>
       <section class="lm-artifacts-page__preview" id="artifactsPreview" aria-label="Preview">
+        <button type="button" class="lm-artifacts-page__preview-close" id="artifactsPreviewClose" aria-label="Close preview">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
         <div class="lm-artifacts-page__preview-empty">
           Select an artifact to preview it here.
         </div>
@@ -105,6 +109,10 @@ function _bindEvents(root) {
       });
       _renderList();
     });
+  });
+
+  root.querySelector("#artifactsPreviewClose")?.addEventListener("click", () => {
+    root.removeAttribute("data-preview");
   });
 }
 
@@ -181,7 +189,10 @@ function _renderList() {
         b.setAttribute("aria-selected", String(b.dataset.key === key));
       });
       const artifact = _artifacts.find((a) => `${a.jobId}/${a.fid}` === key);
-      if (artifact) _renderPreview(artifact);
+      if (artifact) {
+        _renderPreview(artifact);
+        document.getElementById("artifactsContainer")?.setAttribute("data-preview", "open");
+      }
     });
   });
 }

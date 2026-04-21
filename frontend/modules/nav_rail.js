@@ -84,10 +84,24 @@ export function currentNav() {
 // ── Init ────────────────────────────────────────────────────────
 
 export function initNavRail() {
-  // Nav rail item clicks
+  // Nav rail item clicks — on phone, close the off-canvas nav after a tap
   document.querySelectorAll("#navRail [data-nav]").forEach((btn) => {
-    btn.addEventListener("click", () => switchNav(btn.dataset.nav));
+    btn.addEventListener("click", () => {
+      switchNav(btn.dataset.nav);
+      _closeMobileNav();
+    });
   });
+
+  // Hamburger (mobile only — CSS hides it on desktop)
+  document.getElementById("navHamburger")?.addEventListener("click", () => {
+    const nav = document.getElementById("navRail");
+    if (!nav) return;
+    const open = nav.dataset.open === "true";
+    if (open) _closeMobileNav(); else _openMobileNav();
+  });
+
+  // Scrim click → close mobile nav
+  document.getElementById("navScrim")?.addEventListener("click", () => _closeMobileNav());
 
   // "+ New Job" CTA — open drawer
   const newJobBtn = document.getElementById("newJobBtn");
@@ -124,6 +138,7 @@ export function initNavRail() {
 
     if (e.key === "Escape") {
       if (_isDrawerOpen()) _closeNewJobDrawer();
+      else if (_isMobileNavOpen()) _closeMobileNav();
       return;
     }
 
@@ -162,6 +177,37 @@ function _closeNewJobDrawer() {
 function _isDrawerOpen() {
   const drawer = document.getElementById("newJobDrawer");
   return drawer?.dataset.open === "true";
+}
+
+// ── Mobile nav (off-canvas) ─────────────────────────────────────
+
+function _openMobileNav() {
+  const nav = document.getElementById("navRail");
+  const scrim = document.getElementById("navScrim");
+  const btn = document.getElementById("navHamburger");
+  if (nav) nav.dataset.open = "true";
+  if (scrim) {
+    scrim.dataset.open = "true";
+    scrim.setAttribute("aria-hidden", "false");
+  }
+  btn?.setAttribute("aria-expanded", "true");
+}
+
+function _closeMobileNav() {
+  const nav = document.getElementById("navRail");
+  const scrim = document.getElementById("navScrim");
+  const btn = document.getElementById("navHamburger");
+  if (nav) nav.dataset.open = "false";
+  if (scrim) {
+    scrim.dataset.open = "false";
+    scrim.setAttribute("aria-hidden", "true");
+  }
+  btn?.setAttribute("aria-expanded", "false");
+}
+
+function _isMobileNavOpen() {
+  const nav = document.getElementById("navRail");
+  return nav?.dataset.open === "true";
 }
 
 // ── Lazy initialization per section ─────────────────────────────
