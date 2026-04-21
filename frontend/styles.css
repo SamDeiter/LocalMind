@@ -670,6 +670,238 @@ body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   MEMORY VIEWER — cards, groups, chips, search
+   ═══════════════════════════════════════════════════════════════════ */
+#memoryList {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-size: 0.8125rem;
+    color: #cbd5e1;
+}
+.memory-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 0.875rem 1rem;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(51, 65, 85, 0.35);
+    border-radius: 0.75rem;
+    position: sticky;
+    top: 0;
+    backdrop-filter: blur(10px);
+    z-index: 5;
+}
+.memory-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+.memory-total {
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #64748b;
+    margin-right: 0.25rem;
+}
+.memory-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3125rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    border: 1px solid rgba(71, 85, 105, 0.35);
+    background: rgba(30, 41, 59, 0.5);
+    color: #94a3b8;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+.memory-chip:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #e2e8f0;
+}
+.memory-chip-active {
+    background: rgba(99, 102, 241, 0.18);
+    border-color: rgba(99, 102, 241, 0.6);
+    color: #c7d2fe;
+}
+.memory-search {
+    width: 100%;
+    background: rgba(2, 6, 23, 0.5);
+    border: 1px solid rgba(51, 65, 85, 0.4);
+    border-radius: 0.5rem;
+    padding: 0.4375rem 0.75rem;
+    color: #e2e8f0;
+    font-size: 0.8125rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+.memory-search:focus {
+    border-color: rgba(99, 102, 241, 0.55);
+}
+.memory-search::placeholder {
+    color: #475569;
+}
+
+.memory-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.memory-group-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #64748b;
+    padding: 0 0.25rem;
+    margin: 0;
+}
+.memory-group-count {
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 0.625rem;
+    color: #475569;
+    background: rgba(30, 41, 59, 0.65);
+    padding: 0.0625rem 0.375rem;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+}
+.memory-group-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+@media (min-width: 900px) {
+    .memory-group-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.memory-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0.875rem;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(51, 65, 85, 0.35);
+    border-left: 3px solid rgba(99, 102, 241, 0.45);
+    border-radius: 0.625rem;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.memory-card:hover {
+    background: rgba(15, 23, 42, 0.75);
+    border-color: rgba(71, 85, 105, 0.55);
+}
+.memory-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.memory-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3125rem;
+    padding: 0.1875rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid currentColor;
+    background: rgba(15, 23, 42, 0.4);
+}
+.memory-cat-icon {
+    font-size: 0.875rem !important;
+    line-height: 1;
+}
+.memory-cat-label { line-height: 1; }
+
+.memory-cat-fact       { color: #60a5fa; }
+.memory-cat-preference { color: #f472b6; }
+.memory-cat-instruction{ color: #fbbf24; }
+.memory-cat-interaction{ color: #22d3ee; }
+.memory-cat-general    { color: #94a3b8; }
+.memory-cat-goal       { color: #34d399; }
+.memory-cat-feedback   { color: #a78bfa; }
+.memory-cat-project    { color: #fb923c; }
+.memory-cat-reference  { color: #38bdf8; }
+.memory-cat-user       { color: #e879f9; }
+
+.memory-card[data-cat="fact"]        { border-left-color: rgba(96, 165, 250, 0.6); }
+.memory-card[data-cat="preference"]  { border-left-color: rgba(244, 114, 182, 0.6); }
+.memory-card[data-cat="instruction"] { border-left-color: rgba(251, 191, 36, 0.6); }
+.memory-card[data-cat="interaction"] { border-left-color: rgba(34, 211, 238, 0.6); }
+.memory-card[data-cat="general"]     { border-left-color: rgba(148, 163, 184, 0.5); }
+.memory-card[data-cat="goal"]        { border-left-color: rgba(52, 211, 153, 0.6); }
+.memory-card[data-cat="feedback"]    { border-left-color: rgba(167, 139, 250, 0.6); }
+.memory-card[data-cat="project"]     { border-left-color: rgba(251, 146, 60, 0.6); }
+.memory-card[data-cat="reference"]   { border-left-color: rgba(56, 189, 248, 0.6); }
+.memory-card[data-cat="user"]        { border-left-color: rgba(232, 121, 249, 0.6); }
+
+.memory-time {
+    margin-left: auto;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 0.6875rem;
+    color: #64748b;
+    white-space: nowrap;
+}
+.memory-del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 0.375rem;
+    border: none;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.memory-del:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+}
+.memory-del .material-symbols-outlined {
+    font-size: 1rem;
+}
+
+.memory-text {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.memory-text-clipped {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.memory-expand {
+    align-self: flex-start;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #818cf8;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.125rem 0;
+}
+.memory-expand:hover { color: #c7d2fe; }
+
+/* ═══════════════════════════════════════════════════════════════════
    CHAT — INLINE CARDS
    ═══════════════════════════════════════════════════════════════════ */
 

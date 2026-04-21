@@ -20,35 +20,205 @@ export function startHwPolling() {
 }
 
 // ── Memory Viewer ───────────────────────────────────────────────
+const CATEGORY_ICON = {
+  fact: "lightbulb",
+  preference: "favorite",
+  instruction: "assignment",
+  interaction: "forum",
+  general: "memory",
+  goal: "flag",
+  feedback: "rate_review",
+  project: "folder_managed",
+  reference: "link",
+  user: "person",
+};
+
+function categoryIcon(cat) {
+  return CATEGORY_ICON[cat] || "memory";
+}
+
+function formatMemoryTime(raw) {
+  // Backend sends "2026-04-11 15:29" (local-ish, no tz). Treat as local.
+  if (!raw || raw === "unknown") return { rel: "—", abs: "unknown" };
+  const iso = raw.replace(" ", "T");
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return { rel: raw, abs: raw };
+  const now = new Date();
+  const diffSec = Math.floor((now - d) / 1000);
+  let rel;
+  if (diffSec < 60) rel = "just now";
+  else if (diffSec < 3600) rel = `${Math.floor(diffSec / 60)}m ago`;
+  else if (diffSec < 86400) rel = `${Math.floor(diffSec / 3600)}h ago`;
+  else if (diffSec < 86400 * 7) rel = `${Math.floor(diffSec / 86400)}d ago`;
+  else
+    rel = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const abs = d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return { rel, abs };
+}
+
+function buildMemoryCard(m) {
+  const cat = (m.category || "general").toLowerCase();
+  const { rel, abs } = formatMemoryTime(m.created_at);
+  const content = String(m.content || "");
+  const isLong = content.length > 220;
+  const preview = isLong ? content.slice(0, 220).trimEnd() + "…" : content;
+
+  const art = document.createElement("article");
+  art.className = "memory-card";
+  art.dataset.memoryId = m.id ?? "";
+  art.dataset.cat = cat;
+  art.innerHTML = `
+    <header class="memory-card-head">
+      <span class="memory-cat memory-cat-${escapeHtml(cat)}">
+        <span class="material-symbols-outlined memory-cat-icon">${categoryIcon(cat)}</span>
+        <span class="memory-cat-label">${escapeHtml(cat)}</span>
+      </span>
+      <time class="memory-time"></time>
+      <button class="memory-del" title="Delete memory" aria-label="Delete memory">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </header>
+    <div class="memory-text${isLong ? " memory-text-clipped" : ""}"></div>
+    ${isLong ? '<button class="memory-expand" type="button">Show more</button>' : ""}
+  `;
+
+  const timeEl = art.querySelector(".memory-time");
+  timeEl.textContent = rel;
+  timeEl.title = abs;
+
+  const delBtn = art.querySelector(".memory-del");
+  delBtn.dataset.memoryId = m.id ?? "";
+
+  const textEl = art.querySelector(".memory-text");
+  textEl.dataset.full = content;
+  textEl.dataset.preview = preview;
+  textEl.textContent = preview;
+
+  return art;
+}
+
 export async function loadMemories() {
   try {
-    const res = await fetch("/api/memories");
+    const res = await fetch(`${API}/api/memories`);
     const data = await res.json();
     const countEl = document.getElementById("memoryCount");
     const listEl = document.getElementById("memoryList");
-    if (!countEl || !listEl) return;
-    countEl.textContent = data.count || 0;
+    if (!listEl) return;
+    if (countEl) countEl.textContent = data.count || 0;
+
     if (!data.memories || data.memories.length === 0) {
       listEl.innerHTML =
         '<div class="memory-empty">No memories yet. Chat naturally and I\'ll learn!</div>';
       return;
     }
-    listEl.innerHTML = data.memories
-      .map(
-        (m) => `
-      <div class="memory-item">
-        <span class="memory-cat memory-cat-${m.category}">${m.category}</span>
-        <span class="memory-text">${escapeHtml(m.content)}</span>
-        <span class="memory-time">${m.created_at}</span>
-        <button class="memory-del" data-memory-id="${m.id}" title="Delete">✕</button>
-      </div>
-    `,
-      )
-      .join("");
 
-    // Attach event listeners instead of inline onclick
+    // Group by category for clearer hierarchy
+    const groups = {};
+    for (const m of data.memories) {
+      const cat = (m.category || "general").toLowerCase();
+      (groups[cat] ||= []).push(m);
+    }
+
+    const catOrder = Object.keys(groups).sort(
+      (a, b) => groups[b].length - groups[a].length || a.localeCompare(b),
+    );
+
+    const header = `
+      <div class="memory-toolbar">
+        <div class="memory-stats">
+          <span class="memory-total">${data.count || data.memories.length} total</span>
+          ${catOrder
+            .map(
+              (c) =>
+                `<span class="memory-chip memory-cat-${escapeHtml(c)}" data-filter="${escapeHtml(c)}">
+                   <span class="material-symbols-outlined memory-cat-icon">${categoryIcon(c)}</span>
+                   ${escapeHtml(c)} · ${groups[c].length}
+                 </span>`,
+            )
+            .join("")}
+        </div>
+        <input type="search" id="memorySearch" class="memory-search" placeholder="Search memories…" />
+      </div>
+    `;
+
+    listEl.innerHTML = header;
+    for (const c of catOrder) {
+      const section = document.createElement("section");
+      section.className = "memory-group";
+      section.dataset.group = c;
+      section.innerHTML = `
+        <h3 class="memory-group-title">
+          <span class="material-symbols-outlined memory-cat-icon">${categoryIcon(c)}</span>
+          ${escapeHtml(c)}
+          <span class="memory-group-count">${groups[c].length}</span>
+        </h3>
+        <div class="memory-group-body"></div>
+      `;
+      const body = section.querySelector(".memory-group-body");
+      for (const m of groups[c]) body.appendChild(buildMemoryCard(m));
+      listEl.appendChild(section);
+    }
+
+    // Delete
     listEl.querySelectorAll(".memory-del").forEach((btn) => {
-      btn.addEventListener("click", () => deleteMemory(btn.dataset.memoryId));
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteMemory(btn.dataset.memoryId);
+      });
+    });
+
+    // Expand/collapse long content
+    listEl.querySelectorAll(".memory-expand").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const card = btn.closest(".memory-card");
+        const text = card?.querySelector(".memory-text");
+        if (!text) return;
+        const expanded = text.classList.toggle("memory-text-expanded");
+        text.classList.toggle("memory-text-clipped", !expanded);
+        text.textContent = expanded ? text.dataset.full : text.dataset.preview;
+        btn.textContent = expanded ? "Show less" : "Show more";
+      });
+    });
+
+    // Search
+    const searchEl = document.getElementById("memorySearch");
+    if (searchEl) {
+      searchEl.addEventListener("input", () => {
+        const q = searchEl.value.trim().toLowerCase();
+        listEl.querySelectorAll(".memory-card").forEach((card) => {
+          const text = (card.querySelector(".memory-text")?.dataset.full || "").toLowerCase();
+          const cat = (card.dataset.cat || "").toLowerCase();
+          const match = !q || text.includes(q) || cat.includes(q);
+          card.style.display = match ? "" : "none";
+        });
+        // Hide empty groups
+        listEl.querySelectorAll(".memory-group").forEach((g) => {
+          const anyVisible = Array.from(g.querySelectorAll(".memory-card")).some(
+            (c) => c.style.display !== "none",
+          );
+          g.style.display = anyVisible ? "" : "none";
+        });
+      });
+    }
+
+    // Category chip filter
+    listEl.querySelectorAll(".memory-chip[data-filter]").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const target = chip.dataset.filter;
+        const active = chip.classList.toggle("memory-chip-active");
+        listEl
+          .querySelectorAll(".memory-chip[data-filter]")
+          .forEach((c) => c !== chip && c.classList.remove("memory-chip-active"));
+        listEl.querySelectorAll(".memory-group").forEach((g) => {
+          g.style.display = !active || g.dataset.group === target ? "" : "none";
+        });
+      });
     });
   } catch (e) {
     console.warn("Memory load failed:", e);

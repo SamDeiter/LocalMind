@@ -3,13 +3,7 @@
  * This module has ZERO external dependencies — it is the root of the import graph.
  */
 
-let apiOrigin = window.location.origin;
-// If running dev server on a different port locally, force backend port 8001
-// (8000 is used by TradeCommander — LocalMind.bat launches on 8001)
-if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-  apiOrigin = `http://${window.location.hostname}:8001`;
-}
-export const API = apiOrigin;
+export const API = window.location.origin;
 
 export const MODE_MODELS = {
   fast: "gemma3:4b",
