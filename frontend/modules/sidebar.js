@@ -6,17 +6,53 @@
 import { API } from "./state.js";
 import { escapeHtml } from "./utils.js";
 
-// ── Hardware Dashboard ──────────────────────────────────────────
+// ── Hardware polling (utility strip + Ops page) ─────────────────
 let hwInterval = null;
 
+function setText(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v;
+}
+
 export async function pollHardware() {
-  // hardware polling consolidated to dashboard.js
+  try {
+    const r = await fetch(`${API}/api/hardware`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const h = await r.json();
+
+    const cpu = h.cpu != null ? Math.round(h.cpu) : null;
+    const ram = h.ram != null ? Math.round(h.ram) : (h.memory != null ? Math.round(h.memory) : null);
+    const gpu = h.gpu != null ? Math.round(h.gpu) : null;
+
+    setText("utilCpu", cpu != null ? `${cpu}%` : "—");
+    setText("utilRam", ram != null ? `${ram}%` : "—");
+    setText("utilGpu", gpu != null ? `${gpu}%` : "—");
+
+    const dot = document.getElementById("utilOnlineDot");
+    if (dot) dot.style.background = "var(--lm-status-ok)";
+    setText("utilOnline", "online");
+  } catch (_) {
+    const dot = document.getElementById("utilOnlineDot");
+    if (dot) dot.style.background = "var(--lm-status-failed)";
+    setText("utilOnline", "offline");
+  }
+
+  try {
+    const r = await fetch(`${API}/api/jobs/stats`);
+    if (r.ok) {
+      const s = await r.json();
+      setText("utilQueue",   String(s.queued ?? s.queue_depth ?? 0));
+      setText("utilWorkers", String(s.workers ?? s.active_workers ?? "—"));
+    }
+  } catch (_) { /* silent */ }
 }
 
 export function startHwPolling() {
   if (hwInterval) return;
   pollHardware();
-  hwInterval = setInterval(pollHardware, 3000);
+  hwInterval = setInterval(() => {
+    if (!document.hidden) pollHardware();
+  }, 3000);
 }
 
 // ── Memory Viewer ───────────────────────────────────────────────

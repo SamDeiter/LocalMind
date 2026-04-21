@@ -1,8 +1,9 @@
 /**
- * LocalMind v4 — Entry Point
- * Nav rail + sidebar + main workspace shell
+ * LocalMind v2 — Entry Point (mission control shell)
+ * Six-tab IA: Home / Jobs / Artifacts / Knowledge / Operations / Settings.
  */
 
+import { API } from "./modules/state.js";
 import { checkHealth, loadModels } from "./modules/chat.js";
 import { loadConversations } from "./modules/conversations.js";
 import { populateVoices, initSpeechRecognition } from "./modules/media.js";
@@ -16,30 +17,22 @@ import { initEditorEnhancements } from "./modules/editor.js";
 import { bindEvents } from "./modules/events.js";
 import { initNavRail } from "./modules/nav_rail.js";
 import { initSettingsUI } from "./modules/settings_ui.js";
-import { initDashboard } from "./modules/dashboard.js";
-import { initLiveReload } from "./modules/live_reload.js";
-import { initSwarmUI } from "./modules/swarm_ui.js";
+
+// v2 page modules
+import { initHome } from "./modules/home.js";
 import { initJobsUI } from "./modules/jobs_ui.js";
-import { initTemplatesUI } from "./modules/templates_ui.js";
-import { initApprovalsUI } from "./modules/approvals_ui.js";
 import { initTaskCreation } from "./modules/task_creation.js";
-import { initGeneratedTools } from "./modules/tools_generated.js";
+
+// Phase-1 stub pages (lazy-inited by nav_rail.switchNav too; we keep a no-op import chain here to ensure the bundler can resolve them)
+// Intentionally NOT calling their init on boot — they're lazy per-tab.
+
+import { initLiveReload } from "./modules/live_reload.js";
 import { initPWA } from "./modules/pwa.js";
-import { initMonitoring } from "./modules/monitoring_ui.js";
-import { initEvalUI } from "./modules/eval_ui.js";
 import { initTTS } from "./modules/tts.js";
-import { initTokenPanel } from "./modules/token_panel.js";
-import { initLearningUI } from "./modules/learning_ui.js";
-import { initAIProfile } from "./modules/ai_profile.js";
-import { initOnboarding } from "./modules/onboarding.js";
 import { initPlaceholderRotation } from "./modules/chat_ux.js";
-import { initAutonomyUI } from "./modules/autonomy_ui.js";
-import { initIntelligenceMap } from "./modules/intelligence_map_ui.js";
 
 async function init() {
-  // ── Phase 1: Parallel network fetches + sync DOM setup ──────────
-  // Fire off all independent network requests concurrently instead of
-  // waiting for each to complete sequentially (~60% faster startup).
+  // Parallel network fetches (no dependencies between them)
   const networkFetches = [
     checkHealth(),
     loadModels(),
@@ -49,7 +42,7 @@ async function init() {
     loadVersion(),
   ];
 
-  // Sync DOM init (no network) — runs while fetches are in flight
+  // Synchronous DOM wiring — runs while fetches are in flight
   populateVoices();
   initSpeechRecognition();
   bindEvents();
@@ -58,33 +51,41 @@ async function init() {
   initSettingsUI();
   initPlaceholderRotation();
 
-  // ── Phase 2: Feature modules (sync, DOM-only) ──────────────────
-  initDashboard();
-  initLiveReload();
-  initSwarmUI();
+  // v2 feature modules — Home + Jobs + the New Job drawer contents
+  initHome();
   initJobsUI();
-  initTemplatesUI();
-  initApprovalsUI();
   initTaskCreation();
-  initGeneratedTools();
+
+  // Background services
+  initLiveReload();
   initPWA();
-  initMonitoring();
   initTTS();
-  initTokenPanel();
-  initLearningUI();
-  initAIProfile();
-  initOnboarding();
-  initAutonomyUI();
-  initIntelligenceMap();
   startHwPolling();
 
-  // Wait for all network fetches to settle (don't block on failures)
   await Promise.allSettled(networkFetches);
 
-  // Register Service Worker for PWA/Cache
+  // Topbar model indicator — uses the models list from checkHealth/loadModels
+  refreshModelIndicator();
+
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
+}
+
+async function refreshModelIndicator() {
+  try {
+    const r = await fetch(`${API}/api/models`);
+    if (!r.ok) return;
+    const data = await r.json();
+    const list = Array.isArray(data) ? data : (data.models || []);
+    const active = list.find((m) => m.loaded || m.active) || list[0];
+    const name = active?.name || active?.id || "auto";
+    const loc  = active?.location || (active?.provider ? active.provider : "local");
+    const n = document.getElementById("modelIndicatorName");
+    const l = document.getElementById("modelIndicatorLoc");
+    if (n) n.textContent = name;
+    if (l) l.textContent = loc;
+  } catch (_) { /* offline */ }
 }
 
 if (document.readyState === "loading") {

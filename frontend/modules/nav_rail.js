@@ -1,55 +1,70 @@
 /**
- * nav_rail.js — Nav rail + sidebar + main panel switching.
- * Replaces the old 3-tab shell (tabWork / tabChat / tabSystem).
+ * nav_rail.js — Primary navigation (v2 IA)
+ * Six destinations: home, jobs, artifacts, knowledge, ops, settings.
+ * Plus the persistent "+ New Job" drawer trigger.
  */
 
 // ── Constants ───────────────────────────────────────────────────
-const NAV_ITEMS = ["chat", "pipeline", "memory", "system", "tools", "autonomy", "config", "brain"];
+const NAV_ITEMS = ["home", "jobs", "artifacts", "knowledge", "ops", "settings"];
 const LABELS = {
-  chat: "Chat",
-  pipeline: "Pipeline",
-  memory: "Memory",
-  system: "System",
-  tools: "Tools",
-  autonomy: "Agent Mode",
-  config: "Config",
-  brain: "Intelligence Map",
+  home: "Home",
+  jobs: "Jobs",
+  artifacts: "Artifacts",
+  knowledge: "Knowledge",
+  ops: "Operations",
+  settings: "Settings",
 };
 
-let _currentNav = "chat";
+// Main panel IDs are PascalCase keyed (mainHome, mainJobs, ...)
+const PANEL_ID = {
+  home: "mainHome",
+  jobs: "mainJobs",
+  artifacts: "mainArtifacts",
+  knowledge: "mainKnowledge",
+  ops: "mainOps",
+  settings: "mainSettings",
+};
+
+let _currentNav = "home";
 const _lazyInited = new Set();
 
 // ── Public API ──────────────────────────────────────────────────
 
-/** Switch to a nav section by key (e.g. "chat", "pipeline"). */
+/** Switch to a nav section by key. */
 export function switchNav(key) {
   if (!NAV_ITEMS.includes(key)) return;
   _currentNav = key;
 
-  // 1. Nav rail buttons
+  // Nav rail items — shell.css uses aria-current="page" for active state
   document.querySelectorAll("#navRail [data-nav]").forEach((btn) => {
     const active = btn.dataset.nav === key;
-    btn.classList.toggle("nav-rail-active", active);
     btn.setAttribute("aria-selected", String(active));
+    if (active) {
+      btn.setAttribute("aria-current", "page");
+    } else {
+      btn.removeAttribute("aria-current");
+    }
   });
 
-  // 2. Sidebar panels
+  // Main panels (show/hide via [hidden])
   NAV_ITEMS.forEach((id) => {
-    const panel = document.getElementById(`sidebar${_cap(id)}`);
-    if (panel) panel.classList.toggle("hidden", id !== key);
+    const panel = document.getElementById(PANEL_ID[id]);
+    if (!panel) return;
+    if (id === key) {
+      panel.hidden = false;
+      panel.classList.remove("lm-page--hidden");
+    } else {
+      panel.hidden = true;
+      panel.classList.add("lm-page--hidden");
+    }
   });
 
-  // 3. Main panels
-  NAV_ITEMS.forEach((id) => {
-    const panel = document.getElementById(`main${_cap(id)}`);
-    if (panel) panel.classList.toggle("hidden", id !== key);
-  });
+  // URL hash for deep linking
+  try {
+    history.replaceState(null, "", `#/${key}`);
+  } catch (_) { /* ignore */ }
 
-  // 4. Breadcrumb
-  const crumb = document.getElementById("mainBreadcrumb");
-  if (crumb) crumb.textContent = LABELS[key] || key;
-
-  // 5. Lazy init
+  // Lazy init the section on first visit
   _lazyInit(key);
 }
 
@@ -61,74 +76,119 @@ export function currentNav() {
 // ── Init ────────────────────────────────────────────────────────
 
 export function initNavRail() {
-  // Nav rail button clicks
+  // Nav rail item clicks
   document.querySelectorAll("#navRail [data-nav]").forEach((btn) => {
     btn.addEventListener("click", () => switchNav(btn.dataset.nav));
   });
 
-  // "Submit Job" header button → switch to pipeline
-  document.getElementById("submitJobHeaderBtn")?.addEventListener("click", () => {
-    switchNav("pipeline");
-    // Focus the job title input if it exists
-    setTimeout(() => {
-      document.getElementById("jobTitleInput")?.focus();
-    }, 100);
+  // "+ New Job" CTA — open drawer
+  const newJobBtn = document.getElementById("newJobBtn");
+  newJobBtn?.addEventListener("click", () => _openNewJobDrawer());
+
+  // Any element marked [data-open-new-job] opens the drawer
+  document.querySelectorAll("[data-open-new-job]").forEach((el) => {
+    el.addEventListener("click", () => _openNewJobDrawer());
   });
 
-  // Start on chat
-  switchNav("chat");
+  // Drawer close (scrim or X button)
+  document.querySelectorAll("[data-close-drawer]").forEach((el) => {
+    el.addEventListener("click", () => _closeNewJobDrawer());
+  });
+
+  // Collapse the nav rail
+  document.getElementById("navCollapseBtn")?.addEventListener("click", () => {
+    const app = document.getElementById("lmApp");
+    if (!app) return;
+    const collapsed = app.dataset.navCollapsed === "true";
+    app.dataset.navCollapsed = collapsed ? "false" : "true";
+  });
+
+  // Keyboard: N = new job, Esc = close drawer, Cmd/Ctrl+K = focus search
+  document.addEventListener("keydown", (e) => {
+    const target = e.target;
+    const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      document.getElementById("globalSearch")?.focus();
+      return;
+    }
+
+    if (e.key === "Escape") {
+      if (_isDrawerOpen()) _closeNewJobDrawer();
+      return;
+    }
+
+    if (!typing && e.key.toLowerCase() === "n") {
+      _openNewJobDrawer();
+    }
+  });
+
+  // Initial nav from hash, else home
+  const hashKey = (location.hash || "").replace(/^#\/?/, "").split("/")[0];
+  const start = NAV_ITEMS.includes(hashKey) ? hashKey : "home";
+  switchNav(start);
 }
 
-// ── Lazy Initialization ─────────────────────────────────────────
+// ── New Job drawer ──────────────────────────────────────────────
+
+function _openNewJobDrawer() {
+  const drawer = document.getElementById("newJobDrawer");
+  if (!drawer) return;
+  drawer.dataset.open = "true";
+  drawer.setAttribute("aria-hidden", "false");
+  // Focus the first input inside the drawer if present
+  setTimeout(() => {
+    const firstField = drawer.querySelector("textarea, input, button");
+    firstField?.focus();
+  }, 50);
+}
+
+function _closeNewJobDrawer() {
+  const drawer = document.getElementById("newJobDrawer");
+  if (!drawer) return;
+  drawer.dataset.open = "false";
+  drawer.setAttribute("aria-hidden", "true");
+}
+
+function _isDrawerOpen() {
+  const drawer = document.getElementById("newJobDrawer");
+  return drawer?.dataset.open === "true";
+}
+
+// ── Lazy initialization per section ─────────────────────────────
 
 function _lazyInit(key) {
   if (_lazyInited.has(key)) return;
   _lazyInited.add(key);
 
   switch (key) {
-    case "pipeline":
-      // Jobs UI is already initialized by app.js — just ensure it renders
+    case "jobs":
       import("./jobs_ui.js")
         .then((m) => m.showJobsView?.())
         .catch(() => {});
       break;
-    case "system":
-      // Accordion lazy-init is handled by events.js _lazyInitAccordion
-      // but start swarm polling eagerly when system tab first opens
-      import("./swarm_ui.js")
-        .then((m) => {
-          m.initSwarmTabs?.();
-          m.startPolling?.();
-        })
+    case "artifacts":
+      import("./artifacts_ui.js")
+        .then((m) => m.initArtifactsUI?.())
         .catch(() => {});
       break;
-    case "memory":
-      // Memory sidebar is populated by sidebar.js loadMemories on init
-      break;
-    case "tools":
-      // Generated tools list
-      import("./tools_generated.js")
-        .then((m) => m.loadGeneratedTools?.())
+    case "knowledge":
+      import("./knowledge_ui.js")
+        .then((m) => m.initKnowledgeUI?.())
         .catch(() => {});
       break;
-    case "autonomy":
-      // Agent Mode UI
-      import("./autonomy_ui.js")
-        .then((m) => m.initAutonomyUI?.())
+    case "ops":
+      import("./ops_ui.js")
+        .then((m) => m.initOpsUI?.())
         .catch(() => {});
       break;
-    case "brain":
-      import("./intelligence_map_ui.js")
-        .then((m) => m.loadIntelligenceMap?.())
+    case "settings":
+      import("./settings_page.js")
+        .then((m) => m.initSettingsPage?.())
         .catch(() => {});
       break;
     default:
       break;
   }
-}
-
-// ── Helpers ─────────────────────────────────────────────────────
-
-function _cap(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }

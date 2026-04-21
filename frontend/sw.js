@@ -6,12 +6,15 @@
  * API calls always go to the network (no offline AI inference).
  */
 
-const CACHE_NAME = "localmind-v3.1";
+// v2.0.0 — Mission control shell (Home/Jobs/Artifacts/Knowledge/Ops/Settings)
+const CACHE_NAME = "localmind-v2.0.0";
 
 // Files to cache for instant loading — must match actual filenames
 const SHELL_FILES = [
   "/",
   "/styles.css",
+  "/design/tokens.css",
+  "/design/shell.css",
   "/app.js",
   "/manifest.json",
   "/icon.png",
@@ -21,25 +24,22 @@ const SHELL_FILES = [
   "/modules/sidebar.js",
   "/modules/editor.js",
   "/modules/events.js",
-  "/modules/research_ui.js",
   "/modules/settings_ui.js",
-  "/modules/dashboard.js",
-  "/modules/live_reload.js",
-  "/modules/swarm_ui.js",
+  "/modules/nav_rail.js",
+  "/modules/home.js",
   "/modules/jobs_ui.js",
-  "/modules/templates_ui.js",
-  "/modules/approvals_ui.js",
+  "/modules/artifacts_ui.js",
+  "/modules/knowledge_ui.js",
+  "/modules/ops_ui.js",
+  "/modules/settings_page.js",
   "/modules/task_creation.js",
-  "/modules/onboarding.js",
-  "/modules/brain_graph.js",
-  "/modules/time_machine.js",
-  "/modules/hub.js",
+  "/modules/live_reload.js",
   "/modules/state.js",
   "/modules/streaming.js",
-  "/modules/tools.js",
   "/modules/utils.js",
-  "/modules/proposals_ui.js",
   "/modules/pwa.js",
+  "/modules/tts.js",
+  "/modules/chat_ux.js",
 ];
 
 // Simple offline fallback page

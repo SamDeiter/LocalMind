@@ -1,424 +1,233 @@
 <!DOCTYPE html>
-<html class="dark" lang="en">
+<html class="dark" lang="en" data-theme="dark">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>LocalMind</title>
-    <meta name="description" content="LocalMind — local-first AI assistant with autonomous task execution, multi-model routing, and safety-first tool use."/>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <title>LocalMind — Mission Control</title>
+    <meta name="description" content="LocalMind — local-first AI mission control. Delegate work, track jobs, review outcomes."/>
+    <meta name="color-scheme" content="dark"/>
+
+    <link rel="icon" type="image/png" href="icon.png"/>
+    <link rel="apple-touch-icon" href="icon.png"/>
+    <link rel="manifest" href="manifest.json"/>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <link rel="icon" type="image/png" href="icon.png" />
-    <link rel="apple-touch-icon" href="icon.png" />
-    <link rel="manifest" href="manifest.json" />
-    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: { extend: {
-                colors: {
-                    'slate': { 950:'#020617',900:'#0f172a',800:'#1e293b',700:'#334155',600:'#475569',500:'#64748b',400:'#94a3b8',300:'#cbd5e1',200:'#e2e8f0',100:'#f1f5f9',50:'#f8fafc' },
-                    'indigo': { 400:'#818cf8',500:'#6366f1',600:'#4f46e5' },
-                    'violet': { 400:'#a78bfa',500:'#8b5cf6',600:'#7c3aed' },
-                    'emerald': { 400:'#34d399',500:'#10b981' },
-                    'cyan': { 400:'#22d3ee',500:'#06b6d4' },
-                    'amber': { 400:'#fbbf24',500:'#f59e0b' },
-                    'red': { 400:'#f87171',500:'#ef4444' },
-                    'purple': { 400:'#c084fc',500:'#a855f7' },
-                },
-                fontFamily: { sans:['Inter','system-ui','sans-serif'], mono:['JetBrains Mono','monospace'], headline:['Space Grotesk','sans-serif'] },
-            }}
-        }
-    </script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" />
-    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-    <link rel="stylesheet" href="styles.css" />
-    <style>
-        #navRail{width:56px;flex-shrink:0;z-index:20;display:flex;flex-direction:column;align-items:center;padding:1rem 0;background:#0d1117;border-right:1px solid rgba(30,41,59,.8)}
-        .nav-rail-brand{margin-bottom:1.5rem;color:#6366f1;display:flex;align-items:center;justify-content:center}
-        .nav-rail-nav{display:flex;flex-direction:column;gap:.25rem}
-        .nav-rail-btn{position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:.5rem;background:0 0;border:none;color:#64748b;cursor:pointer;transition:all .15s ease}
-        .nav-rail-btn:hover{color:#cbd5e1;background:rgba(30,41,59,.6)}
-        .nav-rail-btn.nav-rail-active{color:#f1f5f9;background:rgba(30,41,59,.8)}
-        .nav-rail-tooltip{position:absolute;left:56px;top:50%;transform:translateY(-50%);background:#1e293b;color:#f1f5f9;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;padding:4px 10px;border-radius:4px;border:1px solid #334155;white-space:nowrap;opacity:0;pointer-events:none;z-index:50;transition:opacity .15s ease}
-        .nav-rail-btn:hover .nav-rail-tooltip{opacity:1}
-        .nav-rail-badge{position:absolute;top:4px;right:4px;min-width:14px;height:14px;border-radius:999px;font-size:8px;font-weight:800;line-height:14px;text-align:center;padding:0 3px}
-        .nav-rail-footer{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:1rem}
-        #sidebar{width:288px;flex-shrink:0;display:flex;flex-direction:column;background:#0d1117;border-right:1px solid rgba(30,41,59,.8)}
-        .sidebar-panel{display:flex;flex-direction:column;flex:1;min-height:0}
-        .sidebar-panel.hidden{display:none!important}
-        .sidebar-section-header{padding:.75rem;flex-shrink:0;border-bottom:1px solid rgba(30,41,59,.8);display:flex;align-items:center;gap:.5rem;background:#161b22;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#64748b}
-        .sidebar-section-header .material-symbols-outlined{font-size:12px}
-        .sidebar-global-footer{padding:.75rem;flex-shrink:0;border-top:1px solid rgba(30,41,59,.8);background:#161b22}
-        .main-panel{position:absolute;inset:0;display:flex;flex-direction:column}
-        .main-panel.hidden{display:none!important}
-        #mainHeader{height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 1rem;background:#0d1117;border-bottom:1px solid rgba(30,41,59,.8)}
-        .chat-topstrip{display:flex;align-items:center;gap:.625rem;padding:.5rem 1.25rem;flex-shrink:0;border-bottom:1px solid rgba(51,65,85,.25)}
-        .chat-indicator{width:8px;height:8px;border-radius:50%;background:#6366f1;opacity:.7}
-        .chat-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.9375rem;color:#e2e8f0;letter-spacing:-.01em}
-        .chat-model-label{font-size:.6875rem;font-weight:600;font-family:'JetBrains Mono',monospace;color:#475569;background:rgba(30,41,59,.5);border:1px solid rgba(51,65,85,.35);border-radius:.3rem;padding:.15rem .4rem}
-        .messages-area{flex:1;overflow-y:auto;padding:1.5rem 1.25rem;display:flex;flex-direction:column;gap:1rem}
-        .empty-icon{font-size:2.5rem;opacity:.2;margin-bottom:1rem;color:#6366f1}
-        .empty-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.25rem;color:#94a3b8;margin-bottom:.5rem}
-        .empty-sub{font-size:.8125rem;color:#475569;line-height:1.6;max-width:300px;text-align:center}
-        .prompt-pills{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-top:1.5rem}
-        .prompt-pill{font-size:.75rem;font-weight:500;color:#64748b;background:rgba(15,23,42,.6);border:1px solid rgba(51,65,85,.4);border-radius:999px;padding:.375rem .875rem;cursor:pointer;transition:all .15s ease;white-space:nowrap}
-        .prompt-pill:hover{color:#818cf8;border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.08)}
-        .input-zone{padding:.75rem 1rem .625rem;flex-shrink:0;border-top:1px solid rgba(51,65,85,.25)}
-        .input-shell{background:rgba(15,23,42,.7);border:1px solid rgba(51,65,85,.5);border-radius:.875rem;overflow:hidden;transition:border-color .2s ease,box-shadow .2s ease}
-        .input-shell:focus-within{border-color:rgba(99,102,241,.4);box-shadow:0 0 0 2px rgba(99,102,241,.1),0 4px 24px rgba(99,102,241,.08)}
-        .message-textarea{width:100%;background:0 0;border:none;outline:none;resize:none;padding:.75rem 1rem .25rem;color:#e2e8f0;font-family:Inter,sans-serif;font-size:.875rem;line-height:1.6;max-height:200px;overflow-y:auto}
-        .message-textarea::placeholder{color:#475569}
-        .input-actions{display:flex;align-items:center;justify-content:space-between;padding:.375rem .625rem}
-        .input-left-actions{display:flex;align-items:center;gap:.25rem}
-        .tool-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:.5rem;background:0 0;border:1px solid transparent;color:#475569;cursor:pointer;transition:all .15s ease}
-        .tool-btn:hover{background:rgba(51,65,85,.4);color:#94a3b8;border-color:rgba(51,65,85,.4)}
-        .tool-btn .material-symbols-outlined{font-size:1.1rem}
-        .send-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:.625rem;background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(99,102,241,.3);transition:all .15s ease}
-        .send-btn:hover{box-shadow:0 4px 16px rgba(99,102,241,.4);filter:brightness(1.08)}
-        .send-btn:active{transform:scale(.95)}
-        .send-btn .material-symbols-outlined{font-size:1.125rem}
-        .input-disclaimer{font-size:.625rem;color:#334155;text-align:center;margin-top:.375rem}
-        .msg-user,.msg-ai{display:flex;flex-direction:column;gap:.25rem;max-width:85%}
-        .msg-user{align-self:flex-end;align-items:flex-end}
-        .msg-ai{align-self:flex-start;align-items:flex-start}
-        .msg-bubble-user{background:linear-gradient(135deg,#6366f1,#7c3aed);color:#fff;padding:.625rem 1rem;border-radius:1rem 1rem .25rem 1rem;font-size:.875rem;line-height:1.6}
-        .msg-bubble-ai{background:rgba(15,23,42,.7);border:1px solid rgba(51,65,85,.4);color:#e2e8f0;padding:.75rem 1rem;border-radius:1rem 1rem 1rem .25rem;font-size:.875rem;line-height:1.6}
-        .modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:1rem}
-        .modal-panel{background:rgba(10,15,30,.98);border:1px solid rgba(51,65,85,.5);border-radius:1rem;width:100%;max-width:520px;box-shadow:0 24px 64px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:90vh}
-        .modal-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid rgba(51,65,85,.3);flex-shrink:0}
-        .modal-body{flex:1;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:1.25rem}
-        .modal-footer{display:flex;align-items:center;justify-content:flex-end;gap:.625rem;padding:.875rem 1.25rem;border-top:1px solid rgba(51,65,85,.3);flex-shrink:0}
-        .settings-section{display:flex;flex-direction:column;gap:.75rem}
-        .settings-section-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:.9375rem;color:#e2e8f0}
-        .settings-section-sub{font-size:.8125rem;color:#64748b;line-height:1.5}
-        .settings-fields{display:flex;flex-direction:column;gap:.75rem}
-        .field-group{display:flex;flex-direction:column;gap:.375rem}
-        .field-label{font-size:.75rem;font-weight:600;color:#64748b}
-        .field-input{background:rgba(15,23,42,.7);border:1px solid rgba(51,65,85,.5);border-radius:.5rem;padding:.5rem .75rem;color:#e2e8f0;font-size:.875rem;width:100%;outline:none;transition:border-color .15s ease}
-        .field-input:focus{border-color:rgba(99,102,241,.5);box-shadow:0 0 0 2px rgba(99,102,241,.1)}
-        .field-input::placeholder{color:#334155}
-        .toggle-switch{position:relative;display:inline-flex;cursor:pointer}
-        .toggle-track{width:40px;height:22px;border-radius:999px;background:rgba(30,41,59,.8);border:1px solid rgba(51,65,85,.5);transition:background .2s ease;position:relative}
-        .toggle-track::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#64748b;transition:transform .2s ease,background .2s ease}
-        .peer:checked~.toggle-track{background:#10b981;border-color:#10b981}
-        .peer:checked~.toggle-track::after{transform:translateX(18px);background:#fff}
-        .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:.5rem;background:rgba(30,41,59,.5);border:1px solid rgba(51,65,85,.4);color:#64748b;cursor:pointer;transition:all .15s ease;flex-shrink:0}
-        .icon-btn:hover{background:rgba(51,65,85,.6);color:#e2e8f0;border-color:rgba(99,102,241,.3)}
-        .icon-btn .material-symbols-outlined{font-size:1.125rem}
-        .icon-btn-sm{width:28px;height:28px;border-radius:.375rem}
-        .icon-btn-sm .material-symbols-outlined{font-size:1rem}
-        .version-badge{font-size:.625rem;font-weight:700;font-family:'JetBrains Mono',monospace;background:rgba(99,102,241,.12);color:#818cf8;border:1px solid rgba(99,102,241,.2);border-radius:.3rem;padding:.1rem .35rem;letter-spacing:.04em}
-        .skip-link{position:absolute;left:-9999px;top:0;z-index:9999;background:#6366f1;color:#fff;padding:.5rem 1rem;border-radius:0 0 .5rem 0;font-size:.875rem;font-weight:600}
-        .skip-link:focus{left:0}
-        .thinking-terminal{position:absolute;bottom:0;left:0;right:0;height:200px;z-index:40;background:rgba(2,6,23,.97);backdrop-filter:blur(12px);border-top:1px solid rgba(51,65,85,.4);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,.4);transform:translateY(100%);transition:transform .25s cubic-bezier(.4,0,.2,1)}
-        .thinking-terminal.open{transform:translateY(0)}
-        .thinking-terminal-header{display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;border-bottom:1px solid rgba(51,65,85,.3);flex-shrink:0}
-        .palace-badge{display:flex;align-items:center;gap:.375rem;font-size:.6875rem;color:#475569}
-        .palace-badge .material-symbols-outlined{font-size:.875rem;color:#6366f1;opacity:.6}
-        .config-tier-card{padding:.5rem;background:rgba(15,23,42,.6);border:1px solid rgba(30,41,59,.8);border-radius:.375rem;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s ease}
-        .config-tier-card:hover{border-color:rgba(99,102,241,.3)}
-        .tool-list-item{padding:.5rem .75rem;transition:background .15s ease;cursor:pointer}
-        .tool-list-item:hover{background:rgba(30,41,59,.3)}
-        .sidebar-list{flex:1;overflow-y:auto;padding:.5rem}
-        .ml-auto{margin-left:auto}
-        @media(max-width:768px){#sidebar{display:none}#navRail{width:48px}.nav-rail-btn{width:36px;height:36px}}
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css"/>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+
+    <link rel="stylesheet" href="design/tokens.css"/>
+    <link rel="stylesheet" href="design/shell.css"/>
+    <link rel="stylesheet" href="styles.css"/>
 </head>
-<body class="bg-[#0d1117] overflow-hidden">
-<a href="#mainContent" class="skip-link">Skip to main content</a>
-<div id="appShell" class="flex h-screen overflow-hidden text-slate-300 font-sans text-sm antialiased">
+<body>
 
-    <!-- 1. NAV RAIL -->
-    <aside id="navRail">
-        <div class="nav-rail-brand"><span class="material-symbols-outlined" style="font-size:24px">psychology</span></div>
-        <nav class="nav-rail-nav" role="tablist" aria-label="Main navigation">
-            <button data-nav="brain" role="tab" aria-selected="false" class="nav-rail-btn" title="Intelligence Map"><span class="material-symbols-outlined" style="font-size:20px">hub</span><span class="nav-rail-tooltip">Intelligence Map</span></button>
-            <button data-nav="chat" role="tab" aria-selected="true" class="nav-rail-btn nav-rail-active" title="Chat"><span class="material-symbols-outlined" style="font-size:20px">chat</span><span class="nav-rail-tooltip">Chat</span></button>
-            <button data-nav="pipeline" role="tab" aria-selected="false" class="nav-rail-btn" title="Jobs"><span class="material-symbols-outlined" style="font-size:20px">play_circle</span><span class="nav-rail-tooltip">Pipeline</span><span id="navPipelineBadge" class="nav-rail-badge bg-indigo-500/20 text-indigo-400 hidden">0</span></button>
-            <button data-nav="memory" role="tab" aria-selected="false" class="nav-rail-btn" title="Memory"><span class="material-symbols-outlined" style="font-size:20px">castle</span><span class="nav-rail-tooltip">Memory</span></button>
-            <button data-nav="system" role="tab" aria-selected="false" class="nav-rail-btn" title="System"><span class="material-symbols-outlined" style="font-size:20px">monitor_heart</span><span class="nav-rail-tooltip">System</span><span id="navSystemBadge" class="nav-rail-badge bg-amber-500/20 text-amber-400 hidden">0</span></button>
-            <button data-nav="tools" role="tab" aria-selected="false" class="nav-rail-btn" title="Tools"><span class="material-symbols-outlined" style="font-size:20px">build</span><span class="nav-rail-tooltip">Tools</span></button>
-            <button data-nav="autonomy" role="tab" aria-selected="false" class="nav-rail-btn" title="Agent Mode"><span class="material-symbols-outlined" style="font-size:20px">robot_2</span><span class="nav-rail-tooltip">Agent Mode</span></button>
-            <button data-nav="config" role="tab" aria-selected="false" class="nav-rail-btn" title="Config"><span class="material-symbols-outlined" style="font-size:20px">settings</span><span class="nav-rail-tooltip">Config</span></button>
-        </nav>
-        <div class="nav-rail-footer">
-            <span id="brainPulse" class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" title="Server status"></span>
-            <button id="systemPromptBtn" class="nav-rail-btn" title="Settings" aria-label="Open Settings"><span class="material-symbols-outlined" style="font-size:18px">tune</span></button>
-        </div>
-    </aside>
+<div class="lm-app" id="lmApp">
 
-    <!-- 2. SIDEBAR -->
-    <section id="sidebar">
-        <div id="sidebarBrain" class="sidebar-panel hidden">
-            <div class="sidebar-section-header"><span class="material-symbols-outlined">psychology</span><span>Cognitive State</span></div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
-                <div>
-                    <div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Analysis Level</div>
-                    <div class="p-2 bg-slate-900/50 border border-slate-800 rounded">
-                        <div class="flex justify-between text-[10px] font-bold mb-1"><span class="text-slate-500">Integrity</span><span class="text-emerald-400">100%</span></div>
-                        <div class="w-full bg-slate-800 h-1.5 rounded-full"><div class="w-full h-full bg-emerald-500 rounded-full"></div></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Learning Journal</div>
-                    <div id="learningJournalList" class="space-y-2">
-                        <div class="text-[10px] text-slate-500 italic">No cycles recorded today.</div>
-                    </div>
-                </div>
-                <div class="pt-3 border-t border-slate-800/50">
-                    <div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Guardrail Alerts</div>
-                    <div id="guardrailAlerts" class="space-y-1">
-                        <div class="text-[9px] text-slate-500 flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-emerald-500"></span> All filters active</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <!-- ── NAV RAIL ──────────────────────────────────────────────── -->
+  <aside class="lm-nav" id="navRail" aria-label="Primary navigation">
 
-        <div id="sidebarChat" class="sidebar-panel">
-            <div class="sidebar-section-header"><span class="material-symbols-outlined">chat</span><span>Conversations</span><button id="newChatInlineBtn" class="ml-auto text-slate-500 hover:text-white transition-colors" title="New conversation" aria-label="New conversation"><span class="material-symbols-outlined" style="font-size:14px">add</span></button></div>
-            <div id="conversationList" class="sidebar-list custom-scrollbar"></div>
-            <div class="p-3 border-t border-slate-800/50 shrink-0"><span class="palace-badge" id="palaceBadge" title="MemPalace memories"><span class="material-symbols-outlined">castle</span><span id="palaceDrawerCount">&mdash;</span> memories</span></div>
-        </div>
-        <div id="sidebarPipeline" class="sidebar-panel hidden">
-            <div class="sidebar-section-header"><span class="material-symbols-outlined">play_circle</span><span>Active Execution</span><span id="taskPipelineCount" class="ml-auto text-[9px] font-bold bg-slate-800 text-slate-400 px-2 py-0.5 rounded">0</span></div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar">
-                <div id="taskCreationArea" class="p-3 border-b border-slate-800/50"></div>
-                <div id="aiThinkingPanel" class="border-b border-slate-800/50">
-                    <div class="px-3 py-2 flex items-center gap-2"><span class="material-symbols-outlined text-indigo-400" style="font-size:14px">alt_route</span><span class="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">Pipeline</span><span class="text-[9px] text-slate-600 font-mono uppercase ml-auto">Live</span></div>
-                    <div id="agent-workflow-stepper" class="flex items-center gap-1 px-3 pb-2" role="list" aria-label="Workflow steps">
-                        <div id="step-planner" class="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold bg-indigo-500/10 border border-indigo-500/30 text-indigo-400"><span class="material-symbols-outlined" style="font-size:12px">schema</span>Plan</div>
-                        <span class="text-slate-800 text-[8px]">&#9656;</span>
-                        <div id="step-coder" class="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold bg-slate-900 border border-slate-800 text-slate-600"><span class="material-symbols-outlined" style="font-size:12px">code_blocks</span>Code</div>
-                        <span class="text-slate-800 text-[8px]">&#9656;</span>
-                        <div id="step-execute" class="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold bg-slate-900 border border-slate-800 text-slate-600"><span class="material-symbols-outlined" style="font-size:12px">terminal</span>Exec</div>
-                        <span class="text-slate-800 text-[8px]">&#9656;</span>
-                        <div id="step-reviewer" class="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold bg-slate-900 border border-slate-800 text-slate-600"><span class="material-symbols-outlined" style="font-size:12px">verified_user</span>QA</div>
-                    </div>
-                    <div id="aiThinkingFeed" class="max-h-32 overflow-y-auto custom-scrollbar px-3 pb-2 text-[10px] text-slate-500" aria-live="polite"></div>
-                </div>
-                <div class="p-3"><div class="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500 mb-2 flex items-center gap-2"><span class="material-symbols-outlined" style="font-size:12px">work</span> Active Jobs</div><div class="grid grid-cols-1 gap-2" id="taskPipelineBody"></div></div>
-                <div id="approvalsInlineSection" class="hidden p-3 border-t border-slate-800/50"><div class="flex items-center gap-2 mb-2"><span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span><span class="text-[9px] font-bold uppercase tracking-[0.15em] text-red-400">Needs Approval</span><span id="approvalsBadge" class="text-[8px] font-bold bg-red-500/15 text-red-400 px-1.5 py-0.5 rounded">0</span></div><div id="approvalsView" class="space-y-2" role="region" aria-label="Approval queue"></div></div>
-                <div id="templatesSection" class="p-3 border-t border-slate-800/50"><div class="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500 mb-2 flex items-center gap-2"><span class="material-symbols-outlined" style="font-size:12px">library_books</span> Templates</div><div id="templatesView"></div></div>
-            </div>
-        </div>
-        <div id="sidebarMemory" class="sidebar-panel hidden">
-            <div class="sidebar-section-header"><span class="material-symbols-outlined">castle</span><span>MemPalace</span></div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-2"><div id="memPalaceTree" class="text-[10px]"></div><div class="mt-4 pt-3 border-t border-slate-800/50"><div class="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500 mb-2 flex items-center gap-2"><span class="material-symbols-outlined" style="font-size:12px">description</span> Documents</div><div id="documentList" class="space-y-1"></div></div></div>
-        </div>
-        <div id="sidebarSystem" class="sidebar-panel hidden">
-            <div class="sidebar-section-header"><span class="material-symbols-outlined">monitor_heart</span><span>System Health</span><span id="swarmStatusBadge" class="ml-auto text-[8px] font-bold bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded">Ready</span></div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">
-                <div class="space-y-2">
-                    <div class="flex justify-between text-[10px] uppercase text-slate-500 font-bold"><span>Workers</span><span id="swarmAgentCount" class="text-amber-400">0</span></div>
-                    <div class="flex justify-between text-[10px] uppercase text-slate-500 font-bold"><span>Tasks Done</span><span id="sidebarTasksDone" class="text-cyan-400">0</span></div>
-                    <div class="flex justify-between text-[10px] uppercase text-slate-500 font-bold"><span>Success Rate</span><span id="sidebarSuccessRate" class="text-emerald-400">--</span></div>
-                    <div class="flex justify-between text-[10px] uppercase text-slate-500 font-bold"><span>Queue Depth</span><span id="sidebarQueueDepth" class="text-amber-400">0</span></div>
-                </div>
-                <div class="pt-3 border-t border-slate-800/50"><div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Security</div><div class="space-y-1.5"><div class="flex justify-between text-[10px] text-slate-500 font-bold"><span>Encryption</span><span class="text-slate-300">AES-256-GCM</span></div><div class="flex justify-between text-[10px] text-slate-500 font-bold"><span>Sandbox</span><span class="text-indigo-400 text-[9px] font-mono">~/LocalMind_Workspace</span></div></div></div>
-            </div>
-        </div>
-        <div id="sidebarTools" class="sidebar-panel hidden">
-            <div class="sidebar-section-header"><span class="material-symbols-outlined">build</span><span>Tool Registry</span><span id="toolCountBadge" class="ml-auto text-[8px] font-bold bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">0</span></div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar">
-                <div class="px-3 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] bg-slate-900/50 border-b border-slate-800/50">Built-in Tools</div>
-                <div class="divide-y divide-slate-800/30">
-                    <div class="tool-list-item"><div class="text-[11px] font-bold text-slate-300">self_edit</div></div>
-                    <div class="tool-list-item"><div class="text-[11px] font-bold text-slate-300">self_extend</div></div>
-                    <div class="tool-list-item"><div class="text-[11px] font-bold text-slate-300">read_write_sandbox</div></div>
-                    <div class="tool-list-item"><div class="text-[11px] font-bold text-slate-300">browser_automation</div></div>
-                    <div class="tool-list-item"><div class="text-[11px] font-bold text-slate-300">web_search</div></div>
-                </div>
-                <div class="px-3 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] bg-slate-900/50 border-y border-slate-800/50">AI-Generated</div>
-                <div id="toolsSidebarGenerated" class="divide-y divide-slate-800/30 p-2"><div class="text-[9px] text-slate-600 italic">Loading...</div></div>
-            </div>
-        </div>
-        <div id="sidebarConfig" class="sidebar-panel hidden">
-            <div class="sidebar-section-header"><span class="material-symbols-outlined">settings</span><span>Engine Config</span></div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
-                <div><div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Model Routing</div><div class="space-y-1.5"><div class="config-tier-card"><div><div class="text-[9px] text-slate-500 font-bold">Simple</div><div class="text-[10px] text-indigo-400 font-bold italic">gemma3:4b</div></div><span class="text-[9px] text-slate-600">120s</span></div><div class="config-tier-card"><div><div class="text-[9px] text-slate-500 font-bold">Medium</div><div class="text-[10px] text-indigo-400 font-bold italic">qwen3:8b</div></div><span class="text-[9px] text-slate-600">300s</span></div><div class="config-tier-card"><div><div class="text-[9px] text-slate-500 font-bold">Complex</div><div class="text-[10px] text-indigo-400 font-bold italic">deepseek-r1:14b</div></div><span class="text-[9px] text-slate-600">600s</span></div></div></div>
-                <div><div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Resources</div><div class="p-2 bg-slate-900/50 border border-slate-800 rounded space-y-2"><div class="flex justify-between text-[9px] font-bold"><span class="text-slate-500">VRAM</span><span class="text-slate-300">10.0 GB</span></div><div class="w-full bg-slate-800 h-1 rounded-full"><div class="w-[84%] h-full bg-indigo-500 rounded-full"></div></div><div class="flex justify-between text-[9px] font-bold"><span class="text-slate-500">MAX NODES</span><span class="text-slate-300">20</span></div></div></div>
-            </div>
-        </div>
-        <div id="sidebarAutonomy" class="sidebar-panel hidden">
-            <div class="sidebar-section-header"><span class="material-symbols-outlined">robot_2</span><span>Missions</span><button id="newMissionBtn" class="ml-auto text-slate-500 hover:text-white transition-colors"><span class="material-symbols-outlined" style="font-size:14px">add</span></button></div>
-            <div id="missionList" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1"></div>
-        </div>
-        <div class="sidebar-global-footer"><div class="flex justify-between items-center text-[10px] font-bold"><span class="text-slate-500 uppercase tracking-tighter">Engine</span><span id="brainStatus" class="text-emerald-500 font-mono text-[10px]">Online</span></div></div>
+    <div class="lm-nav__brand">
+      <span class="lm-nav__brand-mark" aria-hidden="true">L</span>
+      <span class="lm-nav__brand-name">LocalMind</span>
+    </div>
+
+    <div class="lm-nav__cta-wrap">
+      <button type="button" class="lm-nav__cta" id="newJobBtn" aria-label="New job">
+        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        <span class="lm-nav__cta-label">New Job</span>
+      </button>
+    </div>
+
+    <nav class="lm-nav__list" role="tablist" aria-label="Sections">
+      <button type="button" class="lm-nav__item" data-nav="home" role="tab" aria-current="page" aria-selected="true">
+        <span class="material-symbols-outlined" aria-hidden="true">grid_view</span>
+        <span class="lm-nav__item-label">Home</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="jobs" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">work</span>
+        <span class="lm-nav__item-label">Jobs</span>
+        <span class="lm-nav__item-badge" id="navJobsBadge" hidden>0</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="artifacts" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">folder</span>
+        <span class="lm-nav__item-label">Artifacts</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="knowledge" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">hub</span>
+        <span class="lm-nav__item-label">Knowledge</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="ops" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">monitoring</span>
+        <span class="lm-nav__item-label">Operations</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="settings" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+        <span class="lm-nav__item-label">Settings</span>
+      </button>
+    </nav>
+
+    <div class="lm-nav__divider"></div>
+
+    <div class="lm-nav__starred">
+      <div class="lm-nav__section-label">Starred</div>
+      <div class="lm-nav__starred-list" id="navStarred">
+        <div class="lm-nav__empty lm-mute">No starred jobs yet</div>
+      </div>
+    </div>
+
+    <div class="lm-nav__recent">
+      <div class="lm-nav__section-label">Recent</div>
+      <div class="lm-nav__recent-list" id="navRecent">
+        <div class="lm-nav__empty lm-mute">Recent jobs will appear here</div>
+      </div>
+    </div>
+
+    <div class="lm-nav__footer">
+      <button type="button" class="lm-nav__collapse-btn" id="navCollapseBtn" aria-label="Collapse navigation">
+        <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── TOP BAR ───────────────────────────────────────────────── -->
+  <header class="lm-topbar" role="banner">
+    <div class="lm-topbar__search">
+      <span class="material-symbols-outlined" aria-hidden="true">search</span>
+      <input type="search" id="globalSearch" placeholder="Search jobs, artifacts, memory…" aria-label="Global search"/>
+      <span class="lm-topbar__kbd">⌘K</span>
+    </div>
+
+    <div class="lm-topbar__spacer"></div>
+
+    <div class="lm-topbar__actions">
+      <div class="lm-topbar__model" id="modelIndicator" title="Active model">
+        <span class="lm-topbar__model-dot" aria-hidden="true"></span>
+        <span class="lm-topbar__model-name" id="modelIndicatorName">—</span>
+        <span class="lm-topbar__model-locale" id="modelIndicatorLoc">local</span>
+      </div>
+
+      <button type="button" class="lm-topbar__icon-btn" id="notificationsBtn" aria-label="Notifications">
+        <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+        <span class="lm-topbar__icon-btn-dot" id="notificationsBadge" hidden></span>
+      </button>
+
+      <button type="button" class="lm-topbar__icon-btn" id="helpBtn" aria-label="Help">
+        <span class="material-symbols-outlined" aria-hidden="true">help</span>
+      </button>
+
+      <button type="button" class="lm-topbar__avatar" id="profileBtn" aria-label="Profile">S</button>
+    </div>
+  </header>
+
+  <!-- ── MAIN ──────────────────────────────────────────────────── -->
+  <main class="lm-main" role="main">
+
+    <section class="lm-page" id="mainHome" data-nav="home" role="tabpanel">
+      <div class="lm-page__inner" id="homeContainer"></div>
     </section>
 
-    <!-- 3. MAIN WORKSPACE -->
-    <main id="mainContent" class="flex-1 flex flex-col min-w-0 bg-[#0d1117]">
-        <header id="mainHeader">
-            <div class="flex items-center gap-2 text-[11px]"><span class="text-slate-500 uppercase font-bold tracking-widest">LocalMind</span><span class="material-symbols-outlined text-slate-700" style="font-size:12px">chevron_right</span><span id="mainBreadcrumb" class="text-slate-200 font-bold uppercase tracking-wider">Chat</span></div>
-            <div class="flex items-center gap-3">
-                <div class="flex items-center gap-4 mr-4 border-r border-slate-800 pr-4">
-                    <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase"><span class="material-symbols-outlined text-slate-500" style="font-size:14px">memory</span><span class="text-slate-500">CPU</span><span id="cpuVal" class="text-slate-300">--%</span></div>
-                    <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase"><span class="material-symbols-outlined text-slate-500" style="font-size:14px">sdk</span><span id="vramVal" class="text-slate-300">--</span></div>
-                    <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase"><span class="material-symbols-outlined text-slate-500" style="font-size:14px">storage</span><span id="ramVal" class="text-slate-300">--</span></div>
-                </div>
-                <span class="version-badge brand-version" title="Application version">v0.0.0</span>
-                <button id="submitJobHeaderBtn" class="h-7 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><span class="material-symbols-outlined" style="font-size:12px">bolt</span> Submit Job</button>
-            </div>
+    <section class="lm-page" id="mainJobs" data-nav="jobs" role="tabpanel" hidden>
+      <div class="lm-page__inner">
+        <header class="lm-page__header">
+          <div>
+            <div class="lm-page__eyebrow">Delegated work</div>
+            <h1 class="lm-page__title">Jobs</h1>
+            <p class="lm-page__subtitle">Everything you've asked LocalMind to do.</p>
+          </div>
+          <div class="lm-page__actions">
+            <button type="button" class="lm-btn lm-btn--primary lm-btn--sm" data-open-new-job>
+              <span class="material-symbols-outlined" aria-hidden="true">add</span> New Job
+            </button>
+          </div>
         </header>
-        <div class="flex-1 overflow-hidden relative">
-            
-            <section id="mainBrain" class="main-panel hidden" role="tabpanel">
-                <div class="flex-1 flex flex-col p-6 space-y-4 overflow-hidden relative">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <h2 class="text-xl font-headline font-bold text-slate-200">Intelligence & Knowledge Map</h2>
-                            <p class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">Real-time Cognitive Visualization</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button id="refreshBrainBtn" class="h-8 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold uppercase flex items-center gap-2 transition-colors">
-                                <span class="material-symbols-outlined text-sm">refresh</span> Reload
-                            </button>
-                            <button id="triggerLearningBtn" class="h-8 px-4 bg-violet-600 hover:bg-violet-500 text-white rounded text-[10px] font-bold uppercase transition-colors flex items-center gap-2 shadow-lg shadow-violet-500/20">
-                                <span class="material-symbols-outlined text-sm">school</span> Trigger Learning
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div id="brainContainer" class="flex-1 bg-[#0a0f1e] border border-slate-800/50 rounded-xl relative overflow-hidden">
-                        <div id="brainLegend" class="absolute top-4 left-4 p-3 bg-[#0d1117]/80 backdrop-blur-md border border-slate-800 rounded-lg z-10 space-y-2">
-                            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span><span class="text-[9px] font-bold uppercase text-slate-400">Memory</span></div>
-                            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span class="text-[9px] font-bold uppercase text-slate-400">Verified Skill</span></div>
-                            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span><span class="text-[9px] font-bold uppercase text-slate-400">Unverified Skill</span></div>
-                            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-orange-400"></span><span class="text-[9px] font-bold uppercase text-slate-400">Learning Gap</span></div>
-                        </div>
-                        <svg id="brainSvg" class="w-full h-full cursor-grab active:cursor-grabbing"></svg>
-                        <div id="nodeDetailPanel" class="absolute top-4 right-4 w-64 p-4 bg-[#0d1117]/90 backdrop-blur-md border border-slate-800 rounded-lg z-10 hidden shadow-2xl">
-                            <h3 id="nodeTitle" class="text-xs font-bold text-slate-100 mb-1 truncate">Node Detail</h3>
-                            <p id="nodeType" class="text-[8px] uppercase tracking-tighter text-indigo-400 mb-3">Type</p>
-                            <div id="nodeDesc" class="text-[10px] text-slate-400 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">Description goes here...</div>
-                            <div id="nodeActions" class="mt-4 pt-3 border-t border-slate-800 flex flex-col gap-2"></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-<section id="mainChat" class="main-panel" role="tabpanel">
-                <div id="chatPanel" class="flex flex-col h-full">
-                    <div class="chat-topstrip"><span class="chat-indicator" id="chatIndicator" aria-hidden="true"></span><h1 class="chat-title">Chat</h1><span id="chatModelLabel" class="chat-model-label">auto</span><span class="ml-auto text-[10px] text-slate-600 font-mono" id="tokenCounter">0 / 16384 TX</span></div>
-                    <div id="messagesContainer" class="messages-area custom-scrollbar">
-                        <div id="chatEmptyState" class="empty-state"><span class="material-symbols-outlined empty-icon">neurology</span><h2 class="empty-title">How can I help you today?</h2><p class="empty-sub">Ask a question, analyze a file, generate code, or explore ideas.</p><div class="prompt-pills"><button class="prompt-pill">Summarize this project</button><button class="prompt-pill">Write a Python script to...</button><button class="prompt-pill">Explain how RAG works</button><button class="prompt-pill">Debug this error</button><button class="prompt-pill">Check the MemPalace status</button></div></div>
-                    </div>
-                    <div class="input-zone"><div class="input-shell" id="chatInputShell"><textarea id="messageInput" aria-label="Message Input" title="Type your message here" class="message-textarea" placeholder="Message LocalMind..." rows="1"></textarea><div class="input-actions"><div class="input-left-actions"><button id="micBtn" aria-label="Voice Input" title="Voice input" class="tool-btn"><span class="material-symbols-outlined">mic</span></button><button id="openCameraBtn" aria-label="Open Camera" title="Take a photo" class="tool-btn"><span class="material-symbols-outlined">photo_camera</span></button><button id="ttsToggleBtn" aria-label="Toggle TTS" title="Text-to-speech" class="tool-btn"><span class="material-symbols-outlined">volume_up</span></button></div><button id="sendBtn" aria-label="Send Message" title="Send" class="send-btn"><span class="material-symbols-outlined">arrow_upward</span></button></div></div><p class="input-disclaimer">LocalMind runs locally. Your data stays on your machine.</p></div>
-                </div>
-            </section>
-            <section id="mainPipeline" class="main-panel hidden" role="tabpanel"><div id="jobsView" class="flex-1 overflow-y-auto"></div></section>
-            <section id="mainMemory" class="main-panel hidden" role="tabpanel"><div class="flex-1 overflow-y-auto p-6 custom-scrollbar"><div id="memoryMainContent"><div class="text-center opacity-30 select-none py-20"><span class="material-symbols-outlined" style="font-size:64px">castle</span><p class="text-[10px] uppercase tracking-[0.3em] mt-4">MemPalace Inspector</p><p class="text-[9px] uppercase mt-2 italic text-slate-500">Select a wing, hall, or room from the sidebar to inspect stored memories</p></div></div><div class="mt-6"><div id="memoryCount" class="hidden">0</div><div id="memoryList"></div></div></div></section>
-            <section id="mainSystem" class="main-panel hidden" role="tabpanel">
-                <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
-                    <div class="accordion-section" id="accordionWorkerPool"><button class="accordion-header" aria-expanded="false" aria-controls="accordionWorkerPoolBody" data-accordion="accordionWorkerPoolBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-amber-400 text-lg">hive</span><span class="accordion-title">Worker Pool</span></div><div class="flex items-center gap-2"><button id="swarmScanBtn" title="Scan" class="btn-base btn-ghost text-amber-400 border-amber-500/20 hover:bg-amber-500/10 text-[11px]" onclick="event.stopPropagation()"><span class="material-symbols-outlined text-xs align-middle mr-1">radar</span>Scan</button><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></div></button><div id="accordionWorkerPoolBody" class="accordion-body hidden"><div class="flex items-center gap-4 text-xs text-slate-500 font-mono mb-4"><span class="flex items-center gap-1.5"><span id="swarmHeartbeat" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>Uptime: <span id="swarmUptime" class="text-slate-400">0s</span></span><span>Tasks: <span id="swarmTotalTasks" class="text-cyan-400">0</span></span><span>Failed: <span id="swarmTotalFailed" class="text-red-400">0</span></span><span class="ml-auto">Last: <span id="swarmLastPoll" class="text-slate-400">--</span></span></div><div class="grid grid-cols-2 gap-3 mb-4" id="swarmMetrics"><div class="stat-card"><div class="stat-card-label">Tasks Done</div><div class="stat-card-value text-cyan-400" id="swarmActiveCount">0</div></div><div class="stat-card"><div class="stat-card-label">GPU Slots</div><div class="stat-card-value"><span id="swarmGpuUsed" class="text-violet-400">0</span><span class="text-slate-600">/</span><span id="swarmGpuTotal" class="text-slate-400">3</span></div></div><div class="stat-card"><div class="stat-card-label flex justify-between">Queue<span class="text-amber-500/50">PEAK: <span id="swarmQueuePeak">0</span></span></div><div class="stat-card-value text-amber-400" id="swarmQueueDepth">0</div></div><div class="stat-card"><div class="stat-card-label">Success Rate</div><div class="stat-card-value text-emerald-400" id="swarmSuccessRate">--</div></div></div><div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Agent Pool</div><div class="grid grid-cols-1 gap-3" id="swarmAgentGrid"></div><div class="grid grid-cols-1 gap-5 mt-4"><div><div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Recent Task Results</div><div class="space-y-1 max-h-48 overflow-y-auto custom-scrollbar" id="swarmResultStream"><div class="text-xs text-slate-500 italic p-3">Waiting for tasks...</div></div></div><div><div class="text-xs font-bold uppercase tracking-widest text-cyan-500 mb-2">Recent Improvements</div><div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar" id="swarmImprovementsStream"><div class="text-xs text-slate-500 italic p-3">No improvements merged yet...</div></div></div></div><div id="swarmTabBar" class="flex gap-2 mt-4 p-3 border-t border-slate-700/30"></div><div id="swarmTreeView" class="hidden p-3"></div><div id="swarmMemoryView" class="hidden p-3"></div><div id="swarmMessageLog" class="hidden p-3"></div><div id="swarmLockStatus" class="hidden p-3"></div></div></div>
-                    <div class="accordion-section" id="accordionLearning"><button class="accordion-header" aria-expanded="false" aria-controls="accordionLearningBody" data-accordion="accordionLearningBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-violet-400 text-lg">school</span><span class="accordion-title">Learning Lab</span></div><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></button><div id="accordionLearningBody" class="accordion-body hidden"><div id="learningPage" class="flex flex-col"></div></div></div>
-                    <div class="accordion-section" id="accordionAIProfile"><button class="accordion-header" aria-expanded="false" aria-controls="accordionAIProfileBody" data-accordion="accordionAIProfileBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-purple-400 text-lg">auto_awesome</span><span class="accordion-title">AI Profile</span></div><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></button><div id="accordionAIProfileBody" class="accordion-body hidden"><div id="aiProfileView" class="flex flex-col"></div></div></div>
-                    <div class="accordion-section" id="accordionMonitoring"><button class="accordion-header" aria-expanded="false" aria-controls="accordionMonitoringBody" data-accordion="accordionMonitoringBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-emerald-400 text-lg">monitor_heart</span><span class="accordion-title">Monitoring &amp; Health</span></div><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></button><div id="accordionMonitoringBody" class="accordion-body hidden"><div id="monitoringView" class="flex flex-col gap-4"></div></div></div>
-                    <div class="accordion-section" id="accordionEvals"><button class="accordion-header" aria-expanded="false" aria-controls="accordionEvalsBody" data-accordion="accordionEvalsBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-indigo-300 text-lg">labs</span><span class="accordion-title">Evaluations</span><span id="evalStatusBadge" class="text-[9px] bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded font-bold">Ready</span></div><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></button><div id="accordionEvalsBody" class="accordion-body hidden"><div id="evalView" class="flex flex-col"></div></div></div>
-                    <div class="accordion-section" id="accordionTokens"><button class="accordion-header" aria-expanded="false" aria-controls="accordionTokensBody" data-accordion="accordionTokensBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-indigo-400 text-lg">toll</span><span class="accordion-title">Token Usage</span></div><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></button><div id="accordionTokensBody" class="accordion-body hidden"><div id="tokenPanelContent" class="flex flex-col gap-4"></div></div></div>
-                </div>
-            </section>
 
-            <!-- ── AUTONOMY MISSION EXPLORER ───────────────────── -->
-            <section id="mainAutonomy" class="main-panel hidden" role="tabpanel">
-                <div class="flex-1 flex flex-col p-6 space-y-6 overflow-y-auto custom-scrollbar">
-                    <div id="missionExplorerHeader" class="flex justify-between items-center">
-                        <h2 class="text-xl font-headline font-bold text-slate-200">Mission Explorer</h2>
-                        <div class="flex gap-2">
-                             <button id="newMissionBtn" class="h-8 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors flex items-center gap-2">
-                                <span class="material-symbols-outlined text-sm">rocket_launch</span>
-                                New Mission
-                             </button>
-                             <button id="engageMissionBtn" class="hidden h-8 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold uppercase transition-colors">Engage Mission</button>
-                        </div>
-                    </div>
-                    <div id="missionExplorerContent" class="grid grid-cols-1 gap-6">
-                        <div class="p-20 text-center opacity-30 select-none">
-                            <span class="material-symbols-outlined" style="font-size:64px">rocket_launch</span>
-                            <p class="text-[10px] uppercase tracking-[0.3em] mt-4">Autonomous Intelligence</p>
-                            <p class="text-[9px] uppercase mt-2 italic text-slate-500">Brief the agent to start a new mission</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
+        <!-- jobs_ui.js renders filter tabs, sort, refresh, and job cards into #jobsView -->
+        <div id="jobsView" class="lm-jobs__view"></div>
+      </div>
+    </section>
 
-            <!-- ── COWORKER MODAL ────────────────────────────────── -->
-            <div id="briefingModal" class="modal-backdrop hidden" style="backdrop-filter: blur(20px); background: rgba(2, 6, 23, 0.85);">
-                <div class="modal-panel border-indigo-500/30 shadow-[0_0_100px_rgba(99,102,241,0.1)] max-w-xl">
-                    <div class="modal-header border-none p-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                                <span class="material-symbols-outlined">waving_hand</span>
-                            </div>
-                            <div>
-                                <h3 id="briefingGreeting" class="text-xl font-headline font-bold text-slate-100">Yo — what's up?</h3>
-                                <p class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">LocalMind Proactive Briefing</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-body p-6 pt-0 space-y-4">
-                        <p id="briefingYesterday" class="text-slate-300 leading-relaxed text-sm italic">"Yesterday you were deep in the Blueprint module gap analysis. I flagged something overnight you might want to see."</p>
-                        
-                        <div class="space-y-3">
-                            <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500">Overnight Intelligence</div>
-                            <div id="briefingFlags" class="space-y-2">
-                                <!-- Flags injected here -->
-                            </div>
-                        </div>
+    <section class="lm-page" id="mainArtifacts" data-nav="artifacts" role="tabpanel" hidden>
+      <div class="lm-page__inner" id="artifactsContainer"></div>
+    </section>
 
-                        <div id="briefingCalendarSection" class="space-y-3 hidden">
-                            <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500">Today's Schedule</div>
-                            <div id="briefingCalendar" class="space-y-2">
-                                <!-- Events injected here -->
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-none p-6 pt-2">
-                        <button id="briefingAckBtn" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg text-[11px] font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all">Let's Get to Work</button>
-                    </div>
-                </div>
-            </div>
-            <!-- ──────────────────────────────────────────────────── -->
-                    <div class="accordion-section" id="accordionEditor"><div class="accordion-header" role="button" tabindex="0" aria-expanded="false" aria-controls="accordionEditorBody" data-accordion="accordionEditorBody" id="editorToggle"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-lg">code</span><span class="accordion-title">Code Editor</span></div><div class="flex items-center gap-2"><button id="editorRunBtn" class="btn-base btn-ghost text-[11px]" onclick="event.stopPropagation()">Run Script</button><button id="editorSendToAI" class="btn-base btn-ghost text-[11px]" onclick="event.stopPropagation()">Attach to Context</button><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></div></div><div id="accordionEditorBody" class="accordion-body accordion-editor hidden"><div class="flex overflow-hidden" style="height:calc(100vh - 280px)"><div id="editorFileTree" class="w-52 border-r border-slate-800/15 bg-transparent p-2 overflow-y-auto custom-scrollbar flex-shrink-0"><div id="editorFileList" class="space-y-0.5 text-xs text-slate-500"></div></div><div id="panelDivider" class="w-1 cursor-col-resize bg-slate-700/10 hover:bg-indigo-500/50 transition-colors z-50 flex-shrink-0" tabindex="-1" aria-hidden="true"></div><div class="flex-1 relative"><div id="monacoContainer" class="absolute inset-0"></div></div></div><div id="editorStatus" class="p-2 border-t border-slate-800/20 text-[11px] text-slate-600 uppercase tracking-widest flex justify-between"><span id="editorPath">No file open</span><span id="editorLang">plaintext</span></div></div></div>
-                </div>
-            </section>
-            <section id="mainTools" class="main-panel hidden" role="tabpanel"><div class="flex-1 overflow-y-auto custom-scrollbar"><div id="generatedToolsPanel" class="p-4"></div></div></section>
-            <section id="mainConfig" class="main-panel hidden" role="tabpanel"><div class="flex-1 overflow-y-auto p-6 custom-scrollbar"><div class="max-w-2xl mx-auto space-y-6"><div class="flex items-center gap-2 mb-2"><span class="material-symbols-outlined text-indigo-400">settings</span><h2 class="text-lg font-headline font-bold text-slate-100">Engine Configuration</h2></div><div class="border border-slate-800 rounded-lg p-5 bg-[#161b22]"><h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-4">Model Complexity Routing</h3><div class="space-y-3"><div class="flex items-center justify-between p-3 bg-slate-900/50 rounded border border-slate-800 hover:border-indigo-500/30 transition-colors"><div><div class="text-xs text-slate-400 font-bold">Simple Tier (1-2 nodes)</div><div class="text-sm text-indigo-400 font-bold italic font-mono mt-0.5">gemma3:4b</div></div><div class="text-right"><div class="text-xs text-slate-500">Timeout</div><div class="text-sm text-slate-300 font-mono">120s</div></div></div><div class="flex items-center justify-between p-3 bg-slate-900/50 rounded border border-slate-800 hover:border-indigo-500/30 transition-colors"><div><div class="text-xs text-slate-400 font-bold">Medium Tier (3-4 nodes)</div><div class="text-sm text-indigo-400 font-bold italic font-mono mt-0.5">qwen3:8b</div></div><div class="text-right"><div class="text-xs text-slate-500">Timeout</div><div class="text-sm text-slate-300 font-mono">300s</div></div></div><div class="flex items-center justify-between p-3 bg-slate-900/50 rounded border border-slate-800 hover:border-indigo-500/30 transition-colors"><div><div class="text-xs text-slate-400 font-bold">Complex Tier (5+ nodes)</div><div class="text-sm text-indigo-400 font-bold italic font-mono mt-0.5">deepseek-r1:14b</div></div><div class="text-right"><div class="text-xs text-slate-500">Timeout</div><div class="text-sm text-slate-300 font-mono">600s</div></div></div></div></div><div class="border border-slate-800 rounded-lg p-5 bg-[#161b22]"><h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-4">Resource Thresholds</h3><div class="space-y-4"><div><div class="flex justify-between text-xs font-bold mb-2"><span class="text-slate-400">MAX VRAM (RTX 3080)</span><span class="text-slate-200">10.0 GB</span></div><div class="w-full bg-slate-800 h-2 rounded-full"><div class="w-[84%] h-full bg-indigo-500 rounded-full"></div></div></div><div class="flex justify-between text-xs font-bold"><span class="text-slate-400">MAX NODES / JOB</span><span class="text-slate-200">20 Nodes</span></div></div></div><div class="border border-slate-800 rounded-lg p-5 bg-[#161b22]"><h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-4">Maintenance</h3><div class="space-y-3"><div class="flex justify-between text-xs font-bold"><span class="text-slate-400">SQLite Vacuum Cycle</span><span class="text-emerald-500">24h ACTIVE</span></div><button class="w-full py-2.5 bg-red-900/10 border border-red-900/30 text-red-500 text-xs font-bold uppercase rounded-lg hover:bg-red-900/20 transition-colors">Purge 30-day Trash</button></div></div></div></div></section>
-            <div id="thinking-terminal" class="thinking-terminal"><div class="thinking-terminal-header"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-emerald-400 text-sm">terminal</span><span class="font-mono text-[11px] text-emerald-400 font-semibold uppercase tracking-widest">Task Output</span></div><button id="closeThinkingTerminalBtn" aria-label="Close Terminal" class="icon-btn icon-btn-sm"><span class="material-symbols-outlined text-sm">keyboard_arrow_down</span></button></div><div id="mini-stepper" class="px-5 py-1.5 border-b border-slate-800/30 flex items-center gap-2.5"><span class="text-[11px] uppercase font-semibold text-slate-500 tracking-widest">Step:</span><span id="miniStepperLabel" class="text-[11px] uppercase font-semibold text-indigo-400 flex items-center gap-1"><span class="material-symbols-outlined text-[11px]">schema</span> Planner</span></div><div id="thinkingTerminalOutput" class="flex-1 overflow-y-auto p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap custom-scrollbar">Initializing sandbox...</div></div>
-        </div>
-    </main>
-</div>
-<!-- Modals -->
-<div id="settingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Settings"><div class="modal-panel"><div class="modal-header"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-indigo-400 text-xl">settings</span><h2 class="font-bold text-lg tracking-tight text-white" style="font-family:'Space Grotesk',sans-serif">Settings</h2></div><button id="closeSettingsBtn" aria-label="Close Settings" class="icon-btn"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body custom-scrollbar"><div class="settings-section"><div class="flex items-center justify-between"><div><h3 class="settings-section-title">SMS Notifications</h3><p class="settings-section-sub">Get alerts via Twilio when tasks complete or need approval.</p></div><label class="toggle-switch"><input type="checkbox" id="smsEnabled" class="sr-only peer"><div class="toggle-track peer peer-checked:bg-emerald-500"></div></label></div><div class="settings-fields"><div class="field-group"><label for="twilioSid" class="field-label">Account SID</label><input type="text" id="twilioSid" class="field-input" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"></div><div class="field-group"><label for="twilioToken" class="field-label">Auth Token</label><input type="password" id="twilioToken" class="field-input" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"></div><div class="grid grid-cols-2 gap-4"><div class="field-group"><label for="twilioPhone" class="field-label">Twilio Number</label><input type="text" id="twilioPhone" class="field-input" placeholder="+15550000000"></div><div class="field-group"><label for="targetPhone" class="field-label">Your Number</label><input type="text" id="targetPhone" class="field-input" placeholder="+15559998888"></div></div></div></div><div class="settings-section"><h3 class="settings-section-title">Cloud Intelligence</h3><p class="settings-section-sub">Enable complex reasoning with Google Gemini.</p><div class="settings-fields"><div class="field-group"><label for="geminiKey" class="field-label">Gemini API Key</label><input type="password" id="geminiKey" class="field-input" placeholder="AIzaSy..."></div><button id="testGeminiBtn" class="btn-base btn-ghost w-full justify-center gap-2"><span class="material-symbols-outlined text-xs">analytics</span> Verify Connection</button></div></div>
-<div class="settings-section border-t border-slate-800 pt-4">
-    <div class="flex items-center justify-between">
-        <div>
-            <h3 class="settings-section-title">Google Workspace</h3>
-            <p class="settings-section-sub">Connect Drive/Gmail.</p>
-        </div>
-        <div id="googleStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-500">Checking...</div>
+    <section class="lm-page" id="mainKnowledge" data-nav="knowledge" role="tabpanel" hidden>
+      <div class="lm-page__inner" id="knowledgeContainer"></div>
+    </section>
+
+    <section class="lm-page" id="mainOps" data-nav="ops" role="tabpanel" hidden>
+      <div class="lm-page__inner" id="opsContainer"></div>
+    </section>
+
+    <section class="lm-page" id="mainSettings" data-nav="settings" role="tabpanel" hidden>
+      <div class="lm-page__inner" id="settingsContainer"></div>
+    </section>
+
+  </main>
+
+  <!-- ── UTILITY STRIP ─────────────────────────────────────────── -->
+  <footer class="lm-utility" role="contentinfo">
+    <div class="lm-util__group">
+      <span class="lm-util__label">CPU</span>
+      <span class="lm-util__val" id="utilCpu">—</span>
+      <svg class="lm-util__sparkline" id="utilCpuSpark" viewBox="0 0 52 10" aria-hidden="true"></svg>
     </div>
-    <div class="settings-fields" id="googleAuthConfig">
-        <button id="connectGoogleBtn" class="btn-base btn-primary w-full justify-center gap-2">
-            <span class="material-symbols-outlined text-sm">login</span> Connect Google Account
-        </button>
-        <div id="googleConnectedActions" class="hidden flex gap-2">
-            <button id="refreshGoogleBtn" class="flex-1 btn-base btn-ghost justify-center gap-2">
-                <span class="material-symbols-outlined text-sm">refresh</span> Refresh
-            </button>
-            <button id="revokeGoogleBtn" class="flex-1 btn-base btn-ghost text-red-400 hover:bg-red-500/10 justify-center gap-2">
-                <span class="material-symbols-outlined text-sm">logout</span> Disconnect
-            </button>
-        </div>
+    <span class="lm-util__sep"></span>
+    <div class="lm-util__group">
+      <span class="lm-util__label">RAM</span>
+      <span class="lm-util__val" id="utilRam">—</span>
+      <svg class="lm-util__sparkline" id="utilRamSpark" viewBox="0 0 52 10" aria-hidden="true"></svg>
     </div>
+    <span class="lm-util__sep"></span>
+    <div class="lm-util__group">
+      <span class="lm-util__label">GPU</span>
+      <span class="lm-util__val" id="utilGpu">—</span>
+      <svg class="lm-util__sparkline" id="utilGpuSpark" viewBox="0 0 52 10" aria-hidden="true"></svg>
+    </div>
+    <span class="lm-util__sep"></span>
+    <div class="lm-util__group">
+      <span class="lm-util__label">Queue</span>
+      <span class="lm-util__val" id="utilQueue">0</span>
+    </div>
+    <span class="lm-util__sep"></span>
+    <div class="lm-util__group">
+      <span class="lm-util__label">Workers</span>
+      <span class="lm-util__val" id="utilWorkers">—</span>
+    </div>
+
+    <div class="lm-util__spacer"></div>
+
+    <div class="lm-util__group">
+      <span class="lm-util__dot" id="utilOnlineDot" aria-hidden="true"></span>
+      <span class="lm-util__val" id="utilOnline">online</span>
+    </div>
+  </footer>
+
 </div>
-</div><div class="modal-footer"><button id="testSmsBtn" class="btn-base btn-ghost flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">send</span> Test Alert</button><button id="saveSettingsBtn" class="btn-base btn-primary flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">save</span> Save Config</button></div></div></div>
-<div id="cameraModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Camera"><div class="modal-panel max-w-md"><div class="modal-header"><h2 class="font-semibold text-slate-200" style="font-family:'Space Grotesk',sans-serif">Camera</h2><button id="closeCameraBtn" class="icon-btn" aria-label="Close camera"><span class="material-symbols-outlined">close</span></button></div><div class="p-4"><video id="cameraPreview" autoplay class="w-full rounded-lg bg-black aspect-video"></video><canvas id="captureCanvas" class="hidden"></canvas><div class="flex justify-center mt-3 gap-3"><button id="snapBtn" class="btn-base btn-primary gap-2"><span class="material-symbols-outlined text-sm">photo_camera</span>Capture</button></div></div></div></div>
-<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="false"></div>
-<!-- Hidden shims -->
-<div class="hidden" aria-hidden="true"><button id="tabWork"></button><button id="tabChat"></button><button id="tabSystem"></button><textarea id="systemPromptText"></textarea><div id="systemPromptEditor"></div><button id="saveSystemPrompt"></button><select id="modelSelect"><option value="auto">Auto</option><option value="fast">Fast</option><option value="deep">Deep</option></select><div id="mainScrollArea"></div><div id="welcomeScreen"></div><div id="mainDashboardView"></div><div id="swarmDashboardView"></div><div id="crossProjectHub"></div><div id="sidebarImagePreview"><img id="sidebarPreviewImg" alt=""/><button id="sidebarRemoveImageBtn"></button></div><input id="docUploadInput" type="file" multiple/><button id="uploadDocsBtn"></button><button id="memoryToggleBtn"></button><button id="sidebarUploadBtn"></button><button id="sidebarCameraBtn"></button><textarea id="priorityInput" aria-hidden="true" tabindex="-1"></textarea><div id="priorityList"></div><button id="addPriorityBtn" aria-hidden="true" tabindex="-1"></button><div id="workImagePreview"><img id="workPreviewImg" alt=""/><button id="workRemoveImageBtn"></button></div><button id="workAttachBtn" aria-hidden="true" tabindex="-1"></button><button id="workCameraBtn" aria-hidden="true" tabindex="-1"></button><div id="chatSidebarShim"></div><div id="chatSidebar"></div><div id="learningToggle"></div><div id="loadingStatus"></div><select id="voiceSelect"></select><button id="voiceBtn"></button><div id="sidebarBackdrop"></div><span id="workApprovalBadge" class="hidden">0</span><span id="taskPipelineCountHeader">0</span><div id="docCount">0</div></div>
-<script type="module" src="app.js?v=8"></script>
+
+<!-- ── New Job drawer ─────────────────────────────────────────── -->
+<div class="lm-drawer" id="newJobDrawer" data-open="false" aria-hidden="true" role="dialog" aria-labelledby="newJobDrawerTitle">
+  <div class="lm-drawer__scrim" data-close-drawer></div>
+  <aside class="lm-drawer__panel" aria-modal="true">
+    <header class="lm-drawer__header">
+      <h2 class="lm-drawer__title" id="newJobDrawerTitle">New Job</h2>
+      <button type="button" class="lm-icon-btn lm-topbar__icon-btn" data-close-drawer aria-label="Close">
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+    </header>
+    <div class="lm-drawer__body" id="taskCreationArea"></div>
+  </aside>
+</div>
+
+<!-- Toast region -->
+<div id="toastRegion" class="lm-toast-region" role="status" aria-live="polite"></div>
+
+<!-- Entry point -->
+<script type="module" src="app.js"></script>
+
 </body>
 </html>
