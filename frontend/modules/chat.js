@@ -91,6 +91,34 @@ export async function sendMessage() {
   // Switch to chat view if not already visible
   import("./nav_rail.js").then((m) => m.switchNav("chat")).catch(() => {});
 
+  if (text.toLowerCase().startsWith("briefing:")) {
+    const goal = text.substring(9).trim();
+    if (goal) {
+      // Trigger Autonomy Planning
+      import("./autonomy_ui.js").then(m => m.showMissionPlan({
+          goal: goal,
+          tasks: [
+              { title: "Planning Mission...", description: "LocalMind is analyzing the request and building a task tree.", status: "IN_PROGRESS", dependencies: [] }
+          ]
+      }));
+      
+      try {
+          const res = await fetch(`${API}/api/autonomy/mission/planning`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({goal: goal})
+          });
+          if (res.ok) {
+              const plan = await res.json();
+              import("./autonomy_ui.js").then(m => m.showMissionPlan(plan));
+          }
+      } catch (err) {
+          console.error("Autonomy planning failed:", err);
+      }
+      return; // Stop here, don't send to standard chat
+    }
+  }
+
   state.messages.push({ role: "user", content: text });
   appendMessage("user", text);
   scrollToBottom();

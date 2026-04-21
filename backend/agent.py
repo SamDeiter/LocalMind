@@ -11,7 +11,7 @@ from typing import AsyncGenerator
 
 import httpx
 
-from tools import TOOL_DEFINITIONS, execute_tool
+from .core_tools import TOOL_DEFINITIONS, execute_tool
 from backend.inference.streaming_client import stream_ollama_chat
 
 MAX_TOOL_ITERATIONS = 15

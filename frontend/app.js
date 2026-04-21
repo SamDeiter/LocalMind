@@ -33,6 +33,8 @@ import { initLearningUI } from "./modules/learning_ui.js";
 import { initAIProfile } from "./modules/ai_profile.js";
 import { initOnboarding } from "./modules/onboarding.js";
 import { initPlaceholderRotation } from "./modules/chat_ux.js";
+import { initAutonomyUI } from "./modules/autonomy_ui.js";
+import { initIntelligenceMap } from "./modules/intelligence_map_ui.js";
 
 async function init() {
   // ── Phase 1: Parallel network fetches + sync DOM setup ──────────
@@ -72,6 +74,8 @@ async function init() {
   initLearningUI();
   initAIProfile();
   initOnboarding();
+  initAutonomyUI();
+  initIntelligenceMap();
   startHwPolling();
 
   // Wait for all network fetches to settle (don't block on failures)

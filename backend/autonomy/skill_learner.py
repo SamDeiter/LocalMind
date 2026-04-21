@@ -391,6 +391,7 @@ class SkillLearner:
     async def _try_apply_learning(self, synthesis: dict) -> dict:
         """Try to apply learned knowledge by creating/updating a tool."""
         from backend.tools.tool_generator import ToolGenerator
+        from backend.security.integrity import minter
 
         code = synthesis.get("code", "")
         tool_name = synthesis.get("tool_name", "")
@@ -413,7 +414,10 @@ class SkillLearner:
         if not tool_name:
             tool_name = validation.get("tool_name", "learned_tool")
 
-        # Step 2: Generate (validates again internally, writes file + DB row)
+        # Step 2: Sign the code (Mint it)
+        token = minter.sign_tool(tool_name, code)
+        
+        # Step 3: Generate (validates again internally, writes file + DB row)
         result = generator.generate_tool(
             tool_name=tool_name,
             code=code,
@@ -422,7 +426,14 @@ class SkillLearner:
         )
 
         if result.get("ok"):
-            logger.info("Applied learning: created tool '%s'", result["tool_name"])
+            # Save the signature token sidecar
+            try:
+                sig_path = (PROJECT_ROOT / "backend" / "tools" / "generated" / f"{tool_name}.sig")
+                sig_path.write_text(token, encoding="utf-8")
+                logger.info("Applied learning: created and MINTED tool '%s'", result["tool_name"])
+            except Exception as e:
+                logger.error("Failed to save tool signature for '%s': %s", tool_name, e)
+                
             return {"applied": True, "tool_name": result["tool_name"]}
 
         logger.warning(

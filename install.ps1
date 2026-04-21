@@ -59,10 +59,12 @@ try {
 # Step 4: Pull model
 Write-Host ''
 Write-Host '[STEP] Pulling AI model (this takes a while on first run)...' -ForegroundColor Cyan
-Write-Host '  Pulling qwen2.5-coder:32b (~20GB) to D: drive...' -ForegroundColor Gray
+Write-Host '  Pulling qwen2.5-coder:32b and gemma4:e2b to D: drive...' -ForegroundColor Gray
 try {
     & ollama pull qwen2.5-coder:32b
-    Write-Host '  [OK] Model ready' -ForegroundColor Green
+    Write-Host '  Pulling gemma4:e2b (Micro local model)...' -ForegroundColor Gray
+    & ollama pull gemma4:e2b
+    Write-Host '  [OK] Models ready' -ForegroundColor Green
 } catch {
     Write-Host '  [WARN] Model pull failed. Run later: ollama pull qwen2.5-coder:32b' -ForegroundColor Yellow
 }

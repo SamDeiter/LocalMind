@@ -171,6 +171,20 @@ async def lifespan(app: FastAPI):
     )
     app.state.job_worker = job_worker
 
+    # ── Swarm & Autonomy (Phase F) ──────────────────────────────
+    from backend.swarm.coordinator import HiveCoordinator
+    from backend.autonomy.engine import AutonomyEngine
+    
+    coordinator = HiveCoordinator(
+        emit_activity=_activity_multiplex
+    )
+    autonomy_engine = AutonomyEngine(coordinator=coordinator)
+    app.state.autonomy_engine = autonomy_engine
+    
+    # Start the hive
+    asyncio.create_task(coordinator.start())
+    logger.info("🐝 HiveCoordinator active and attached to AutonomyEngine")
+
     # ── GC worker ───────────────────────────────────────────────
     try:
         from backend.core.gc import GCWorker
@@ -380,8 +394,10 @@ from backend.routes.tts import router as tts_router
 from backend.routes.eval_routes import router as eval_router
 from backend.routes.push import router as push_router
 from backend.routes.tools_generated import router as tools_generated_router
+from backend.routes.autonomy import router as autonomy_router
 from backend.routes.self_discovery import router as self_discovery_router
 from backend.routes.skill_learning import router as skill_learning_router
+from backend.routes.intelligence import router as intelligence_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -407,6 +423,8 @@ app.include_router(push_router)
 app.include_router(tools_generated_router)
 app.include_router(self_discovery_router)
 app.include_router(skill_learning_router)
+app.include_router(autonomy_router)
+app.include_router(intelligence_router)
 
 # -- Health Check Endpoints --
 @app.get("/health")

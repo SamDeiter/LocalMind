@@ -4,14 +4,16 @@
  */
 
 // ── Constants ───────────────────────────────────────────────────
-const NAV_ITEMS = ["chat", "pipeline", "memory", "system", "tools", "config"];
+const NAV_ITEMS = ["chat", "pipeline", "memory", "system", "tools", "autonomy", "config", "brain"];
 const LABELS = {
   chat: "Chat",
   pipeline: "Pipeline",
   memory: "Memory",
   system: "System",
   tools: "Tools",
+  autonomy: "Agent Mode",
   config: "Config",
+  brain: "Intelligence Map",
 };
 
 let _currentNav = "chat";
@@ -107,6 +109,17 @@ function _lazyInit(key) {
       // Generated tools list
       import("./tools_generated.js")
         .then((m) => m.loadGeneratedTools?.())
+        .catch(() => {});
+      break;
+    case "autonomy":
+      // Agent Mode UI
+      import("./autonomy_ui.js")
+        .then((m) => m.initAutonomyUI?.())
+        .catch(() => {});
+      break;
+    case "brain":
+      import("./intelligence_map_ui.js")
+        .then((m) => m.loadIntelligenceMap?.())
         .catch(() => {});
       break;
     default:

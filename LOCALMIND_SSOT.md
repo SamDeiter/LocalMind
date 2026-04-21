@@ -9,16 +9,10 @@
 
 | Phase | What | Status |
 |-------|------|--------|
-| D1 | AgentFixer RCA + Calibration Fix | ✅ Complete |
-| D2 | Git Awareness Tools | ✅ Complete |
-| D3 | Cross-Project Hub | ✅ Complete |
-| D4 | Model Roster — Gemma 4 + MedGemma + Cleanup | ✅ Complete |
-| D5 | Streaming Resilience — Token Checkpoint-Resume | ✅ Complete |
-| D6 | Google Workspace OAuth Layer | ✅ Complete |
-| D7 | Repo Cleanup | 🚀 Next up |
-| F | Autonomous Agent Mode + Coworker Experience | 🔜 Needs design session |
-| F2 | Report Forge (Sister Use Case) | 🔜 Planned |
-| E | VS Code Extension | 🔜 After F |
+| D1-D7 | Foundation Hardening & Cleanup | ✅ Complete |
+| F | Autonomous Agent Mode + Coworker Experience | ✅ Complete |
+| F2 | Report Forge (Sister Use Case) | 🚀 ACTIVE |
+| E | VS Code Extension | 🔜 After F2 |
 | G | v1.0.0 Launch Hardening | 🔜 Last |
 
 ---
@@ -51,6 +45,10 @@
 | RBAC | `backend/security/rbac.py` | Role-based access control |
 | Prompt Guard | `backend/security/prompt_guard.py` | |
 | Skill Learning | `backend/routes/skill_learning.py` | Agent self-improvement |
+| Autonomy Engine | `backend/autonomy/engine.py` | HiveCoordinator-integrated execution loop |
+| Goal Planner | `backend/autonomy/goal_planner.py` | Objective → Plan mapping |
+| Intelligence Monitor | `backend/autonomy/intelligence_monitor.py` | Daily briefing generator |
+| Autonomy UI | `frontend/modules/autonomy_ui.js` | Mission explorer & briefing explorer |
 
 ---
 
@@ -142,7 +140,7 @@ backend/integrations/google_workspace/
 
 ---
 
-## 🔜 Phase D7 — Repo Cleanup *(~1 hour)*
+## ✅ Phase D7 — Repo Cleanup *(Complete)*
 
 - Archive/remove one-off migration scripts from `scripts/`
 - Remove temp/scratch files from Phase D
@@ -151,7 +149,7 @@ backend/integrations/google_workspace/
 
 ---
 
-## 🔜 Phase F — Autonomous Agent Mode
+## ✅ Phase F — Autonomous Agent Mode *(Complete)*
 
 > **Core product vision: a coworker you brief, not a chatbot you query.**
 
@@ -221,13 +219,14 @@ When LocalMind detects something notable in your data sources:
 
 ### What Gets Built
 
-- `backend/autonomy/goal_planner.py` — goal → structured task tree
-- `backend/autonomy/engine.py` — plan → execute → reflect loop, hard time-box
-- `backend/autonomy/intelligence_monitor.py` — event-driven + time-triggered (NOT polling). Drive changes use Google webhook push; scheduled tasks fire at defined times
-- `backend/autonomy/sourced_report.py` — Google Docs with every claim sourced
-- `backend/autonomy/content_assist.py` — gap detected → draft outline/script generated
-- **Proactive alerts:** Desktop notification + email (via Gmail tool) — quiet during normal weeks
-- **Frontend:** Agent Mode toggle, live task tree, scheduled task manager, notifications inbox
+- `backend/autonomy/goal_planner.py` — goal → structured task tree ✅
+- `backend/autonomy/engine.py` — plan → execute → reflect loop, hive-integrated ✅
+- `backend/autonomy/intelligence_monitor.py` — event-driven daily briefing generator ✅
+- `backend/security/integrity.py` — Cryptographic "Minting" of mission results (HMAC-SHA256) ✅
+- `backend/autonomy/sourced_report.py` — Google Docs with every claim sourced ✅
+- `backend/autonomy/content_assist.py` — gap detected → draft outline/script generated ✅
+- **Proactive alerts:** Desktop notification + email (via Gmail tool) ✅
+- **Frontend:** Agent Mode tab, mission explorer, proactive briefing modal, minting visualization ✅
 
 > **⚠️ Needs a dedicated design session before execution** — finalize: task input UI, web research tool permissions, standing watch/alert persistence, general vs. specialized task router.
 
@@ -308,9 +307,9 @@ When LocalMind detects something notable in your data sources:
 | D1–D4 | Foundation + Models | — | ✅ Done |
 | **D5** | Streaming resilience | — | ✅ Done |
 | **D6** | Google OAuth wiring | — | ✅ Done |
-| **D7** | Repo cleanup | ~1 hour | 🚀 Next |
-| **F** | Agent Mode + Coworker Experience | ~1–2 weeks | 🔜 Design first |
-| **F2** | Report Forge | ~1 week | 🔜 After D6 |
+| **D7** | Repo cleanup | — | ✅ Done |
+| **F** | Agent Mode + Coworker Experience | ~1–2 weeks | 🚀 ACTIVE |
+| **F2** | Report Forge | ~1 week | 🔜 After F |
 | **E** | VS Code Extension | ~3–4 days | 🔜 After F |
 | **G** | Launch Hardening | ~2 days | 🔜 Last |
 

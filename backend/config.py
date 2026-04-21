@@ -61,10 +61,10 @@ CRITICAL: You MUST call a tool NOW. The user asked you to DO something. Do NOT r
 # so Ollama never spills to CPU RAM (which tanks speed 10-50×).
 # Override any tier via env vars: MODEL_LIGHT, MODEL_MEDIUM, etc.
 MODEL_TIERS = {
-    "light":  os.getenv("MODEL_LIGHT", "gemma3:4b"),          # 3.1 GB — instant
-    "medium": os.getenv("MODEL_MEDIUM", "qwen3:8b"),          # 4.9 GB — fast, hybrid thinking
-    "heavy":  os.getenv("MODEL_HEAVY", "deepseek-r1:14b"),    # 8.4 GB — chain-of-thought reasoning
-    "ultra":  os.getenv("MODEL_ULTRA", "deepseek-r1:14b"),    # cap at 14b for 10 GB card
+    "light":  os.getenv("MODEL_LIGHT", "gemma4:e2b"),
+    "medium": os.getenv("MODEL_MEDIUM", "gemma4:e2b"),
+    "heavy":  os.getenv("MODEL_HEAVY", "gemma4:e2b"),
+    "ultra":  os.getenv("MODEL_ULTRA", "gemma4:e2b"),
 }
 
 # --- GPU Config ---

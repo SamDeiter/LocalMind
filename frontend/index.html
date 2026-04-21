@@ -125,6 +125,7 @@
         .ml-auto{margin-left:auto}
         @media(max-width:768px){#sidebar{display:none}#navRail{width:48px}.nav-rail-btn{width:36px;height:36px}}
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 </head>
 <body class="bg-[#0d1117] overflow-hidden">
 <a href="#mainContent" class="skip-link">Skip to main content</a>
@@ -134,11 +135,13 @@
     <aside id="navRail">
         <div class="nav-rail-brand"><span class="material-symbols-outlined" style="font-size:24px">psychology</span></div>
         <nav class="nav-rail-nav" role="tablist" aria-label="Main navigation">
+            <button data-nav="brain" role="tab" aria-selected="false" class="nav-rail-btn" title="Intelligence Map"><span class="material-symbols-outlined" style="font-size:20px">hub</span><span class="nav-rail-tooltip">Intelligence Map</span></button>
             <button data-nav="chat" role="tab" aria-selected="true" class="nav-rail-btn nav-rail-active" title="Chat"><span class="material-symbols-outlined" style="font-size:20px">chat</span><span class="nav-rail-tooltip">Chat</span></button>
             <button data-nav="pipeline" role="tab" aria-selected="false" class="nav-rail-btn" title="Jobs"><span class="material-symbols-outlined" style="font-size:20px">play_circle</span><span class="nav-rail-tooltip">Pipeline</span><span id="navPipelineBadge" class="nav-rail-badge bg-indigo-500/20 text-indigo-400 hidden">0</span></button>
             <button data-nav="memory" role="tab" aria-selected="false" class="nav-rail-btn" title="Memory"><span class="material-symbols-outlined" style="font-size:20px">castle</span><span class="nav-rail-tooltip">Memory</span></button>
             <button data-nav="system" role="tab" aria-selected="false" class="nav-rail-btn" title="System"><span class="material-symbols-outlined" style="font-size:20px">monitor_heart</span><span class="nav-rail-tooltip">System</span><span id="navSystemBadge" class="nav-rail-badge bg-amber-500/20 text-amber-400 hidden">0</span></button>
             <button data-nav="tools" role="tab" aria-selected="false" class="nav-rail-btn" title="Tools"><span class="material-symbols-outlined" style="font-size:20px">build</span><span class="nav-rail-tooltip">Tools</span></button>
+            <button data-nav="autonomy" role="tab" aria-selected="false" class="nav-rail-btn" title="Agent Mode"><span class="material-symbols-outlined" style="font-size:20px">robot_2</span><span class="nav-rail-tooltip">Agent Mode</span></button>
             <button data-nav="config" role="tab" aria-selected="false" class="nav-rail-btn" title="Config"><span class="material-symbols-outlined" style="font-size:20px">settings</span><span class="nav-rail-tooltip">Config</span></button>
         </nav>
         <div class="nav-rail-footer">
@@ -149,6 +152,31 @@
 
     <!-- 2. SIDEBAR -->
     <section id="sidebar">
+        <div id="sidebarBrain" class="sidebar-panel hidden">
+            <div class="sidebar-section-header"><span class="material-symbols-outlined">psychology</span><span>Cognitive State</span></div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
+                <div>
+                    <div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Analysis Level</div>
+                    <div class="p-2 bg-slate-900/50 border border-slate-800 rounded">
+                        <div class="flex justify-between text-[10px] font-bold mb-1"><span class="text-slate-500">Integrity</span><span class="text-emerald-400">100%</span></div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full"><div class="w-full h-full bg-emerald-500 rounded-full"></div></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Learning Journal</div>
+                    <div id="learningJournalList" class="space-y-2">
+                        <div class="text-[10px] text-slate-500 italic">No cycles recorded today.</div>
+                    </div>
+                </div>
+                <div class="pt-3 border-t border-slate-800/50">
+                    <div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Guardrail Alerts</div>
+                    <div id="guardrailAlerts" class="space-y-1">
+                        <div class="text-[9px] text-slate-500 flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-emerald-500"></span> All filters active</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="sidebarChat" class="sidebar-panel">
             <div class="sidebar-section-header"><span class="material-symbols-outlined">chat</span><span>Conversations</span><button id="newChatInlineBtn" class="ml-auto text-slate-500 hover:text-white transition-colors" title="New conversation" aria-label="New conversation"><span class="material-symbols-outlined" style="font-size:14px">add</span></button></div>
             <div id="conversationList" class="sidebar-list custom-scrollbar"></div>
@@ -214,6 +242,10 @@
                 <div><div class="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">Resources</div><div class="p-2 bg-slate-900/50 border border-slate-800 rounded space-y-2"><div class="flex justify-between text-[9px] font-bold"><span class="text-slate-500">VRAM</span><span class="text-slate-300">10.0 GB</span></div><div class="w-full bg-slate-800 h-1 rounded-full"><div class="w-[84%] h-full bg-indigo-500 rounded-full"></div></div><div class="flex justify-between text-[9px] font-bold"><span class="text-slate-500">MAX NODES</span><span class="text-slate-300">20</span></div></div></div>
             </div>
         </div>
+        <div id="sidebarAutonomy" class="sidebar-panel hidden">
+            <div class="sidebar-section-header"><span class="material-symbols-outlined">robot_2</span><span>Missions</span><button id="newMissionBtn" class="ml-auto text-slate-500 hover:text-white transition-colors"><span class="material-symbols-outlined" style="font-size:14px">add</span></button></div>
+            <div id="missionList" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1"></div>
+        </div>
         <div class="sidebar-global-footer"><div class="flex justify-between items-center text-[10px] font-bold"><span class="text-slate-500 uppercase tracking-tighter">Engine</span><span id="brainStatus" class="text-emerald-500 font-mono text-[10px]">Online</span></div></div>
     </section>
 
@@ -232,7 +264,42 @@
             </div>
         </header>
         <div class="flex-1 overflow-hidden relative">
-            <section id="mainChat" class="main-panel" role="tabpanel">
+            
+            <section id="mainBrain" class="main-panel hidden" role="tabpanel">
+                <div class="flex-1 flex flex-col p-6 space-y-4 overflow-hidden relative">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-xl font-headline font-bold text-slate-200">Intelligence & Knowledge Map</h2>
+                            <p class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">Real-time Cognitive Visualization</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="refreshBrainBtn" class="h-8 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold uppercase flex items-center gap-2 transition-colors">
+                                <span class="material-symbols-outlined text-sm">refresh</span> Reload
+                            </button>
+                            <button id="triggerLearningBtn" class="h-8 px-4 bg-violet-600 hover:bg-violet-500 text-white rounded text-[10px] font-bold uppercase transition-colors flex items-center gap-2 shadow-lg shadow-violet-500/20">
+                                <span class="material-symbols-outlined text-sm">school</span> Trigger Learning
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="brainContainer" class="flex-1 bg-[#0a0f1e] border border-slate-800/50 rounded-xl relative overflow-hidden">
+                        <div id="brainLegend" class="absolute top-4 left-4 p-3 bg-[#0d1117]/80 backdrop-blur-md border border-slate-800 rounded-lg z-10 space-y-2">
+                            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span><span class="text-[9px] font-bold uppercase text-slate-400">Memory</span></div>
+                            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span class="text-[9px] font-bold uppercase text-slate-400">Verified Skill</span></div>
+                            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span><span class="text-[9px] font-bold uppercase text-slate-400">Unverified Skill</span></div>
+                            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-orange-400"></span><span class="text-[9px] font-bold uppercase text-slate-400">Learning Gap</span></div>
+                        </div>
+                        <svg id="brainSvg" class="w-full h-full cursor-grab active:cursor-grabbing"></svg>
+                        <div id="nodeDetailPanel" class="absolute top-4 right-4 w-64 p-4 bg-[#0d1117]/90 backdrop-blur-md border border-slate-800 rounded-lg z-10 hidden shadow-2xl">
+                            <h3 id="nodeTitle" class="text-xs font-bold text-slate-100 mb-1 truncate">Node Detail</h3>
+                            <p id="nodeType" class="text-[8px] uppercase tracking-tighter text-indigo-400 mb-3">Type</p>
+                            <div id="nodeDesc" class="text-[10px] text-slate-400 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">Description goes here...</div>
+                            <div id="nodeActions" class="mt-4 pt-3 border-t border-slate-800 flex flex-col gap-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+<section id="mainChat" class="main-panel" role="tabpanel">
                 <div id="chatPanel" class="flex flex-col h-full">
                     <div class="chat-topstrip"><span class="chat-indicator" id="chatIndicator" aria-hidden="true"></span><h1 class="chat-title">Chat</h1><span id="chatModelLabel" class="chat-model-label">auto</span><span class="ml-auto text-[10px] text-slate-600 font-mono" id="tokenCounter">0 / 16384 TX</span></div>
                     <div id="messagesContainer" class="messages-area custom-scrollbar">
@@ -251,6 +318,69 @@
                     <div class="accordion-section" id="accordionMonitoring"><button class="accordion-header" aria-expanded="false" aria-controls="accordionMonitoringBody" data-accordion="accordionMonitoringBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-emerald-400 text-lg">monitor_heart</span><span class="accordion-title">Monitoring &amp; Health</span></div><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></button><div id="accordionMonitoringBody" class="accordion-body hidden"><div id="monitoringView" class="flex flex-col gap-4"></div></div></div>
                     <div class="accordion-section" id="accordionEvals"><button class="accordion-header" aria-expanded="false" aria-controls="accordionEvalsBody" data-accordion="accordionEvalsBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-indigo-300 text-lg">labs</span><span class="accordion-title">Evaluations</span><span id="evalStatusBadge" class="text-[9px] bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded font-bold">Ready</span></div><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></button><div id="accordionEvalsBody" class="accordion-body hidden"><div id="evalView" class="flex flex-col"></div></div></div>
                     <div class="accordion-section" id="accordionTokens"><button class="accordion-header" aria-expanded="false" aria-controls="accordionTokensBody" data-accordion="accordionTokensBody"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-indigo-400 text-lg">toll</span><span class="accordion-title">Token Usage</span></div><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></button><div id="accordionTokensBody" class="accordion-body hidden"><div id="tokenPanelContent" class="flex flex-col gap-4"></div></div></div>
+                </div>
+            </section>
+
+            <!-- ── AUTONOMY MISSION EXPLORER ───────────────────── -->
+            <section id="mainAutonomy" class="main-panel hidden" role="tabpanel">
+                <div class="flex-1 flex flex-col p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                    <div id="missionExplorerHeader" class="flex justify-between items-center">
+                        <h2 class="text-xl font-headline font-bold text-slate-200">Mission Explorer</h2>
+                        <div class="flex gap-2">
+                             <button id="newMissionBtn" class="h-8 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">rocket_launch</span>
+                                New Mission
+                             </button>
+                             <button id="engageMissionBtn" class="hidden h-8 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold uppercase transition-colors">Engage Mission</button>
+                        </div>
+                    </div>
+                    <div id="missionExplorerContent" class="grid grid-cols-1 gap-6">
+                        <div class="p-20 text-center opacity-30 select-none">
+                            <span class="material-symbols-outlined" style="font-size:64px">rocket_launch</span>
+                            <p class="text-[10px] uppercase tracking-[0.3em] mt-4">Autonomous Intelligence</p>
+                            <p class="text-[9px] uppercase mt-2 italic text-slate-500">Brief the agent to start a new mission</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── COWORKER MODAL ────────────────────────────────── -->
+            <div id="briefingModal" class="modal-backdrop hidden" style="backdrop-filter: blur(20px); background: rgba(2, 6, 23, 0.85);">
+                <div class="modal-panel border-indigo-500/30 shadow-[0_0_100px_rgba(99,102,241,0.1)] max-w-xl">
+                    <div class="modal-header border-none p-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                                <span class="material-symbols-outlined">waving_hand</span>
+                            </div>
+                            <div>
+                                <h3 id="briefingGreeting" class="text-xl font-headline font-bold text-slate-100">Yo — what's up?</h3>
+                                <p class="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">LocalMind Proactive Briefing</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-body p-6 pt-0 space-y-4">
+                        <p id="briefingYesterday" class="text-slate-300 leading-relaxed text-sm italic">"Yesterday you were deep in the Blueprint module gap analysis. I flagged something overnight you might want to see."</p>
+                        
+                        <div class="space-y-3">
+                            <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500">Overnight Intelligence</div>
+                            <div id="briefingFlags" class="space-y-2">
+                                <!-- Flags injected here -->
+                            </div>
+                        </div>
+
+                        <div id="briefingCalendarSection" class="space-y-3 hidden">
+                            <div class="text-[9px] font-bold uppercase tracking-widest text-slate-500">Today's Schedule</div>
+                            <div id="briefingCalendar" class="space-y-2">
+                                <!-- Events injected here -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-none p-6 pt-2">
+                        <button id="briefingAckBtn" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg text-[11px] font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all">Let's Get to Work</button>
+                    </div>
+                </div>
+            </div>
+            <!-- ──────────────────────────────────────────────────── -->
                     <div class="accordion-section" id="accordionEditor"><div class="accordion-header" role="button" tabindex="0" aria-expanded="false" aria-controls="accordionEditorBody" data-accordion="accordionEditorBody" id="editorToggle"><div class="flex items-center gap-2.5"><span class="material-symbols-outlined text-slate-400 text-lg">code</span><span class="accordion-title">Code Editor</span></div><div class="flex items-center gap-2"><button id="editorRunBtn" class="btn-base btn-ghost text-[11px]" onclick="event.stopPropagation()">Run Script</button><button id="editorSendToAI" class="btn-base btn-ghost text-[11px]" onclick="event.stopPropagation()">Attach to Context</button><span class="accordion-chevron material-symbols-outlined text-slate-500">expand_more</span></div></div><div id="accordionEditorBody" class="accordion-body accordion-editor hidden"><div class="flex overflow-hidden" style="height:calc(100vh - 280px)"><div id="editorFileTree" class="w-52 border-r border-slate-800/15 bg-transparent p-2 overflow-y-auto custom-scrollbar flex-shrink-0"><div id="editorFileList" class="space-y-0.5 text-xs text-slate-500"></div></div><div id="panelDivider" class="w-1 cursor-col-resize bg-slate-700/10 hover:bg-indigo-500/50 transition-colors z-50 flex-shrink-0" tabindex="-1" aria-hidden="true"></div><div class="flex-1 relative"><div id="monacoContainer" class="absolute inset-0"></div></div></div><div id="editorStatus" class="p-2 border-t border-slate-800/20 text-[11px] text-slate-600 uppercase tracking-widest flex justify-between"><span id="editorPath">No file open</span><span id="editorLang">plaintext</span></div></div></div>
                 </div>
             </section>
