@@ -3,7 +3,7 @@
  */
 
 import { jest } from "@jest/globals";
-import * as conv from "../modules/conversations.js";
+import * as conversations from "../modules/conversations.js";
 import { state } from "../modules/state.js";
 
 describe("loadConversations", () => {
@@ -42,7 +42,7 @@ describe("loadConversations", () => {
       json: jest.fn().mockResolvedValue({ conversations: mockConversations })
     });
 
-    await conv.loadConversations();
+    await conversations.loadConversations();
 
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/conversations"));
     expect(state.conversations).toEqual(mockConversations);
@@ -54,7 +54,7 @@ describe("loadConversations", () => {
       json: jest.fn().mockResolvedValue({ conversations: [] })
     });
 
-    await conv.loadConversations();
+    await conversations.loadConversations();
 
     expect(state.conversations).toEqual([]);
     expect(renderSpy).toHaveBeenCalledTimes(1);
@@ -65,7 +65,7 @@ describe("loadConversations", () => {
       json: jest.fn().mockResolvedValue({})
     });
 
-    await conv.loadConversations();
+    await conversations.loadConversations();
 
     expect(state.conversations).toEqual([]);
     expect(renderSpy).toHaveBeenCalledTimes(1);
@@ -76,7 +76,7 @@ describe("loadConversations", () => {
       json: jest.fn().mockResolvedValue(null)
     });
 
-    await conv.loadConversations();
+    await conversations.loadConversations();
     // Assuming `d` is null, `d.conversations` will throw an error,
     // leading to the catch block where state.conversations remains untouched (or whatever value it was)
 
@@ -89,11 +89,64 @@ describe("loadConversations", () => {
     global.fetch = jest.fn().mockRejectedValue(new Error("Network Error"));
     state.conversations = [{ id: 99, title: "Old Chat" }]; // Set some pre-existing state
 
-    await conv.loadConversations();
+    await conversations.loadConversations();
 
     expect(warnSpy).toHaveBeenCalledWith("Failed to load conversations:", expect.any(Error));
     // State should remain unchanged
     expect(state.conversations).toEqual([{ id: 99, title: "Old Chat" }]);
     expect(renderSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteConversation", () => {
+  let originalFetch;
+  let originalConfirm;
+
+  beforeAll(() => {
+    originalFetch = global.fetch;
+    originalConfirm = global.confirm;
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+    global.confirm = originalConfirm;
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test("cancels deletion if user denies confirm", async () => {
+    global.confirm = jest.fn().mockReturnValue(false);
+    global.fetch = jest.fn();
+
+    await conversations.deleteConversation(123);
+
+    expect(global.confirm).toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test("proceeds with deletion if user approves confirm", async () => {
+    global.confirm = jest.fn().mockReturnValue(true);
+    global.fetch = jest.fn().mockImplementation((url) => {
+      if (url.includes("/api/conversations/123")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: "ok" }),
+        });
+      }
+      // Mock for loadConversations
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ conversations: [] }),
+      });
+    });
+
+    await conversations.deleteConversation(123);
+
+    expect(global.confirm).toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/conversations/123"), {
+      method: "DELETE",
+    });
   });
 });
