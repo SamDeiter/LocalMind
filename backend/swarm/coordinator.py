@@ -93,7 +93,7 @@ class HiveCoordinator:
         self._start_time = time.time()
 
         logger.info(
-            f"🐝 Hive starting: {self.max_cpu_workers} CPU + "
+            f"Hive starting: {self.max_cpu_workers} CPU + "
             f"{self.max_gpu_workers} GPU + {self.max_io_workers} I/O workers"
         )
         self._emit_activity(
@@ -131,7 +131,7 @@ class HiveCoordinator:
             asyncio.create_task(self._auto_scheduler_loop())
         )
 
-        logger.info("🐝 All swarm workers running (auto-scheduler active).")
+        logger.info("All swarm workers running (auto-scheduler active).")
 
     async def stop(self):
         """Gracefully stop all workers."""
@@ -139,7 +139,7 @@ class HiveCoordinator:
         for task in self._worker_tasks:
             task.cancel()
         self._worker_tasks = []
-        logger.info("🛑 Hive stopped.")
+        logger.info("Hive stopped.")
 
     # ── Worker Loops ──────────────────────────────────────────────
 
@@ -207,7 +207,7 @@ class HiveCoordinator:
         """Periodically submit scan and health-check tasks to keep agents busy."""
         # Short initial delay to let everything spin up
         await asyncio.sleep(5)
-        logger.info("🗓️  Auto-scheduler started (60s interval)")
+        logger.info("Auto-scheduler started (60s interval)")
 
         while self._running:
             try:
@@ -226,7 +226,7 @@ class HiveCoordinator:
                         )
                         self.queue.submit(task)
 
-                    logger.info(f"🗓️  Scheduled syntax check for {len(py_files)} files")
+                    logger.info(f"Scheduled syntax check for {len(py_files)} files")
 
                 # Also submit a scan task for a random chunk
                 if all_files:
@@ -247,7 +247,7 @@ class HiveCoordinator:
                         priority=5,
                         task_type=TaskType.LLM_REFLECT
                     )
-                    logger.info("🗓️  Scheduled background LLM reflection")
+                    logger.info("Scheduled background LLM reflection")
 
             except Exception as exc:
                 logger.warning(f"Auto-scheduler error: {exc}")
@@ -277,7 +277,7 @@ class HiveCoordinator:
         log_level = "info" if result.success else "warning"
         getattr(logger, log_level)(
             f"[{result.agent_id}] {result.task_type.value}: "
-            f"{'✅' if result.success else '❌'} ({result.duration:.1f}s)"
+            f"{'OK' if result.success else 'FAIL'} ({result.duration:.1f}s)"
         )
 
     # ── Task Submission Helpers ───────────────────────────────────

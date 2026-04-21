@@ -44,7 +44,7 @@ def revert_file(relative_path: str):
     if backup.exists():
         shutil.copy2(backup, target)
         backup.unlink()
-        logger.info(f"↩️ Reverted: {relative_path}")
+        logger.info(f"Reverted: {relative_path}")
     else:
         logger.warning(f"No backup found for: {relative_path}")
 
@@ -107,7 +107,7 @@ async def run_tests(target_files: list[str] = None) -> tuple[bool, str]:
         if result.returncode == 5:
             logger.info("No tests collected — treating as pass")
         
-        logger.info(f"🧪 Auto-test: {passed} passed, {failed} failed")
+        logger.info(f"Auto-test: {passed} passed, {failed} failed")
         return success, output
 
     except Exception as exc:
@@ -152,7 +152,7 @@ def revert_merge(merge_sha: str) -> bool:
     result = git_run(["revert", "--no-commit", "-m", "1", merge_sha])
     if result is not None:
         git_run(["commit", "-m", f"Revert autonomy merge {merge_sha}"])
-        logger.info(f"↩️ Reverted merge: {merge_sha}")
+        logger.info(f"Reverted merge: {merge_sha}")
         return True
     return False
 

@@ -27,7 +27,7 @@ class AutonomyEngine:
         mission_id = plan_data.get("mission_id", str(uuid.uuid4()))
         plan = MissionPlan.from_dict(plan_data["plan"])
         
-        logger.info(f"🚀 Mission {mission_id} engaged: {plan.goal}")
+        logger.info(f"Mission {mission_id} engaged: {plan.goal}")
         self.active_missions[mission_id] = plan
 
         while any(t.status in [TaskStatus.PENDING, TaskStatus.RUNNING] for t in plan.tasks):
@@ -51,7 +51,7 @@ class AutonomyEngine:
             execution_slots = [self._run_task_with_agent(mission_id, plan, task) for task in ready_tasks]
             await asyncio.gather(*execution_slots)
 
-        logger.info(f"✅ Mission {mission_id} complete.")
+        logger.info(f"Mission {mission_id} complete.")
         report = await self._synthesize_report(plan)
         
         # ── Minting (Integrity Seal) ───────────────────────
@@ -65,7 +65,7 @@ class AutonomyEngine:
                 "task_count": len(plan.tasks)
             }
         )
-        logger.info(f"🪙 Mission {mission_id} minted: {mint_token}")
+        logger.info(f"Mission {mission_id} minted: {mint_token}")
         
         return {
             "report": report,
@@ -84,7 +84,7 @@ class AutonomyEngine:
         Wraps the standard agent_chat_streaming loop for a specific autonomous task.
         """
         task.status = TaskStatus.RUNNING
-        logger.info(f"  ↳ Running Task: {task.title}")
+        logger.info(f"  -> Running Task: {task.title}")
 
         # Construct prompt for the agent
         prompt = f"Objective: {task.description}\nContext from dependencies: {self._get_dependency_results(plan, task)}"
@@ -113,10 +113,10 @@ class AutonomyEngine:
                 task.result = full_content
 
             task.status = TaskStatus.COMPLETE
-            logger.info(f"  ✓ Task Complete: {task.title}")
+            logger.info(f"  OK  Task Complete: {task.title}")
             
         except Exception as e:
-            logger.error(f"  ✗ Task Failed: {task.title} - {e}")
+            logger.error(f"  FAIL Task Failed: {task.title} - {e}")
             task.status = TaskStatus.FAILED
 
     def _get_dependency_results(self, plan: MissionPlan, task: PlanTask) -> str:

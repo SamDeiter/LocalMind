@@ -15,9 +15,17 @@ import signal
 import subprocess
 import sys
 import time
-import sys
+
+# Defense in depth: Windows worker subprocesses default to cp1252 stdout,
+# so any non-ASCII byte in a log message takes down the logging handler.
+# We keep logs ASCII-only as a rule, but set UTF-8 here so a stray char
+# from a dependency can't kill the server.
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+os.environ.setdefault("PYTHONUTF8", "1")
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 def kill_existing_server(port: int):

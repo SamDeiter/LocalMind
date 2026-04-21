@@ -248,7 +248,7 @@ class JobQueue:
             conn.commit()
         finally:
             conn.close()
-        logger.debug("Job %s → status=%s", job_id, status)
+        logger.debug("Job %s -> status=%s", job_id, status)
 
     def cancel_job(self, job_id: str, cascade: bool = False) -> None:
         """Transition a job to 'cancelling' status.

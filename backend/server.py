@@ -52,7 +52,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(),
-        RotatingFileHandler(LOG_FILE_PATH, maxBytes=10*1024*1024, backupCount=5)
+        RotatingFileHandler(LOG_FILE_PATH, maxBytes=10*1024*1024, backupCount=5, encoding="utf-8")
     ]
 )
 logger = logging.getLogger("localmind")
@@ -183,7 +183,7 @@ async def lifespan(app: FastAPI):
     
     # Start the hive
     asyncio.create_task(coordinator.start())
-    logger.info("🐝 HiveCoordinator active and attached to AutonomyEngine")
+    logger.info("HiveCoordinator active and attached to AutonomyEngine")
 
     # ── GC worker ───────────────────────────────────────────────
     try:

@@ -269,7 +269,7 @@ class RecycleBin:
         # Move the file — use shutil.move for cross-device safety on Windows
         shutil.move(str(resolved), str(recycle_path))
         logger.info(
-            "Recycled %s → %s (deleted_by=%s, job_id=%s)",
+            "Recycled %s -> %s (deleted_by=%s, job_id=%s)",
             resolved, recycle_path, deleted_by, job_id,
         )
 
@@ -413,7 +413,7 @@ class RecycleBin:
 
         now_iso = self._now_iso()
         logger.info(
-            "Restored recycle entry %s → %s (restored_by=%s)",
+            "Restored recycle entry %s -> %s (restored_by=%s)",
             entry_id, dest, restored_by,
         )
 

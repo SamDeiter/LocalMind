@@ -181,7 +181,7 @@ async def identify_target_files(
                     matches = [f for f in files_list if f.endswith("/" + basename) or f == basename]
                     if len(matches) == 1 and not is_protected_file(matches[0]):
                         validated_fast.append(matches[0])
-                        logger.info(f"Fast-path fuzzy matched '{pf}' → '{matches[0]}'")
+                        logger.info(f"Fast-path fuzzy matched '{pf}' -> '{matches[0]}'")
 
             if validated_fast:
                 logger.info(f"Fast-path targeting: {validated_fast} (from proposal.files_affected)")
@@ -260,7 +260,7 @@ async def identify_target_files(
                     matches = [f for f in files_list if f.endswith("/" + basename) or f == basename]
                     if len(matches) == 1:
                         validated.append(matches[0])
-                        logger.info(f"Fuzzy-matched '{candidate}' → '{matches[0]}'")
+                        logger.info(f"Fuzzy-matched '{candidate}' -> '{matches[0]}'")
                     else:
                         logger.warning(f"AI suggested non-existent file: '{candidate}'")
                         if emit_activity:
@@ -413,7 +413,7 @@ async def edit_single_file(
         shutil.copy2(target, backup)
         target.write_text(new_content, encoding="utf-8")
 
-        logger.info(f"📝 Self-edit applied to {relative_path}: {explanation}")
+        logger.info(f"Self-edit applied to {relative_path}: {explanation}")
         if log_fn:
             log_fn("self_edit_applied", {
                 "file": relative_path,
