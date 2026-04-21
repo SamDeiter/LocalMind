@@ -437,3 +437,17 @@ if __name__ == "__main__":
     import uvicorn
     # kill_existing_server(8000) # Optional, run.py usually handles this
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+# ── Cross-Project Hub (Phase D) ──────────────────────────────────
+@app.get("/api/hub/context")
+async def hub_context(project_path: str = ""):
+    """Return tech stack + metadata for a local project directory.
+    
+    Query param: project_path (optional) — absolute path to scan.
+    Defaults to the LocalMind project root if omitted.
+    """
+    from backend.integrations.cross_project_hub import build_hub_context
+    context = build_hub_context(project_path or None)
+    return context
+

@@ -63,7 +63,11 @@ class MetaCognitiveController:
         self.self_checker = SelfChecker(ollama_url, self.model)
         self.revision_controller = RevisionController(ollama_url, self.model)
         self.memory = MemoryManager()
-         # # self.calibration = CalibrationTracker()
+        self.calibration = CalibrationTracker()
+
+        # AgentFixer RCA — wired into post_process failure path
+        from backend.validation.root_cause import TraceAnalyzer
+        self._rca = TraceAnalyzer(ollama_url)
 
 
         # Active session (created per conversation)
@@ -179,6 +183,26 @@ class MetaCognitiveController:
                     f"Self-check: {'PASS' if check.passed else 'FAIL'} — {len(check.issues)} issues",
                     thinking_type="self_check",
                     check=check.to_dict())
+
+        # ── RCA: Log failure trace for post-mortem analysis ──
+        if not check.passed:
+            from backend.validation.root_cause import TraceEntry
+            from backend.validation.base import ValidationResult, Severity
+            import time
+            failure_result = ValidationResult(
+                passed=False,
+                message="; ".join(check.issues[:3]),
+                severity=Severity.MODERATE,
+            )
+            entry = TraceEntry(
+                stage="post_process",
+                validator_name="SelfChecker",
+                result=failure_result,
+                timestamp=time.time(),
+            )
+            trace_id = f"{conversation_id}:{session.turn_number}"
+            self._rca.log_failure(trace_id, entry)
+            logger.info(f"RCA trace logged for turn {trace_id} — {len(check.issues)} issues")
 
         # Step 6: Revise or finalize
         final_draft = draft

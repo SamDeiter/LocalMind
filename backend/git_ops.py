@@ -155,3 +155,99 @@ def revert_merge(merge_sha: str) -> bool:
         logger.info(f"↩️ Reverted merge: {merge_sha}")
         return True
     return False
+
+
+# ── Git Awareness Tools (Phase D) ────────────────────────────────────────────
+
+def git_status() -> dict:
+    """Return the current working tree status as structured data.
+    
+    Returns a dict with:
+      - branch: current branch name
+      - staged: list of staged file paths
+      - unstaged: list of unstaged modified file paths
+      - untracked: list of untracked file paths
+      - is_clean: bool
+    """
+    raw = git_run(["status", "--porcelain=v1", "--branch"])
+    branch = ""
+    staged, unstaged, untracked = [], [], []
+
+    for line in raw.splitlines():
+        if line.startswith("## "):
+            # ## main...origin/main [ahead 1]
+            branch_part = line[3:].split("...")[0].split(" ")[0]
+            branch = branch_part
+            continue
+        if len(line) < 3:
+            continue
+        xy = line[:2]
+        path = line[3:].strip()
+        # Index (staged) status
+        if xy[0] in ("M", "A", "D", "R", "C"):
+            staged.append(path)
+        # Working tree (unstaged) status
+        if xy[1] in ("M", "D"):
+            unstaged.append(path)
+        # Untracked
+        if xy == "??":
+            untracked.append(path)
+
+    return {
+        "branch": branch,
+        "staged": staged,
+        "unstaged": unstaged,
+        "untracked": untracked,
+        "is_clean": not staged and not unstaged and not untracked,
+    }
+
+
+def git_diff_staged() -> str:
+    """Return the diff for all staged changes (what would be committed).
+    
+    Caps output at 8000 chars to avoid overwhelming LLM context.
+    """
+    diff = git_run(["diff", "--cached"])
+    if len(diff) > 8000:
+        diff = diff[:8000] + "\n... [diff truncated at 8000 chars]"
+    return diff or "(no staged changes)"
+
+
+def git_log_short(n: int = 20) -> list[dict]:
+    """Return the last N commits as a list of dicts.
+    
+    Each dict has: sha (short), message, author, date_relative
+    """
+    raw = git_run([
+        "log", f"-{n}",
+        "--pretty=format:%h|||%s|||%an|||%ar"
+    ])
+    commits = []
+    for line in raw.splitlines():
+        parts = line.split("|||")
+        if len(parts) == 4:
+            commits.append({
+                "sha": parts[0],
+                "message": parts[1],
+                "author": parts[2],
+                "date_relative": parts[3],
+            })
+    return commits
+
+
+def git_commit_staged(message: str) -> dict:
+    """Commit all currently staged files with the given message.
+    
+    Returns dict with: success, sha, message, error
+    IMPORTANT: Callers should present staged filelist to user before calling.
+    """
+    if not message or not message.strip():
+        return {"success": False, "error": "Commit message cannot be empty", "sha": "", "message": ""}
+    
+    result_raw = git_run(["commit", "-m", f"{message}"])
+    if result_raw:
+        # Extract SHA from "main abc1234 message" or "[branch abc1234] message"
+        sha_match = __import__("re").search(r"[\[\s]([0-9a-f]{7})[\]\s]", result_raw)
+        sha = sha_match.group(1) if sha_match else ""
+        return {"success": True, "sha": sha, "message": message, "error": ""}
+    return {"success": False, "sha": "", "message": message, "error": "git commit returned no output — check git status"}
