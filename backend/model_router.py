@@ -69,6 +69,15 @@ MODELS = {
         "context_window": 131072,
         "multimodal": True,
     },
+    # MedGemma — Google DeepMind clinical reasoning model
+    "local_medical": {
+        "name": "medgemma:4b",
+        "provider": "ollama",
+        "privacy": "fully_private",
+        "description": "MedGemma 4B — Google DeepMind clinical reasoning, FERPA/HIPAA-safe, fully local",
+        "context_window": 131072,
+        "multimodal": False,
+    },
     "cloud_flash": {
         "name": "gemini-2.0-flash",
         "provider": "gemini",
