@@ -33,6 +33,13 @@ const PRIORITIES = [
   { id: "high",   label: "High" },
 ];
 
+const PRIORITY_TO_INT = { low: -1, normal: 0, high: 1 };
+
+function _priorityToInt(p) {
+  if (typeof p === "number") return p;
+  return PRIORITY_TO_INT[p] ?? 0;
+}
+
 // Module-local state for the in-progress draft
 const _draft = {
   step: 0,
@@ -339,7 +346,7 @@ async function _generatePlan() {
       body: JSON.stringify({
         goal: _draft.goal,
         tools: [..._draft.tools],
-        priority: _draft.priority,
+        priority: _priorityToInt(_draft.priority),
       }),
     });
     if (!res.ok) throw new Error("plan endpoint returned " + res.status);
@@ -368,7 +375,7 @@ async function _submitJob() {
     description: _draft.goal,
     prompt: _draft.goal,
     tools: [..._draft.tools],
-    priority: _draft.priority,
+    priority: _priorityToInt(_draft.priority),
     time_budget_minutes: _draft.timeBudgetMin,
     notes: _draft.notes,
     auto_approve: autoApprove,
@@ -403,4 +410,29 @@ function _resetDraft() {
   if (goal) goal.value = "";
   if (notes) notes.value = "";
   _goto(0);
+}
+
+/**
+ * Quick-submit shim for legacy call sites (events.js priority input etc.).
+ * Opens the New Job drawer with the goal prefilled so the user still sees
+ * the Constraints / Review / Launch steps before committing.
+ */
+export function submitQuickTask(text) {
+  const goal = String(text || "").trim();
+  if (!goal) return;
+
+  _draft.goal = goal;
+  _goto(0);
+
+  const drawer = document.getElementById("newJobDrawer");
+  if (drawer) {
+    drawer.dataset.open = "true";
+    drawer.setAttribute("aria-hidden", "false");
+  }
+
+  const goalEl = document.getElementById("njGoal");
+  if (goalEl) {
+    goalEl.value = goal;
+    goalEl.focus();
+  }
 }

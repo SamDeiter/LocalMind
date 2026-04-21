@@ -278,7 +278,7 @@ async function _refreshRunning() {
   const el = document.getElementById("homeRunning");
   if (!el) return;
   try {
-    const res = await fetch(`${API}/api/jobs?status=executing,planning,running&limit=5`);
+    const res = await fetch(`${API}/api/jobs?status=executing,planning&limit=5`);
     const data = await res.json();
     const jobs = _extractJobs(data);
     _countBadge("homeRunningCount", jobs.length);
@@ -294,7 +294,7 @@ async function _refreshWaiting() {
   const el = document.getElementById("homeWaiting");
   if (!el) return;
   try {
-    const res = await fetch(`${API}/api/jobs?status=reviewing,waiting_approval&limit=5`);
+    const res = await fetch(`${API}/api/jobs?status=reviewing&limit=5`);
     const data = await res.json();
     const jobs = _extractJobs(data);
     _countBadge("homeWaitingCount", jobs.length);
@@ -344,7 +344,7 @@ async function _refreshFailures() {
   const el = document.getElementById("homeFailures");
   if (!el) return;
   try {
-    const res = await fetch(`${API}/api/jobs?status=failed,error&limit=5`);
+    const res = await fetch(`${API}/api/jobs?status=failed&limit=5`);
     const data = await res.json();
     const jobs = _extractJobs(data);
     _countBadge("homeFailuresCount", jobs.length);

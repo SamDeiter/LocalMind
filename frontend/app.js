@@ -69,8 +69,12 @@ async function init() {
   // Topbar model indicator — uses the models list from checkHealth/loadModels
   refreshModelIndicator();
 
+  // Service worker disabled in dev to prevent cache staleness.
+  // Any pre-existing registration is actively killed by /sw.js (the kill switch).
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      for (const r of regs) r.unregister().catch(() => {});
+    }).catch(() => {});
   }
 }
 

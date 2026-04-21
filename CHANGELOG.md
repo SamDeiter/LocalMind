@@ -10,6 +10,44 @@ and this project adheres to semantic versioning.
 
 ### Added
 
+- **v2 IA redesign — Phase 3** — Operations, Knowledge, Settings, responsive pass,
+  and legacy cleanup. All five shipped in parallel, each in exclusive files.
+  - **Operations page** (`frontend/modules/ops_ui.js` + `frontend/design/ops.css`):
+    live hardware strip (CPU / RAM / GPU / disk) with hand-rolled SVG sparklines
+    polling `/api/hardware` every 3 s, 30-day queue throughput chart from
+    `/api/jobs/stats`, worker panel via `/api/swarm/status`, model table from
+    `/api/models`, alerts feed from `/api/alerts/recent`, synthesized log tail
+    with pause / resume / copy.
+  - **Knowledge page** (`frontend/modules/knowledge_ui.js` + `knowledge.css`):
+    unified browser across memories, documents, conversations, and templates with
+    debounced cross-source search, source chips, role-based transcript rendering,
+    and a dependency-free radial memory-graph modal driven by `/api/memories/graph`.
+  - **Settings page** (`frontend/modules/settings_page.js` + `settings.css`):
+    sticky-sidebar single-scroll layout with 8 sections (Profile, Model routing,
+    Safety rails, Google integrations, API keys, Appearance, Advanced, About).
+    Per-section dirty detection with Esc-to-revert. Google OAuth flow follows
+    the `/api/google/auth` 302 redirect via popup then polls `/api/google/status`.
+  - **Responsive pass** (`frontend/design/responsive.css`): shell-only breakpoints
+    at ≤1280 px (icon-rail nav), ≤960 px (off-canvas nav drawer), and ≤640 px
+    (phone — full-screen New Job sheet, single-column job detail, artifact preview
+    bottom-sheet). CSS-only; off-canvas toggle wiring is a follow-up.
+- `frontend/design/tokens.css` and `design/shell.css` are now linked by four new
+  page-scoped CSS files (`ops.css`, `knowledge.css`, `settings.css`,
+  `responsive.css`) so per-page styles never leak across routes.
+
+### Changed
+
+- `frontend/modules/jobs_ui.js` — legacy inline detail view pruned. 2353 → 1188
+  lines (~49 % reduction). Removed `_loadJobDetail`, `_renderJobDetail`,
+  `_renderNodes`, `_renderNodeDetail`, `_renderJobCostSummary`, audit trail
+  rendering, and 14 other unreachable helpers. Job detail is now owned exclusively
+  by `frontend/modules/job_detail.js`.
+- `frontend/design/shell.css` — fixed 39 undefined CSS custom properties that
+  had been silently resolving to `inherit`/`initial`: `--lm-text` →
+  `--lm-text-primary`, `--lm-text-dim` → `--lm-text-tertiary`, `--lm-border-default`
+  → `--lm-border-subtle`, `--lm-font-size-{sm,xs,md}` → `--lm-fs-{13,11,14}`.
+  Phase 2 job-detail and artifact-center visuals now render as intended.
+
 - **v2 IA redesign — Phase 2** — Job Detail page, approvals gate, evidence panel, and Artifact Center.
   - New `frontend/modules/job_detail.js` three-pane overlay mounted inside `#mainJobs`:
     - Left: plan timeline with per-step status dots (pending / running / done / failed / skipped).

@@ -1,0 +1,479 @@
+/* =============================================================
+   LocalMind v2 — Responsive Pass
+   Depends on: tokens.css, shell.css (load AFTER these).
+   Desktop-first app; this sheet adds overrides for:
+     - ≤1280px  compact desktop / large tablet landscape
+     - ≤960px   tablet (nav off-canvas)
+     - ≤640px   phone (minimal chrome, single-column)
+   Only shell-level selectors live here. Page modules
+   (ops/knowledge/settings/jobs) own their own fallbacks.
+   ============================================================= */
+
+
+/* ── SHARED: prevent accidental horizontal scroll on mobile ── */
+@media (max-width: 960px) {
+  html, body { overflow-x: hidden; }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+ * ── COMPACT DESKTOP / LARGE TABLET LANDSCAPE  ≤1280px ──
+ * Nav rail collapses to icon rail. Topbar tightens.
+ * Utility strip sheds optional metrics (GPU sparkline, Workers)
+ * but keeps CPU/RAM/Queue/online.
+ * ═════════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+
+  /* Collapse nav — mirror [data-nav-collapsed="true"] geometry. */
+  .lm-app {
+    grid-template-columns: var(--lm-nav-width-collapsed) 1fr;
+  }
+
+  /* Hide every text label in the rail; icons only. */
+  .lm-nav__brand-name,
+  .lm-nav__cta-label,
+  .lm-nav__item-label,
+  .lm-nav__item-badge,
+  .lm-nav__section-label,
+  .lm-nav__starred-list,
+  .lm-nav__recent-list,
+  .lm-nav__empty {
+    display: none;
+  }
+
+  /* Centre the brand mark + CTA in the rail. */
+  .lm-nav__brand {
+    justify-content: center;
+    padding: 0;
+  }
+  .lm-nav__cta {
+    padding: 0;
+    width: 36px;
+    margin: 0 auto;
+    justify-content: center;
+  }
+  .lm-nav__cta-wrap {
+    padding: var(--lm-space-3) 0 var(--lm-space-2);
+    display: flex;
+    justify-content: center;
+  }
+  .lm-nav__list {
+    padding: var(--lm-space-2) 0;
+    align-items: center;
+  }
+  .lm-nav__item {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+  .lm-nav__item[aria-current="page"]::before {
+    left: 0;
+  }
+  .lm-nav__footer {
+    padding: var(--lm-space-2) 0 var(--lm-space-3);
+    justify-content: center;
+  }
+  .lm-nav__divider { margin: var(--lm-space-2) var(--lm-space-2); }
+
+  /* Topbar search: keep but shrink hard cap + drop ⌘K hint. */
+  .lm-topbar { padding: 0 var(--lm-space-4); gap: var(--lm-space-3); }
+  .lm-topbar__search { max-width: 360px; }
+  .lm-topbar__kbd { display: none; }
+
+  /* Utility strip: drop GPU sparkline and Workers group; keep CPU/RAM/Queue/online. */
+  .lm-utility { gap: var(--lm-space-4); padding: 0 var(--lm-space-4); }
+  .lm-util__group:nth-of-type(3),                  /* GPU group  */
+  .lm-util__group:nth-of-type(3) + .lm-util__sep,  /* sep after GPU */
+  .lm-util__group:nth-of-type(5),                  /* Workers group */
+  .lm-util__group:nth-of-type(5) + .lm-util__sep { /* sep after Workers */
+    display: none;
+  }
+
+  /* Page inner padding tightens (desktop gutters too generous). */
+  .lm-page__inner {
+    padding: var(--lm-space-6) var(--lm-space-6);
+  }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+ * ── TABLET  ≤960px ──
+ * Nav rail becomes off-canvas drawer (slides in when JS sets
+ *   [data-open="true"]). Topbar search collapses to an icon
+ *   that expands via :focus-within. Utility strip compresses.
+ * NOTE: a hamburger button to toggle [data-open] is NOT in
+ *   index.html yet — see agent report. CSS below styles the
+ *   off-canvas behaviour so a future JS toggle works.
+ * ═════════════════════════════════════════════════════════════ */
+@media (max-width: 960px) {
+
+  /* Single-column grid: nav overlays main. */
+  .lm-app {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "topbar"
+      "main"
+      "utility";
+  }
+
+  /* Undo ≤1280 icon-rail tweaks so content shows inside the
+     slide-in drawer with full labels restored. */
+  .lm-nav__brand-name,
+  .lm-nav__cta-label,
+  .lm-nav__item-label,
+  .lm-nav__item-badge,
+  .lm-nav__section-label,
+  .lm-nav__starred-list,
+  .lm-nav__recent-list,
+  .lm-nav__empty {
+    display: revert;
+  }
+  .lm-nav__brand   { justify-content: flex-start; padding: 0 var(--lm-space-4); }
+  .lm-nav__cta     { padding: 0 var(--lm-space-3); width: 100%; margin: 0; }
+  .lm-nav__cta-wrap{ padding: var(--lm-space-3) var(--lm-space-3) var(--lm-space-2); display: block; }
+  .lm-nav__list    { padding: var(--lm-space-2) var(--lm-space-2); align-items: stretch; }
+  .lm-nav__item    {
+    width: 100%;
+    padding: 0 var(--lm-space-3);
+    gap: var(--lm-space-3);
+    justify-content: flex-start;
+    height: 44px;                 /* ≥44px touch target */
+  }
+  .lm-nav__item[aria-current="page"]::before { left: -2px; }
+  .lm-nav__footer  { padding: var(--lm-space-2) var(--lm-space-3) var(--lm-space-3); justify-content: space-between; }
+
+  /* Off-canvas behaviour — default closed, slides in on [data-open="true"]. */
+  .lm-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--lm-nav-width);
+    max-width: 85vw;
+    transform: translateX(-100%);
+    transition: transform var(--lm-dur-slow) var(--lm-ease-out);
+    z-index: var(--lm-z-drawer);
+    box-shadow: var(--lm-shadow-lg);
+    /* Full-height including the topbar area, since nav no longer
+       sits in the grid. */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .lm-nav[data-open="true"] {
+    transform: translateX(0);
+  }
+
+  /* Scrim — a pseudo-element on .lm-app shows while nav is open. */
+  .lm-app::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: var(--lm-scrim);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--lm-dur-base) var(--lm-ease);
+    z-index: calc(var(--lm-z-drawer) - 1);
+  }
+  .lm-app:has(.lm-nav[data-open="true"])::after {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Also honour the legacy [data-nav-collapsed] attribute by
+     keeping the rail off-canvas regardless — on tablet there is
+     no "collapsed rail" mode, only "open" or "closed". */
+  .lm-app[data-nav-collapsed="true"] {
+    grid-template-columns: 1fr;
+  }
+
+  /* Topbar: tighter spacing, smaller search that icon-only by default. */
+  .lm-topbar {
+    padding: 0 var(--lm-space-3);
+    gap: var(--lm-space-2);
+  }
+  .lm-topbar__search {
+    max-width: 220px;
+    flex: 0 1 220px;
+  }
+  .lm-topbar__search:focus-within {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+  .lm-topbar__kbd { display: none; }
+
+  /* Model chip: drop locale tag; keep name only. */
+  .lm-topbar__model-locale { display: none; }
+
+  /* Utility strip compresses, allows horizontal scroll if tight. */
+  .lm-utility {
+    gap: var(--lm-space-3);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .lm-utility::-webkit-scrollbar { display: none; }
+  .lm-util__sparkline { display: none; }
+  .lm-util__group:nth-of-type(3),                  /* GPU */
+  .lm-util__group:nth-of-type(3) + .lm-util__sep,
+  .lm-util__group:nth-of-type(5),                  /* Workers */
+  .lm-util__group:nth-of-type(5) + .lm-util__sep {
+    display: none;
+  }
+
+  /* Topbar icon buttons get slightly larger for touch. */
+  .lm-topbar__icon-btn { width: 36px; height: 36px; }
+
+  /* Page inner padding compresses. */
+  .lm-page__inner {
+    padding: var(--lm-space-5) var(--lm-space-5);
+    gap: var(--lm-space-5);
+  }
+  .lm-page { padding: var(--lm-space-4) var(--lm-space-5); }
+
+  /* Drawer (New Job) panel uses more of the viewport. */
+  .lm-drawer__panel {
+    width: min(560px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+  }
+
+  /* Job detail already collapses to 1-col via shell.css @media 1024,
+     but ensure the overlay can scroll vertically on tablets. */
+  .lm-job-detail { padding: var(--lm-space-5) var(--lm-space-5) 0; }
+  .lm-job-detail__header {
+    grid-template-columns: auto 1fr;
+    gap: var(--lm-space-3);
+  }
+
+  /* Artifacts page: already stacks at 1100px; here only tune preview height. */
+  .lm-artifacts-page__list,
+  .lm-artifacts-page__preview {
+    max-height: none;
+  }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+ * ── PHONE  ≤640px ──
+ * Nav fully off-canvas (inherited). Topbar minimal (brand + search
+ *   icon + avatar). Utility strip reduced to online status only.
+ * New-Job drawer becomes full-screen sheet. Job detail 3-pane
+ *   collapses to single-column with the inspector behind a toggle.
+ * Artifacts list-only; preview not pinned as a pane (already
+ *   stacked in shell.css at 1100px).
+ * ═════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* Respect notches and home-indicator. */
+  .lm-app {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Topbar: compact row. */
+  .lm-topbar {
+    height: var(--lm-topbar-height);
+    padding: 0 var(--lm-space-2);
+    gap: var(--lm-space-2);
+  }
+  /* Search becomes icon-only (36px) and expands on focus. */
+  .lm-topbar__search {
+    flex: 0 0 36px;
+    width: 36px;
+    max-width: 36px;
+    min-width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .lm-topbar__search input {
+    display: none;
+  }
+  .lm-topbar__search:focus-within {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+    padding: 0 var(--lm-space-3);
+    justify-content: flex-start;
+  }
+  .lm-topbar__search:focus-within input { display: block; }
+
+  /* Hide secondary topbar controls; keep avatar + notifications. */
+  .lm-topbar__model,
+  .lm-topbar__spacer { display: none; }
+  .lm-topbar__actions { gap: var(--lm-space-1); margin-left: auto; }
+  .lm-topbar__icon-btn { width: 40px; height: 40px; }   /* ≥44px hit area w/ padding */
+  .lm-topbar__avatar   { width: 32px; height: 32px; }
+
+  /* Utility strip: online indicator only, rest hidden. */
+  .lm-utility {
+    padding: 0 var(--lm-space-3);
+    justify-content: flex-end;
+  }
+  .lm-util__group,
+  .lm-util__sep {
+    display: none;
+  }
+  /* Last group is the online indicator — keep it visible. */
+  .lm-util__group:last-of-type { display: inline-flex; }
+  .lm-util__spacer { display: none; }
+
+  /* Main content gutters collapse. */
+  .lm-page { padding: var(--lm-space-3) var(--lm-space-3); }
+  .lm-page__inner {
+    padding: var(--lm-space-4) var(--lm-space-3);
+    gap: var(--lm-space-4);
+  }
+  .lm-page__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--lm-space-3);
+    padding-bottom: var(--lm-space-3);
+  }
+  .lm-page__title    { font-size: var(--lm-fs-20); }
+  .lm-page__subtitle { font-size: var(--lm-fs-12); }
+
+  /* Buttons in a page header stack full-width on phone. */
+  .lm-page__actions { flex-wrap: wrap; }
+  .lm-page__actions .lm-btn { flex: 1 1 auto; }
+
+  /* Nav rail in drawer mode — bigger touch targets, full viewport height. */
+  .lm-nav {
+    width: min(320px, 88vw);
+    max-width: 88vw;
+    height: 100dvh;
+  }
+  .lm-nav__item { height: 48px; font-size: var(--lm-fs-14); }
+  .lm-nav__starred-item,
+  .lm-nav__recent-item { padding: 10px var(--lm-space-3); font-size: var(--lm-fs-13); }
+
+  /* ── New-Job drawer becomes a full-screen sheet ── */
+  .lm-drawer {
+    place-items: stretch;
+  }
+  .lm-drawer__panel {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    transform: translateY(100%);
+  }
+  .lm-drawer[data-open="true"] .lm-drawer__panel { transform: translateY(0); }
+  .lm-drawer__header,
+  .lm-drawer__footer { padding: var(--lm-space-3) var(--lm-space-4); }
+  .lm-drawer__body  { padding: var(--lm-space-4); }
+  .lm-stepper       { padding: var(--lm-space-2) var(--lm-space-3); }
+  .lm-step__label   { display: none; }   /* numbers only to save width */
+
+  /* ── Job detail 3-pane → single column, tabbed-style stack ── */
+  .lm-job-detail {
+    padding: var(--lm-space-4) var(--lm-space-3) 0;
+    gap: var(--lm-space-3);
+    overflow-y: auto;
+  }
+  .lm-job-detail__header {
+    grid-template-columns: 1fr;
+    gap: var(--lm-space-2);
+  }
+  .lm-job-detail__body {
+    grid-template-columns: 1fr;
+    gap: var(--lm-space-3);
+    padding-bottom: var(--lm-space-4);
+  }
+  /* Stack order: timeline (plan) → center tabs → inspector. */
+  .lm-job-detail__pane {
+    padding: var(--lm-space-4);
+    overflow: visible;
+  }
+  /* Hide inspector by default; reveal when a parent attribute flags
+     it. If JS isn't wired yet, inspector just stacks below — not broken. */
+  .lm-job-detail[data-inspector="hidden"] .lm-job-detail__pane--right {
+    display: none;
+  }
+
+  .lm-job-detail__tabs {
+    padding: var(--lm-space-2) var(--lm-space-2) 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .lm-job-detail__tabs::-webkit-scrollbar { display: none; }
+  .lm-job-detail__tab-body { padding: var(--lm-space-3); }
+
+  /* Approval gate: stack the action buttons under the body. */
+  .lm-approval {
+    grid-template-columns: auto 1fr;
+    row-gap: var(--lm-space-3);
+  }
+  .lm-approval__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  /* ── Artifacts center: list-only layout, preview as slide-up sheet ── */
+  .lm-artifacts-page__controls {
+    gap: var(--lm-space-2);
+  }
+  .lm-artifacts-page__search { min-width: 0; width: 100%; }
+  .lm-artifacts-page__body   { grid-template-columns: 1fr; gap: var(--lm-space-3); }
+  .lm-artifacts-page__list   { max-height: none; padding: var(--lm-space-2); }
+  .lm-artifacts-page__row    {
+    grid-template-columns: 20px 1fr auto;
+    gap: var(--lm-space-2);
+    padding: var(--lm-space-3);
+  }
+  /* Drop secondary metadata columns on phone. */
+  .lm-artifacts-page__row-kind,
+  .lm-artifacts-page__row-job { display: none; }
+
+  /* Preview pane becomes a slide-up sheet when the list selects a row.
+     Trigger: [data-preview="open"] on .lm-artifacts-page (JS TODO). */
+  .lm-artifacts-page__preview {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 80dvh;
+    border-radius: var(--lm-radius-lg) var(--lm-radius-lg) 0 0;
+    box-shadow: var(--lm-shadow-lg);
+    z-index: var(--lm-z-modal);
+    transform: translateY(100%);
+    transition: transform var(--lm-dur-slow) var(--lm-ease-out);
+    padding: var(--lm-space-4);
+  }
+  .lm-artifacts-page[data-preview="open"] .lm-artifacts-page__preview {
+    transform: translateY(0);
+  }
+
+  /* Tables become horizontally scrollable to avoid cramming. */
+  .lm-table { display: block; overflow-x: auto; }
+
+  /* Toast region — bottom-centre so it clears the thumb zone. */
+  .lm-toast-region {
+    left: var(--lm-space-3);
+    right: var(--lm-space-3);
+    bottom: calc(var(--lm-space-4) + env(safe-area-inset-bottom));
+    align-items: stretch;
+  }
+  .lm-toast { max-width: none; }
+}
+
+
+/* ═════════════════════════════════════════════════════════════
+ * ── REDUCED MOTION ──
+ * Skip transforms/transitions for anyone who asked for it.
+ * ═════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .lm-nav,
+  .lm-drawer,
+  .lm-drawer__panel,
+  .lm-drawer__scrim,
+  .lm-artifacts-page__preview,
+  .lm-app::after {
+    transition: none !important;
+  }
+  .lm-nav[data-open="true"],
+  .lm-drawer[data-open="true"] .lm-drawer__panel {
+    transform: none !important;
+  }
+}
