@@ -685,24 +685,259 @@
 .lm-knowledge__graph-canvas {
   flex: 1;
   min-height: 0;
-  background: var(--lm-canvas);
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      color-mix(in srgb, var(--lm-accent) 6%, transparent) 0%,
+      transparent 55%
+    ),
+    var(--lm-canvas);
   display: block;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.lm-knowledge__graph-canvas svg {
+
+/* ── SVG scaffold ─────────────────────────────────────────── */
+.lm-knowledge__graph-svg {
   display: block;
   width: 100%;
   height: 100%;
+  cursor: grab;
+  touch-action: none;
 }
+.lm-knowledge__graph-svg:active { cursor: grabbing; }
+.lm-knowledge__graph-svg[data-dragging="true"] { cursor: grabbing; }
+
+.lm-knowledge__graph-viewport {
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* Faint grid behind everything for spatial reference */
+.lm-knowledge__graph-bg {
+  fill: transparent;
+}
+
+/* ── Nodes ────────────────────────────────────────────────── */
 .lm-knowledge__graph-node {
-  fill: var(--lm-accent);
+  --hue: 230;
+  fill: hsl(var(--hue) 70% 60%);
   stroke: var(--lm-surface-1);
   stroke-width: 1.5;
-  cursor: pointer;
-  transition: fill var(--lm-dur-quick) var(--lm-ease);
+  cursor: grab;
+  transition:
+    fill var(--lm-dur-quick) var(--lm-ease),
+    stroke var(--lm-dur-quick) var(--lm-ease),
+    stroke-width var(--lm-dur-quick) var(--lm-ease),
+    opacity var(--lm-dur-quick) var(--lm-ease);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
 }
-.lm-knowledge__graph-node:hover { fill: var(--lm-accent-hover); }
+.lm-knowledge__graph-node:hover,
+.lm-knowledge__graph-node--hot {
+  fill: hsl(var(--hue) 85% 68%);
+  stroke: var(--lm-surface-3);
+  stroke-width: 2;
+}
+.lm-knowledge__graph-node--selected {
+  fill: var(--lm-accent);
+  stroke: var(--lm-text-primary);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--lm-accent) 70%, transparent));
+}
+.lm-knowledge__graph-node--dim {
+  opacity: 0.22;
+  filter: none;
+}
+.lm-knowledge__graph-node[data-dragging="true"] {
+  cursor: grabbing;
+  stroke: var(--lm-text-primary);
+  stroke-width: 2.5;
+}
+
+/* ── Edges ────────────────────────────────────────────────── */
 .lm-knowledge__graph-edge {
   stroke: var(--lm-border-strong);
-  stroke-opacity: 0.5;
+  stroke-opacity: 0.35;
   stroke-width: 1;
+  transition:
+    stroke var(--lm-dur-quick) var(--lm-ease),
+    stroke-opacity var(--lm-dur-quick) var(--lm-ease),
+    stroke-width var(--lm-dur-quick) var(--lm-ease);
+  pointer-events: none;
+}
+.lm-knowledge__graph-edge--dim {
+  stroke-opacity: 0.08;
+}
+.lm-knowledge__graph-edge--hot {
+  stroke: var(--lm-accent);
+  stroke-opacity: 0.85;
+  stroke-width: 1.75;
+}
+
+/* ── Labels ───────────────────────────────────────────────── */
+.lm-knowledge__graph-label {
+  font-family: var(--lm-font-body);
+  font-size: 10px;
+  font-weight: var(--lm-fw-medium);
+  fill: var(--lm-text-secondary);
+  stroke: var(--lm-canvas);
+  stroke-width: 3;
+  paint-order: stroke fill;
+  pointer-events: none;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  transition: opacity var(--lm-dur-quick) var(--lm-ease),
+              fill var(--lm-dur-quick) var(--lm-ease);
+}
+.lm-knowledge__graph-label--dim { opacity: 0.2; }
+
+/* ── HUD (legend + controls) ──────────────────────────────── */
+.lm-knowledge__graph-hud {
+  position: absolute;
+  top: var(--lm-space-3);
+  left: var(--lm-space-3);
+  right: var(--lm-space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lm-space-3);
+  pointer-events: none;
+  z-index: 2;
+}
+.lm-knowledge__graph-hud > * { pointer-events: auto; }
+
+.lm-knowledge__graph-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+  height: 28px;
+  padding: 0 var(--lm-space-3);
+  border-radius: var(--lm-radius-pill);
+  background: color-mix(in srgb, var(--lm-surface-1) 90%, transparent);
+  border: 1px solid var(--lm-border-subtle);
+  color: var(--lm-text-tertiary);
+  font-family: var(--lm-font-mono);
+  font-size: var(--lm-fs-11);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.lm-knowledge__graph-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lm-accent);
+  box-shadow: 0 0 0 1px var(--lm-surface-1);
+  flex-shrink: 0;
+}
+
+.lm-knowledge__graph-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+  padding: var(--lm-space-1);
+  border-radius: var(--lm-radius-pill);
+  background: color-mix(in srgb, var(--lm-surface-1) 90%, transparent);
+  border: 1px solid var(--lm-border-subtle);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.lm-knowledge__graph-search {
+  height: 26px;
+  padding: 0 var(--lm-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--lm-radius-pill);
+  background: var(--lm-surface-input);
+  color: var(--lm-text-primary);
+  font-family: var(--lm-font-body);
+  font-size: var(--lm-fs-12);
+  outline: none;
+  width: 180px;
+  transition: border-color var(--lm-dur-quick) var(--lm-ease);
+}
+.lm-knowledge__graph-search::placeholder { color: var(--lm-text-muted); }
+.lm-knowledge__graph-search:focus {
+  border-color: var(--lm-border-focus);
+  box-shadow: 0 0 0 3px var(--lm-accent-ring);
+}
+
+/* ── Info panel (selected node) ───────────────────────────── */
+.lm-knowledge__graph-info {
+  position: absolute;
+  left: var(--lm-space-3);
+  right: var(--lm-space-3);
+  bottom: var(--lm-space-3);
+  max-height: 40%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-space-2);
+  padding: var(--lm-space-3) var(--lm-space-4);
+  background: color-mix(in srgb, var(--lm-surface-1) 94%, transparent);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: var(--lm-radius);
+  box-shadow: var(--lm-shadow-md);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 3;
+  overflow-y: auto;
+  animation: lm-knowledge-graph-info-in 180ms var(--lm-ease);
+}
+@keyframes lm-knowledge-graph-info-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.lm-knowledge__graph-info[hidden] { display: none; }
+
+.lm-knowledge__graph-info-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lm-space-3);
+  min-width: 0;
+}
+
+.lm-knowledge__graph-info-tags {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lm-space-2);
+  min-width: 0;
+}
+
+.lm-knowledge__graph-info-body {
+  font-size: var(--lm-fs-13);
+  line-height: var(--lm-lh-normal);
+  color: var(--lm-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: var(--lm-space-2) 0;
+}
+
+.lm-knowledge__graph-info-neighbours {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lm-space-2);
+  padding-top: var(--lm-space-2);
+  border-top: 1px solid var(--lm-border-subtle);
+}
+
+.lm-knowledge__graph-info-neighbour {
+  cursor: pointer;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    background var(--lm-dur-quick) var(--lm-ease),
+    color var(--lm-dur-quick) var(--lm-ease),
+    border-color var(--lm-dur-quick) var(--lm-ease);
+}
+.lm-knowledge__graph-info-neighbour:hover {
+  background: var(--lm-accent-soft);
+  color: var(--lm-accent-text);
+  border-color: var(--lm-accent-ring);
 }

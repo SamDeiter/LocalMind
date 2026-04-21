@@ -30,6 +30,7 @@ const _state = {
   loading: true,
   selectedKey: null,       // `${source}:${id}`
   graphOpen: false,
+  graphSim: null,          // active force-simulation state (see _renderGraphSvg)
   // Per-source raw payload cache for detail rendering without re-fetch
   cache: {
     memories: null,
@@ -867,6 +868,7 @@ async function _openGraph() {
 function _closeGraph() {
   const modal = document.getElementById("knowledgeGraphModal");
   if (!modal) return;
+  _stopGraphSim();
   modal.dataset.open = "false";
   _state.graphOpen = false;
   // Hide after transition completes
@@ -874,61 +876,503 @@ function _closeGraph() {
 }
 
 /**
- * Lightweight radial graph renderer — no d3 dependency.
- * Groups nodes by category and lays them out on concentric rings so the
- * clusters read as distinct segments without a real force simulation.
+ * Interactive force-directed graph — no dependencies.
+ * Velocity-Verlet simulation with repulsion, spring edges, centering gravity.
+ * Drag nodes, pan the canvas, wheel-zoom, hover to spotlight neighbourhoods,
+ * click to select (shows full memory text in the info panel below).
  */
-function _renderGraphSvg(canvas, { nodes, edges }) {
-  const rect = canvas.getBoundingClientRect();
-  const w = Math.max(rect.width, 320);
-  const h = Math.max(rect.height, 320);
-  const cx = w / 2;
-  const cy = h / 2;
+function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
+  _stopGraphSim();
 
-  // Group nodes by category
-  const groups = new Map();
+  const rect = canvas.getBoundingClientRect();
+  const W = Math.max(rect.width, 320);
+  const H = Math.max(rect.height, 320);
+
+  // Normalize nodes/edges
+  const nodes = rawNodes.map((n) => ({
+    id: String(n.id),
+    label: n.label || "",
+    category: n.category || n.group || "general",
+    subcategory: n.subcategory || "",
+    access: Number(n.access_count || 0),
+    x: W / 2 + (Math.random() - 0.5) * Math.min(W, H) * 0.6,
+    y: H / 2 + (Math.random() - 0.5) * Math.min(W, H) * 0.6,
+    vx: 0, vy: 0,
+    degree: 0,
+    compId: 0,
+    pinned: false,
+  }));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const edges = (rawEdges || [])
+    .map((e) => ({ source: byId.get(String(e.source)), target: byId.get(String(e.target)) }))
+    .filter((e) => e.source && e.target && e.source !== e.target);
+
+  // Degree + connected components (union-find) for layout hints & coloring
+  const parent = new Map(nodes.map((n) => [n.id, n.id]));
+  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  edges.forEach((e) => {
+    e.source.degree++; e.target.degree++;
+    const a = find(e.source.id), b = find(e.target.id);
+    if (a !== b) parent.set(a, b);
+  });
+  const compMap = new Map();
   nodes.forEach((n) => {
-    const key = n.category || n.group || "general";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(n);
+    const root = find(n.id);
+    if (!compMap.has(root)) compMap.set(root, compMap.size);
+    n.compId = compMap.get(root);
+  });
+  const compCount = compMap.size;
+
+  // Seed each connected component into its own quadrant so the initial
+  // layout doesn't collapse everything into one blob
+  if (compCount > 1) {
+    const R = Math.min(W, H) * 0.28;
+    nodes.forEach((n) => {
+      const theta = (n.compId / compCount) * Math.PI * 2;
+      n.x = W / 2 + Math.cos(theta) * R + (Math.random() - 0.5) * 30;
+      n.y = H / 2 + Math.sin(theta) * R + (Math.random() - 0.5) * 30;
+    });
+  }
+
+  // Build SVG scaffold
+  canvas.innerHTML = `
+    <svg class="lm-knowledge__graph-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
+         role="img" aria-label="Memory graph — drag nodes, wheel to zoom, drag background to pan">
+      <rect class="lm-knowledge__graph-bg" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>
+      <g class="lm-knowledge__graph-viewport">
+        <g class="lm-knowledge__graph-edges"></g>
+        <g class="lm-knowledge__graph-nodes"></g>
+        <g class="lm-knowledge__graph-labels"></g>
+      </g>
+    </svg>
+    <div class="lm-knowledge__graph-hud">
+      <div class="lm-knowledge__graph-legend" aria-hidden="true">
+        <span class="lm-knowledge__graph-legend-dot" style="background:var(--lm-accent)"></span>
+        <span>${nodes.length} nodes · ${edges.length} edges · ${compCount} cluster${compCount === 1 ? "" : "s"}</span>
+      </div>
+      <div class="lm-knowledge__graph-controls">
+        <input type="search" class="lm-knowledge__graph-search" id="knowledgeGraphSearch" placeholder="Spotlight nodes…" aria-label="Spotlight matching nodes"/>
+        <button type="button" class="lm-btn lm-btn--ghost lm-btn--sm" id="knowledgeGraphReset" aria-label="Reset view">
+          <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span> Reset
+        </button>
+        <button type="button" class="lm-btn lm-btn--ghost lm-btn--sm" id="knowledgeGraphPause" aria-pressed="false">
+          <span class="material-symbols-outlined" aria-hidden="true">pause</span> <span id="knowledgeGraphPauseLabel">Pause</span>
+        </button>
+      </div>
+    </div>
+    <div class="lm-knowledge__graph-info" id="knowledgeGraphInfo" hidden></div>
+  `;
+
+  const svg = canvas.querySelector("svg");
+  const viewport = canvas.querySelector(".lm-knowledge__graph-viewport");
+  const edgesG = canvas.querySelector(".lm-knowledge__graph-edges");
+  const nodesG = canvas.querySelector(".lm-knowledge__graph-nodes");
+  const labelsG = canvas.querySelector(".lm-knowledge__graph-labels");
+  const infoPanel = canvas.querySelector("#knowledgeGraphInfo");
+
+  // Render static SVG children (once)
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const edgeEls = edges.map((e) => {
+    const ln = document.createElementNS(SVG_NS, "line");
+    ln.setAttribute("class", "lm-knowledge__graph-edge");
+    edgesG.appendChild(ln);
+    e.el = ln;
+    return ln;
+  });
+  const nodeEls = nodes.map((n) => {
+    const c = document.createElementNS(SVG_NS, "circle");
+    c.setAttribute("class", "lm-knowledge__graph-node");
+    c.dataset.id = n.id;
+    c.style.setProperty("--hue", String((n.compId * 57) % 360));
+    c.setAttribute("r", String(_nodeRadius(n)));
+    const tt = document.createElementNS(SVG_NS, "title");
+    tt.textContent = _shortLabel(n.label) || `memory ${n.id}`;
+    c.appendChild(tt);
+    nodesG.appendChild(c);
+    n.el = c;
+    return c;
+  });
+  // Labels shown only for hub nodes (degree ≥ 3) by default
+  const labelEls = nodes.map((n) => {
+    if (n.degree < 3) return null;
+    const t = document.createElementNS(SVG_NS, "text");
+    t.setAttribute("class", "lm-knowledge__graph-label");
+    t.textContent = _shortLabel(n.label, 24);
+    labelsG.appendChild(t);
+    n.labelEl = t;
+    return t;
   });
 
-  const groupKeys = Array.from(groups.keys());
-  const groupAngleStep = (Math.PI * 2) / Math.max(groupKeys.length, 1);
-  const positions = new Map();
+  // ── Simulation state ───────────────────────────────────────────
+  const sim = {
+    W, H,
+    nodes, edges,
+    running: true,
+    alpha: 1.0,
+    alphaDecay: 0.012,
+    alphaMin: 0.02,
+    transform: { k: 1, tx: 0, ty: 0 },
+    selectedId: null,
+    hoverId: null,
+    filterQuery: "",
+    rafId: 0,
+    canvas,
+  };
+  _state.graphSim = sim;
 
-  groupKeys.forEach((k, gi) => {
-    const members = groups.get(k);
-    const ringRadius = Math.min(w, h) * 0.38;
-    const innerRadius = Math.min(w, h) * 0.18;
-    members.forEach((n, i) => {
-      const angle = gi * groupAngleStep + (i / Math.max(members.length, 1)) * (groupAngleStep * 0.9);
-      const r = innerRadius + (ringRadius - innerRadius) * ((i % 4) / 4);
-      positions.set(n.id, { x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r });
+  // ── Force tick ────────────────────────────────────────────────
+  const REPEL_K = 1400;          // repulsion strength
+  const SPRING_K = 0.03;         // edge spring stiffness
+  const SPRING_LEN = 120;        // rest length
+  const GRAVITY = 0.02;          // pull toward center
+  const DAMPING = 0.82;
+
+  function tick() {
+    if (!sim.running || sim.alpha < sim.alphaMin) {
+      sim.running = false;
+      _applyFrame(sim);
+      return;
+    }
+    // Repulsion — plain O(n²); fine for ≤ ~500 nodes
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j];
+        let dx = a.x - b.x, dy = a.y - b.y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = dx * dx + dy * dy; }
+        const f = (REPEL_K * sim.alpha) / d2;
+        const d = Math.sqrt(d2);
+        const fx = (dx / d) * f, fy = (dy / d) * f;
+        a.vx += fx; a.vy += fy;
+        b.vx -= fx; b.vy -= fy;
+      }
+    }
+    // Spring attraction along edges
+    edges.forEach((e) => {
+      const dx = e.target.x - e.source.x;
+      const dy = e.target.y - e.source.y;
+      const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const f = (d - SPRING_LEN) * SPRING_K * sim.alpha;
+      const fx = (dx / d) * f, fy = (dy / d) * f;
+      e.source.vx += fx; e.source.vy += fy;
+      e.target.vx -= fx; e.target.vy -= fy;
+    });
+    // Center gravity
+    const cx = W / 2, cy = H / 2;
+    nodes.forEach((n) => {
+      n.vx += (cx - n.x) * GRAVITY * sim.alpha;
+      n.vy += (cy - n.y) * GRAVITY * sim.alpha;
+    });
+    // Integrate + dampen
+    nodes.forEach((n) => {
+      if (n.pinned) { n.vx = 0; n.vy = 0; return; }
+      n.vx *= DAMPING; n.vy *= DAMPING;
+      n.x += n.vx; n.y += n.vy;
+      // Keep inside canvas with soft margin
+      const m = 20;
+      if (n.x < m) { n.x = m; n.vx = Math.abs(n.vx) * 0.5; }
+      if (n.x > W - m) { n.x = W - m; n.vx = -Math.abs(n.vx) * 0.5; }
+      if (n.y < m) { n.y = m; n.vy = Math.abs(n.vy) * 0.5; }
+      if (n.y > H - m) { n.y = H - m; n.vy = -Math.abs(n.vy) * 0.5; }
+    });
+    sim.alpha -= sim.alphaDecay;
+
+    _applyFrame(sim);
+    sim.rafId = requestAnimationFrame(tick);
+  }
+  sim.rafId = requestAnimationFrame(tick);
+
+  // ── Interaction ──────────────────────────────────────────────
+  let dragNode = null;
+  let dragStart = null;   // for panning
+  let dragOrigin = null;
+
+  const toLocal = (clientX, clientY) => {
+    const r = svg.getBoundingClientRect();
+    const xs = W / r.width, ys = H / r.height;
+    const px = (clientX - r.left) * xs;
+    const py = (clientY - r.top) * ys;
+    // Undo viewport transform
+    const { k, tx, ty } = sim.transform;
+    return { x: (px - tx) / k, y: (py - ty) / k };
+  };
+
+  svg.addEventListener("pointerdown", (e) => {
+    const targetNode = e.target.closest(".lm-knowledge__graph-node");
+    svg.setPointerCapture(e.pointerId);
+    if (targetNode) {
+      dragNode = nodes.find((n) => n.id === targetNode.dataset.id) || null;
+      if (dragNode) {
+        dragNode.pinned = true;
+        _reheat(sim, 0.35);
+      }
+    } else {
+      dragStart = { x: e.clientX, y: e.clientY };
+      dragOrigin = { tx: sim.transform.tx, ty: sim.transform.ty };
+    }
+  });
+  svg.addEventListener("pointermove", (e) => {
+    if (dragNode) {
+      const p = toLocal(e.clientX, e.clientY);
+      dragNode.x = p.x; dragNode.y = p.y;
+      dragNode.vx = 0; dragNode.vy = 0;
+      if (!sim.running) _applyFrame(sim);
+    } else if (dragStart) {
+      const r = svg.getBoundingClientRect();
+      const xs = W / r.width, ys = H / r.height;
+      sim.transform.tx = dragOrigin.tx + (e.clientX - dragStart.x) * xs;
+      sim.transform.ty = dragOrigin.ty + (e.clientY - dragStart.y) * ys;
+      _applyTransform(sim, viewport);
+    } else {
+      // Hover
+      const t = e.target.closest(".lm-knowledge__graph-node");
+      const id = t?.dataset.id || null;
+      if (id !== sim.hoverId) {
+        sim.hoverId = id;
+        _updateHighlight(sim);
+      }
+    }
+  });
+  const endDrag = () => {
+    if (dragNode) { dragNode.pinned = false; dragNode = null; }
+    dragStart = null; dragOrigin = null;
+  };
+  svg.addEventListener("pointerup", endDrag);
+  svg.addEventListener("pointercancel", endDrag);
+  svg.addEventListener("pointerleave", () => {
+    if (sim.hoverId) { sim.hoverId = null; _updateHighlight(sim); }
+  });
+
+  svg.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    const xs = W / r.width, ys = H / r.height;
+    const px = (e.clientX - r.left) * xs;
+    const py = (e.clientY - r.top) * ys;
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    const k2 = Math.max(0.3, Math.min(4, sim.transform.k * factor));
+    // Zoom around cursor
+    sim.transform.tx = px - (px - sim.transform.tx) * (k2 / sim.transform.k);
+    sim.transform.ty = py - (py - sim.transform.ty) * (k2 / sim.transform.k);
+    sim.transform.k = k2;
+    _applyTransform(sim, viewport);
+  }, { passive: false });
+
+  // Click a node → select, show info
+  svg.addEventListener("click", (e) => {
+    const t = e.target.closest(".lm-knowledge__graph-node");
+    const id = t?.dataset.id || null;
+    sim.selectedId = sim.selectedId === id ? null : id;
+    _updateHighlight(sim);
+    _renderGraphInfo(sim, infoPanel);
+  });
+
+  // Controls
+  canvas.querySelector("#knowledgeGraphReset")?.addEventListener("click", () => {
+    sim.transform = { k: 1, tx: 0, ty: 0 };
+    _applyTransform(sim, viewport);
+    _reheat(sim, 0.8);
+  });
+  const pauseBtn = canvas.querySelector("#knowledgeGraphPause");
+  const pauseLabel = canvas.querySelector("#knowledgeGraphPauseLabel");
+  pauseBtn?.addEventListener("click", () => {
+    if (sim.running) {
+      sim.running = false;
+      pauseBtn.setAttribute("aria-pressed", "true");
+      if (pauseLabel) pauseLabel.textContent = "Resume";
+      pauseBtn.querySelector(".material-symbols-outlined").textContent = "play_arrow";
+    } else {
+      _reheat(sim, 0.4);
+      pauseBtn.setAttribute("aria-pressed", "false");
+      if (pauseLabel) pauseLabel.textContent = "Pause";
+      pauseBtn.querySelector(".material-symbols-outlined").textContent = "pause";
+    }
+  });
+  const searchInput = canvas.querySelector("#knowledgeGraphSearch");
+  searchInput?.addEventListener("input", (e) => {
+    sim.filterQuery = String(e.target.value || "").trim().toLowerCase();
+    _updateHighlight(sim);
+  });
+}
+
+function _nodeRadius(n) {
+  return 4 + Math.min(8, Math.log2((n.access || 0) + (n.degree || 0) * 2 + 2));
+}
+
+function _shortLabel(label, n = 60) {
+  const v = String(label || "").replace(/\s+/g, " ").trim();
+  if (!v) return "";
+  return v.length > n ? v.slice(0, n - 1) + "…" : v;
+}
+
+function _stopGraphSim() {
+  const sim = _state.graphSim;
+  if (sim) {
+    sim.running = false;
+    if (sim.rafId) cancelAnimationFrame(sim.rafId);
+  }
+  _state.graphSim = null;
+}
+
+function _reheat(sim, alpha) {
+  sim.alpha = alpha;
+  if (!sim.running) {
+    sim.running = true;
+    const tick = () => {
+      // Re-enter the simulation by flagging and letting the already-running
+      // RAF loop resume via the same mechanism — simplest: just call through
+      // the stored node update until it settles.
+    };
+    // The tick loop inside _renderGraphSvg captures `sim` by closure and
+    // re-checks `sim.running`; spin up a fresh ticker here.
+    const loop = () => {
+      if (!sim.running || sim.alpha < sim.alphaMin) { sim.running = false; return; }
+      // Copy of the simulation step, lightweight — just uses the same sim
+      _stepSim(sim);
+      _applyFrame(sim);
+      sim.alpha -= sim.alphaDecay;
+      sim.rafId = requestAnimationFrame(loop);
+    };
+    if (sim.rafId) cancelAnimationFrame(sim.rafId);
+    sim.rafId = requestAnimationFrame(loop);
+  }
+}
+
+function _stepSim(sim) {
+  const { nodes, edges, W, H } = sim;
+  const REPEL_K = 1400, SPRING_K = 0.03, SPRING_LEN = 120, GRAVITY = 0.02, DAMPING = 0.82;
+  for (let i = 0; i < nodes.length; i++) {
+    const a = nodes[i];
+    for (let j = i + 1; j < nodes.length; j++) {
+      const b = nodes[j];
+      let dx = a.x - b.x, dy = a.y - b.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = dx * dx + dy * dy; }
+      const d = Math.sqrt(d2);
+      const f = (REPEL_K * sim.alpha) / d2;
+      const fx = (dx / d) * f, fy = (dy / d) * f;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    }
+  }
+  edges.forEach((e) => {
+    const dx = e.target.x - e.source.x, dy = e.target.y - e.source.y;
+    const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+    const f = (d - SPRING_LEN) * SPRING_K * sim.alpha;
+    const fx = (dx / d) * f, fy = (dy / d) * f;
+    e.source.vx += fx; e.source.vy += fy; e.target.vx -= fx; e.target.vy -= fy;
+  });
+  const cx = W / 2, cy = H / 2;
+  nodes.forEach((n) => {
+    n.vx += (cx - n.x) * GRAVITY * sim.alpha;
+    n.vy += (cy - n.y) * GRAVITY * sim.alpha;
+  });
+  nodes.forEach((n) => {
+    if (n.pinned) { n.vx = 0; n.vy = 0; return; }
+    n.vx *= DAMPING; n.vy *= DAMPING;
+    n.x += n.vx; n.y += n.vy;
+    const m = 20;
+    if (n.x < m) { n.x = m; n.vx = Math.abs(n.vx) * 0.5; }
+    if (n.x > W - m) { n.x = W - m; n.vx = -Math.abs(n.vx) * 0.5; }
+    if (n.y < m) { n.y = m; n.vy = Math.abs(n.vy) * 0.5; }
+    if (n.y > H - m) { n.y = H - m; n.vy = -Math.abs(n.vy) * 0.5; }
+  });
+}
+
+function _applyFrame(sim) {
+  sim.edges.forEach((e) => {
+    if (!e.el) return;
+    e.el.setAttribute("x1", e.source.x.toFixed(2));
+    e.el.setAttribute("y1", e.source.y.toFixed(2));
+    e.el.setAttribute("x2", e.target.x.toFixed(2));
+    e.el.setAttribute("y2", e.target.y.toFixed(2));
+  });
+  sim.nodes.forEach((n) => {
+    if (!n.el) return;
+    n.el.setAttribute("cx", n.x.toFixed(2));
+    n.el.setAttribute("cy", n.y.toFixed(2));
+    if (n.labelEl) {
+      n.labelEl.setAttribute("x", (n.x + _nodeRadius(n) + 4).toFixed(2));
+      n.labelEl.setAttribute("y", (n.y + 3).toFixed(2));
+    }
+  });
+}
+
+function _applyTransform(sim, viewport) {
+  const { k, tx, ty } = sim.transform;
+  viewport.setAttribute("transform", `translate(${tx} ${ty}) scale(${k})`);
+}
+
+function _updateHighlight(sim) {
+  const { nodes, edges, hoverId, selectedId, filterQuery } = sim;
+  const focus = hoverId || selectedId;
+  const neighbourIds = new Set();
+  if (focus) {
+    neighbourIds.add(focus);
+    edges.forEach((e) => {
+      if (e.source.id === focus) neighbourIds.add(e.target.id);
+      if (e.target.id === focus) neighbourIds.add(e.source.id);
+    });
+  }
+  const q = filterQuery;
+  nodes.forEach((n) => {
+    if (!n.el) return;
+    const matches = !q || (n.label || "").toLowerCase().includes(q) || n.id.includes(q);
+    const inFocus = !focus || neighbourIds.has(n.id);
+    const dim = !matches || !inFocus;
+    n.el.classList.toggle("lm-knowledge__graph-node--dim", dim);
+    n.el.classList.toggle("lm-knowledge__graph-node--selected", selectedId === n.id);
+    n.el.classList.toggle("lm-knowledge__graph-node--hot", focus === n.id);
+    if (n.labelEl) n.labelEl.classList.toggle("lm-knowledge__graph-label--dim", dim);
+  });
+  edges.forEach((e) => {
+    if (!e.el) return;
+    const connectsFocus = focus && (e.source.id === focus || e.target.id === focus);
+    const sMatch = !q || (e.source.label || "").toLowerCase().includes(q);
+    const tMatch = !q || (e.target.label || "").toLowerCase().includes(q);
+    const dim = (focus && !connectsFocus) || (q && !sMatch && !tMatch);
+    e.el.classList.toggle("lm-knowledge__graph-edge--dim", !!dim);
+    e.el.classList.toggle("lm-knowledge__graph-edge--hot", !!connectsFocus);
+  });
+}
+
+function _renderGraphInfo(sim, panel) {
+  const sel = sim.selectedId ? sim.nodes.find((n) => n.id === sim.selectedId) : null;
+  if (!sel) { panel.hidden = true; panel.innerHTML = ""; return; }
+  const neighbours = sim.edges
+    .map((e) => (e.source.id === sel.id ? e.target : (e.target.id === sel.id ? e.source : null)))
+    .filter(Boolean);
+  panel.hidden = false;
+  panel.innerHTML = `
+    <div class="lm-knowledge__graph-info-head">
+      <div class="lm-knowledge__graph-info-tags">
+        <span class="lm-chip">${escapeHtml(sel.category || "memory")}</span>
+        ${sel.subcategory ? `<span class="lm-chip">${escapeHtml(sel.subcategory)}</span>` : ""}
+        <span class="lm-mute">#${escapeHtml(sel.id)} · ${sel.degree} connection${sel.degree === 1 ? "" : "s"}</span>
+      </div>
+      <button type="button" class="lm-icon-btn" id="knowledgeGraphInfoClose" aria-label="Close selection">
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+    </div>
+    <div class="lm-knowledge__graph-info-body">${escapeHtml(sel.label || "(no content)")}</div>
+    ${neighbours.length ? `<div class="lm-knowledge__graph-info-neighbours">
+      <span class="lm-label">Connected to</span>
+      ${neighbours.slice(0, 12).map((n) => `<button type="button" class="lm-chip lm-knowledge__graph-info-neighbour" data-id="${escapeHtml(n.id)}">${escapeHtml(_shortLabel(n.label, 36) || `#${n.id}`)}</button>`).join("")}
+      ${neighbours.length > 12 ? `<span class="lm-mute">+${neighbours.length - 12} more</span>` : ""}
+    </div>` : ""}
+  `;
+  panel.querySelector("#knowledgeGraphInfoClose")?.addEventListener("click", () => {
+    sim.selectedId = null;
+    _updateHighlight(sim);
+    _renderGraphInfo(sim, panel);
+  });
+  panel.querySelectorAll(".lm-knowledge__graph-info-neighbour").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      sim.selectedId = btn.dataset.id;
+      _updateHighlight(sim);
+      _renderGraphInfo(sim, panel);
     });
   });
-
-  const svgEdges = (edges || []).map((e) => {
-    const a = positions.get(String(e.source));
-    const b = positions.get(String(e.target));
-    if (!a || !b) return "";
-    return `<line class="lm-knowledge__graph-edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" />`;
-  }).join("");
-
-  const svgNodes = nodes.map((n) => {
-    const p = positions.get(n.id);
-    if (!p) return "";
-    const r = 4 + Math.min(6, Math.log2((n.access_count || 0) + 2));
-    const title = escapeHtml(n.label || n.id);
-    return `<circle class="lm-knowledge__graph-node" cx="${p.x}" cy="${p.y}" r="${r}"><title>${title}</title></circle>`;
-  }).join("");
-
-  canvas.innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Memory graph">
-      ${svgEdges}
-      ${svgNodes}
-    </svg>
-  `;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
