@@ -21,28 +21,53 @@ logger = logging.getLogger("localmind.model_router")
 # ── Model Definitions ──────────────────────────────────────────────────
 MODELS = {
     "local_micro": {
-        "name": "gemma3:4b",
+        "name": "gemma4:e2b",
         "provider": "ollama",
         "privacy": "fully_private",
-        "description": "Tiny local model for instant startup and simple chat",
+        "description": "Gemma 4 Effective 2B — ultra-fast local model for instant responses and simple chat",
+        "context_window": 32768,
+        "multimodal": False,
+    },
+    "local_micro_plus": {
+        "name": "gemma4:e4b",
+        "provider": "ollama",
+        "privacy": "fully_private",
+        "description": "Gemma 4 Effective 4B — fast local model, stronger than 2B, good for light coding",
+        "context_window": 32768,
+        "multimodal": False,
     },
     "local_light": {
         "name": "qwen2.5-coder:7b",
         "provider": "ollama",
         "privacy": "fully_private",
         "description": "Fast local model for quick code tasks and chat",
+        "context_window": 32768,
+        "multimodal": False,
     },
     "local_heavy": {
         "name": "qwen2.5-coder:14b",
         "provider": "ollama",
         "privacy": "fully_private",
         "description": "Powerful local model for robust code generation and editing",
+        "context_window": 32768,
+        "multimodal": False,
     },
     "local_ultra": {
         "name": "qwen2.5-coder:32b",
         "provider": "ollama",
         "privacy": "fully_private",
         "description": "Elite local model for complex architectural reasoning",
+        "context_window": 32768,
+        "multimodal": False,
+    },
+    # Gemma 4 — Google's multimodal local models (vision + 128K context)
+    "local_vision": {
+        "name": "gemma4:27b",
+        "provider": "ollama",
+        "privacy": "fully_private",
+        "description": "Gemma 4 27B — Google's multimodal local model, vision + 128K context window",
+        "context_window": 131072,
+        "multimodal": True,
     },
     "cloud_flash": {
         "name": "gemini-2.0-flash",
