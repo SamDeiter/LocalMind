@@ -811,22 +811,14 @@ function _showListView() {
 }
 
 function _showDetailView(jobId) {
-  // Ensure the overlay container is visible
-  const view = el("jobsView");
-  if (view) {
-    view.classList.remove("hidden");
-    view.style.display = "";
-  }
-  el("jobsListView")?.classList.add("hidden");
-  const detail = el("jobsDetailView");
-  if (detail) {
-    detail.classList.remove("hidden");
-  }
-  el("jobNodeDetail")?.classList.add("hidden");
+  // Delegate to the new v2 Job Detail overlay (3-pane: timeline / output / inspector).
+  // The legacy inline view is retained in the DOM but no longer surfaced.
   _selectedJobId = jobId;
-  _loadJobDetail(jobId);
-  // Focus the back button for keyboard navigation
-  el("jobBackBtn")?.focus();
+  import("./job_detail.js")
+    .then((m) => m.openJobDetail?.(jobId))
+    .catch((err) => {
+      console.warn("[jobs_ui] Failed to open job_detail module:", err);
+    });
 }
 
 // ---------------------------------------------------------------------------

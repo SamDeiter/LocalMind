@@ -21,6 +21,7 @@ import { initSettingsUI } from "./modules/settings_ui.js";
 // v2 page modules
 import { initHome } from "./modules/home.js";
 import { initJobsUI } from "./modules/jobs_ui.js";
+import { initJobDetail } from "./modules/job_detail.js";
 import { initTaskCreation } from "./modules/task_creation.js";
 
 // Phase-1 stub pages (lazy-inited by nav_rail.switchNav too; we keep a no-op import chain here to ensure the bundler can resolve them)
@@ -51,9 +52,10 @@ async function init() {
   initSettingsUI();
   initPlaceholderRotation();
 
-  // v2 feature modules — Home + Jobs + the New Job drawer contents
+  // v2 feature modules — Home + Jobs + Job Detail overlay + the New Job drawer contents
   initHome();
   initJobsUI();
+  initJobDetail();
   initTaskCreation();
 
   // Background services

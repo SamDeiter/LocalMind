@@ -6,8 +6,8 @@
  * API calls always go to the network (no offline AI inference).
  */
 
-// v2.0.0 — Mission control shell (Home/Jobs/Artifacts/Knowledge/Ops/Settings)
-const CACHE_NAME = "localmind-v2.0.0";
+// v2.1.0 — Phase 2: Job Detail (3-pane), approvals gate, evidence panel, artifact center
+const CACHE_NAME = "localmind-v2.1.0";
 
 // Files to cache for instant loading — must match actual filenames
 const SHELL_FILES = [
@@ -28,6 +28,7 @@ const SHELL_FILES = [
   "/modules/nav_rail.js",
   "/modules/home.js",
   "/modules/jobs_ui.js",
+  "/modules/job_detail.js",
   "/modules/artifacts_ui.js",
   "/modules/knowledge_ui.js",
   "/modules/ops_ui.js",

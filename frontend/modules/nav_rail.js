@@ -59,9 +59,17 @@ export function switchNav(key) {
     }
   });
 
-  // URL hash for deep linking
+  // URL hash for deep linking. Preserve sub-path if the user already has
+  // a deeper hash under this nav (e.g. switchNav("jobs") while on #/jobs/abc).
   try {
-    history.replaceState(null, "", `#/${key}`);
+    const currentTop = (location.hash || "").replace(/^#\/?/, "").split("/")[0];
+    const currentDeep = location.hash.replace(/^#\//, "");
+    if (currentTop !== key) {
+      history.replaceState(null, "", `#/${key}`);
+    } else if (!currentDeep) {
+      history.replaceState(null, "", `#/${key}`);
+    }
+    // else: keep the existing deeper hash (e.g. #/jobs/abc) intact
   } catch (_) { /* ignore */ }
 
   // Lazy init the section on first visit

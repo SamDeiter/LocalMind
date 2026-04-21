@@ -10,11 +10,30 @@ and this project adheres to semantic versioning.
 
 ### Added
 
-- Placeholder for in-progress work on the next release.
+- **v2 IA redesign — Phase 2** — Job Detail page, approvals gate, evidence panel, and Artifact Center.
+  - New `frontend/modules/job_detail.js` three-pane overlay mounted inside `#mainJobs`:
+    - Left: plan timeline with per-step status dots (pending / running / done / failed / skipped).
+    - Center: tabbed output / logs / artifacts / evidence with markdown rendering.
+    - Right: inspector chips (status, model, tools, created, duration, priority, cost).
+  - Inline approvals gate surfaces when a job is `reviewing` / `waiting_approval` with
+    Approve / Reject actions wired to `POST /api/jobs/:id/{approve,reject}`.
+  - Evidence panel renders quality metrics, sources / citations, safety checks, and
+    tool-call trace when present on the job payload.
+  - Deep linking via `#/jobs/:id` (hash-synced, survives nav rail switching).
+  - Live SSE updates on `/api/jobs/activity` with polling fallback.
+  - Header actions: Cancel (running jobs), Save as template (done jobs), Delete.
+  - Artifact Center (`frontend/modules/artifacts_ui.js`): search, kind filters
+    (text / code / data / image / pdf), inline preview for text / markdown / images.
 
 ### Changed
 
-- _(nothing yet)_
+- `frontend/modules/jobs_ui.js` — list cards now delegate `_showDetailView(jobId)`
+  to `openJobDetail(jobId)` from the new `job_detail.js` module; the legacy
+  Tailwind inline detail view is retained in the DOM but no longer surfaced.
+- `frontend/modules/nav_rail.js` — `switchNav(key)` now preserves sub-path hashes
+  (e.g. `#/jobs/abc123`) during boot so deep links survive the initial tab switch.
+- `frontend/sw.js` — cache bumped to `localmind-v2.1.0`, added `/modules/job_detail.js`
+  to the shell cache list.
 
 ### Fixed
 
