@@ -12,6 +12,7 @@ from typing import AsyncGenerator
 import httpx
 
 from tools import TOOL_DEFINITIONS, execute_tool
+from backend.inference.streaming_client import stream_ollama_chat
 
 MAX_TOOL_ITERATIONS = 15
 
@@ -197,42 +198,34 @@ async def agent_chat_streaming(
         content = message.get("content", "")
         tool_calls = message.get("tool_calls", [])
 
-        # No tool calls — stream the final response
+        # No tool calls — stream the final response using the resilient client
         if not tool_calls:
             if content:
-                # We already got non-streamed content, send it
+                # Already got non-streamed content (model used tools path)
                 yield {"type": "content", "content": content}
                 yield {"type": "done"}
                 return
 
-            # Try again without tools to get a streaming response
-            try:
-                async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-                    async with client.stream(
-                        "POST",
-                        f"{OLLAMA_BASE_URL}/api/chat",
-                        json={
-                            "model": model,
-                            "messages": full_messages,
-                            "stream": True,
-                        },
-                    ) as resp:
-                        async for line in resp.aiter_lines():
-                            if line.strip():
-                                try:
-                                    chunk = json.loads(line)
-                                    text = chunk.get("message", {}).get("content", "")
-                                    if text:
-                                        yield {"type": "content", "content": text}
-                                    if chunk.get("done", False):
-                                        break
-                                except json.JSONDecodeError:
-                                    continue
-            except httpx.HTTPError as e:
-                yield {"type": "error", "error": f"HTTP error: {e.response.status_code} - {e.response.text}"}
-            except Exception as e:
-                yield {"type": "error", "error": str(e)}
-            yield {"type": "done"}
+            # Use the resilient streaming client for the final response
+            async for stream_event in stream_ollama_chat(
+                messages=full_messages,
+                model=model,
+            ):
+                if stream_event["type"] == "token":
+                    yield {"type": "content", "content": stream_event["content"]}
+                elif stream_event["type"] == "warning":
+                    yield {"type": "thinking", "iteration": iteration,
+                           "warning": stream_event["message"]}
+                elif stream_event["type"] == "done":
+                    retries = stream_event.get("retries", 0)
+                    if retries > 0:
+                        yield {"type": "thinking", "iteration": iteration,
+                               "warning": f"Recovered after {retries} retries ({stream_event.get('total_tokens', 0)} tokens preserved)"}
+                    yield {"type": "done"}
+                    return
+                elif stream_event["type"] == "error":
+                    yield {"type": "error", "error": stream_event["error"]}
+                    return
             return
 
         # Process tool calls

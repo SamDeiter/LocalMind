@@ -13,9 +13,9 @@
 | D2 | Git Awareness Tools | ✅ Complete |
 | D3 | Cross-Project Hub | ✅ Complete |
 | D4 | Model Roster — Gemma 4 + MedGemma + Cleanup | ✅ Complete |
-| D5 | Streaming Resilience — Token Checkpoint-Resume | ⏳ Next up |
-| D6 | Google Workspace OAuth Layer | 🔜 Planned |
-| D7 | Repo Cleanup | 🔜 Planned |
+| D5 | Streaming Resilience — Token Checkpoint-Resume | ✅ Complete |
+| D6 | Google Workspace OAuth Layer | ✅ Complete |
+| D7 | Repo Cleanup | 🚀 Next up |
 | F | Autonomous Agent Mode + Coworker Experience | 🔜 Needs design session |
 | F2 | Report Forge (Sister Use Case) | 🔜 Planned |
 | E | VS Code Extension | 🔜 After F |
@@ -103,7 +103,7 @@ Added to `backend/git_ops.py`:
 
 ---
 
-## ⏳ Phase D5 — Streaming Resilience *(Next Up)*
+## ✅ Phase D5 — Streaming Resilience *(Complete)*
 
 > **Novel feature.** No existing local AI tool (Aider, Continue.dev, OpenClaw) does token preservation on stream drop. This is part of LocalMind's moat.
 
@@ -126,7 +126,7 @@ TokenCheckpoint buffer
 
 ---
 
-## 🔜 Phase D6 — Google Workspace OAuth Layer *(~4 hours)*
+## ✅ Phase D6 — Google Workspace OAuth Layer *(Complete)*
 
 > All Google tool files already exist. This is **auth wiring only**.
 
@@ -306,9 +306,9 @@ When LocalMind detects something notable in your data sources:
 | Phase | Focus | Est. Effort | Status |
 |-------|-------|-------------|--------|
 | D1–D4 | Foundation + Models | — | ✅ Done |
-| **D5** | Streaming resilience | ~1 day | ⏳ Next |
-| **D6** | Google OAuth wiring | ~4 hours | 🔜 |
-| **D7** | Repo cleanup | ~1 hour | 🔜 |
+| **D5** | Streaming resilience | — | ✅ Done |
+| **D6** | Google OAuth wiring | — | ✅ Done |
+| **D7** | Repo cleanup | ~1 hour | 🚀 Next |
 | **F** | Agent Mode + Coworker Experience | ~1–2 weeks | 🔜 Design first |
 | **F2** | Report Forge | ~1 week | 🔜 After D6 |
 | **E** | VS Code Extension | ~3–4 days | 🔜 After F |

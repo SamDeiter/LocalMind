@@ -20,6 +20,84 @@ let _cloudSettings = {
 };
 
 /** Load all settings from backend and populate the UI */
+
+/** Google Workspace state */
+let _googleStatus = {
+  authenticated: false,
+  scopes: [],
+  needs_reauth: true,
+  missing_scopes: []
+};
+
+/** Refresh Google Auth status from backend */
+export async function updateGoogleStatus() {
+  const badge = document.getElementById("googleStatusBadge");
+  const actions = document.getElementById("googleConnectedActions");
+  const connectBtn = document.getElementById("connectGoogleBtn");
+
+  try {
+    const r = await fetch(`${API}/api/google/status`);
+    const data = await r.json();
+    _googleStatus = data;
+
+    if (badge) {
+      if (data.authenticated) {
+        badge.innerText = "Connected";
+        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400";
+        if (connectBtn) connectBtn.classList.add("hidden");
+        if (actions) actions.classList.remove("hidden");
+      } else {
+        badge.innerText = "Not Connected";
+        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-500";
+        if (connectBtn) connectBtn.classList.remove("hidden");
+        if (actions) actions.classList.add("hidden");
+      }
+    }
+  } catch (e) {
+    console.error("Failed to check Google status:", e);
+    if (badge) badge.innerText = "Status Error";
+  }
+}
+
+/** Start Google OAuth flow */
+export function connectGoogle() {
+  window.open(`${API}/api/google/auth`, "_blank");
+}
+
+/** Revoke Google access */
+export async function revokeGoogle() {
+  if (!confirm("Are you sure you want to disconnect Google Workspace?")) return;
+  
+  try {
+    showToast("Disconnecting Google...", "info");
+    const r = await fetch(`${API}/api/google/revoke`, { method: "POST" });
+    const d = await r.json();
+    if (d.ok) {
+      showToast("✅ Google Disconnected", "info");
+      updateGoogleStatus();
+    }
+  } catch (e) {
+    showToast("❌ Disconnection Failed", "error");
+  }
+}
+
+/** Refresh Google token */
+export async function refreshGoogle() {
+  try {
+    showToast("Refreshing token...", "info");
+    const r = await fetch(`${API}/api/google/refresh`, { method: "POST" });
+    const d = await r.json();
+    if (d.ok) {
+        showToast("✅ Token Refreshed", "info");
+        updateGoogleStatus();
+    } else {
+        showToast(`❌ Refresh Failed: ${d.detail || "Unknown"}`, "error");
+    }
+  } catch {
+    showToast("❌ Token Refresh Failed", "error");
+  }
+}
+
 export async function loadSettings() {
   try {
     // Load Notifications
@@ -33,6 +111,7 @@ export async function loadSettings() {
     _cloudSettings = data2 || _cloudSettings;
 
     populateSettingsUI();
+    updateGoogleStatus();
   } catch (e) {
     console.error("Failed to load settings:", e);
   }
@@ -172,4 +251,7 @@ export function initSettingsUI() {
   testSmsBtn?.addEventListener("click", sendTestSms);
   testGeminiBtn?.addEventListener("click", verifyGemini);
   closeBtn?.addEventListener("click", () => toggleSettingsModal(false));
+  document.getElementById("connectGoogleBtn")?.addEventListener("click", connectGoogle);
+  document.getElementById("revokeGoogleBtn")?.addEventListener("click", revokeGoogle);
+  document.getElementById("refreshGoogleBtn")?.addEventListener("click", refreshGoogle);
 }
