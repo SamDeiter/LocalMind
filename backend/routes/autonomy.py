@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Body, HTTPException, Request
+from typing import Optional
+import logging
 from backend.autonomy import GoalPlanner, AutonomyEngine
 import uuid
 

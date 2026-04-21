@@ -23,7 +23,7 @@
       },
       {
         "command": "localmind.askQuestion",
-        "title": "LocalMind: Ask a Question"
+        "title": "LocalMind: Ask AI"
       },
       {
         "command": "localmind.registerProject",
@@ -32,6 +32,14 @@
       {
         "command": "localmind.showStatus",
         "title": "LocalMind: Show Status"
+      },
+      {
+        "command": "localmind.explainSelection",
+        "title": "LocalMind: Explain Selection"
+      },
+      {
+        "command": "localmind.fixSelection",
+        "title": "LocalMind: Fix Selection"
       }
     ],
     "configuration": {
@@ -62,7 +70,17 @@
         {
           "command": "localmind.sendSelection",
           "when": "editorHasSelection",
-          "group": "localmind"
+          "group": "localmind@0"
+        },
+        {
+          "command": "localmind.explainSelection",
+          "when": "editorHasSelection",
+          "group": "localmind@1"
+        },
+        {
+          "command": "localmind.fixSelection",
+          "when": "editorHasSelection",
+          "group": "localmind@2"
         }
       ]
     }
