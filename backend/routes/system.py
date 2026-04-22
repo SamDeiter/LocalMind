@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter
 from backend.config import OLLAMA_BASE_URL
 from backend.db import DB_PATH
+from backend.utils.http_client import get_async_client
 
 try:
     import psutil
@@ -85,9 +86,10 @@ async def health_check():
     """Check server and Ollama connectivity with enhanced system metrics."""
     # Ollama status
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        # ⚡ Bolt: Use shared client for health checks to reduce latency
+        client = get_async_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
     except Exception:
         ollama_ok = False
 
@@ -148,16 +150,17 @@ async def hardware_status():
 
     models = []
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
-            data = r.json()
-            for m in data.get("models", []):
-                models.append({
-                    "name": m.get("name", "unknown"),
-                    "size_gb": round(m.get("size", 0) / (1024**3), 1),
-                    "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
-                    "processor": m.get("details", {}).get("quantization_level", ""),
-                })
+        # ⚡ Bolt: Use shared client
+        client = get_async_client()
+        r = await client.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=2.0)
+        data = r.json()
+        for m in data.get("models", []):
+            models.append({
+                "name": m.get("name", "unknown"),
+                "size_gb": round(m.get("size", 0) / (1024**3), 1),
+                "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
+                "processor": m.get("details", {}).get("quantization_level", ""),
+            })
     except Exception:
         pass
 
@@ -167,14 +170,15 @@ async def hardware_status():
 async def list_models():
     """List available Ollama models."""
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
-            data = resp.json()
-            models = [
-                {"name": m["name"], "size": m.get("size", 0)}
-                for m in data.get("models", [])
-            ]
-            return {"models": models}
+        # ⚡ Bolt: Use shared client
+        client = get_async_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
+        data = resp.json()
+        models = [
+            {"name": m["name"], "size": m.get("size", 0)}
+            for m in data.get("models", [])
+        ]
+        return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
 
@@ -202,9 +206,10 @@ async def health_ready():
     # Ollama check
     ollama_ok = False
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        # ⚡ Bolt: Use shared client
+        client = get_async_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
         checks["ollama"] = "pass" if ollama_ok else "fail"
     except Exception:
         checks["ollama"] = "fail"
