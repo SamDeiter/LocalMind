@@ -213,7 +213,7 @@ function _buildNodeCard(index, node) {
       <span class="flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-bold">${index + 1}</span>
       <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Step ${index + 1}</span>
     </div>
-    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline">
+    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline" aria-label="Remove this step from the pipeline">
       <span class="material-symbols-outlined text-sm pointer-events-none">close</span>
     </button>
   </div>
@@ -270,7 +270,7 @@ function _renderFilePreview() {
     <div class="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/40 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
       <span class="material-symbols-outlined text-xs text-slate-500">description</span>
       <span class="max-w-[120px] truncate" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
-      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file">
+      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file" aria-label="Remove this file">
         <span class="material-symbols-outlined text-xs pointer-events-none">close</span>
       </button>
     </div>`
