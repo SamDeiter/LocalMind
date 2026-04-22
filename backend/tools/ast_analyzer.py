@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 from .base import BaseTool
+from backend.config import PROJECT_ROOT
 
 class ASTAnalyzerTool(BaseTool):
     @property
@@ -31,7 +32,7 @@ class ASTAnalyzerTool(BaseTool):
     async def execute(self, **kwargs) -> dict[str, Any]:
         term = kwargs.get("search_term")
         ext = kwargs.get("file_extension", ".py").lower()
-        cwd = Path(r"c:\Users\Sam Deiter\Documents\GitHub\LocalMind")
+        cwd = PROJECT_ROOT
         
         matches = []
         pattern = re.compile(rf"(class|def|const|let|var)\s+{term}[\(\s:]")
