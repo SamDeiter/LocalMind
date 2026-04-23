@@ -124,19 +124,32 @@ async def get_user_profile(user_id: str = "default"):
 
 @router.get("/settings/notifications")
 async def get_notification_settings():
-    """Return current SMS/Text notification settings."""
-    return notifications.get_settings()
+    """Return current SMS/Text notification settings with masked password."""
+    settings = notifications.get_settings().copy()
+    if settings.get("smtp_pass"):
+        # Mask the SMTP password
+        settings["smtp_pass"] = "****"
+    return settings
 
 @router.post("/settings/notifications")
 async def update_notification_settings(settings: dict):
-    """Update phone, carrier, and enable/disable status."""
+    """Update phone, carrier, and enable/disable status. Preserves and masks password."""
+    incoming_pass = settings.get("smtp_pass", "")
+    if incoming_pass == "****":
+        current = notifications.get_settings()
+        if current.get("smtp_pass"):
+            settings["smtp_pass"] = current["smtp_pass"]
     notifications.save_settings(settings)
-    return {"status": "ok", "settings": settings}
+    # Mask password in the response to avoid leaking it back
+    response_settings = settings.copy()
+    if response_settings.get("smtp_pass"):
+        response_settings["smtp_pass"] = "****"
+    return {"status": "ok", "settings": response_settings}
 
 @router.get("/settings/cloud")
 async def get_cloud_settings():
-    """Return current cloud configuration (Gemini)."""
-    settings = gemini_client.get_settings()
+    """Return current cloud configuration (Gemini) with masked API key."""
+    settings = gemini_client.get_settings().copy()
     if settings.get("api_key"):
         key = settings["api_key"]
         settings["api_key"] = "*" * (len(key) - 4) + key[-4:] if len(key) > 4 else "****"
