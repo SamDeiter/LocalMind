@@ -13,7 +13,7 @@
  *   initTaskCreation()  -- inject HTML into #taskCreationArea, bind events
  */
 
-import { API } from "./state.js";
+import { API, autoResize } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 
 // ---------------------------------------------------------------------------
@@ -99,6 +99,7 @@ function _buildHTML() {
       rows="2"
       placeholder="What would you like me to do? e.g., Research competitor pricing and create a summary report"
       title="Describe the task you want the AI to perform"
+      aria-label="Task description"
     ></textarea>
   </div>
 
@@ -213,7 +214,7 @@ function _buildNodeCard(index, node) {
       <span class="flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-bold">${index + 1}</span>
       <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Step ${index + 1}</span>
     </div>
-    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline">
+    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline" aria-label="Remove this step">
       <span class="material-symbols-outlined text-sm pointer-events-none">close</span>
     </button>
   </div>
@@ -235,6 +236,7 @@ function _buildNodeCard(index, node) {
     placeholder="Instructions for this step..."
     data-node="${index}"
     title="Provide detailed instructions for what the AI should do in this step"
+    aria-label="Step instructions"
   >${escapeHtml(node.instructions || "")}</textarea>
 
   <!-- Tool checkboxes -->
@@ -270,7 +272,7 @@ function _renderFilePreview() {
     <div class="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/40 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
       <span class="material-symbols-outlined text-xs text-slate-500">description</span>
       <span class="max-w-[120px] truncate" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
-      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file">
+      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file" aria-label="Remove this file">
         <span class="material-symbols-outlined text-xs pointer-events-none">close</span>
       </button>
     </div>`
@@ -532,6 +534,16 @@ async function submitPipelineTask(nodes, priority, files) {
 // ---------------------------------------------------------------------------
 
 function _bindEvents() {
+  // Auto-resize
+  el("tcDescription")?.addEventListener("input", (e) => autoResize(e));
+
+  // Node auto-resize (delegated)
+  el("tcNodeContainer")?.addEventListener("input", (e) => {
+    if (e.target.classList.contains("tc-node-instructions")) {
+      autoResize(e);
+    }
+  });
+
   // Run Now
   el("tcRunNowBtn")?.addEventListener("click", () => {
     const desc = el("tcDescription")?.value?.trim() || "";
