@@ -4,26 +4,44 @@ let dashboardInterval = null;
 let statusFailCount = 0;
 const OFFLINE_THRESHOLD = 3; // consecutive failures before showing Offline
 
-/** Update neural topology SVG nodes and metric cards with live hardware data */
+/** Update neural topology SVG nodes and metric cards with live hardware data
+ * ⚡ Bolt: Consolidated polling. This now handles hardware, status, version, and memories
+ * in a single request to /api/hardware, reducing network overhead by ~66%.
+ */
 async function updateDashboardMetrics() {
+  const dot = document.getElementById("brainPulse");
+  const connEl = document.getElementById("brainStatus");
+
   try {
     const r = await fetch(`${API}/api/hardware`);
-    if (!r.ok) return;
+    if (!r.ok) {
+      statusFailCount++;
+      handleStatusFailure(dot, connEl);
+      return;
+    }
+
+    statusFailCount = 0;
     const hw = await r.json();
     const sys = hw.system || {};
     const models = hw.models || [];
+    const vd = hw.version || {};
+
+    // ── Status & Version ──
+    if (dot) dot.style.backgroundColor = "#4fdbc8";
+    if (connEl) connEl.textContent = "Online";
+    const versionEl = document.querySelector(".version-badge");
+    if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
 
     // ── CPU ──
     const cpuPct = sys.cpu_percent ?? 0;
     const cpuEl = document.getElementById("cpuVal");
     if (cpuEl) cpuEl.textContent = `${cpuPct}%`;
 
-    // Update brain pulse color based on load
-    const brainPulse = document.getElementById("brainPulse");
-    if (brainPulse) {
-      if (cpuPct > 80) brainPulse.style.backgroundColor = "#ff6b98";
-      else if (cpuPct > 50) brainPulse.style.backgroundColor = "#f59e0b";
-      else brainPulse.style.backgroundColor = "#4fdbc8";
+    // Update brain pulse color based on load (only if online)
+    if (dot) {
+      if (cpuPct > 80) dot.style.backgroundColor = "#ff6b98";
+      else if (cpuPct > 50) dot.style.backgroundColor = "#f59e0b";
+      else dot.style.backgroundColor = "#4fdbc8";
     }
 
     // ── RAM ──
@@ -45,63 +63,35 @@ async function updateDashboardMetrics() {
     // Update status badge with model
     const versionBadge = document.getElementById("versionBadge");
     if (versionBadge && modelName !== "No model") versionBadge.textContent = modelName;
+
+    // ── Memories (Ideas) ──
+    const ideasEl = document.getElementById("brainIdeas");
+    if (ideasEl) ideasEl.textContent = hw.memory_count ?? "0";
   } catch {
-    // Silently fail — hardware API may not be available
+    statusFailCount++;
+    handleStatusFailure(dot, connEl);
   }
 }
 
-/** Update status bar with connection info */
-async function updateStatusBar() {
-  const dot = document.getElementById("brainPulse");
-  const connEl = document.getElementById("brainStatus");
-  try {
-    // Check server health via version endpoint
-    const vr = await fetch(`${API}/api/version`);
-    if (vr.ok) {
-      statusFailCount = 0;
-      const vd = await vr.json();
-      if (dot) dot.style.backgroundColor = "#4fdbc8";
-      if (connEl) connEl.textContent = "Online";
-      const versionEl = document.querySelector(".version-badge");
-      if (versionEl) versionEl.textContent = `v${vd.version || "0.0.0"}`;
-    } else {
-      statusFailCount++;
-      if (statusFailCount >= OFFLINE_THRESHOLD) {
-        if (dot) dot.style.backgroundColor = "#ff6b98";
-        if (connEl) connEl.textContent = "Degraded";
-      }
-    }
-
-    // Ideas count for reasoning grid
-    try {
-      const mr = await fetch(`${API}/api/memories`);
-      if (mr.ok) {
-        const memories = await mr.json();
-        const ideasEl = document.getElementById("brainIdeas");
-        if (ideasEl) ideasEl.textContent = Array.isArray(memories) ? memories.length : "0";
-      }
-    } catch {
-      /* ignore */
-    }
-  } catch {
-    statusFailCount++;
-    if (statusFailCount >= OFFLINE_THRESHOLD) {
-      const dot = document.getElementById("brainPulse");
-      const connEl = document.getElementById("brainStatus");
-      if (dot) dot.style.backgroundColor = "#ff6b98";
-      if (connEl) connEl.textContent = "Offline";
-    }
+/** Helper to handle offline/degraded status UI */
+function handleStatusFailure(dot, connEl) {
+  if (statusFailCount >= OFFLINE_THRESHOLD) {
+    if (dot) dot.style.backgroundColor = "#ff6b98";
+    if (connEl) connEl.textContent = statusFailCount > OFFLINE_THRESHOLD + 2 ? "Offline" : "Degraded";
   }
+}
+
+/** Update status bar with connection info
+ * @deprecated ⚡ Bolt: Consolidated into updateDashboardMetrics
+ */
+async function updateStatusBar() {
+  // Logic moved to updateDashboardMetrics to save requests
 }
 
 /** Initialize dashboard data feeds */
 function initDashboard() {
   updateDashboardMetrics();
-  updateStatusBar();
-  dashboardInterval = setInterval(() => {
-    updateDashboardMetrics();
-    updateStatusBar();
-  }, 3000);
+  dashboardInterval = setInterval(updateDashboardMetrics, 3000);
 }
 
 /** Stop dashboard updates */

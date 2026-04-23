@@ -3,20 +3,37 @@ import logging
 import os
 import sqlite3
 import time
-import httpx
 from pathlib import Path
+
+import httpx
 from fastapi import APIRouter
+
 from backend.config import OLLAMA_BASE_URL
 from backend.db import DB_PATH
 
 try:
     import psutil
+
     _PSUTIL_AVAILABLE = True
 except ImportError:
     _PSUTIL_AVAILABLE = False
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger("localmind.routes.system")
+
+# ⚡ Bolt: Singleton HTTP client for connection pooling.
+# Reusing the TCP/TLS connection to Ollama significantly reduces latency
+# and overhead during high-frequency polling from the frontend.
+_HTTP_CLIENT: httpx.AsyncClient | None = None
+
+
+def get_httpx_client() -> httpx.AsyncClient:
+    """Return the shared httpx.AsyncClient instance."""
+    global _HTTP_CLIENT
+    if _HTTP_CLIENT is None:
+        _HTTP_CLIENT = httpx.AsyncClient(timeout=10.0)
+    return _HTTP_CLIENT
+
 
 # Module-level start time for uptime calculation
 _START_TIME = time.time()
@@ -27,12 +44,14 @@ _START_TIME = time.time()
 if _PSUTIL_AVAILABLE:
     psutil.cpu_percent(interval=None)
 
+
 @router.get("/debug/code-check")
 async def code_check():
     """Verify the running code has the latest features loaded."""
     from backend.logic.chat_service import ChatService
-    has_infer = hasattr(ChatService, '_infer_tool_call')
-    has_escalate = hasattr(ChatService, '_escalate_model')
+
+    has_infer = hasattr(ChatService, "_infer_tool_call")
+    has_escalate = hasattr(ChatService, "_escalate_model")
     # Test synthetic tool call
     test_result = None
     if has_infer:
@@ -42,6 +61,7 @@ async def code_check():
         "has_escalate_model": has_escalate,
         "synthetic_test": str(test_result) if test_result else "N/A",
     }
+
 
 def _get_db_conn() -> sqlite3.Connection:
     """Open a SQLite connection with project-standard pragmas."""
@@ -66,13 +86,9 @@ def _job_counts() -> dict:
     completed = 0
     try:
         conn = _get_db_conn()
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'running'"
-        ).fetchone()
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'running'").fetchone()
         active = row["cnt"] if row else 0
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'completed'"
-        ).fetchone()
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'completed'").fetchone()
         completed = row["cnt"] if row else 0
         conn.close()
     except Exception:
@@ -85,9 +101,9 @@ async def health_check():
     """Check server and Ollama connectivity with enhanced system metrics."""
     # Ollama status
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        client = get_httpx_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
     except Exception:
         ollama_ok = False
 
@@ -120,6 +136,7 @@ async def health_check():
         "total_jobs_completed": jobs["total_jobs_completed"],
     }
 
+
 @router.get("/version")
 async def get_version():
     """Return the current build version."""
@@ -132,12 +149,14 @@ async def get_version():
             pass
     return {"version": "unknown", "build": 0}
 
+
 @router.get("/hardware")
 async def hardware_status():
-    """Get system and Ollama hardware usage."""
+    """Get system and Ollama hardware usage.
+    ⚡ Bolt: Consolidated endpoint to reduce frontend network requests.
+    """
     # ⚡ Bolt: Use interval=None to avoid blocking the event loop for 100ms.
-    # Returns the average CPU usage since the last call (or module load).
-    cpu_pct = psutil.cpu_percent(interval=None)
+    cpu_pct = psutil.cpu_percent(interval=None) if _PSUTIL_AVAILABLE else 0
     mem = psutil.virtual_memory()
     system = {
         "cpu_percent": cpu_pct,
@@ -148,33 +167,51 @@ async def hardware_status():
 
     models = []
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
-            data = r.json()
-            for m in data.get("models", []):
-                models.append({
+        client = get_httpx_client()
+        r = await client.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=2.0)
+        data = r.json()
+        for m in data.get("models", []):
+            models.append(
+                {
                     "name": m.get("name", "unknown"),
                     "size_gb": round(m.get("size", 0) / (1024**3), 1),
                     "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
                     "processor": m.get("details", {}).get("quantization_level", ""),
-                })
+                }
+            )
     except Exception:
         pass
 
-    return {"loaded": len(models) > 0, "models": models, "system": system}
+    # ⚡ Bolt: Include version and memory count to save extra RTTs
+    version_data = await get_version()
+    mem_count = 0
+    try:
+        from backend.tools.memory import _get_fts_store
+
+        store = _get_fts_store()
+        if store:
+            mem_count = store.count()
+    except Exception:
+        pass
+
+    return {
+        "loaded": len(models) > 0,
+        "models": models,
+        "system": system,
+        "version": version_data,
+        "memory_count": mem_count,
+    }
+
 
 @router.get("/models")
 async def list_models():
     """List available Ollama models."""
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
-            data = resp.json()
-            models = [
-                {"name": m["name"], "size": m.get("size", 0)}
-                for m in data.get("models", [])
-            ]
-            return {"models": models}
+        client = get_httpx_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
+        data = resp.json()
+        models = [{"name": m["name"], "size": m.get("size", 0)} for m in data.get("models", [])]
+        return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
 
@@ -182,6 +219,7 @@ async def list_models():
 # ---------------------------------------------------------------------------
 # Readiness / Deep Health / Metrics / Alerts endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/health/ready")
 async def health_ready():
@@ -202,9 +240,9 @@ async def health_ready():
     # Ollama check
     ollama_ok = False
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        client = get_httpx_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
         checks["ollama"] = "pass" if ollama_ok else "fail"
     except Exception:
         checks["ollama"] = "fail"
@@ -238,9 +276,7 @@ async def metrics_summary():
 
     try:
         conn = _get_db_conn()
-        rows = conn.execute(
-            "SELECT status, cost_cents FROM jobs"
-        ).fetchall()
+        rows = conn.execute("SELECT status, cost_cents FROM jobs").fetchall()
         conn.close()
 
         for row in rows:
@@ -264,9 +300,7 @@ async def metrics_summary():
     eval_avg_duration_ms = 0.0
     try:
         conn = _get_db_conn()
-        eval_rows = conn.execute(
-            "SELECT score, duration_ms FROM eval_runs"
-        ).fetchall()
+        eval_rows = conn.execute("SELECT score, duration_ms FROM eval_runs").fetchall()
         conn.close()
 
         scores = []
@@ -289,6 +323,7 @@ async def metrics_summary():
     telemetry_summary = {}
     try:
         from backend.core.telemetry import metrics_collector
+
         telemetry_summary = metrics_collector.get_metrics_summary()
     except Exception:
         pass
@@ -329,6 +364,7 @@ async def metrics_summary():
 async def token_estimate(text: str = "", model: str = ""):
     """Return a token-count breakdown for the given text using the heuristic estimator."""
     from backend.core.token_budget import TokenEstimator
+
     result = TokenEstimator.estimate_prompt_tokens(input_data=text, model_id=model or None)
     return result
 

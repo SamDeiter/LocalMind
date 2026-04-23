@@ -1,11 +1,16 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+
 
 @pytest.fixture
 def client():
     from fastapi.testclient import TestClient
+
     from backend.server import app
+
     return TestClient(app)
+
 
 def test_hardware_status_success(client):
     """Test the /api/hardware endpoint returns correct structure."""
