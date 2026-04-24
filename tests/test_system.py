@@ -2,10 +2,13 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
 @pytest.fixture
-def client():
+def client(seeded_db):
     from fastapi.testclient import TestClient
     from backend.server import app
-    return TestClient(app)
+    import backend.db
+    with patch("backend.db.DB_PATH", seeded_db), \
+         patch("backend.db.get_db", lambda: seeded_db):
+        return TestClient(app)
 
 def test_hardware_status_success(client):
     """Test the /api/hardware endpoint returns correct structure."""
