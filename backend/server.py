@@ -10,8 +10,8 @@ Constants live in backend/config.py.
 """
 
 import logging
+from pathlib import Path, PurePosixPath
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -291,11 +291,14 @@ async def auth_middleware(request: Request, call_next):
     path = request.url.path
 
     # Skip auth for non-API routes
-    if path in _AUTH_SKIP_EXACT or any(path.startswith(p) for p in _AUTH_SKIP_PREFIXES):
+    target_path = PurePosixPath(path)
+    if path in _AUTH_SKIP_EXACT or any(target_path.is_relative_to(PurePosixPath(p)) for p in _AUTH_SKIP_PREFIXES):
         return await call_next(request)
 
     # Only enforce auth on /api/ routes
-    if path.startswith("/api/"):
+    if target_path.is_relative_to(PurePosixPath("/api")):
+        # Explicitly allow /api/health if it exists and should be public,
+        # but for now, we follow the previous logic which was any /api/
         try:
             from backend.security.auth import authenticate_request
             from backend.security.rbac import check_permission
