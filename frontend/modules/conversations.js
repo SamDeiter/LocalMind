@@ -3,8 +3,8 @@
  */
 
 import { API, state, messagesContainer, welcomeScreen } from "./state.js";
-import { escapeHtml } from "./utils.js";
-import { renderMessages } from "./chat.js";
+import { escapeHtml, showToast } from "./utils.js";
+import { renderMessages, clearMessages } from "./chat.js";
 
 export async function loadConversations() {
   try {
@@ -31,8 +31,12 @@ export function renderConversations() {
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
       <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded flex items-center" title="Export conversation" aria-label="Export conversation">
+          <span class="material-symbols-outlined text-base">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded flex items-center" title="Delete conversation" aria-label="Delete conversation">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
@@ -63,15 +67,26 @@ export async function loadConversation(id) {
 }
 
 export async function deleteConversation(id) {
+  if (!confirm("Are you sure you want to delete this conversation?")) return;
   try {
-    await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Delete failed");
+
     if (state.currentConvId === id) {
       state.currentConvId = null;
       state.messages = [];
-      if (messagesContainer) messagesContainer.innerHTML = "";
+      clearMessages();
       if (welcomeScreen) welcomeScreen.style.display = "";
+
+      // Ensure chat screen and empty state are visible
+      const chatScreen = document.getElementById("chatScreen");
+      if (chatScreen) chatScreen.style.display = "flex";
+
+      const emptyState = document.getElementById("chatEmptyState");
+      if (emptyState) emptyState.style.display = "flex";
     }
     await loadConversations();
+    showToast("Conversation deleted", "success");
   } catch (e) {
     console.error("Delete conversation failed:", e);
   }
