@@ -2,9 +2,9 @@
  * Conversation CRUD — list, load, delete, export.
  */
 
-import { API, state, messagesContainer, welcomeScreen } from "./state.js";
-import { escapeHtml } from "./utils.js";
-import { renderMessages } from "./chat.js";
+import { API, state, welcomeScreen, chatScreen } from "./state.js";
+import { escapeHtml, showToast } from "./utils.js";
+import { renderMessages, clearMessages } from "./chat.js";
 
 export async function loadConversations() {
   try {
@@ -31,13 +31,15 @@ export function renderConversations() {
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
       <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export" aria-label="Export conversation">📥</button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete" aria-label="Delete conversation">✕</button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
       e.stopPropagation();
-      deleteConversation(c.id);
+      if (confirm("Are you sure you want to delete this conversation?")) {
+        deleteConversation(c.id);
+      }
     });
     div.querySelector(".export-btn").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -68,12 +70,17 @@ export async function deleteConversation(id) {
     if (state.currentConvId === id) {
       state.currentConvId = null;
       state.messages = [];
-      if (messagesContainer) messagesContainer.innerHTML = "";
+      clearMessages();
+      const emptyState = document.getElementById("chatEmptyState");
+      if (emptyState) emptyState.style.display = "flex";
+      if (chatScreen) chatScreen.style.display = "flex";
       if (welcomeScreen) welcomeScreen.style.display = "";
     }
     await loadConversations();
+    showToast("Conversation deleted", "success");
   } catch (e) {
     console.error("Delete conversation failed:", e);
+    showToast("Failed to delete conversation", "error");
   }
 }
 
