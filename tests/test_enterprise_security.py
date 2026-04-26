@@ -1429,3 +1429,35 @@ class TestStartupSecretScanner:
             warnings = StartupSecretScanner.scan_environment()
             safe_hits = [w for w in warnings if w.get("variable") == "SAFE_VAR"]
             assert len(safe_hits) == 0
+
+# ---------------------------------------------------------------------------
+# 6. backend.security.rbac Prefix Collision
+# ---------------------------------------------------------------------------
+
+from backend.security.rbac import _is_allowed
+
+class TestRBACPrefixCollision:
+    """Verify that route prefix collisions are correctly handled (blocked)."""
+
+    def test_prefix_collision_blocked_viewer(self):
+        # viewer has ("GET", "/api/")
+        # Should match subpaths
+        assert _is_allowed("viewer", "GET", "/api/jobs") is True
+        assert _is_allowed("viewer", "GET", "/api/conversations/123") is True
+        # Should NOT match collisions
+        assert _is_allowed("viewer", "GET", "/api_secret") is False
+        assert _is_allowed("viewer", "GET", "/api-config") is False
+
+    def test_prefix_collision_blocked_operator(self):
+        # operator has ("POST", "/api/chat")
+        assert _is_allowed("operator", "POST", "/api/chat") is True
+        assert _is_allowed("operator", "POST", "/api/chat/messages") is True
+        # Should NOT match collisions
+        assert _is_allowed("operator", "POST", "/api/chat_malicious") is False
+        assert _is_allowed("operator", "POST", "/api/chat-admin") is False
+
+    def test_exact_match_at_root(self):
+        # admin has ("*", "/api/")
+        assert _is_allowed("admin", "GET", "/api") is True
+        assert _is_allowed("admin", "GET", "/api/") is True
+        assert _is_allowed("admin", "GET", "/api/anything") is True
