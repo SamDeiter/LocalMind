@@ -40,6 +40,19 @@ def temp_db(tmp_path):
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            key_hash TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'operator',
+            rate_limit INTEGER NOT NULL DEFAULT 60,
+            created_at TEXT NOT NULL,
+            last_used_at TEXT,
+            revoked_at TEXT
+        )
+    """)
     conn.commit()
     conn.close()
     return db_path
