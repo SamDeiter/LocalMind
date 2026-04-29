@@ -288,14 +288,16 @@ async def auth_middleware(request: Request, call_next):
     the system is in bootstrap mode with no keys).
     """
     from fastapi.responses import JSONResponse as _JSONResponse
+    from pathlib import PurePosixPath
     path = request.url.path
+    posix_path = PurePosixPath(path)
 
     # Skip auth for non-API routes
-    if path in _AUTH_SKIP_EXACT or any(path.startswith(p) for p in _AUTH_SKIP_PREFIXES):
+    if path in _AUTH_SKIP_EXACT or any(posix_path.is_relative_to(p) for p in _AUTH_SKIP_PREFIXES):
         return await call_next(request)
 
     # Only enforce auth on /api/ routes
-    if path.startswith("/api/"):
+    if posix_path.is_relative_to("/api"):
         try:
             from backend.security.auth import authenticate_request
             from backend.security.rbac import check_permission
