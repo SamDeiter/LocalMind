@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2025-05-15 - Path Prefix Collision in RBAC and Auth Middleware
+**Vulnerability:** Using `path.startswith(prefix)` for security checks (RBAC or Auth middleware) is vulnerable to prefix collision bypasses. For example, `/api/chat_secrets` matches the prefix `/api/chat`, potentially granting unintended access.
+**Learning:** `is_relative_to` in `pathlib` is a safer alternative but it can raise `ValueError` on some Python versions (3.9-3.11) if the paths are not related, which can crash the application if not handled.
+**Prevention:** Use `PurePosixPath(path).is_relative_to(prefix)` and always wrap it in a `try...except ValueError` block for cross-version compatibility and robustness.
