@@ -638,6 +638,12 @@ class TestIsAllowed:
     def test_unknown_role_returns_false(self):
         assert _is_allowed("nobody", "GET", "/api/stuff") is False
 
+    def test_prefix_collision_disallowed(self):
+        """Security: Verify that /api/chat_secrets does not match /api/chat."""
+        # operator has /api/chat but NOT /api/chat_secrets
+        assert _is_allowed("operator", "POST", "/api/chat/stream") is True
+        assert _is_allowed("operator", "POST", "/api/chat_secrets") is False
+
 
 # ---------------------------------------------------------------------------
 # 7. TestRequireRole
