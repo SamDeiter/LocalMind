@@ -4,6 +4,7 @@ import httpx
 import asyncio
 from typing import Optional, List, Dict, Any, AsyncIterator
 from backend import config, gemini_client
+from backend.utils.http_client import get_async_client
 
 logger = logging.getLogger("localmind.logic.llm_client")
 
@@ -57,41 +58,42 @@ class LLMClient:
 
         logger.info(f"Ollama request: model={payload.get('model')}, messages={len(payload.get('messages',[]))}, keys={list(payload.keys())}")
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            for attempt in range(max_retries):
-                try:
-                    async with client.stream("POST", url, json=payload, timeout=self.timeout) as response:
-                        if response.status_code != 200:
-                            err = await response.aread()
-                            logger.error(f"Ollama stream error: {err.decode()}")
-                            yield {"error": f"Ollama error {response.status_code}"}
-                            return
+        client = get_async_client()
+        for attempt in range(max_retries):
+            try:
+                # ⚡ Bolt: Use the shared global client.stream() within an 'async with' context.
+                async with client.stream("POST", url, json=payload, timeout=self.timeout) as response:
+                    if response.status_code != 200:
+                        err = await response.aread()
+                        logger.error(f"Ollama stream error: {err.decode()}")
+                        yield {"error": f"Ollama error {response.status_code}"}
+                        return
 
-                        line_count = 0
-                        async for line in response.aiter_lines():
-                            if not line:
-                                continue
-                            line_count += 1
-                            try:
-                                data = json.loads(line)
-                                token = ""
-                                if "message" in data:
-                                    token = data["message"].get("content", "")
-                                elif "response" in data:
-                                    token = data.get("response", "")
+                    line_count = 0
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        line_count += 1
+                        try:
+                            data = json.loads(line)
+                            token = ""
+                            if "message" in data:
+                                token = data["message"].get("content", "")
+                            elif "response" in data:
+                                token = data.get("response", "")
 
-                                yield {
-                                    "token": token,
-                                    "done": data.get("done", False),
-                                    "tool_calls": data.get("message", {}).get("tool_calls", []),
-                                }
-                            except json.JSONDecodeError:
-                                logger.warning(f"Failed to decode JSON: {line[:100]}")
-                                continue
-                    logger.info(f"Ollama stream completed: {line_count} lines received")
-                    return
+                            yield {
+                                "token": token,
+                                "done": data.get("done", False),
+                                "tool_calls": data.get("message", {}).get("tool_calls", []),
+                            }
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode JSON: {line[:100]}")
+                            continue
+                logger.info(f"Ollama stream completed: {line_count} lines received")
+                return
 
-                except Exception as e:
+            except Exception as e:
                     if attempt < max_retries - 1:
                         wait_time = backoff_factor * (2 ** attempt)
                         logger.warning(f"Ollama attempt {attempt+1} failed: {e}. Retrying in {wait_time}s...")
@@ -137,13 +139,14 @@ class LLMClient:
             payload["options"] = kwargs.pop("options")
         payload.update(kwargs)
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            try:
-                r = await client.post(url, json=payload)
-                data = r.json()
-                return {
-                    "content": data.get("message", {}).get("content", ""),
-                    "tool_calls": data.get("message", {}).get("tool_calls", []),
-                }
-            except Exception as e:
-                return {"error": str(e)}
+        client = get_async_client()
+        try:
+            # ⚡ Bolt: Use the shared global client.post() for connection reuse.
+            r = await client.post(url, json=payload, timeout=self.timeout)
+            data = r.json()
+            return {
+                "content": data.get("message", {}).get("content", ""),
+                "tool_calls": data.get("message", {}).get("tool_calls", []),
+            }
+        except Exception as e:
+            return {"error": str(e)}
