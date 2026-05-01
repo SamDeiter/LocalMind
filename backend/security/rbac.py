@@ -17,6 +17,7 @@ by the auth layer, so RBAC never blocks a fresh install.
 from __future__ import annotations
 
 import logging
+from pathlib import PurePosixPath
 from typing import Callable
 
 from fastapi import Depends, HTTPException, Request
@@ -75,10 +76,15 @@ def _is_allowed(role: str, method: str, path: str) -> bool:
     """Return ``True`` if *role* may perform *method* on *path*."""
     permissions = ROLE_PERMISSIONS.get(role, [])
     method_upper = method.upper()
+    target_path = PurePosixPath(path)
     for allowed_method, allowed_prefix in permissions:
-        if path.startswith(allowed_prefix):
-            if allowed_method == "*" or allowed_method == method_upper:
-                return True
+        try:
+            if target_path.is_relative_to(allowed_prefix):
+                if allowed_method == "*" or allowed_method == method_upper:
+                    return True
+        except ValueError:
+            # is_relative_to raises ValueError if paths are not relative
+            continue
     return False
 
 
