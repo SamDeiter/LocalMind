@@ -11,7 +11,7 @@ Constants live in backend/config.py.
 
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -291,11 +291,12 @@ async def auth_middleware(request: Request, call_next):
     path = request.url.path
 
     # Skip auth for non-API routes
-    if path in _AUTH_SKIP_EXACT or any(path.startswith(p) for p in _AUTH_SKIP_PREFIXES):
+    target_path = PurePosixPath(path)
+    if path in _AUTH_SKIP_EXACT or any(target_path.is_relative_to(p) for p in _AUTH_SKIP_PREFIXES):
         return await call_next(request)
 
     # Only enforce auth on /api/ routes
-    if path.startswith("/api/"):
+    if target_path.is_relative_to("/api"):
         try:
             from backend.security.auth import authenticate_request
             from backend.security.rbac import check_permission
