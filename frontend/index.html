@@ -27,7 +27,9 @@
     <link rel="stylesheet" href="design/knowledge.css"/>
     <link rel="stylesheet" href="design/settings.css"/>
     <link rel="stylesheet" href="design/responsive.css"/>
+    <link rel="stylesheet" href="design/mascot.css"/>
     <link rel="stylesheet" href="styles.css"/>
+    <link rel="stylesheet" href="design/theme_overrides.css"/>
 </head>
 <body>
 
@@ -116,6 +118,17 @@
     <div class="lm-topbar__spacer"></div>
 
     <div class="lm-topbar__actions">
+      <div class="lm-topbar__mode" id="modeToggle" role="group" aria-label="Profile mode">
+        <button type="button" class="lm-topbar__mode-btn" data-mode="personal" aria-pressed="true">
+          <span class="material-symbols-outlined" aria-hidden="true">person</span>
+          <span class="lm-topbar__mode-label">Personal</span>
+        </button>
+        <button type="button" class="lm-topbar__mode-btn" data-mode="work" aria-pressed="false">
+          <span class="material-symbols-outlined" aria-hidden="true">work</span>
+          <span class="lm-topbar__mode-label">Work</span>
+        </button>
+      </div>
+
       <div class="lm-topbar__model" id="modelIndicator" title="Active model">
         <span class="lm-topbar__model-dot" aria-hidden="true"></span>
         <span class="lm-topbar__model-name" id="modelIndicatorName">—</span>

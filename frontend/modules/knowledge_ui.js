@@ -77,6 +77,14 @@ export function initKnowledgeUI() {
   target.innerHTML = _renderShell();
   _bindEvents(target);
   _loadAll();
+
+  // Pip's research panel — change candidates + auto-research scheduler.
+  const researchHost = target.querySelector("#knowledgeResearchHost");
+  if (researchHost) {
+    import("./research_panel.js")
+      .then((m) => m.mountResearchPanel?.(researchHost))
+      .catch((err) => console.warn("[knowledge] research panel failed:", err));
+  }
 }
 
 // ── Shell template ────────────────────────────────────────────────
@@ -104,6 +112,8 @@ function _renderShell() {
         </button>
       </div>
     </header>
+
+    <div id="knowledgeResearchHost"></div>
 
     <section class="lm-knowledge__toolbar" role="toolbar" aria-label="Knowledge filters">
       <label class="lm-knowledge__search" for="knowledgeSearchInput">
@@ -889,19 +899,27 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
   const H = Math.max(rect.height, 320);
 
   // Normalize nodes/edges
-  const nodes = rawNodes.map((n) => ({
-    id: String(n.id),
-    label: n.label || "",
-    category: n.category || n.group || "general",
-    subcategory: n.subcategory || "",
-    access: Number(n.access_count || 0),
-    x: W / 2 + (Math.random() - 0.5) * Math.min(W, H) * 0.6,
-    y: H / 2 + (Math.random() - 0.5) * Math.min(W, H) * 0.6,
-    vx: 0, vy: 0,
-    degree: 0,
-    compId: 0,
-    pinned: false,
-  }));
+  const nodes = rawNodes.map((n) => {
+    const category = n.category || n.group || "general";
+    const subcategory = n.subcategory || "";
+    const rawLabel = (n.label || n.content || "").trim();
+    // Fallback so every node has *something* visible instead of a mute red dot
+    const label = rawLabel || `#${n.id} · ${category}${subcategory && subcategory !== category ? "/" + subcategory : ""}`;
+    return {
+      id: String(n.id),
+      label,
+      content: n.content || n.label || "",
+      category,
+      subcategory,
+      access: Number(n.access_count || 0),
+      x: W / 2 + (Math.random() - 0.5) * Math.min(W, H) * 0.6,
+      y: H / 2 + (Math.random() - 0.5) * Math.min(W, H) * 0.6,
+      vx: 0, vy: 0,
+      degree: 0,
+      compId: 0,
+      pinned: false,
+    };
+  });
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const edges = (rawEdges || [])
     .map((e) => ({ source: byId.get(String(e.source)), target: byId.get(String(e.target)) }))
@@ -923,16 +941,79 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
   });
   const compCount = compMap.size;
 
-  // Seed each connected component into its own quadrant so the initial
-  // layout doesn't collapse everything into one blob
-  if (compCount > 1) {
-    const R = Math.min(W, H) * 0.28;
-    nodes.forEach((n) => {
-      const theta = (n.compId / compCount) * Math.PI * 2;
-      n.x = W / 2 + Math.cos(theta) * R + (Math.random() - 0.5) * 30;
-      n.y = H / 2 + Math.sin(theta) * R + (Math.random() - 0.5) * 30;
+  // ── Radial BFS layout ─────────────────────────────────────────
+  // Pick the most important node as the root (high degree + access + has label),
+  // then BFS to assign every reachable node a hop-distance "level". Nodes on
+  // the same level share a concentric ring. Unreachable components start their
+  // own BFS from their local root and share the ring system.
+  const adj = new Map(nodes.map((n) => [n.id, []]));
+  edges.forEach((e) => {
+    adj.get(e.source.id).push(e.target.id);
+    adj.get(e.target.id).push(e.source.id);
+  });
+  const importanceOf = (n) => (n.degree || 0) * 2 + (n.access || 0) + (n.label ? 1 : 0);
+  const unvisited = new Set(nodes.map((n) => n.id));
+  const levelById = new Map();
+  let maxLevel = 0;
+
+  while (unvisited.size) {
+    // Pick the most-important remaining node as this component's root
+    let rootId = null;
+    let bestScore = -Infinity;
+    unvisited.forEach((id) => {
+      const s = importanceOf(byId.get(id));
+      if (s > bestScore) { bestScore = s; rootId = id; }
     });
+    // BFS
+    const queue = [rootId];
+    levelById.set(rootId, 0);
+    unvisited.delete(rootId);
+    while (queue.length) {
+      const cur = queue.shift();
+      const lvl = levelById.get(cur);
+      if (lvl > maxLevel) maxLevel = lvl;
+      (adj.get(cur) || []).forEach((nb) => {
+        if (!unvisited.has(nb)) return;
+        unvisited.delete(nb);
+        levelById.set(nb, lvl + 1);
+        queue.push(nb);
+      });
+    }
   }
+
+  // Group nodes by level, then seat them evenly around each ring
+  const byLevel = new Map();
+  nodes.forEach((n) => {
+    n.level = levelById.get(n.id) || 0;
+    if (!byLevel.has(n.level)) byLevel.set(n.level, []);
+    byLevel.get(n.level).push(n);
+  });
+  // Sort within-level by importance so high-value nodes get stable angular slots
+  byLevel.forEach((arr) => arr.sort((a, b) => importanceOf(b) - importanceOf(a)));
+
+  const cx = W / 2, cy = H / 2;
+  const ringStep = Math.min(W, H) * 0.38 / Math.max(1, maxLevel || 1);
+  byLevel.forEach((arr, level) => {
+    if (level === 0) {
+      arr.forEach((n, i) => {
+        // Multiple "roots" (one per disconnected component) sit near center
+        const theta = arr.length > 1 ? (i / arr.length) * Math.PI * 2 : 0;
+        const r = arr.length > 1 ? ringStep * 0.25 : 0;
+        n.x = cx + Math.cos(theta) * r;
+        n.y = cy + Math.sin(theta) * r;
+        n.ringRadius = r;
+      });
+      return;
+    }
+    const r = ringStep * level;
+    arr.forEach((n, i) => {
+      // Offset each ring's start angle a bit so spokes don't line up across rings
+      const theta = (i / arr.length) * Math.PI * 2 + level * 0.3;
+      n.x = cx + Math.cos(theta) * r;
+      n.y = cy + Math.sin(theta) * r;
+      n.ringRadius = r;
+    });
+  });
 
   // Build SVG scaffold
   canvas.innerHTML = `
@@ -940,6 +1021,13 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
          role="img" aria-label="Memory graph — drag nodes, wheel to zoom, drag background to pan">
       <rect class="lm-knowledge__graph-bg" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>
       <g class="lm-knowledge__graph-viewport">
+        <g class="lm-knowledge__graph-rings">
+          ${Array.from({ length: maxLevel }, (_, i) => {
+            const r = ringStep * (i + 1);
+            return `<circle class="lm-knowledge__graph-ring" cx="${cx}" cy="${cy}" r="${r.toFixed(1)}"/>
+                    <text class="lm-knowledge__graph-ring-label" x="${cx + r + 6}" y="${cy}">L${i + 1}</text>`;
+          }).join("")}
+        </g>
         <g class="lm-knowledge__graph-edges"></g>
         <g class="lm-knowledge__graph-nodes"></g>
         <g class="lm-knowledge__graph-labels"></g>
@@ -961,9 +1049,11 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
       </div>
     </div>
     <div class="lm-knowledge__graph-info" id="knowledgeGraphInfo" hidden></div>
+    <div class="lm-knowledge__graph-tooltip" id="knowledgeGraphTooltip" hidden></div>
   `;
 
   const svg = canvas.querySelector("svg");
+  const tooltipEl = canvas.querySelector("#knowledgeGraphTooltip");
   const viewport = canvas.querySelector(".lm-knowledge__graph-viewport");
   const edgesG = canvas.querySelector(".lm-knowledge__graph-edges");
   const nodesG = canvas.querySelector(".lm-knowledge__graph-nodes");
@@ -983,24 +1073,36 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
     const c = document.createElementNS(SVG_NS, "circle");
     c.setAttribute("class", "lm-knowledge__graph-node");
     c.dataset.id = n.id;
-    c.style.setProperty("--hue", String((n.compId * 57) % 360));
+    // Color by category (stable) so same category always reads the same; fall
+    // back to subcategory variance for visual spread within a single category
+    c.style.setProperty("--hue", String(_categoryHue(n.category, n.subcategory)));
     c.setAttribute("r", String(_nodeRadius(n)));
     const tt = document.createElementNS(SVG_NS, "title");
-    tt.textContent = _shortLabel(n.label) || `memory ${n.id}`;
+    tt.textContent = _shortLabel(n.label, 120);
     c.appendChild(tt);
     nodesG.appendChild(c);
     n.el = c;
     return c;
   });
-  // Labels shown only for hub nodes (degree ≥ 3) by default
-  const labelEls = nodes.map((n) => {
-    if (n.degree < 3) return null;
+  // Labels: only show for the top-N most important nodes at rest so the view
+  // isn't a wall of overlapping text. Everyone else gets revealed on hover
+  // (via the floating tooltip) or when selected / searched.
+  const importance = (n) => (n.degree || 0) * 2 + (n.access || 0) + (n.label ? 1 : 0);
+  const labelCap = Math.max(4, Math.min(10, Math.round(nodes.length * 0.2)));
+  const labelIds = new Set(
+    nodes
+      .slice()
+      .sort((a, b) => importance(b) - importance(a))
+      .slice(0, labelCap)
+      .map((n) => n.id)
+  );
+  nodes.forEach((n) => {
+    if (!labelIds.has(n.id)) return;
     const t = document.createElementNS(SVG_NS, "text");
     t.setAttribute("class", "lm-knowledge__graph-label");
-    t.textContent = _shortLabel(n.label, 24);
+    t.textContent = _shortLabel(n.label, 22);
     labelsG.appendChild(t);
     n.labelEl = t;
-    return t;
   });
 
   // ── Simulation state ───────────────────────────────────────────
@@ -1021,11 +1123,15 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
   _state.graphSim = sim;
 
   // ── Force tick ────────────────────────────────────────────────
-  const REPEL_K = 1400;          // repulsion strength
-  const SPRING_K = 0.03;         // edge spring stiffness
-  const SPRING_LEN = 120;        // rest length
-  const GRAVITY = 0.02;          // pull toward center
+  // Radial-BFS layout: each node has a target ring (n.ringRadius). Forces are
+  // tuned to let nodes slide *around* their ring (tangential spacing) without
+  // collapsing the level structure radially.
+  const REPEL_K = 600;           // softer — the ring layout already spreads nodes
+  const SPRING_K = 0.015;        // edges act as gentle ties, not primary layout driver
+  const SPRING_LEN = 90;
+  const RADIAL_K = 0.18;         // how aggressively nodes snap back to their ring
   const DAMPING = 0.82;
+  const CX = W / 2, CY = H / 2;
 
   function tick() {
     if (!sim.running || sim.alpha < sim.alphaMin) {
@@ -1058,11 +1164,15 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
       e.source.vx += fx; e.source.vy += fy;
       e.target.vx -= fx; e.target.vy -= fy;
     });
-    // Center gravity
-    const cx = W / 2, cy = H / 2;
+    // Radial anchor: pull each node toward its assigned ring radius
     nodes.forEach((n) => {
-      n.vx += (cx - n.x) * GRAVITY * sim.alpha;
-      n.vy += (cy - n.y) * GRAVITY * sim.alpha;
+      const dx = n.x - CX, dy = n.y - CY;
+      const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const target = n.ringRadius || 0;
+      const err = target - d;                     // positive → need to move outward
+      const fx = (dx / d) * err * RADIAL_K;
+      const fy = (dy / d) * err * RADIAL_K;
+      n.vx += fx; n.vy += fy;
     });
     // Integrate + dampen
     nodes.forEach((n) => {
@@ -1132,6 +1242,32 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
         sim.hoverId = id;
         _updateHighlight(sim);
       }
+      // Position floating tooltip beside the cursor when hovering a node
+      if (tooltipEl) {
+        if (id) {
+          const n = nodes.find((nn) => nn.id === id);
+          if (n) {
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = e.clientX - canvasRect.left + 14;
+            const y = e.clientY - canvasRect.top + 14;
+            tooltipEl.hidden = false;
+            tooltipEl.style.left = `${Math.min(x, canvasRect.width - 320)}px`;
+            tooltipEl.style.top = `${Math.min(y, canvasRect.height - 120)}px`;
+            tooltipEl.innerHTML = `
+              <div class="lm-knowledge__graph-tooltip-head">
+                <span class="lm-chip" style="--chip-hue:${_categoryHue(n.category, n.subcategory)}">
+                  ${escapeHtml(n.category)}${n.subcategory && n.subcategory !== n.category ? " · " + escapeHtml(n.subcategory) : ""}
+                </span>
+                <span class="lm-mute">#${escapeHtml(n.id)}</span>
+              </div>
+              <div class="lm-knowledge__graph-tooltip-body">${escapeHtml(_shortLabel(n.content || n.label, 220))}</div>
+              <div class="lm-knowledge__graph-tooltip-foot">${n.degree} connection${n.degree === 1 ? "" : "s"}${n.access ? ` · accessed ${n.access}×` : ""}</div>
+            `;
+          }
+        } else {
+          tooltipEl.hidden = true;
+        }
+      }
     }
   });
   const endDrag = () => {
@@ -1142,6 +1278,7 @@ function _renderGraphSvg(canvas, { nodes: rawNodes, edges: rawEdges }) {
   svg.addEventListener("pointercancel", endDrag);
   svg.addEventListener("pointerleave", () => {
     if (sim.hoverId) { sim.hoverId = null; _updateHighlight(sim); }
+    if (tooltipEl) tooltipEl.hidden = true;
   });
 
   svg.addEventListener("wheel", (e) => {
@@ -1200,6 +1337,20 @@ function _nodeRadius(n) {
   return 4 + Math.min(8, Math.log2((n.access || 0) + (n.degree || 0) * 2 + 2));
 }
 
+// Stable hue per category (with subtle subcategory variance) so nodes read as
+// grouped-by-category regardless of how the force sim settles them
+function _categoryHue(category, subcategory) {
+  const str = String(category || "general");
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  const base = h % 360;
+  if (!subcategory || subcategory === category) return base;
+  let s = 0;
+  for (let i = 0; i < String(subcategory).length; i++) s = (s * 17 + String(subcategory).charCodeAt(i)) >>> 0;
+  // ±18° around the category hue so same-category nodes stay recognisably together
+  return (base + (s % 37) - 18 + 360) % 360;
+}
+
 function _shortLabel(label, n = 60) {
   const v = String(label || "").replace(/\s+/g, " ").trim();
   if (!v) return "";
@@ -1241,7 +1392,8 @@ function _reheat(sim, alpha) {
 
 function _stepSim(sim) {
   const { nodes, edges, W, H } = sim;
-  const REPEL_K = 1400, SPRING_K = 0.03, SPRING_LEN = 120, GRAVITY = 0.02, DAMPING = 0.82;
+  const REPEL_K = 600, SPRING_K = 0.015, SPRING_LEN = 90, RADIAL_K = 0.18, DAMPING = 0.82;
+  const CX = W / 2, CY = H / 2;
   for (let i = 0; i < nodes.length; i++) {
     const a = nodes[i];
     for (let j = i + 1; j < nodes.length; j++) {
@@ -1262,10 +1414,12 @@ function _stepSim(sim) {
     const fx = (dx / d) * f, fy = (dy / d) * f;
     e.source.vx += fx; e.source.vy += fy; e.target.vx -= fx; e.target.vy -= fy;
   });
-  const cx = W / 2, cy = H / 2;
   nodes.forEach((n) => {
-    n.vx += (cx - n.x) * GRAVITY * sim.alpha;
-    n.vy += (cy - n.y) * GRAVITY * sim.alpha;
+    const dx = n.x - CX, dy = n.y - CY;
+    const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+    const err = (n.ringRadius || 0) - d;
+    n.vx += (dx / d) * err * RADIAL_K;
+    n.vy += (dy / d) * err * RADIAL_K;
   });
   nodes.forEach((n) => {
     if (n.pinned) { n.vx = 0; n.vy = 0; return; }

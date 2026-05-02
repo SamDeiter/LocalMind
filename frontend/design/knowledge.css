@@ -720,6 +720,24 @@
   fill: transparent;
 }
 
+/* Concentric rings indicating hop-distance levels from the root */
+.lm-knowledge__graph-ring {
+  fill: none;
+  stroke: var(--lm-border-subtle);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  opacity: 0.35;
+  pointer-events: none;
+}
+.lm-knowledge__graph-ring-label {
+  font-family: var(--lm-font-mono);
+  font-size: 9px;
+  fill: var(--lm-text-tertiary);
+  opacity: 0.55;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
 /* ── Nodes ────────────────────────────────────────────────── */
 .lm-knowledge__graph-node {
   --hue: 230;
@@ -786,12 +804,56 @@
   stroke-width: 3;
   paint-order: stroke fill;
   pointer-events: none;
-  text-anchor: middle;
+  text-anchor: start;
   dominant-baseline: middle;
   transition: opacity var(--lm-dur-quick) var(--lm-ease),
               fill var(--lm-dur-quick) var(--lm-ease);
 }
-.lm-knowledge__graph-label--dim { opacity: 0.2; }
+.lm-knowledge__graph-label--dim { opacity: 0.15; }
+
+/* ── Hover tooltip ────────────────────────────────────────── */
+.lm-knowledge__graph-tooltip {
+  position: absolute;
+  min-width: 200px;
+  max-width: 320px;
+  padding: var(--lm-space-2) var(--lm-space-3);
+  background: color-mix(in srgb, var(--lm-surface-1) 96%, transparent);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: var(--lm-radius);
+  box-shadow: var(--lm-shadow-md);
+  font-family: var(--lm-font-body);
+  font-size: var(--lm-fs-12);
+  color: var(--lm-text-primary);
+  pointer-events: none;
+  z-index: 4;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  line-height: var(--lm-lh-normal);
+}
+.lm-knowledge__graph-tooltip[hidden] { display: none; }
+.lm-knowledge__graph-tooltip-head {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+  margin-bottom: var(--lm-space-1);
+}
+.lm-knowledge__graph-tooltip-head .lm-chip {
+  background: hsl(var(--chip-hue, 230) 60% 38% / 0.25);
+  border-color: hsl(var(--chip-hue, 230) 60% 55% / 0.45);
+  color: hsl(var(--chip-hue, 230) 85% 85%);
+}
+.lm-knowledge__graph-tooltip-body {
+  color: var(--lm-text-primary);
+  padding: var(--lm-space-1) 0;
+  word-break: break-word;
+}
+.lm-knowledge__graph-tooltip-foot {
+  color: var(--lm-text-tertiary);
+  font-family: var(--lm-font-mono);
+  font-size: var(--lm-fs-11);
+  padding-top: var(--lm-space-1);
+  border-top: 1px solid var(--lm-border-subtle);
+}
 
 /* ── HUD (legend + controls) ──────────────────────────────── */
 .lm-knowledge__graph-hud {
@@ -940,4 +1002,149 @@
   background: var(--lm-accent-soft);
   color: var(--lm-accent-text);
   border-color: var(--lm-accent-ring);
+}
+
+/* ── Pip's research panel (change candidates + scheduler) ── */
+.lm-research-panel {
+  background: var(--lm-surface-1);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: var(--lm-radius-lg, 14px);
+  padding: var(--lm-space-4) var(--lm-space-5);
+  margin-bottom: var(--lm-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-space-3);
+}
+.lm-research-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lm-space-4);
+  flex-wrap: wrap;
+}
+.lm-research-panel__title-group { min-width: 240px; flex: 1 1 320px; }
+.lm-research-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--lm-fs-16);
+  margin: 0;
+  color: var(--lm-text-primary);
+}
+.lm-research-panel__title .material-symbols-outlined { color: var(--lm-accent-text); }
+.lm-research-panel__subtitle {
+  margin: 4px 0 0;
+  font-size: var(--lm-fs-12);
+  color: var(--lm-text-tertiary);
+}
+.lm-research-panel__sched {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lm-research-panel__sched select,
+.lm-research-panel__sched input[type="checkbox"] {
+  font: inherit;
+}
+.lm-research-panel__sched select {
+  background: var(--lm-surface-input);
+  color: var(--lm-text-primary);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: var(--lm-fs-12);
+}
+.lm-research-panel__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--lm-fs-12);
+  color: var(--lm-text-secondary);
+  cursor: pointer;
+}
+.lm-research-panel__filter-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lm-research-panel__filter-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  background: var(--lm-surface-2);
+  border-radius: 999px;
+  font-size: 10px;
+  color: var(--lm-text-tertiary);
+}
+.lm-research-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-space-3);
+}
+.lm-research-panel__empty {
+  padding: var(--lm-space-3) 0;
+  font-size: var(--lm-fs-12);
+}
+
+.lm-research-card {
+  background: var(--lm-surface-2);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: var(--lm-radius);
+  padding: var(--lm-space-3) var(--lm-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lm-research-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lm-research-card__lane { background: var(--lm-accent-soft); color: var(--lm-accent-text); }
+.lm-research-card__status { background: var(--lm-surface-3); }
+.lm-research-card__status--accepted    { background: var(--lm-status-ok-soft);     color: var(--lm-status-ok); }
+.lm-research-card__status--rejected    { background: var(--lm-status-failed-soft); color: var(--lm-status-failed); }
+.lm-research-card__status--implemented { background: var(--lm-status-ok-soft);     color: var(--lm-status-ok); }
+.lm-research-card__change {
+  font-size: var(--lm-fs-13);
+  color: var(--lm-text-primary);
+  line-height: 1.45;
+}
+.lm-research-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  font-size: var(--lm-fs-12);
+  color: var(--lm-text-secondary);
+}
+.lm-research-card__meta strong {
+  color: var(--lm-text-primary);
+  font-weight: 600;
+}
+.lm-research-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lm-space-3);
+  flex-wrap: wrap;
+}
+.lm-research-card__src {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--lm-fs-12);
+  color: var(--lm-accent-text);
+  text-decoration: none;
+}
+.lm-research-card__src:hover { text-decoration: underline; }
+.lm-research-card__actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.lm-btn--xs {
+  padding: 2px 8px;
+  font-size: var(--lm-fs-11);
+  height: 22px;
+  min-height: 22px;
 }

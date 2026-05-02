@@ -1,0 +1,325 @@
+/* =============================================================
+   LocalMind v2 — Mascot ("Pip")
+   Floating bottom-right companion with mood-driven face,
+   Tamagotchi energy bar, and contextual speech bubbles.
+   ============================================================= */
+
+.lm-mascot {
+  position: fixed;
+  right: 18px;
+  bottom: 56px;             /* sit above the utility strip footer */
+  width: 72px;
+  z-index: 60;
+  font-family: var(--lm-font-body);
+  pointer-events: none;     /* children re-enable */
+  user-select: none;
+}
+
+.lm-mascot[data-snoozed="1"] {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+/* ── Speech bubble ────────────────────────────────────────────── */
+.lm-mascot__bubble {
+  pointer-events: none;
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(260px, calc(100vw - 32px));
+  padding: 8px 12px;
+  font-size: var(--lm-fs-12);
+  line-height: 1.4;
+  color: var(--lm-text-primary);
+  background: var(--lm-surface-2);
+  border: 1px solid var(--lm-border-strong);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+  transform-origin: bottom right;
+  transition: opacity 180ms ease, transform 180ms ease;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.lm-mascot__bubble.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.lm-mascot__bubble::after {
+  content: "";
+  position: absolute;
+  right: 22px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: var(--lm-surface-2);
+  border-right: 1px solid var(--lm-border-strong);
+  border-bottom: 1px solid var(--lm-border-strong);
+  transform: rotate(45deg);
+}
+
+/* ── Body ─────────────────────────────────────────────────────── */
+.lm-mascot__body {
+  pointer-events: auto;
+  position: relative;
+  display: block;
+  width: 72px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  outline: none;
+}
+.lm-mascot__body:focus-visible {
+  outline: 2px solid var(--lm-border-focus);
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
+/* ── Face SVG ─────────────────────────────────────────────────── */
+.lm-mascot__face {
+  display: block;
+  width: 72px;
+  height: 72px;
+  filter: drop-shadow(0 4px 10px rgba(99, 102, 241, 0.25));
+  transition: transform 220ms ease;
+}
+.lm-mascot__body:hover .lm-mascot__face {
+  transform: translateY(-2px) rotate(-1deg);
+}
+
+.lm-mascot__halo {
+  opacity: 0.0;
+  transition: opacity 280ms ease;
+}
+.lm-mascot[data-mood="happy"]   .lm-mascot__halo,
+.lm-mascot[data-mood="excited"] .lm-mascot__halo,
+.lm-mascot[data-mood="curious"] .lm-mascot__halo,
+.lm-mascot[data-mood="working"] .lm-mascot__halo { opacity: 1; }
+
+.lm-mascot__head {
+  fill: var(--lm-surface-2);
+  stroke: var(--lm-border-strong);
+  stroke-width: 1.4;
+  transition: fill 240ms ease, stroke 240ms ease;
+}
+
+.lm-mascot__antenna {
+  stroke: var(--lm-text-tertiary);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.lm-mascot__antenna-tip {
+  fill: var(--lm-accent);
+  transition: fill 240ms ease, transform 240ms ease;
+  transform-origin: 32px 6px;
+}
+
+.lm-mascot__eyes { transition: opacity 200ms ease; }
+
+.lm-mascot__eye {
+  fill: var(--lm-text-primary);
+  transition: fill 240ms ease, transform 240ms ease, r 240ms ease;
+  transform-origin: center;
+}
+
+.lm-mascot__mouth {
+  fill: none;
+  stroke: var(--lm-text-primary);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  transition: d 240ms ease, stroke 240ms ease;
+}
+
+/* ── Mood styling ────────────────────────────────────────────── */
+
+/* Happy — warm head tint, smile (default in markup is already a smile). */
+.lm-mascot[data-mood="happy"] .lm-mascot__head {
+  fill: color-mix(in srgb, var(--lm-status-ok-soft) 60%, var(--lm-surface-2));
+  stroke: var(--lm-status-ok);
+}
+.lm-mascot[data-mood="happy"] .lm-mascot__antenna-tip { fill: var(--lm-status-ok); }
+
+/* Excited — bouncing antenna tip */
+.lm-mascot[data-mood="excited"] .lm-mascot__antenna-tip {
+  fill: var(--lm-accent);
+  animation: lm-mascot-bounce 700ms ease-in-out infinite;
+}
+@keyframes lm-mascot-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+/* Curious — head tilt, raised "eyebrow" via eye shift */
+.lm-mascot[data-mood="curious"] .lm-mascot__face { transform: rotate(-4deg); }
+.lm-mascot[data-mood="curious"] .lm-mascot__eye--l { transform: translateY(-1px); }
+.lm-mascot[data-mood="curious"] .lm-mascot__eye--r { transform: translateY(1px); }
+
+/* Working — blink + tiny mouth oscillation */
+.lm-mascot[data-mood="working"] .lm-mascot__eyes {
+  animation: lm-mascot-blink 2400ms ease-in-out infinite;
+}
+@keyframes lm-mascot-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  94%, 98%      { transform: scaleY(0.1); }
+}
+.lm-mascot[data-mood="working"] .lm-mascot__head {
+  stroke: var(--lm-status-running);
+}
+.lm-mascot[data-mood="working"] .lm-mascot__antenna-tip {
+  fill: var(--lm-status-running);
+  animation: lm-mascot-pulse 1200ms ease-in-out infinite;
+}
+@keyframes lm-mascot-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* Sleepy — half-closed eyes (scale Y), straight mouth */
+.lm-mascot[data-mood="sleepy"] .lm-mascot__eye {
+  transform: scaleY(0.18);
+}
+.lm-mascot[data-mood="sleepy"] .lm-mascot__mouth {
+  d: path("M26 44 H38");
+  stroke: var(--lm-text-tertiary);
+}
+.lm-mascot[data-mood="sleepy"] .lm-mascot__antenna-tip { fill: var(--lm-text-tertiary); }
+
+/* Bored — looking down */
+.lm-mascot[data-mood="bored"] .lm-mascot__eye {
+  transform: translateY(2px);
+}
+.lm-mascot[data-mood="bored"] .lm-mascot__mouth {
+  d: path("M26 45 Q32 42 38 45");
+  stroke: var(--lm-text-tertiary);
+}
+.lm-mascot[data-mood="bored"] .lm-mascot__head {
+  fill: var(--lm-surface-1);
+}
+
+/* Sad — frown */
+.lm-mascot[data-mood="sad"] .lm-mascot__mouth {
+  d: path("M24 46 Q32 40 40 46");
+  stroke: var(--lm-status-failed);
+}
+.lm-mascot[data-mood="sad"] .lm-mascot__head {
+  stroke: var(--lm-status-failed);
+  fill: color-mix(in srgb, var(--lm-status-failed-soft) 50%, var(--lm-surface-2));
+}
+.lm-mascot[data-mood="sad"] .lm-mascot__antenna-tip { fill: var(--lm-status-failed); }
+
+/* Alert — wide eyes + warning tint */
+.lm-mascot[data-mood="alert"] .lm-mascot__eye { r: 4.2; }
+.lm-mascot[data-mood="alert"] .lm-mascot__head {
+  stroke: var(--lm-status-waiting);
+  fill: color-mix(in srgb, var(--lm-status-waiting-soft) 60%, var(--lm-surface-2));
+}
+.lm-mascot[data-mood="alert"] .lm-mascot__antenna-tip {
+  fill: var(--lm-status-waiting);
+  animation: lm-mascot-pulse 600ms ease-in-out infinite;
+}
+.lm-mascot[data-mood="alert"] .lm-mascot__mouth {
+  d: path("M26 44 H38");
+}
+
+/* ── Energy bar ───────────────────────────────────────────────── */
+.lm-mascot__energy {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -6px;
+  height: 4px;
+  background: var(--lm-surface-1);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.lm-mascot__energy-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--lm-accent), var(--lm-accent-hover));
+  transition: width 600ms ease, background 240ms ease;
+}
+.lm-mascot__energy-fill[data-level="low"] {
+  background: linear-gradient(90deg, var(--lm-status-failed), var(--lm-status-waiting));
+}
+.lm-mascot__energy-fill[data-level="mid"] {
+  background: linear-gradient(90deg, var(--lm-status-waiting), var(--lm-accent));
+}
+
+/* ── Context menu ─────────────────────────────────────────────── */
+.lm-mascot__menu {
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  min-width: 160px;
+  background: var(--lm-surface-2);
+  border: 1px solid var(--lm-border-strong);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 1;
+}
+.lm-mascot__menu[hidden] { display: none; }
+.lm-mascot__menu button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--lm-text-primary);
+  font: inherit;
+  font-size: var(--lm-fs-12);
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lm-mascot__menu button:hover {
+  background: var(--lm-surface-3);
+}
+.lm-mascot__menu button .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--lm-accent-text);
+}
+.lm-mascot__menu-section {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lm-text-tertiary);
+  padding: 6px 10px 2px;
+}
+.lm-mascot__menu-divider {
+  height: 1px;
+  background: var(--lm-border-subtle);
+  margin: 4px 6px;
+}
+
+/* ── Mobile tweak: a hair smaller + lift higher above the utility strip */
+@media (max-width: 720px) {
+  .lm-mascot {
+    right: 12px;
+    bottom: 64px;
+    width: 56px;
+  }
+  .lm-mascot__body { width: 56px; }
+  .lm-mascot__face { width: 56px; height: 56px; }
+}
+
+/* Reduced motion — no pulses or bounces */
+@media (prefers-reduced-motion: reduce) {
+  .lm-mascot *,
+  .lm-mascot *::before,
+  .lm-mascot *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

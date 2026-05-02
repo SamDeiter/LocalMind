@@ -56,6 +56,14 @@ export function openJobDetail(jobId) {
   if (!panel) return;
   panel.hidden = false;
 
+  // Suppress the jobs list / controls behind the panel so tall scroll-extent
+  // in the page can't leak through. CSS rule in shell.css handles the rest.
+  const page = document.getElementById("mainJobs");
+  if (page) {
+    page.classList.add("lm-page--detail-mode");
+    page.scrollTop = 0;
+  }
+
   // Make sure Jobs tab is active
   import("./nav_rail.js").then((m) => m.switchNav?.("jobs")).catch(() => {});
 
@@ -76,6 +84,9 @@ export function closeJobDetail() {
 
   const panel = document.getElementById("jobDetailPanel");
   if (panel) panel.hidden = true;
+
+  const page = document.getElementById("mainJobs");
+  if (page) page.classList.remove("lm-page--detail-mode");
 
   _disconnectSSE();
 
@@ -484,23 +495,41 @@ function _renderOutput(job) {
 }
 
 /**
- * Normalize loose agent markdown so `marked` renders it with proper separation:
- *  - Insert a blank line before lines that start with "**Label:**" so each
- *    becomes its own paragraph instead of gluing to the prior one.
+ * Normalize loose agent markdown so `marked` renders it with proper structure:
+ *  - Convert "**Label:** text" lines into bulleted list items ("- **Label:** text").
+ *  - Insert a blank line before a run of such items so marked treats them as a list.
  *  - Collapse runs of 3+ blank lines.
  */
 function _normalizeMarkdown(src) {
   if (!src) return "";
   const lines = String(src).replace(/\r\n/g, "\n").split("\n");
-  const out = [];
   const labelLine = /^\s*\*\*[^*\n]+:\*\*\s*/;
+  const alreadyBullet = /^\s*[-*+]\s+/;
+  const out = [];
+  let inLabelRun = false;
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const prev = out.length ? out[out.length - 1] : "";
-    if (labelLine.test(line) && prev.trim() !== "") {
-      out.push("");
+    const isLabel = labelLine.test(line) && !alreadyBullet.test(line);
+
+    if (isLabel) {
+      // Starting a run of label-bullets — ensure a blank line separates the list.
+      if (!inLabelRun) {
+        const prev = out.length ? out[out.length - 1] : "";
+        if (prev.trim() !== "") out.push("");
+        inLabelRun = true;
+      }
+      // Convert to bullet, stripping leading whitespace.
+      out.push("- " + line.replace(/^\s+/, ""));
+    } else {
+      if (inLabelRun && line.trim() !== "") {
+        // End of the list — add a blank line before other content.
+        const prev = out.length ? out[out.length - 1] : "";
+        if (prev.trim() !== "") out.push("");
+      }
+      inLabelRun = false;
+      out.push(line);
     }
-    out.push(line);
   }
   return out.join("\n").replace(/\n{3,}/g, "\n\n");
 }
@@ -561,37 +590,37 @@ function _renderEvidence(job) {
   const el = document.getElementById("jdEvidence");
   if (!el) return;
 
-  // Top-level review summary (backend emits `result_summary`, e.g. "Review PASSED (score=1.00)").
+  // Top-level review summary (backend emits `result_summary`).
   const resultSummary = job.result_summary || "";
   const reviewCount   = job.review_count ?? null;
   const maxReviews    = job.max_reviews ?? null;
 
-  // Pull tool & review events out of the audit trail (newest-first).
+  // Reasoning trail — persisted tool invocations (name, args, result, duration).
+  const invocations = Array.isArray(job.tool_invocations) ? job.tool_invocations : [];
+
+  // Source evidence items (web_page / file_extract / api_response).
+  const evidenceItems = Array.isArray(job.evidence_items) ? job.evidence_items : [];
+
+  // Extract any URLs embedded in invocation args/results (covers cases where
+  // the worker didn't record formal evidence_items for a web_search).
+  const inferredSources = _inferSourcesFromInvocations(invocations);
+
+  // Merge evidence items + inferred URLs, de-duped by uri.
+  const sources = _mergeSources(evidenceItems, inferredSources);
+
+  // Audit subsets.
   const audit = Array.isArray(job.audit) ? job.audit : [];
-  const toolEvents   = audit.filter((a) => {
-    const act = String(a.action || "").toLowerCase();
-    return act.includes("tool") || a.tool || a.tool_name;
-  });
   const reviewEvents = audit.filter((a) => {
     const act = String(a.action || "").toLowerCase();
     return act.includes("review") || act === "qa" || act === "revise";
   });
 
-  // Legacy fields (kept as a fallback if a backend ever populates them).
-  const sources   = job.sources || job.citations || [];
-  const checks    = job.safety_checks || job.checks || [];
-  const qa        = job.qa || job.quality || {};
-  const toolTrace = job.tool_calls || job.tool_trace || [];
-
   const hasAny =
     resultSummary ||
     reviewCount != null ||
-    toolEvents.length ||
-    reviewEvents.length ||
+    invocations.length ||
     sources.length ||
-    checks.length ||
-    Object.keys(qa).length ||
-    toolTrace.length;
+    reviewEvents.length;
 
   if (!hasAny) {
     el.innerHTML = `<div class="lm-home__empty">No evidence recorded yet.</div>`;
@@ -611,6 +640,24 @@ function _renderEvidence(job) {
       </div>
     ` : ""}
 
+    ${invocations.length ? `
+      <div class="lm-evidence__group">
+        <div class="lm-label">Reasoning · tool calls (${invocations.length})</div>
+        <ol class="lm-evidence__reasoning">
+          ${invocations.map((inv, i) => _reasoningStep(inv, i + 1)).join("")}
+        </ol>
+      </div>
+    ` : ""}
+
+    ${sources.length ? `
+      <div class="lm-evidence__group">
+        <div class="lm-label">Sources (${sources.length})</div>
+        <ul class="lm-evidence__sources">
+          ${sources.map((s) => _sourceRow(s)).join("")}
+        </ul>
+      </div>
+    ` : ""}
+
     ${reviewEvents.length ? `
       <div class="lm-evidence__group">
         <div class="lm-label">Review events (${reviewEvents.length})</div>
@@ -625,80 +672,266 @@ function _renderEvidence(job) {
         </ol>
       </div>
     ` : ""}
+  `;
+}
 
-    ${toolEvents.length ? `
-      <div class="lm-evidence__group">
-        <div class="lm-label">Tool events (${toolEvents.length})</div>
-        <ol class="lm-evidence__trace">
-          ${[...toolEvents].reverse().map((t) => `
-            <li>
-              <span class="lm-mono">${escapeHtml(t.tool || t.tool_name || t.action || "tool")}</span>
-              ${t.detail ? `<span class="lm-mute">— ${escapeHtml(String(t.detail))}</span>` : ""}
-            </li>
-          `).join("")}
-        </ol>
+function _reasoningStep(inv, n) {
+  const name   = inv.tool_name || inv.tool || "tool";
+  const status = String(inv.status || "").toLowerCase();
+  const ms     = inv.duration_ms != null ? `${Math.round(inv.duration_ms)}ms` : "";
+  const node   = inv.node_title ? `<span class="lm-mute">${escapeHtml(String(inv.node_title))}</span>` : "";
+
+  const args    = _parseJSON(inv.args_json);
+  const result  = _parseJSON(inv.result_json);
+  const argsStr = args ? _fmtJSON(args) : "";
+  const resObj  = result ? _fmtResultSummary(result) : null;
+  const urls    = _extractURLs([args, result]);
+
+  const failed = status === "failed" || status === "error";
+
+  return `
+    <li class="lm-reasoning-step ${failed ? "lm-reasoning-step--failed" : ""}">
+      <div class="lm-reasoning-step__head">
+        <span class="lm-reasoning-step__n">${n}</span>
+        <span class="lm-mono">${escapeHtml(name)}</span>
+        ${node}
+        <span class="lm-reasoning-step__meta lm-mute lm-mono">
+          ${ms ? escapeHtml(ms) : ""}
+          ${status ? `· <span class="${failed ? "lm-status--failed" : ""}">${escapeHtml(status)}</span>` : ""}
+        </span>
       </div>
-    ` : ""}
-
-    ${Object.keys(qa).length ? `
-      <div class="lm-evidence__group">
-        <div class="lm-label">Quality</div>
-        <div class="lm-evidence__grid">
-          ${Object.entries(qa).map(([k, v]) => `
-            <div class="lm-evidence__metric">
-              <div class="lm-evidence__metric-val">${escapeHtml(_fmtMetric(v))}</div>
-              <div class="lm-evidence__metric-label">${escapeHtml(k)}</div>
-            </div>
+      ${argsStr ? `
+        <details class="lm-reasoning-step__detail">
+          <summary>Arguments</summary>
+          <pre class="lm-reasoning-step__pre"><code>${escapeHtml(argsStr)}</code></pre>
+        </details>
+      ` : ""}
+      ${resObj ? `
+        <details class="lm-reasoning-step__detail">
+          <summary>Result</summary>
+          ${resObj.kind === "prose"
+            ? `<div class="lm-reasoning-step__prose">${_renderProse(resObj.text)}</div>${
+                resObj.meta
+                  ? `<pre class="lm-reasoning-step__meta-pre"><code>${escapeHtml(resObj.meta)}</code></pre>`
+                  : ""
+              }`
+            : `<pre class="lm-reasoning-step__pre"><code>${escapeHtml(resObj.text)}</code></pre>`
+          }
+        </details>
+      ` : ""}
+      ${urls.length ? `
+        <div class="lm-reasoning-step__urls">
+          ${urls.slice(0, 10).map((u) => `
+            <a href="${escapeHtml(u)}" target="_blank" rel="noopener" class="lm-reasoning-step__url">
+              <span class="material-symbols-outlined" aria-hidden="true">link</span>
+              <span>${escapeHtml(_hostOf(u) || u)}</span>
+            </a>
           `).join("")}
         </div>
-      </div>
-    ` : ""}
-
-    ${sources.length ? `
-      <div class="lm-evidence__group">
-        <div class="lm-label">Sources</div>
-        <ul class="lm-evidence__sources">
-          ${sources.map((s) => `
-            <li>
-              ${s.url ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title || s.url)}</a>`
-                     : escapeHtml(s.title || String(s))}
-              ${s.snippet ? `<div class="lm-mute">${escapeHtml(s.snippet)}</div>` : ""}
-            </li>
-          `).join("")}
-        </ul>
-      </div>
-    ` : ""}
-
-    ${checks.length ? `
-      <div class="lm-evidence__group">
-        <div class="lm-label">Safety checks</div>
-        <ul class="lm-evidence__checks">
-          ${checks.map((c) => `
-            <li>
-              ${_checkIcon(c)}
-              <span>${escapeHtml(c.name || c.check || String(c))}</span>
-              ${c.detail ? `<span class="lm-mute">— ${escapeHtml(c.detail)}</span>` : ""}
-            </li>
-          `).join("")}
-        </ul>
-      </div>
-    ` : ""}
-
-    ${toolTrace.length ? `
-      <div class="lm-evidence__group">
-        <div class="lm-label">Tool calls (${toolTrace.length})</div>
-        <ol class="lm-evidence__trace">
-          ${toolTrace.map((t) => `
-            <li>
-              <span class="lm-mono">${escapeHtml(t.tool || t.name || "tool")}</span>
-              ${t.duration_ms != null ? `<span class="lm-mute">${Math.round(t.duration_ms)}ms</span>` : ""}
-              ${t.success === false ? `<span class="lm-status lm-status--failed"><span class="lm-status__dot"></span>failed</span>` : ""}
-            </li>
-          `).join("")}
-        </ol>
-      </div>
-    ` : ""}
+      ` : ""}
+    </li>
   `;
+}
+
+function _sourceRow(s) {
+  const uri     = s.source_uri || s.uri || s.url || "";
+  const meta    = _parseJSON(s.metadata_json) || {};
+  const title   = s.title || s.name || meta.title || uri;
+  const kind    = s.source_type || s.type || "source";
+  const snippet = s.extracted_text || s.snippet || s.text || "";
+  const short   = snippet && snippet.length > 320 ? snippet.slice(0, 320).trimEnd() + "…" : snippet;
+  const conf    = s.confidence != null ? `${Math.round(Number(s.confidence) * 100)}%` : "";
+  return `
+    <li class="lm-evidence__source">
+      <div class="lm-evidence__source-head">
+        <span class="lm-chip lm-chip--static">${escapeHtml(String(kind))}</span>
+        ${uri
+          ? `<a href="${escapeHtml(uri)}" target="_blank" rel="noopener">${escapeHtml(title)}</a>`
+          : `<span>${escapeHtml(title)}</span>`}
+        ${conf ? `<span class="lm-mute lm-mono" style="margin-left:auto;">${escapeHtml(conf)}</span>` : ""}
+      </div>
+      ${short ? `<div class="lm-evidence__source-snippet lm-mute">${escapeHtml(String(short))}</div>` : ""}
+    </li>
+  `;
+}
+
+function _inferSourcesFromInvocations(invocations) {
+  const out = [];
+  for (const inv of invocations) {
+    const result = _parseJSON(inv.result_json);
+    if (!result) continue;
+    // Common shapes: {results: [{url, title, snippet}]}, {links: [...]}, {items: [...]}.
+    const arr = result.results || result.items || result.links || result.hits || [];
+    if (Array.isArray(arr)) {
+      for (const r of arr) {
+        const uri = r.url || r.link || r.href || r.uri;
+        if (!uri) continue;
+        out.push({
+          source_type: "web_page",
+          source_uri: uri,
+          title: r.title || r.name || uri,
+          extracted_text: r.snippet || r.description || r.summary || "",
+        });
+      }
+    }
+    // Sometimes the tool returns a single URL field at the top level.
+    const topUri = result.url || result.source_uri || result.uri;
+    if (topUri && typeof topUri === "string") {
+      out.push({
+        source_type: "web_page",
+        source_uri: topUri,
+        title: result.title || topUri,
+        extracted_text: result.text || result.snippet || "",
+      });
+    }
+  }
+  return out;
+}
+
+function _mergeSources(primary, inferred) {
+  const seen = new Set();
+  const out = [];
+  for (const s of [...(primary || []), ...(inferred || [])]) {
+    const key = s.source_uri || s.uri || s.url || (s.title || "") + "|" + (s.source_type || "");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+function _parseJSON(raw) {
+  if (raw == null) return null;
+  if (typeof raw !== "string") return raw;
+  try { return JSON.parse(raw); } catch (_) { return raw; }
+}
+
+function _truncMid(s, n) {
+  const t = String(s ?? "");
+  return t.length > n ? t.slice(0, n).trimEnd() + "…" : t;
+}
+
+// Pretty-print JSON for the Arguments block. If a single key holds a long
+// string (e.g. `note` for learn_from_web), strip the JSON quotes around it
+// so it reads as plain text instead of one wall of escaped chars.
+function _fmtJSON(v) {
+  if (v == null) return "";
+  if (typeof v === "string") return _truncMid(v, 2400);
+
+  if (typeof v === "object" && !Array.isArray(v)) {
+    const entries = Object.entries(v).filter(([, val]) => val !== undefined);
+    // If exactly one long string field dominates, foreground it.
+    const longStringKey = entries.find(
+      ([, val]) => typeof val === "string" && val.length > 120,
+    );
+    if (longStringKey && entries.length <= 5) {
+      const lines = [];
+      for (const [k, val] of entries) {
+        if (typeof val === "string") {
+          lines.push(`${k}:\n  ${_truncMid(val, 2400).split("\n").join("\n  ")}`);
+        } else {
+          lines.push(`${k}: ${_truncMid(JSON.stringify(val), 240)}`);
+        }
+      }
+      return lines.join("\n\n");
+    }
+  }
+  try {
+    return _truncMid(JSON.stringify(v, null, 2), 4000);
+  } catch (_) {
+    return String(v);
+  }
+}
+
+// Render a tool result. Returns {kind: "prose"|"json", text, meta?}.
+// "prose" gets rendered as readable markdown; "json" stays in the
+// monospace <pre> block. The dominant text field (`result`, `text`,
+// `content`, `output`, `answer`, `message`) is detected so scraped
+// webpage content reads as paragraphs, not as code.
+function _fmtResultSummary(v) {
+  if (v == null) return null;
+  if (typeof v === "string") return { kind: "prose", text: _truncMid(v, 4000) };
+
+  if (typeof v === "object" && !Array.isArray(v)) {
+    const TEXT_KEYS = ["result", "text", "content", "output", "answer", "message"];
+    let mainKey = null;
+    for (const k of TEXT_KEYS) {
+      if (typeof v[k] === "string" && v[k].length > 80) {
+        mainKey = k;
+        break;
+      }
+    }
+    if (mainKey) {
+      const main = _truncMid(v[mainKey], 4000);
+      const restLines = [];
+      for (const [k, val] of Object.entries(v)) {
+        if (k === mainKey || val == null) continue;
+        if (typeof val === "string") {
+          restLines.push(`${k}: ${_truncMid(val, 240)}`);
+        } else if (typeof val === "object") {
+          try {
+            restLines.push(`${k}: ${_truncMid(JSON.stringify(val), 240)}`);
+          } catch (_) { /* skip */ }
+        } else {
+          restLines.push(`${k}: ${val}`);
+        }
+      }
+      return {
+        kind: "prose",
+        text: main,
+        meta: restLines.length ? restLines.join("\n") : "",
+      };
+    }
+  }
+  try {
+    return { kind: "json", text: _truncMid(JSON.stringify(v, null, 2), 4000) };
+  } catch (_) {
+    return { kind: "json", text: String(v) };
+  }
+}
+
+// Render scraped/agent text. Uses `marked` if loaded so **bold** etc. work,
+// falls back to paragraph-split + escape if it isn't ready yet.
+function _renderProse(text) {
+  const t = String(text || "");
+  if (!t) return "";
+  try {
+    if (typeof window !== "undefined"
+        && window.marked
+        && typeof window.marked.parse === "function") {
+      window.marked.setOptions({ gfm: true, breaks: true });
+      // marked escapes HTML in the source by default — safe for arbitrary input.
+      return window.marked.parse(t);
+    }
+  } catch (_) { /* fall through to plain split */ }
+  return t
+    .split(/\n{2,}/)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
+function _extractURLs(inputs) {
+  const re = /https?:\/\/[^\s"'<>)]+/g;
+  const out = new Set();
+  const visit = (v) => {
+    if (v == null) return;
+    if (typeof v === "string") {
+      const m = v.match(re);
+      if (m) for (const u of m) out.add(u.replace(/[),.;]+$/, ""));
+      return;
+    }
+    if (Array.isArray(v)) { v.forEach(visit); return; }
+    if (typeof v === "object") {
+      for (const k of Object.keys(v)) visit(v[k]);
+    }
+  };
+  inputs.forEach(visit);
+  return [...out];
+}
+
+function _hostOf(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); }
+  catch (_) { return ""; }
 }
 
 // ── Actions ─────────────────────────────────────────────────────

@@ -9,14 +9,12 @@ import { loadConversations } from "./modules/conversations.js";
 import { populateVoices, initSpeechRecognition } from "./modules/media.js";
 import {
   startHwPolling,
-  loadMemories,
-  loadDocuments,
   loadVersion,
 } from "./modules/sidebar.js";
 import { initEditorEnhancements } from "./modules/editor.js";
 import { bindEvents } from "./modules/events.js";
 import { initNavRail } from "./modules/nav_rail.js";
-import { initSettingsUI } from "./modules/settings_ui.js";
+import { initModeToggle } from "./modules/mode_toggle.js";
 
 // v2 page modules
 import { initHome } from "./modules/home.js";
@@ -31,6 +29,7 @@ import { initLiveReload } from "./modules/live_reload.js";
 import { initPWA } from "./modules/pwa.js";
 import { initTTS } from "./modules/tts.js";
 import { initPlaceholderRotation } from "./modules/chat_ux.js";
+import { initMascot } from "./modules/mascot.js";
 
 async function init() {
   // Parallel network fetches (no dependencies between them)
@@ -38,8 +37,6 @@ async function init() {
     checkHealth(),
     loadModels(),
     loadConversations(),
-    loadDocuments(),
-    loadMemories(),
     loadVersion(),
   ];
 
@@ -48,8 +45,8 @@ async function init() {
   initSpeechRecognition();
   bindEvents();
   initNavRail();
+  initModeToggle();
   initEditorEnhancements();
-  initSettingsUI();
   initPlaceholderRotation();
 
   // v2 feature modules — Home + Jobs + Job Detail overlay + the New Job drawer contents
@@ -63,6 +60,7 @@ async function init() {
   initPWA();
   initTTS();
   startHwPolling();
+  initMascot();
 
   await Promise.allSettled(networkFetches);
 
