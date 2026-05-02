@@ -244,6 +244,13 @@ async def lifespan(app: FastAPI):
     from backend.autonomy.loops.research import run_learning_loop
     _learning_task = asyncio.create_task(run_learning_loop())
 
+    # ── Overnight research scheduler (off by default) ───────────────
+    try:
+        from backend.research.scheduler import start_scheduler
+        start_scheduler()
+    except Exception as exc:
+        logger.warning("Research scheduler did not start: %s", exc)
+
     logger.info("LocalMind server initialized (job worker + learning loop + GC active)")
     yield
 
@@ -257,6 +264,13 @@ async def lifespan(app: FastAPI):
         await gc_worker.stop()
     if slack_bot:
         await slack_bot.stop()
+
+    # Stop research scheduler before cancelling tasks.
+    try:
+        from backend.research.scheduler import stop_scheduler
+        stop_scheduler()
+    except Exception:
+        pass
 
     # Close shared HTTP clients to release TCP connections
     from backend.routes.chat import _chat_service
