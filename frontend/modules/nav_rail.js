@@ -216,31 +216,36 @@ function _lazyInit(key) {
   if (_lazyInited.has(key)) return;
   _lazyInited.add(key);
 
+  const fail = (label) => (err) => {
+    _lazyInited.delete(key); // allow retry on next nav
+    console.warn(`[nav_rail] failed to init "${label}" tab:`, err);
+  };
+
   switch (key) {
     case "jobs":
       import("./jobs_ui.js")
         .then((m) => m.showJobsView?.())
-        .catch(() => {});
+        .catch(fail("jobs"));
       break;
     case "artifacts":
       import("./artifacts_ui.js")
         .then((m) => m.initArtifactsUI?.())
-        .catch(() => {});
+        .catch(fail("artifacts"));
       break;
     case "knowledge":
       import("./knowledge_ui.js")
         .then((m) => m.initKnowledgeUI?.())
-        .catch(() => {});
+        .catch(fail("knowledge"));
       break;
     case "ops":
       import("./ops_ui.js")
         .then((m) => m.initOpsUI?.())
-        .catch(() => {});
+        .catch(fail("ops"));
       break;
     case "settings":
       import("./settings_page.js")
         .then((m) => m.initSettingsPage?.())
-        .catch(() => {});
+        .catch(fail("settings"));
       break;
     default:
       break;

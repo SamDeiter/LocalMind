@@ -214,13 +214,13 @@ function _bindEvents(root) {
   // Refresh
   root.querySelector("#homeRefreshBtn")?.addEventListener("click", _refreshAll);
 
-  // Clicking a Jobs card item → switch to Jobs view and scroll/focus
-  root.querySelectorAll("[data-card-items]").forEach((card) => {
-    card.addEventListener("click", (e) => {
-      const row = e.target.closest("[data-job-id]");
-      if (!row) return;
-      import("./nav_rail.js").then((m) => m.switchNav?.("jobs"));
-    });
+  // Clicking a Jobs card row → open the job detail overlay (and switch tab).
+  root.addEventListener("click", (e) => {
+    const row = e.target.closest("[data-job-id]");
+    if (!row || !root.contains(row)) return;
+    const id = row.dataset.jobId;
+    if (!id) return;
+    import("./job_detail.js").then((m) => m.openJobDetail?.(id)).catch(() => {});
   });
 }
 
@@ -248,10 +248,16 @@ async function _refreshAll() {
   ]);
 }
 
+function _homeTabVisible() {
+  const panel = document.querySelector('[data-nav="home"]');
+  return panel && !panel.hidden;
+}
+
 function _startPolling() {
   if (_pollId) clearInterval(_pollId);
   _pollId = setInterval(() => {
     if (document.hidden) return;
+    if (!_homeTabVisible()) return;
     _refreshAll();
   }, POLL_INTERVAL_MS);
 }

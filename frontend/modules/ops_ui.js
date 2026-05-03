@@ -278,15 +278,22 @@ function _flash(btn, text) {
 
 // ── Polling ────────────────────────────────────────────────────────
 
+function _opsTabVisible() {
+  const panel = document.querySelector('[data-nav="ops"]');
+  return panel && !panel.hidden;
+}
+
 function _startPolling() {
   _stopPolling();
   _pollFastId = setInterval(() => {
     if (document.hidden) return;
+    if (!_opsTabVisible()) return;
     _refreshHardware();
   }, HARDWARE_POLL_MS);
 
   _pollSlowId = setInterval(() => {
     if (document.hidden) return;
+    if (!_opsTabVisible()) return;
     _refreshSlow();
   }, SLOW_POLL_MS);
 }
