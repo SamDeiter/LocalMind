@@ -21,6 +21,11 @@
 import { API } from "./state.js";
 import { escapeHtml } from "./utils.js";
 
+// Phase A — Pip's brain. Side-effect import: the module auto-inits and
+// subscribes to mascot events (job-new/done/fail, tick, mood-change).
+// We then read its computeAdaptiveThresholds() each minute.
+import * as brain from "./mascot_brain.js";
+
 const LS_KEYS = {
   energy:        "lm.mascot.energy",
   energyAt:      "lm.mascot.energy_at",
@@ -275,7 +280,7 @@ function tickEnergy() {
   saveEnergy();
 }
 
-// ── Clippy-style template suggestion (replaced in integration pass 1) ──────
+// ── Clippy-style template suggestion (bandit-gated by Pip's brain) ────────
 function maybeOfferTemplate(jobs) {
   if (isSnoozed()) return;
   const offered = parseInt(localStorage.getItem(LS_KEYS.templateOffered) || "0", 10);
@@ -290,12 +295,43 @@ function maybeOfferTemplate(jobs) {
   const matches = sample.filter((t) => t.includes(candidate)).length;
   if (matches < TEMPLATE_SUGGEST_THRESHOLD) return;
 
+  // Brain gate — if the user has dismissed too many template suggestions
+  // recently, the bandit downweights this type and we skip. Cold-start
+  // and the ε-floor guarantee we still fire occasionally.
+  let shouldFire = true;
+  let suggestionId = null;
+  try {
+    if (typeof brain.shouldFireSuggestion === "function") {
+      shouldFire = !!brain.shouldFireSuggestion("template");
+    }
+  } catch (_) { /* fall through to default-fire */ }
+  if (!shouldFire) return;
+
+  try {
+    if (typeof brain.recordSuggestion === "function") {
+      suggestionId = brain.recordSuggestion("template");
+    }
+  } catch (_) { /* swallow */ }
+
   localStorage.setItem(LS_KEYS.templateOffered, String(Date.now()));
   bubble(
     `I noticed "${candidate}" keeps coming up — want this saved as a template?`,
     "curious",
     8000,
   );
+
+  // Best-effort outcome: record a 'timeout' if no follow-up bubble click
+  // happens before the bubble auto-hides. (The bubble doesn't surface a
+  // Yes/No today; this is the dismissed-by-default path until that lands.)
+  if (suggestionId) {
+    setTimeout(() => {
+      try {
+        if (typeof brain.recordSuggestionOutcome === "function") {
+          brain.recordSuggestionOutcome(suggestionId, "timeout");
+        }
+      } catch (_) { /* swallow */ }
+    }, 9000);
+  }
 }
 
 function findSharedSubstring(strs, minLen) {
@@ -625,6 +661,20 @@ export function initMascot() {
     }, TICK_MS);
 
     setInterval(() => { pollJobs(); }, POLL_MS);
+
+    // Adaptive thresholds — Pip's brain learns the user's typical inter-job
+    // gap and shifts what counts as "sleepy" / "bored" accordingly. Sync
+    // once a minute (computeAdaptiveThresholds() returns defaults when the
+    // user has fewer than 5 samples).
+    setInterval(() => {
+      try {
+        if (typeof brain.computeAdaptiveThresholds === "function") {
+          const t = brain.computeAdaptiveThresholds();
+          if (t && Number.isFinite(t.sleepy_ms)) thresholds.sleepy_ms = t.sleepy_ms;
+          if (t && Number.isFinite(t.bored_ms))  thresholds.bored_ms  = t.bored_ms;
+        }
+      } catch (_) { /* swallow — keep defaults */ }
+    }, 60_000);
 
     if (!localStorage.getItem(LS_KEYS.energy)) {
       setTimeout(() => bubble("hi! I'm Pip. I'll keep an eye on things.", "curious", 6000), 1500);

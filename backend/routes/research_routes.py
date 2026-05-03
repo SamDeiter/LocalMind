@@ -189,10 +189,20 @@ async def generate_paper_proposal(
     title: str,
     abstract: str,
     url: str = "",
+    model: str | None = None,
 ) -> dict:
     """Shared logic: Generate a code improvement proposal from a paper.
 
     Used by both the POST endpoint and the auto-research loop.
+
+    Args:
+        title:    Paper title.
+        abstract: Abstract or distilled change description.
+        url:      Source URL.
+        model:    Optional explicit model override. If None, tries the
+                  configured "reflection" model first, then falls back to
+                  whichever model Ollama currently has loaded so this
+                  doesn't 404 when the configured model isn't installed.
 
     Returns:
         {"proposal": <dict>, "error": None} on success
@@ -200,8 +210,19 @@ async def generate_paper_proposal(
     """
     from backend.model_router import get_autonomy_models
 
-    models = get_autonomy_models()
-    model = models.get("reflection", "qwen2.5-coder:7b")
+    if model:
+        chosen_model = model
+    else:
+        models = get_autonomy_models()
+        chosen_model = models.get("reflection") or "qwen2.5-coder:7b"
+    # Build a sensible fallback chain: the chosen model, then any installed
+    # alternative we can ask Ollama for. Picked from likely-present families.
+    fallback_chain = [chosen_model] + [
+        m for m in (
+            "qwen2.5:7b", "qwen2.5-coder:7b", "deepseek-r1:14b",
+            "gemma3:4b", "gemma4:e2b", "aya-expanse:8b",
+        ) if m != chosen_model
+    ]
 
     file_list = _get_file_list()
     code_samples = _sample_codebase(count=3)
@@ -231,21 +252,32 @@ async def generate_paper_proposal(
     )
 
     try:
+        last_error = None
+        data = None
         async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                f"{OLLAMA_BASE_URL}/api/generate",
-                json={
-                    "model": model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"num_predict": 500, "num_ctx": 8192},
-                },
-            )
+            for candidate_model in fallback_chain:
+                resp = await client.post(
+                    f"{OLLAMA_BASE_URL}/api/generate",
+                    json={
+                        "model": candidate_model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {"num_predict": 500, "num_ctx": 8192},
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    chosen_model = candidate_model
+                    break
+                last_error = f"Ollama returned {resp.status_code} for model={candidate_model}"
+                # 404 = model not installed locally; try the next one. Anything
+                # else (5xx/timeouts) is a real failure — bail out.
+                if resp.status_code != 404:
+                    break
 
-            if resp.status_code != 200:
-                return {"error": f"Ollama returned {resp.status_code}", "proposal": None}
+            if data is None:
+                return {"error": last_error or "Ollama call failed", "proposal": None}
 
-            data = resp.json()
             response_text = data.get("response", "")
 
             # Parse JSON from response
@@ -575,6 +607,54 @@ async def set_candidate_status(memory_id: int, body: CandidateStatusBody):
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     return {"ok": True, "memory_id": memory_id, "status": st, "valid": list(VALID_STATUSES)}
+
+
+@router.post("/research/candidates/{memory_id}/propose")
+async def propose_from_candidate(memory_id: int):
+    """Generate a code-improvement proposal from an accepted change candidate.
+
+    Reuses generate_paper_proposal() with the candidate's lane + change/hook/
+    why text packed into the 'abstract' slot. On success, auto-advances
+    the candidate's status to 'implemented'.
+    """
+    from backend.research.candidates import (
+        list_candidates_from_memory_list,
+        set_status,
+    )
+    from fastapi import HTTPException
+
+    memories = _list_memories_sync()
+    candidates = list_candidates_from_memory_list(memories)
+    target = next((c for c in candidates if c["memory_id"] == memory_id), None)
+    if not target:
+        raise HTTPException(404, f"No change candidate found for memory_id={memory_id}")
+
+    lane = target.get("lane") or "Unknown"
+    title = f"LocalMind change candidate ({lane})"
+    abstract = (
+        f"Change: {target.get('change') or '?'}\n"
+        f"Hook: {target.get('hook') or '?'}\n"
+        f"Why: {target.get('why') or '?'}"
+    )
+    url = target.get("source_url") or ""
+
+    result = await generate_paper_proposal(title=title, abstract=abstract, url=url)
+
+    new_status = target.get("status") or "accepted"
+    if result.get("proposal") and not result.get("error"):
+        try:
+            new_status = set_status(memory_id, "implemented")
+        except Exception as exc:
+            logger.warning("Could not flip candidate status: %s", exc)
+
+    return {
+        "ok": bool(result.get("proposal")) and not result.get("error"),
+        "memory_id": memory_id,
+        "lane": lane,
+        "status": new_status,
+        "proposal": result.get("proposal"),
+        "error": result.get("error"),
+    }
 
 
 # ── Scheduler endpoints ─────────────────────────────────────────────

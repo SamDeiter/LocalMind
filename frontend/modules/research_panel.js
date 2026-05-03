@@ -78,11 +78,41 @@ export function mountResearchPanel(host) {
         No change candidates yet. Click Pip → "Make LocalMind smarter" or
         enable auto-research above.
       </div>
+
+      <details class="lm-research-panel__brain">
+        <summary>Pip's brain — what I've learned about your usage</summary>
+        <div id="researchPipBrainHost"></div>
+      </details>
     </section>
   `;
 
   _bind(host);
   _refresh();
+  _mountBrain(host);
+}
+
+function _mountBrain(host) {
+  const slot = host.querySelector("#researchPipBrainHost");
+  if (!slot) return;
+  // Lazy-load the brain panel renderer so the Knowledge tab boots fast.
+  Promise.all([
+    import("./mascot_brain_panel.js"),
+  ])
+    .then(([panel]) => {
+      try {
+        slot.innerHTML = panel.renderMascotSection();
+        const inner = slot.querySelector("#settings-mascot");
+        if (inner && typeof panel.bindMascotSection === "function") {
+          panel.bindMascotSection(inner);
+        }
+      } catch (e) {
+        console.warn("[research_panel] brain mount failed:", e);
+        slot.innerHTML = `<div class="lm-mute lm-fs-12">Brain inspector unavailable.</div>`;
+      }
+    })
+    .catch((err) => {
+      console.warn("[research_panel] brain panel import failed:", err);
+    });
 }
 
 function _bind(host) {
@@ -130,8 +160,69 @@ function _bind(host) {
       } catch (err) {
         console.warn("Status update failed:", err);
       }
+      return;
+    }
+
+    const proposeBtn = e.target.closest("[data-propose]");
+    if (proposeBtn) {
+      const id = proposeBtn.dataset.propose;
+      const card = proposeBtn.closest(".lm-research-card");
+      const slot = card?.querySelector(".lm-research-card__proposal");
+      proposeBtn.disabled = true;
+      proposeBtn.textContent = "Generating…";
+      if (slot) {
+        slot.hidden = false;
+        slot.innerHTML = `<div class="lm-mute lm-fs-12">Asking the model for a concrete code change…</div>`;
+      }
+      try {
+        const r = await fetch(`${API}/api/research/candidates/${id}/propose`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await r.json();
+        if (data.ok && data.proposal) {
+          if (slot) slot.innerHTML = _renderProposal(data.proposal);
+          // Status auto-flipped server-side; refresh so the chip updates.
+          _refresh();
+        } else {
+          if (slot) {
+            slot.innerHTML = `<div class="lm-status--failed lm-fs-12">
+              ${escapeHtml(data.error || "Proposal generation failed.")}
+            </div>`;
+          }
+        }
+      } catch (err) {
+        console.warn("Propose failed:", err);
+        if (slot) {
+          slot.innerHTML = `<div class="lm-status--failed lm-fs-12">
+            ${escapeHtml(String(err.message || err))}
+          </div>`;
+        }
+      } finally {
+        proposeBtn.disabled = false;
+        proposeBtn.textContent = "Generate proposal";
+      }
     }
   });
+}
+
+function _renderProposal(p) {
+  if (!p || typeof p !== "object") return "";
+  const title = p.title || p.summary || "Proposal";
+  const body  = p.description || p.body || p.content || "";
+  const file  = p.file || p.target_file || p.path || "";
+  const diff  = p.diff || p.patch || "";
+  return `
+    <article class="lm-research-card__proposal-body">
+      <header class="lm-research-card__proposal-head">
+        <span class="material-symbols-outlined" aria-hidden="true">build</span>
+        <strong>${escapeHtml(String(title))}</strong>
+      </header>
+      ${file ? `<div class="lm-mono lm-fs-12 lm-mute">${escapeHtml(String(file))}</div>` : ""}
+      ${body ? `<p>${escapeHtml(String(body))}</p>` : ""}
+      ${diff ? `<pre class="lm-research-card__proposal-diff"><code>${escapeHtml(String(diff))}</code></pre>` : ""}
+    </article>
+  `;
 }
 
 async function _saveScheduler() {
@@ -255,6 +346,18 @@ function _renderCard(c) {
       </button>
     `).join("");
 
+  // "Generate proposal" only makes sense once the user has accepted the
+  // candidate. Keep it visible for `implemented` too so the user can
+  // re-generate if they want a second opinion.
+  const showPropose = c.status === "accepted" || c.status === "implemented";
+  const proposeButton = showPropose
+    ? `<button type="button" class="lm-btn lm-btn--primary lm-btn--xs"
+               data-propose="${id}" title="Generate a code change proposal from this candidate">
+         <span class="material-symbols-outlined" aria-hidden="true">build</span>
+         Generate proposal
+       </button>`
+    : "";
+
   return `
     <li class="lm-research-card" data-status="${escapeHtml(c.status)}">
       <header class="lm-research-card__head">
@@ -269,12 +372,13 @@ function _renderCard(c) {
         <span><strong>Hook:</strong> ${escapeHtml(hook)}</span>
         <span><strong>Why:</strong> ${escapeHtml(why)}</span>
       </div>
+      <div class="lm-research-card__proposal" hidden></div>
       <footer class="lm-research-card__foot">
         ${url ? `<a class="lm-research-card__src" href="${escapeHtml(url)}" target="_blank" rel="noopener">
           <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
           source paper
         </a>` : `<span class="lm-mute lm-fs-12">no source URL</span>`}
-        <div class="lm-research-card__actions">${statusButtons}</div>
+        <div class="lm-research-card__actions">${proposeButton}${statusButtons}</div>
       </footer>
     </li>
   `;
