@@ -925,6 +925,9 @@ class TestNodeExecutor:
             max_reviews=3,
             error=None,
             cost_cents=0,
+            cloud_cost_cents=0.0,
+            tokens_in_total=0,
+            tokens_out_total=0,
             created_at="2025-01-01T00:00:00Z",
             updated_at="2025-01-01T00:00:00Z",
         )
@@ -1111,6 +1114,9 @@ class TestJobReviewer:
             max_reviews=3,
             error=None,
             cost_cents=0,
+            cloud_cost_cents=0.0,
+            tokens_in_total=0,
+            tokens_out_total=0,
             created_at="2025-01-01T00:00:00Z",
             updated_at="2025-01-01T00:00:00Z",
         )
