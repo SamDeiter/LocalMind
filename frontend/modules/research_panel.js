@@ -169,11 +169,45 @@ function _bind(host) {
       const card = proposeBtn.closest(".lm-research-card");
       const slot = card?.querySelector(".lm-research-card__proposal");
       proposeBtn.disabled = true;
-      proposeBtn.textContent = "Generating…";
+
+      // Live elapsed counter — local 7B inference typically takes 30–60s
+      // and the user wants to see it's actually doing something. We update
+      // both the button label and an in-slot tip every second until the
+      // request resolves.
+      const startedAt = Date.now();
+      const elapsedSec = () => Math.round((Date.now() - startedAt) / 1000);
+
       if (slot) {
         slot.hidden = false;
-        slot.innerHTML = `<div class="lm-mute lm-fs-12">Asking the model for a concrete code change…</div>`;
+        slot.dataset.busy = "1";
       }
+
+      const paintWaiting = () => {
+        const s = elapsedSec();
+        proposeBtn.textContent = `Generating… ${s}s`;
+        if (slot && slot.dataset.busy === "1") {
+          slot.innerHTML = `
+            <div class="lm-research-card__proposal-busy lm-mute lm-fs-12">
+              <span class="lm-research-card__proposal-spinner" aria-hidden="true"></span>
+              <span>
+                Local model is drafting a concrete change.
+                <span class="lm-mute">Typically 30–60s on a 7B model.</span>
+                <span class="lm-mono lm-research-card__proposal-elapsed">${s}s</span>
+              </span>
+            </div>
+          `;
+        }
+      };
+      paintWaiting();
+      const tickHandle = setInterval(paintWaiting, 1000);
+
+      const settle = () => {
+        clearInterval(tickHandle);
+        if (slot) delete slot.dataset.busy;
+        proposeBtn.disabled = false;
+        proposeBtn.textContent = "Generate proposal";
+      };
+
       try {
         const r = await fetch(`${API}/api/research/candidates/${id}/propose`, {
           method: "POST",
@@ -181,10 +215,12 @@ function _bind(host) {
         });
         const data = await r.json();
         if (data.ok && data.proposal) {
+          settle();
           if (slot) slot.innerHTML = _renderProposal(data.proposal);
           // Status auto-flipped server-side; refresh so the chip updates.
           _refresh();
         } else {
+          settle();
           if (slot) {
             slot.innerHTML = `<div class="lm-status--failed lm-fs-12">
               ${escapeHtml(data.error || "Proposal generation failed.")}
@@ -192,15 +228,13 @@ function _bind(host) {
           }
         }
       } catch (err) {
+        settle();
         console.warn("Propose failed:", err);
         if (slot) {
           slot.innerHTML = `<div class="lm-status--failed lm-fs-12">
             ${escapeHtml(String(err.message || err))}
           </div>`;
         }
-      } finally {
-        proposeBtn.disabled = false;
-        proposeBtn.textContent = "Generate proposal";
       }
     }
   });

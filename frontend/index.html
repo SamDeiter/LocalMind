@@ -135,6 +135,11 @@
         <span class="lm-topbar__model-locale" id="modelIndicatorLoc">local</span>
       </div>
 
+      <button type="button" class="lm-topbar__icon-btn" id="activityBtn" aria-label="Agent activity" title="See what the AI just did" aria-controls="activityPanel" aria-expanded="false">
+        <span class="material-symbols-outlined" aria-hidden="true">monitor_heart</span>
+        <span class="lm-topbar__icon-btn-dot" id="activityBadge" hidden></span>
+      </button>
+
       <button type="button" class="lm-topbar__icon-btn" id="notificationsBtn" aria-label="Notifications">
         <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
         <span class="lm-topbar__icon-btn-dot" id="notificationsBadge" hidden></span>
@@ -244,6 +249,37 @@
       </button>
     </header>
     <div class="lm-drawer__body" id="taskCreationArea"></div>
+  </aside>
+</div>
+
+<!-- ── Agent Activity drawer ──────────────────────────────────── -->
+<div class="lm-activity" id="activityPanel" data-open="false" aria-hidden="true" role="dialog" aria-labelledby="activityPanelTitle">
+  <div class="lm-activity__scrim" data-close-activity></div>
+  <aside class="lm-activity__panel" aria-modal="true">
+    <header class="lm-activity__header">
+      <div class="lm-activity__title-group">
+        <h2 class="lm-activity__title" id="activityPanelTitle">Agent activity</h2>
+        <p class="lm-activity__sub">Every tool call, identity change, fact learned, and theme rewrite. Newest first.</p>
+      </div>
+      <div class="lm-activity__header-actions">
+        <button type="button" class="lm-btn lm-btn--ghost lm-btn--sm" id="activityClearBtn" title="Clear log">
+          <span class="material-symbols-outlined" aria-hidden="true">delete_sweep</span>
+        </button>
+        <button type="button" class="lm-icon-btn lm-topbar__icon-btn" data-close-activity aria-label="Close">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </div>
+    </header>
+    <div class="lm-activity__filters" role="group" aria-label="Filter by event kind">
+      <button type="button" class="lm-activity__filter lm-activity__filter--active" data-kind="all">All</button>
+      <button type="button" class="lm-activity__filter" data-kind="tool_call">Tools</button>
+      <button type="button" class="lm-activity__filter" data-kind="fact_learned">Facts</button>
+      <button type="button" class="lm-activity__filter" data-kind="identity_change">Identity</button>
+      <button type="button" class="lm-activity__filter" data-kind="theme_change">Theme</button>
+    </div>
+    <div class="lm-activity__body" id="activityList">
+      <div class="lm-activity__empty">No activity yet. Chat with the bot or trigger a job.</div>
+    </div>
   </aside>
 </div>
 

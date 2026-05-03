@@ -30,44 +30,126 @@ if hasattr(sys.stderr, "reconfigure"):
 
 def kill_existing_server(port: int):
     """Kill any existing process on the target port.
-    
-    Also cleans up stale Python processes that may have been orphaned
-    from previous server runs, dev scripts, or crashed terminals.
+
+    Robust against:
+      - Stale netstat entries on Windows (PID listed but process gone)
+      - Processes that ignore SIGTERM (Windows uvicorn workers)
+      - Multiple servers bound to the same port (rare but possible)
+
+    The strategy is: identify candidate PIDs three ways, kill them with the
+    OS-native force-kill, then BLOCK until the port is free or 5s elapsed.
     """
-    killed = 0
+    candidates: set[int] = set()
+    current_pid = os.getpid()
 
     if os.name == "nt":
-        # Windows: find PIDs listening on our port
-        result = subprocess.run(["netstat", "-ano"], capture_output=True, text=True)
-        current_pid = os.getpid()
-        for line in result.stdout.splitlines():
-            if f":{port}" in line and "LISTENING" in line:
-                parts = line.split()
-                try:
-                    pid = int(parts[-1])
-                    if pid != current_pid:
-                        os.kill(pid, signal.SIGTERM)
-                        killed += 1
-                        print(f"  Killed server on port {port} (PID {pid})")
-                except (ProcessLookupError, PermissionError, ValueError):
-                    pass
+        # Source 1: netstat -ano (may include stale entries)
+        try:
+            result = subprocess.run(
+                ["netstat", "-ano"], capture_output=True, text=True, timeout=5
+            )
+            for line in result.stdout.splitlines():
+                if f":{port}" in line and "LISTENING" in line:
+                    try:
+                        candidates.add(int(line.split()[-1]))
+                    except ValueError:
+                        pass
+        except Exception as exc:
+            print(f"  netstat lookup failed: {exc}")
+
+        # Source 2: any python.exe whose command line includes run.py + same port arg
+        try:
+            wmic = subprocess.run(
+                ["wmic", "process", "where", "name='python.exe'", "get",
+                 "ProcessId,CommandLine", "/FORMAT:CSV"],
+                capture_output=True, text=True, timeout=10,
+            )
+            for line in wmic.stdout.splitlines():
+                low = line.lower()
+                if "run.py" in low and f"--port {port}" in low.replace("=", " "):
+                    parts = line.strip().split(",")
+                    try:
+                        candidates.add(int(parts[-1].strip()))
+                    except (ValueError, IndexError):
+                        pass
+        except Exception:
+            pass  # WMIC is being deprecated on newer Windows; netstat is enough
+
+        candidates.discard(current_pid)
+        candidates.discard(0)
+
+        # Force-kill each candidate via taskkill (more reliable than os.kill on Windows)
+        for pid in candidates:
+            try:
+                subprocess.run(
+                    ["taskkill", "/PID", str(pid), "/F", "/T"],
+                    capture_output=True, timeout=5,
+                )
+                print(f"  Killed PID {pid} on port {port}")
+            except Exception as exc:
+                print(f"  taskkill PID {pid} failed: {exc}")
     else:
-        # Unix/macOS: use lsof to find port holders
+        # Unix/macOS: lsof gives us the live PIDs
+        try:
+            result = subprocess.run(
+                ["lsof", "-ti", f":{port}"], capture_output=True, text=True, timeout=5
+            )
+            for pid_str in result.stdout.strip().split("\n"):
+                if pid_str.strip():
+                    try:
+                        candidates.add(int(pid_str))
+                    except ValueError:
+                        pass
+        except Exception:
+            pass
+
+        candidates.discard(current_pid)
+        for pid in candidates:
+            try:
+                os.kill(pid, signal.SIGKILL)
+                print(f"  Killed PID {pid} on port {port}")
+            except (ProcessLookupError, PermissionError):
+                pass
+
+    # Block until the port is actually free (max 5s). Without this we can race
+    # the new server's bind() against the OS releasing the socket.
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        if not _is_port_listening(port):
+            break
+        time.sleep(0.25)
+    else:
+        print(f"  WARNING: port {port} still LISTENING after 5s — bind may fail")
+
+    return len(candidates)
+
+
+def _is_port_listening(port: int) -> bool:
+    """True if the OS reports an actual (non-stale) listener on `port`."""
+    try:
         result = subprocess.run(
-            ["lsof", "-ti", f":{port}"], capture_output=True, text=True
+            ["netstat", "-ano"], capture_output=True, text=True, timeout=3
         )
-        for pid_str in result.stdout.strip().split("\n"):
-            if pid_str.strip():
-                try:
-                    pid = int(pid_str)
-                    if pid != os.getpid():
-                        os.kill(pid, signal.SIGTERM)
-                        killed += 1
-                        print(f"  Killed server on port {port} (PID {pid})")
-                except (ProcessLookupError, PermissionError, ValueError):
-                    pass
-    time.sleep(0.5)
-    return killed
+    except Exception:
+        return False
+    for line in result.stdout.splitlines():
+        if f":{port}" not in line or "LISTENING" not in line:
+            continue
+        try:
+            pid = int(line.split()[-1])
+        except ValueError:
+            continue
+        # On Windows, verify the PID actually exists. taskkill returns
+        # error code 128 for non-existent PIDs — we treat that as "stale".
+        if os.name == "nt":
+            check = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                capture_output=True, text=True, timeout=3,
+            )
+            if "No tasks" in check.stdout or pid <= 0:
+                continue  # phantom entry; ignore
+        return True
+    return False
 
 
 def cleanup_stale_python():

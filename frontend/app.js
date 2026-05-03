@@ -30,6 +30,7 @@ import { initPWA } from "./modules/pwa.js";
 import { initTTS } from "./modules/tts.js";
 import { initPlaceholderRotation } from "./modules/chat_ux.js";
 import { initMascot } from "./modules/mascot.js";
+import { initAgentActivity } from "./modules/agent_activity.js";
 
 async function init() {
   // Parallel network fetches (no dependencies between them)
@@ -61,6 +62,7 @@ async function init() {
   initTTS();
   startHwPolling();
   initMascot();
+  initAgentActivity();
 
   await Promise.allSettled(networkFetches);
 

@@ -115,6 +115,7 @@ class ContextBuilder:
         editor_context: Optional[str],
         metacog_controller=None,
         conversation_id: str = None,
+        turn_count: int = 0,
     ) -> Tuple[str, Any]:
         """Build the full system prompt with RAG, memory, and metacognitive context.
 
@@ -129,7 +130,9 @@ class ContextBuilder:
             needs_tools=task_estimate.get("needs_tools", False),
         )
 
+        sys_prompt = self._inject_identity(sys_prompt)
         sys_prompt = await self._inject_memory(message, sys_prompt, task_estimate)
+        sys_prompt = self._inject_user_profile(sys_prompt, message, turn_count)
 
         metacog_decision = None
         if metacog_controller and task_estimate["score"] >= 5:
@@ -138,6 +141,61 @@ class ContextBuilder:
                 sys_prompt += self.prompt_factory.build_metacog_context(metacog_controller.session.active_intent)
 
         return sys_prompt, metacog_decision
+
+    def _inject_identity(self, sys_prompt: str) -> str:
+        """Prepend the bot's chosen name + persona so it speaks as itself.
+
+        The identity is mutable at runtime — the bot can call `update_identity`
+        to rename itself or refine its persona, and the next system prompt
+        reflects the change. This is what lets LocalMind become whoever the
+        user (or the bot) decides it should be.
+        """
+        try:
+            from backend.identity.store import get_identity
+            ident = get_identity()
+            block = (
+                f"[YOUR IDENTITY]\n"
+                f"Name: {ident.name}\n"
+                f"Persona: {ident.persona}\n"
+                f"Voice: {ident.voice}\n"
+                f"You may evolve this identity over time by calling the "
+                f"`update_identity` tool.\n"
+                f"[/YOUR IDENTITY]\n\n"
+            )
+            return block + sys_prompt
+        except Exception as exc:
+            logger.debug("Identity injection skipped: %s", exc)
+            return sys_prompt
+
+    def _inject_user_profile(self, sys_prompt: str, message: str, turn_count: int) -> str:
+        """Append the [USER_PROFILE] block + an optional [CURIOSITY] hint.
+
+        - USER_PROFILE: facts the AI has already learned about this user.
+        - CURIOSITY: at most one prompt to ask a natural question to learn more.
+          The AI is the learner; the user is the source of truth about themselves.
+        """
+        try:
+            from backend.metacognition.memory_manager import get_memory_manager
+            from backend.logic.curiosity import build_curiosity_hint, render_profile_block
+
+            mm = get_memory_manager()
+            prefs = mm.read_preferences()
+            profile = {p.key: p.value for p in prefs}
+
+            block = render_profile_block(profile)
+            if block:
+                sys_prompt += "\n\n" + block
+
+            hint = build_curiosity_hint(
+                known_keys=set(profile.keys()),
+                user_message=message,
+                turn_count=turn_count,
+            )
+            if hint:
+                sys_prompt += f"\n\n[CURIOSITY]\n{hint}\n[/CURIOSITY]"
+        except Exception as exc:
+            logger.debug("User profile / curiosity injection skipped: %s", exc)
+        return sys_prompt
 
     # ------------------------------------------------------------------
     # RAG + Memory

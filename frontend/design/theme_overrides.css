@@ -1,0 +1,9 @@
+/* =============================================================
+   theme_overrides.css — managed by the bot via the `update_theme` tool.
+   Any contents written here override tokens.css. Loaded LAST in the
+   cascade so token overrides win.
+
+   Hand-edits here are safe but will be replaced if the bot rewrites
+   the file. To prevent the bot from touching it, lock the file from
+   the Settings page (UI checkbox writes ~/LocalMind_Workspace/theme_lock).
+   ============================================================= */

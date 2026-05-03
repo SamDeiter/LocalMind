@@ -85,6 +85,7 @@ class ChatService:
             editor_context=body.get("editor_context"),
             metacog_controller=self.metacog_controller,
             conversation_id=conversation_id,
+            turn_count=len([h for h in history if h.get("role") == "user"]),
         )
 
         # 5. Prepare messages
@@ -352,9 +353,10 @@ class ChatService:
 
         try:
             if len(messages) >= 2:
-                await self._auto_save_facts(messages[-2]["content"], True)
+                import asyncio
+                asyncio.create_task(self._auto_save_facts(messages[-2]["content"], True))
         except Exception as e:
-            logger.warning(f"Auto-save facts failed: {e}")
+            logger.warning(f"Auto-save facts task creation failed: {e}")
 
         # ── MemPalace Tier-3 auto-save (verbatim turn archival) ──────────
         try:
@@ -524,10 +526,24 @@ class ChatService:
             return None
 
     async def _auto_save_facts(self, last_user_message: str, enabled: bool):
+        """Persist durable user-facts from the latest message.
+
+        Two-step pipeline:
+          1. Episodic save: raw turn -> FTS5 (catches everything as a fallback)
+          2. Fact extraction: LLM pulls structured {key,value} -> MemoryManager
+             preference store (with confidence + decay) AND -> FTS5 as
+             semantic/preference rows so recall_memories can surface them.
+        """
         if not enabled:
             return
-        from backend.tools.memory import _get_retriever
+
+        from backend.tools.memory import _get_retriever, get_learning_enabled
+        if not get_learning_enabled():
+            return
+
         retriever = _get_retriever()
+
+        # 1. Episodic raw save (existing behavior).
         if retriever:
             try:
                 retriever.save_from_conversation(
@@ -538,6 +554,51 @@ class ChatService:
                 )
             except Exception as e:
                 logger.warning(f"Episodic memory save failed: {e}")
+
+        # 2. Structured fact extraction.
+        try:
+            from backend.logic.fact_extractor import FactExtractor
+            from backend.metacognition.memory_manager import get_memory_manager
+            extractor = FactExtractor(llm=self.llm)
+            facts = await extractor.extract(last_user_message)
+            if not facts:
+                return
+
+            mm = get_memory_manager()
+            for fact in facts:
+                key = fact.get("key", "").strip()
+                value = fact.get("value", "").strip()
+                source = fact.get("source", "inferred")
+                if not key or not value:
+                    continue
+                mm.propose_preference(key=key, value=value, source=source)
+
+                # Mirror into FTS5 so recall_memories can find it semantically.
+                if retriever:
+                    try:
+                        retriever.save_from_conversation(
+                            content=f"{key}: {value}",
+                            category="semantic",
+                            subcategory="preference",
+                            source="fact_extractor",
+                        )
+                    except Exception as e:
+                        logger.debug("FTS5 mirror of extracted fact failed: %s", e)
+            logger.info("Auto-learned %d fact(s) about user", len(facts))
+            try:
+                from backend.observability.activity_log import ActivityKind, record
+                preview = ", ".join(f"{f.get('key')}={f.get('value')}" for f in facts[:4])
+                record(
+                    ActivityKind.FACT_LEARNED,
+                    f"Learned {len(facts)} fact(s) about user: {preview}",
+                    actor="bot",
+                    detail={"facts": facts},
+                    success=True,
+                )
+            except Exception:
+                pass
+        except Exception as e:
+            logger.warning(f"Fact extraction failed (non-fatal): {e}")
 
     async def _palace_save_turn(self, user_msg: str, assistant_msg: str, conversation_id: str):
         """Save a full conversation turn verbatim to MemPalace (Tier-3).

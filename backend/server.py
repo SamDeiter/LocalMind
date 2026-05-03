@@ -482,4 +482,3 @@ async def hub_context(project_path: str = ""):
     from backend.integrations.cross_project_hub import build_hub_context
     context = build_hub_context(project_path or None)
     return context
-

@@ -77,6 +77,8 @@ function _render() {
       <aside class="lm-settings__nav" aria-label="Settings sections">
         <nav class="lm-settings__nav-list" id="settingsNavList">
           ${_navItem("profile", "person", "Profile")}
+          ${_navItem("learned", "psychology", "What I've learned")}
+          ${_navItem("identity", "smart_toy", "AI identity")}
           ${_navItem("routing", "deployed_code", "Model routing")}
           ${_navItem("safety", "shield", "Safety rails")}
           ${_navItem("integrations", "hub", "Integrations")}
@@ -89,6 +91,8 @@ function _render() {
 
       <div class="lm-settings__content" id="settingsContent">
         ${_sectionProfile()}
+        ${_sectionLearned()}
+        ${_sectionIdentity()}
         ${_sectionRouting()}
         ${_sectionSafety()}
         ${_sectionIntegrations()}
@@ -166,6 +170,124 @@ function _sectionProfile() {
           <button type="submit" class="lm-btn lm-btn--primary" data-dirty-target="profile" disabled>
             <span class="material-symbols-outlined" aria-hidden="true">check</span>
             Save profile
+          </button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
+// ── Section: What I've learned (auto-extracted user facts) ──────
+
+function _sectionLearned() {
+  return /* html */ `
+    <section class="lm-settings__section" id="settings-learned" data-section="learned">
+      ${_sectionHeader("What I've learned about you", "Facts the AI has picked up across conversations. Delete anything you don't want it to remember.")}
+      <div class="lm-settings__form" id="learnedContainer">
+        <div class="lm-settings__row">
+          <div class="lm-settings__row-label">
+            <span class="lm-settings__row-title">Known facts</span>
+            <span class="lm-settings__hint">Filtered by confidence; very-low-confidence guesses are hidden.</span>
+          </div>
+          <div class="lm-settings__row-control">
+            <div id="learnedList" class="lm-settings__table-wrap">
+              <div class="lm-settings__table-empty">Loading…</div>
+            </div>
+          </div>
+        </div>
+        <div class="lm-settings__row">
+          <div class="lm-settings__row-label">
+            <span class="lm-settings__row-title">Next thing I'm curious about</span>
+            <span class="lm-settings__hint">The question I'd most like to ask you.</span>
+          </div>
+          <div class="lm-settings__row-control">
+            <div id="learnedCuriosity" class="lm-mono">—</div>
+          </div>
+        </div>
+        <div class="lm-settings__actions">
+          <button type="button" class="lm-btn lm-btn--ghost" id="learnedRefreshBtn">
+            <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
+            Refresh
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+// ── Section: AI identity (the bot's name + persona) ─────────────
+
+function _sectionIdentity() {
+  return /* html */ `
+    <section class="lm-settings__section" id="settings-identity" data-section="identity">
+      ${_sectionHeader("AI identity", "Who the AI is. Editable by you, and the AI may also propose changes to itself over time.")}
+      <form class="lm-settings__form" id="identityForm" autocomplete="off">
+        <fieldset class="lm-settings__fieldset">
+          <legend class="lm-settings__sr-only">AI identity</legend>
+
+          <div class="lm-settings__row">
+            <div class="lm-settings__row-label">
+              <label for="identityName">Name</label>
+              <span class="lm-settings__hint">What the AI calls itself. Trademarked names are blocked.</span>
+            </div>
+            <div class="lm-settings__row-control">
+              <input type="text" id="identityName" class="lm-input" maxlength="40" placeholder="LocalMind" />
+            </div>
+          </div>
+
+          <div class="lm-settings__row">
+            <div class="lm-settings__row-label">
+              <label for="identityPersona">Persona</label>
+              <span class="lm-settings__hint">Who the AI is — a paragraph it reads at the start of every reply.</span>
+            </div>
+            <div class="lm-settings__row-control">
+              <textarea id="identityPersona" class="lm-input lm-settings__textarea" rows="4" maxlength="1500" placeholder="An autonomous task worker. Acts first, asks clarifying questions only when literally unable to proceed."></textarea>
+            </div>
+          </div>
+
+          <div class="lm-settings__row">
+            <div class="lm-settings__row-label">
+              <label for="identityVoice">Voice</label>
+              <span class="lm-settings__hint">Tone descriptor, e.g. "playful and curious".</span>
+            </div>
+            <div class="lm-settings__row-control">
+              <input type="text" id="identityVoice" class="lm-input" maxlength="200" placeholder="direct, action-oriented, warm but concise" />
+            </div>
+          </div>
+
+          <div class="lm-settings__row">
+            <div class="lm-settings__row-label">
+              <span class="lm-settings__row-title">Theme lock</span>
+              <span class="lm-settings__hint">When ON, the AI cannot change the UI theme. Useful if you like the current look.</span>
+            </div>
+            <div class="lm-settings__row-control">
+              <label class="lm-settings__toggle">
+                <input type="checkbox" id="themeLockToggle" />
+                <span class="lm-settings__toggle-track" aria-hidden="true"><span class="lm-settings__toggle-thumb"></span></span>
+                <span class="lm-settings__toggle-label">Lock theme</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="lm-settings__row">
+            <div class="lm-settings__row-label">
+              <span class="lm-settings__row-title">Recent self-changes</span>
+              <span class="lm-settings__hint">When the AI updated itself. Newest first.</span>
+            </div>
+            <div class="lm-settings__row-control">
+              <div id="identityHistory" class="lm-mono lm-settings__hint">No changes yet.</div>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="lm-settings__actions">
+          <button type="button" class="lm-btn lm-btn--ghost" id="identityResetBtn">
+            <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+            Reset to default
+          </button>
+          <button type="submit" class="lm-btn lm-btn--primary" data-dirty-target="identity" disabled>
+            <span class="material-symbols-outlined" aria-hidden="true">check</span>
+            Save identity
           </button>
         </div>
       </form>
@@ -566,6 +688,16 @@ function _bindEvents(root) {
   ]);
   root.querySelector("[data-action='profile-reset']")?.addEventListener("click", () => _loadProfile());
 
+  // Learned-about-you (read-only list with delete buttons)
+  root.querySelector("#learnedRefreshBtn")?.addEventListener("click", () => _loadLearned());
+
+  // AI identity
+  _bindForm("identityForm", async () => _saveIdentity(), () => _loadIdentity(), [
+    "#identityName", "#identityPersona", "#identityVoice",
+  ]);
+  root.querySelector("#identityResetBtn")?.addEventListener("click", () => _resetIdentity());
+  root.querySelector("#themeLockToggle")?.addEventListener("change", (e) => _setThemeLock(e.target.checked));
+
   // Routing
   _bindForm("routingForm", async () => _saveRouting(), () => _loadRouting(), [
     "#routing-default", "#routing-fast", "#routing-thinking", "#routing-vision",
@@ -714,6 +846,7 @@ function _bindForm(formId, saver, reverter, watchSels) {
 function _formLabel(id) {
   const map = {
     profileForm: "Profile",
+    identityForm: "AI identity",
     routingForm: "Routing",
     safetyForm: "Safety rails",
     appearanceForm: "Appearance",
@@ -770,6 +903,9 @@ function _updateDirty(formId) {
 
 function _loadAll() {
   _loadProfile();
+  _loadLearned();
+  _loadIdentity();
+  _loadThemeLock();
   _loadRoutingModelsThenValues();
   _loadSafety();
   _refreshGoogleStatus();
@@ -777,6 +913,169 @@ function _loadAll() {
   _loadAppearance();
   _loadAdvanced();
   _loadAbout();
+}
+
+// ── What I've learned about you ────────────────────────────────
+
+async function _loadLearned() {
+  const list = document.getElementById("learnedList");
+  const curiosity = document.getElementById("learnedCuriosity");
+  if (!list) return;
+  list.innerHTML = `<div class="lm-settings__table-empty">Loading…</div>`;
+  try {
+    const res = await fetch(`${API}/api/profile`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const profile = data?.profile || {};
+    const keys = Object.keys(profile);
+    if (curiosity) {
+      curiosity.textContent = data?.next_curiosity || "Nothing — I know all the basics.";
+    }
+    if (keys.length === 0) {
+      list.innerHTML = `<div class="lm-settings__table-empty">I haven't learned anything about you yet. Chat with me a bit.</div>`;
+      return;
+    }
+    list.innerHTML = `
+      <table class="lm-settings__table">
+        <thead>
+          <tr>
+            <th scope="col">Slot</th>
+            <th scope="col">Value</th>
+            <th scope="col">Confidence</th>
+            <th scope="col">Source</th>
+            <th scope="col" class="lm-settings__table-actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${keys.map((k) => {
+            const p = profile[k] || {};
+            return `
+              <tr>
+                <td class="lm-mono">${escapeHtml(k)}</td>
+                <td>${escapeHtml(p.value || "")}</td>
+                <td class="lm-mono">${escapeHtml(String(Math.round((p.confidence || 0) * 100)))}%</td>
+                <td>${escapeHtml(p.source || "")}</td>
+                <td class="lm-settings__table-actions">
+                  <button type="button" class="lm-btn lm-btn--ghost lm-btn--sm" data-forget-key="${escapeHtml(k)}">
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                    Forget
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    `;
+    list.querySelectorAll("[data-forget-key]").forEach((btn) => {
+      btn.addEventListener("click", () => _forgetLearned(btn.dataset.forgetKey));
+    });
+  } catch (err) {
+    console.warn("[settings] learned load failed", err);
+    list.innerHTML = `<div class="lm-settings__table-empty">Could not load learned facts.</div>`;
+  }
+}
+
+async function _forgetLearned(key) {
+  if (!key) return;
+  if (!window.confirm(`Forget "${key}"? The AI will no longer remember this.`)) return;
+  try {
+    const res = await fetch(`${API}/api/profile/${encodeURIComponent(key)}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showToast("Forgotten.", "success");
+    _loadLearned();
+  } catch (err) {
+    showToast(`Could not forget: ${err?.message || err}`, "error");
+  }
+}
+
+// ── AI identity ────────────────────────────────────────────────
+
+async function _loadIdentity() {
+  const nameEl = document.getElementById("identityName");
+  const personaEl = document.getElementById("identityPersona");
+  const voiceEl = document.getElementById("identityVoice");
+  const histEl = document.getElementById("identityHistory");
+  if (!nameEl) return;
+  try {
+    const res = await fetch(`${API}/api/identity`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const ident = data?.identity || {};
+    nameEl.value = ident.name || "";
+    personaEl.value = ident.persona || "";
+    voiceEl.value = ident.voice || "";
+    if (histEl) {
+      const history = Array.isArray(ident.history) ? ident.history.slice().reverse().slice(0, 5) : [];
+      if (history.length === 0) {
+        histEl.textContent = "No changes yet.";
+      } else {
+        histEl.innerHTML = history.map((h) => {
+          const when = h.at ? new Date(h.at * 1000).toLocaleString() : "";
+          const who = h.actor === "bot" ? "AI" : (h.actor || "user");
+          return `<div>${escapeHtml(when)} - <strong>${escapeHtml(who)}</strong> changed <code>${escapeHtml(h.field)}</code>${h.reason ? ` (${escapeHtml(h.reason)})` : ""}</div>`;
+        }).join("");
+      }
+    }
+  } catch (err) {
+    console.warn("[settings] identity load failed", err);
+  }
+  _captureSnapshot("identityForm");
+}
+
+async function _saveIdentity() {
+  const payload = {
+    name: document.getElementById("identityName")?.value?.trim() || "",
+    persona: document.getElementById("identityPersona")?.value?.trim() || "",
+    voice: document.getElementById("identityVoice")?.value?.trim() || "",
+    reason: "user edit from Settings",
+  };
+  const res = await fetch(`${API}/api/identity`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data?.errors?.length) throw new Error(data.errors.join("; "));
+  await _loadIdentity();
+}
+
+async function _resetIdentity() {
+  if (!window.confirm("Reset the AI's name and persona to default?")) return;
+  try {
+    const res = await fetch(`${API}/api/identity/reset`, { method: "POST" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showToast("Identity reset.", "success");
+    await _loadIdentity();
+  } catch (err) {
+    showToast(`Could not reset: ${err?.message || err}`, "error");
+  }
+}
+
+async function _loadThemeLock() {
+  const toggle = document.getElementById("themeLockToggle");
+  if (!toggle) return;
+  try {
+    const res = await fetch(`${API}/api/theme/lock`);
+    if (!res.ok) return;
+    const data = await res.json();
+    toggle.checked = !!data.locked;
+  } catch (_) { /* ignore */ }
+}
+
+async function _setThemeLock(locked) {
+  try {
+    const res = await fetch(`${API}/api/theme/lock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locked }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showToast(locked ? "Theme locked." : "Theme unlocked.", "success");
+  } catch (err) {
+    showToast(`Could not change theme lock: ${err?.message || err}`, "error");
+  }
 }
 
 // ── Profile ─────────────────────────────────────────────────────
