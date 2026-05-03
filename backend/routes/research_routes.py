@@ -609,19 +609,49 @@ async def set_candidate_status(memory_id: int, body: CandidateStatusBody):
     return {"ok": True, "memory_id": memory_id, "status": st, "valid": list(VALID_STATUSES)}
 
 
+_PROPOSALS_DIR = Path.home() / ".localmind" / "proposals"
+
+
+def _proposal_path(memory_id: int) -> Path:
+    return _PROPOSALS_DIR / f"{memory_id}.json"
+
+
+def _save_candidate_proposal(memory_id: int, payload: dict) -> None:
+    try:
+        _PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
+        _proposal_path(memory_id).write_text(
+            json.dumps(payload, indent=2), encoding="utf-8"
+        )
+    except OSError as exc:
+        logger.warning("Could not persist proposal for memory_id=%s: %s", memory_id, exc)
+
+
+def _load_candidate_proposal(memory_id: int) -> dict | None:
+    p = _proposal_path(memory_id)
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Could not read saved proposal for memory_id=%s: %s", memory_id, exc)
+        return None
+
+
 @router.post("/research/candidates/{memory_id}/propose")
 async def propose_from_candidate(memory_id: int):
     """Generate a code-improvement proposal from an accepted change candidate.
 
     Reuses generate_paper_proposal() with the candidate's lane + change/hook/
-    why text packed into the 'abstract' slot. On success, auto-advances
-    the candidate's status to 'implemented'.
+    why text packed into the 'abstract' slot. On success, persists the
+    proposal to ~/.localmind/proposals/{memory_id}.json and advances the
+    candidate's status to 'implemented'.
     """
     from backend.research.candidates import (
         list_candidates_from_memory_list,
         set_status,
     )
     from fastapi import HTTPException
+    import time as _time
 
     memories = _list_memories_sync()
     candidates = list_candidates_from_memory_list(memories)
@@ -641,20 +671,43 @@ async def propose_from_candidate(memory_id: int):
     result = await generate_paper_proposal(title=title, abstract=abstract, url=url)
 
     new_status = target.get("status") or "accepted"
-    if result.get("proposal") and not result.get("error"):
+    proposal = result.get("proposal")
+    if proposal and not result.get("error"):
         try:
             new_status = set_status(memory_id, "implemented")
         except Exception as exc:
             logger.warning("Could not flip candidate status: %s", exc)
+        # Persist so the candidate card can re-show it on reload.
+        _save_candidate_proposal(memory_id, {
+            "memory_id": memory_id,
+            "lane": lane,
+            "candidate_change": target.get("change"),
+            "candidate_hook": target.get("hook"),
+            "candidate_why": target.get("why"),
+            "source_url": url,
+            "proposal": proposal,
+            "generated_at": int(_time.time()),
+        })
 
     return {
-        "ok": bool(result.get("proposal")) and not result.get("error"),
+        "ok": bool(proposal) and not result.get("error"),
         "memory_id": memory_id,
         "lane": lane,
         "status": new_status,
-        "proposal": result.get("proposal"),
+        "proposal": proposal,
         "error": result.get("error"),
     }
+
+
+@router.get("/research/candidates/{memory_id}/proposal")
+async def get_saved_candidate_proposal(memory_id: int):
+    """Return the persisted proposal for a candidate, or 404 if none saved."""
+    from fastapi import HTTPException
+
+    saved = _load_candidate_proposal(memory_id)
+    if not saved:
+        raise HTTPException(404, f"No saved proposal for memory_id={memory_id}")
+    return saved
 
 
 # ── Scheduler endpoints ─────────────────────────────────────────────

@@ -20,7 +20,7 @@ const STATUS_LABEL = {
   implemented: "Implemented",
 };
 
-let _state = {
+const _state = {
   candidates: [],
   countsByStatus: {},
   filter: "new",
@@ -326,6 +326,23 @@ function _renderList(root) {
   empty.hidden = true;
 
   list.innerHTML = filtered.map(_renderCard).join("");
+
+  // Auto-restore previously-generated proposals for `implemented` cards so
+  // the user doesn't lose the inline display on reload.
+  for (const c of filtered) {
+    if (c.status !== "implemented") continue;
+    const card = list.querySelector(`.lm-research-card [data-propose="${c.memory_id}"]`)?.closest(".lm-research-card");
+    const slot = card?.querySelector(".lm-research-card__proposal");
+    if (!slot || !slot.hidden) continue;
+    fetch(`${API}/api/research/candidates/${c.memory_id}/proposal`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data || !data.proposal) return;
+        slot.hidden = false;
+        slot.innerHTML = _renderProposal(data.proposal);
+      })
+      .catch(() => { /* no saved proposal, leave card collapsed */ });
+  }
 }
 
 function _renderCard(c) {

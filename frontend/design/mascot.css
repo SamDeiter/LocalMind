@@ -47,6 +47,46 @@
   opacity: 1;
   transform: translateY(0) scale(1);
 }
+.lm-mascot__bubble[data-actionable="1"] {
+  pointer-events: auto;     /* let buttons inside receive clicks */
+  max-width: min(280px, calc(100vw - 32px));
+}
+.lm-mascot__bubble-text {
+  margin: 0 0 6px;
+}
+.lm-mascot__bubble-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.lm-mascot__bubble-btn {
+  appearance: none;
+  border: 1px solid var(--lm-border-subtle);
+  background: var(--lm-surface-1);
+  color: var(--lm-text-secondary);
+  font: inherit;
+  font-size: var(--lm-fs-11);
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.lm-mascot__bubble-btn:hover {
+  color: var(--lm-text-primary);
+  border-color: var(--lm-border-strong);
+  background: var(--lm-surface-3);
+}
+.lm-mascot__bubble-btn--primary {
+  background: var(--lm-accent-soft);
+  color: var(--lm-accent-text);
+  border-color: var(--lm-accent-ring);
+}
+.lm-mascot__bubble-btn--primary:hover {
+  background: var(--lm-accent);
+  color: var(--lm-text-inverse);
+  border-color: var(--lm-accent);
+}
 .lm-mascot__bubble::after {
   content: "";
   position: absolute;

@@ -295,9 +295,17 @@ function maybeOfferTemplate(jobs) {
   const matches = sample.filter((t) => t.includes(candidate)).length;
   if (matches < TEMPLATE_SUGGEST_THRESHOLD) return;
 
-  // Brain gate — if the user has dismissed too many template suggestions
-  // recently, the bandit downweights this type and we skip. Cold-start
-  // and the ε-floor guarantee we still fire occasionally.
+  // The Yes flow needs a *done* job whose title contains the phrase, since
+  // /api/jobs/templates only accepts completed jobs. Skip the suggestion
+  // altogether if no recent done job matches — better to stay silent than
+  // offer something the backend will reject.
+  const matchingDone = (Array.isArray(jobs) ? jobs : []).find(
+    (j) => j && j.status === "done" && (j.title || "").toLowerCase().includes(candidate),
+  );
+  if (!matchingDone) return;
+
+  // Brain gate — bandit decides whether to fire based on recent acted/
+  // dismissed history. Cold-start + ε-floor keep exploration alive.
   let shouldFire = true;
   let suggestionId = null;
   try {
@@ -313,25 +321,57 @@ function maybeOfferTemplate(jobs) {
     }
   } catch (_) { /* swallow */ }
 
-  localStorage.setItem(LS_KEYS.templateOffered, String(Date.now()));
-  bubble(
-    `I noticed "${candidate}" keeps coming up — want this saved as a template?`,
-    "curious",
-    8000,
-  );
+  const recordOutcome = (outcome) => {
+    if (!suggestionId) return;
+    try {
+      if (typeof brain.recordSuggestionOutcome === "function") {
+        brain.recordSuggestionOutcome(suggestionId, outcome);
+      }
+    } catch (_) { /* swallow */ }
+  };
 
-  // Best-effort outcome: record a 'timeout' if no follow-up bubble click
-  // happens before the bubble auto-hides. (The bubble doesn't surface a
-  // Yes/No today; this is the dismissed-by-default path until that lands.)
-  if (suggestionId) {
-    setTimeout(() => {
-      try {
-        if (typeof brain.recordSuggestionOutcome === "function") {
-          brain.recordSuggestionOutcome(suggestionId, "timeout");
-        }
-      } catch (_) { /* swallow */ }
-    }, 9000);
-  }
+  const trimmed = candidate.trim();
+  const templateName = `Quick: ${trimmed}`;
+
+  localStorage.setItem(LS_KEYS.templateOffered, String(Date.now()));
+  actionBubble(
+    `I noticed "${trimmed}" keeps coming up — save as template?`,
+    "curious",
+    [
+      {
+        label: "Yes, save it",
+        kind: "primary",
+        onClick: async () => {
+          recordOutcome("acted");
+          try {
+            const r = await fetch(`${API}/api/jobs/templates`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ job_id: matchingDone.id, name: templateName }),
+            });
+            if (r.ok) {
+              bubble("template saved.", "happy", 3500);
+            } else {
+              const data = await r.json().catch(() => ({}));
+              bubble(`couldn't save: ${data.detail || `HTTP ${r.status}`}`, "sad", 4500);
+            }
+          } catch (e) {
+            console.warn("[mascot] template save failed:", e);
+            bubble("template save failed.", "sad", 3500);
+          }
+        },
+      },
+      {
+        label: "Not now",
+        kind: "ghost",
+        onClick: () => recordOutcome("dismissed"),
+      },
+    ],
+    {
+      ms: 12000,
+      onTimeout: () => recordOutcome("dismissed"),
+    },
+  );
 }
 
 function findSharedSubstring(strs, minLen) {
@@ -392,9 +432,78 @@ export function bubble(text, mood = "neutral", ms = 5000) {
   localStorage.setItem(LS_KEYS.lastBubbleAt, String(Date.now()));
   root.innerHTML = escapeHtml(text);
   root.dataset.mood = mood;
+  root.dataset.actionable = "0";
   root.classList.add("is-visible");
   if (STATE.bubbleTimer) clearTimeout(STATE.bubbleTimer);
   STATE.bubbleTimer = setTimeout(() => root.classList.remove("is-visible"), ms);
+}
+
+/**
+ * Bubble with action buttons. The bandit-style suggestion surface.
+ *
+ * `actions` is `[{label, kind?: "primary"|"ghost", onClick: () => void}, ...]`.
+ * If the user clicks an action button, the action's onClick fires and the
+ * bubble closes. If the bubble auto-hides without a click, `onTimeout` is
+ * called instead. Either way, only one of the two callbacks runs.
+ */
+export function actionBubble(text, mood, actions, options = {}) {
+  if (isSnoozed()) return null;
+  const root = document.getElementById("lmMascotBubble");
+  if (!root) return null;
+
+  localStorage.setItem(LS_KEYS.lastBubbleAt, String(Date.now()));
+
+  const safeActions = Array.isArray(actions) ? actions : [];
+  const buttonsHtml = safeActions.map((a, i) => {
+    const kind = a && a.kind === "primary" ? "primary" : "ghost";
+    const label = escapeHtml(String(a && a.label != null ? a.label : "OK"));
+    return `<button type="button" class="lm-mascot__bubble-btn lm-mascot__bubble-btn--${kind}" data-act="${i}">${label}</button>`;
+  }).join("");
+
+  root.innerHTML = `
+    <div class="lm-mascot__bubble-text">${escapeHtml(String(text || ""))}</div>
+    ${buttonsHtml ? `<div class="lm-mascot__bubble-actions">${buttonsHtml}</div>` : ""}
+  `;
+  root.dataset.mood = mood || "neutral";
+  root.dataset.actionable = "1";
+  root.classList.add("is-visible");
+
+  const ms = Number.isFinite(options.ms) ? options.ms : 12000;
+  let resolved = false;
+
+  const cleanup = () => {
+    root.classList.remove("is-visible");
+    root.dataset.actionable = "0";
+    root.removeEventListener("click", onClick);
+    if (STATE.bubbleTimer) {
+      clearTimeout(STATE.bubbleTimer);
+      STATE.bubbleTimer = null;
+    }
+  };
+
+  const close = (idx) => {
+    if (resolved) return;
+    resolved = true;
+    cleanup();
+    if (idx != null && safeActions[idx] && typeof safeActions[idx].onClick === "function") {
+      try { safeActions[idx].onClick(); } catch (e) { console.warn("[mascot] action callback failed:", e); }
+    } else if (typeof options.onTimeout === "function") {
+      try { options.onTimeout(); } catch (e) { console.warn("[mascot] onTimeout callback failed:", e); }
+    }
+  };
+
+  const onClick = (e) => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    e.stopPropagation();
+    close(Number(btn.dataset.act));
+  };
+  root.addEventListener("click", onClick);
+
+  if (STATE.bubbleTimer) clearTimeout(STATE.bubbleTimer);
+  STATE.bubbleTimer = setTimeout(() => close(null), ms);
+
+  return { close: () => close(null) };
 }
 
 // ── Pip-initiated jobs ─────────────────────────────────────────────────────
