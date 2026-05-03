@@ -4,3 +4,7 @@
 ## 2025-05-15 - Non-blocking System Metrics in FastAPI
 **Learning:** Using `psutil.cpu_percent(interval=0.1)` in an async FastAPI route blocks the entire event loop for 100ms. This significantly increases latency for all concurrent requests.
 **Action:** Always prime `psutil.cpu_percent(interval=None)` at module load or startup and use `interval=None` in async handlers to retrieve metrics instantly without blocking.
+
+## 2025-05-20 - Shared AsyncClient Indentation Pitfalls
+**Learning:** When refactoring local `async with httpx.AsyncClient()` blocks to use a global singleton, it is extremely easy to leave inconsistent indentation in the outdented code blocks. This results in `IndentationError` which blocks application startup.
+**Action:** Meticulously verify indentation levels for the entire refactored block when removing a context manager. Use `read_file` to inspect the final structure before submitting.

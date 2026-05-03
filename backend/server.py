@@ -29,6 +29,7 @@ from backend.tools.registry import ToolRegistry
 from backend.metacognition.controller import MetaCognitiveController
 from backend import notifications, gemini_client, db
 from backend.db import DB_PATH, get_db
+from backend.utils.http_client import close_async_client
 from backend.core.schema import init_phase0_schema, ensure_default_tenant
 from backend.core.telemetry import (
     init_telemetry_schema, health_checker, metrics_collector, alert_manager,
@@ -230,6 +231,7 @@ async def lifespan(app: FastAPI):
         await gc_worker.stop()
     if slack_bot:
         await slack_bot.stop()
+    await close_async_client()
 
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""
