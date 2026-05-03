@@ -96,11 +96,11 @@ def get_project_meta(project_path: Path) -> dict:
             for line in content.splitlines():
                 line = line.strip()
                 if line.startswith("name ="):
-                    meta["name"] = line.split("=", 1)[1].strip().strip('"\'\' \')
+                    meta["name"] = line.split("=", 1)[1].strip().strip('"\' ')
                 elif line.startswith("version ="):
-                    meta["version"] = line.split("=", 1)[1].strip().strip('"\'\' \')
+                    meta["version"] = line.split("=", 1)[1].strip().strip('"\' ')
                 elif line.startswith("description ="):
-                    meta["description"] = line.split("=", 1)[1].strip().strip('"\'\' \')
+                    meta["description"] = line.split("=", 1)[1].strip().strip('"\' ')
         except OSError:
             pass
 
