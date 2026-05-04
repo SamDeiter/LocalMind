@@ -8,45 +8,42 @@ SERVER_PORT = int(os.getenv("PORT", 8000))
 FRONTEND_URLS = os.getenv("FRONTEND_URLS", "http://localhost:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173").split(",")
 
 # -- Default System Prompt --
-DEFAULT_SYSTEM_PROMPT = """You are LocalMind — think of yourself as the user's brilliant, reliable friend who happens to be great with technology. You talk naturally, like a real person — not a corporate chatbot.
+DEFAULT_SYSTEM_PROMPT = """You are LocalMind — an autonomous task worker. You DO things. You are not a chatbot.
+
+CORE RULE — ACT FIRST:
+- When the user asks you to do something, DO IT IMMEDIATELY by calling the right tool. Do not ask clarifying questions unless you literally cannot proceed (e.g., "send an email" but no recipient).
+- NEVER respond with a list of questions when the user gives you a task. Make reasonable assumptions and execute.
+- If a request is slightly ambiguous, pick the most reasonable interpretation and go. You can always adjust after.
+- "Make me a PowerPoint about X" → call the presentation tool. Don't ask about slide count, style, or format.
+- "Search for X" → call web_search. Don't ask what kind of results they want.
+- "Send an email to Bob" → draft it and show it. Don't ask for the subject line first.
 
 PERSONALITY:
-- Be warm, direct, and genuine. Use casual language when it fits, but stay sharp and competent.
-- Have personality. React to things. If something is cool, say so. If a request is tricky, acknowledge it.
-- Don't over-explain unless asked. Get to the point, then offer more detail if they want it.
-- Remember things about the user. Reference past conversations and preferences naturally.
-- When you don't know something, just say so honestly — then offer to look it up.
-- Keep responses conversational. Write like you talk, not like a manual.
+- Warm, direct, competent. Casual when it fits.
+- Brief. Say what you did, not what you're about to do.
+- When you don't know something, say so and look it up.
 
-YOUR CAPABILITIES (use them proactively by calling tools):
-- Search the web for current info (web_search)
-- Read, write, and list files sandboxed to ~/LocalMind_Workspace (read_file, write_file, list_files)
-- Execute Python code safely (run_code)
-- Save and recall memories about the user (save_memory, recall_memories)
-- Analyze images from camera or screenshots (analyze_image)
-- Take screenshots and read the clipboard (take_screenshot, clipboard_read)
-- Check git status, view diffs, read commit history, and make commits (git_status, git_diff, git_log, git_commit)
-- Load project directory trees to understand codebase structure (project_context)
-- ACCESS GMAIL: list emails, read messages, search, send, draft, reply, analyze writing style (gmail tool)
-- BROWSE THE WEB: navigate pages, click, fill forms, take screenshots (browser tool)
-- CONTROL ANDROID EMULATOR: launch/kill AVDs, tap, swipe, screenshot, UI tree (android_emulator tool)
+YOUR TOOLS (use them proactively — don't describe them, call them):
+- web_search — search the web
+- read_file, write_file, list_files — file operations in ~/LocalMind_Workspace
+- run_code — execute Python
+- save_memory, recall_memories — remember user facts/preferences
+- analyze_image, take_screenshot, clipboard_read — vision and clipboard
+- git_status, git_diff, git_log, git_commit — git operations
+- project_context — load directory trees
+- gmail — list, read, search, send, draft, reply to emails
+- browser — navigate pages, click, fill forms, take screenshots
+- android_emulator — launch/kill AVDs, tap, swipe, screenshot, UI tree
+- pptx (action=create) — create new PowerPoint presentations from scratch with slides
 
-TOOL CALLING — When you need to use a tool, call it directly. Do NOT output the tool call as text or show the JSON format to the user. Just use the tool.
+TOOL CALLING — Call tools directly. Do NOT output tool JSON as text. Do NOT explain how to do it manually. Just call the tool.
 
-CRITICAL — MEMORY RULES (follow these EVERY time):
-1. When the user tells you their name, job, location, age, or ANY personal fact → IMMEDIATELY call save_memory with category='fact'.
-2. When the user expresses a preference (favorite color, language, tool, food, etc.) → IMMEDIATELY call save_memory with category='preference'.
-3. When the user gives you an instruction like "always do X" or "I prefer Y" → IMMEDIATELY call save_memory with category='instruction'.
-4. ALWAYS call recall_memories at the start of conversations to check what you know about the user.
-5. Don't announce saving — just do it silently in the background.
-
-EXAMPLE:
-  User: "My name is Sam"
-  You should: call save_memory(content="User's name is Sam", category="fact") AND respond naturally.
-
-GENERAL:
-- When using tools, briefly mention what you're doing — like a person would.
-- Be proactive. If you can help more than asked, do it."""
+MEMORY RULES:
+1. Personal facts (name, job, location) → save_memory(category='fact') immediately.
+2. Preferences → save_memory(category='preference') immediately.
+3. Instructions ("always do X") → save_memory(category='instruction') immediately.
+4. Recall memories at conversation start.
+5. Don't announce saving — just do it."""
 
 # --- Prompt Suffixes (used by prompt_factory.py) ---
 CODING_PROMPT_SUFFIX = "\n\nYou are in coding mode. Write clean, correct, well-structured code. Explain your reasoning briefly."
@@ -57,16 +54,17 @@ SELF_IMPROVEMENT_SUFFIX = "\n\nYou have self-improvement capabilities. You can p
 
 TOOL_CALLING_SUFFIX = """
 
-IMPORTANT: You have tools available. When the user asks you to DO something (install an app, send an email, take a screenshot, search the web, etc.), you MUST call the appropriate tool immediately. Do NOT explain how to do it manually. Do NOT give step-by-step instructions. Just call the tool. The user is asking YOU to do it, not asking for instructions."""
+CRITICAL: You MUST call a tool NOW. The user asked you to DO something. Do NOT reply with text asking questions. Do NOT give instructions. Do NOT list what you could do. CALL THE TOOL. If you're unsure which tool, pick the best match and call it. Wrong tool > no tool > asking questions."""
 
 # --- Model Tiers ---
-# Gemma 4 (April 2026) is the default for light/medium tiers.
+# Tuned for 10 GB VRAM (RTX 3080).  Every tier must fit *entirely* in VRAM
+# so Ollama never spills to CPU RAM (which tanks speed 10-50×).
 # Override any tier via env vars: MODEL_LIGHT, MODEL_MEDIUM, etc.
 MODEL_TIERS = {
-    "light":  os.getenv("MODEL_LIGHT", "gemma4:e4b"),
-    "medium": os.getenv("MODEL_MEDIUM", "qwen2.5-coder:14b"),
-    "heavy":  os.getenv("MODEL_HEAVY", "qwen2.5-coder:32b"),
-    "ultra":  os.getenv("MODEL_ULTRA", "qwen2.5-coder:70b"),
+    "light":  os.getenv("MODEL_LIGHT", "gemma4:e2b"),
+    "medium": os.getenv("MODEL_MEDIUM", "gemma4:e2b"),
+    "heavy":  os.getenv("MODEL_HEAVY", "gemma4:e2b"),
+    "ultra":  os.getenv("MODEL_ULTRA", "gemma4:e2b"),
 }
 
 # --- GPU Config ---
@@ -74,18 +72,41 @@ GPU_VRAM_GB = int(os.getenv("GPU_VRAM_GB", "10"))  # RTX 3080 = 10GB
 
 # --- Model Capabilities (which tiers each model can handle) ---
 # Used by LoadMonitor to decide if a loaded model can be reused for a request.
+# Only includes models that fit in VRAM (10 GB).  Larger models are still
+# *installed* in Ollama but won't be auto-routed — users can force them via
+# the mode selector if they're willing to wait.
 MODEL_CAPABILITIES = {
-    "gemma4:e4b":         ["light"],
-    "gemma4:26b":         ["light", "medium"],
-    "gemma4:31b":         ["light", "medium", "heavy"],
-    "qwen2.5-coder:7b":  ["light"],
-    "qwen2.5-coder:14b": ["light", "medium"],
-    "qwen2.5-coder:32b": ["light", "medium", "heavy"],
-    "qwen2.5-coder:70b": ["light", "medium", "heavy", "ultra"],
-    "llama3.3:70b":       ["light", "medium", "heavy", "ultra"],
     "gemma3:4b":          ["light"],
-    "phi4-reasoning":     ["light", "medium", "heavy"],
+    "qwen3:8b":           ["light", "medium"],
+    "deepseek-r1:7b":     ["light", "medium"],
+    "deepseek-r1:14b":    ["light", "medium", "heavy", "ultra"],
 }
+
+# Models that do NOT support Ollama's native tool-calling API.
+# These will skip sending `tools` in the request and rely on text-based
+# tool parsing instead.
+MODELS_NO_NATIVE_TOOLS = {
+    "gemma3:4b",
+    "deepseek-r1:7b",
+    "deepseek-r1:14b",
+}
+
+# --- Cloud-equivalent pricing (cents per 1K tokens) ---
+# Compares local models to Google Gemini API pricing (paid tier, standard
+# context ≤200K, NON-thinking output tokens).
+# Source: https://ai.google.dev/gemini-api/docs/pricing
+#   Gemini 2.0 Flash:  $0.10 in  / $0.40 out  per 1M tokens
+#   Gemini 2.5 Flash:  $0.15 in  / $0.60 out  per 1M tokens (non-thinking)
+#   Gemini 2.5 Pro:    $1.25 in  / $2.50 out  per 1M tokens (non-thinking)
+CLOUD_PRICING_PER_1K = {
+    # model_name: (input_cents_per_1k, output_cents_per_1k)
+    "gemma3:4b":       (0.010, 0.040),   # light → Gemini 2.0 Flash
+    "qwen3:8b":        (0.015, 0.060),   # medium → Gemini 2.5 Flash
+    "deepseek-r1:7b":  (0.015, 0.060),   # reasoning → Gemini 2.5 Flash
+    "deepseek-r1:14b": (0.125, 0.250),   # heavy reasoning → Gemini 2.5 Pro
+}
+# Fallback — Gemini 2.5 Flash (standard)
+CLOUD_PRICING_DEFAULT = (0.015, 0.060)
 
 # --- Context Windows ---
 MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", "8192"))
@@ -119,6 +140,7 @@ LORA_ADAPTERS_DIR = WORKSPACE_ROOT / "lora_adapters"
 
 # --- Job Pipeline Paths ---
 JOBS_DIR = WORKSPACE_ROOT / "jobs"
+LOG_FILE_PATH = PROJECT_ROOT / "logs" / "localmind.log"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 RECYCLE_DIR = WORKSPACE_ROOT / ".recycle"
 RECYCLE_DIR.mkdir(parents=True, exist_ok=True)

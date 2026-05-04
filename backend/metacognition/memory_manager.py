@@ -40,8 +40,22 @@ class MemoryManager:
         self._preferences: dict = {}  # key -> UserPreference
         self._load()
 
+    # Legacy key migration map: old MemoryManager schema -> curiosity slot keys.
+    # Idempotent — runs every load, only writes when something actually moves.
+    _LEGACY_KEY_MAP = {
+        "user.name": "identity.name",
+        "user.role": "identity.role",
+        "user.location": "identity.location",
+        "user.communication_style": "prefs.style",
+        "user.tone": "prefs.tone",
+        "user.tools": "work.tools",
+        "user.stack": "work.tools",
+        "user.interests": "hobbies",
+        "user.goals": "goals.current",
+    }
+
     def _load(self) -> None:
-        """Load preferences from disk."""
+        """Load preferences from disk and apply legacy-key migration."""
         if not self.path.exists():
             return
         try:
@@ -51,6 +65,32 @@ class MemoryManager:
                 self._preferences[key] = UserPreference.from_dict(val)
         except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load preferences: {e}")
+            return
+
+        if self._migrate_legacy_keys():
+            self._save()
+
+    def _migrate_legacy_keys(self) -> bool:
+        """Rename legacy keys (user.*) to canonical slot keys.
+
+        Skips entries whose new key already exists (don't clobber recent data).
+        Returns True if anything was migrated.
+        """
+        moved = 0
+        for old_key, new_key in self._LEGACY_KEY_MAP.items():
+            if old_key not in self._preferences:
+                continue
+            if new_key in self._preferences:
+                # Newer entry exists; just drop the legacy one.
+                del self._preferences[old_key]
+                moved += 1
+                continue
+            pref = self._preferences.pop(old_key)
+            pref.key = new_key
+            self._preferences[new_key] = pref
+            moved += 1
+            logger.info("Migrated legacy preference: %s -> %s", old_key, new_key)
+        return moved > 0
 
     def _save(self) -> None:
         """Persist durable preferences to disk."""
@@ -165,3 +205,16 @@ class MemoryManager:
     def all_preferences(self) -> list:
         """Return all preferences as dicts (for debugging/display)."""
         return [p.to_dict() for p in self._preferences.values()]
+
+
+# Process-wide singleton — keeps the in-memory preference dict coherent
+# across the chat service, routes, and metacog controller. The underlying
+# file is the same regardless, but the in-process cache avoids re-reads.
+_singleton: Optional["MemoryManager"] = None
+
+
+def get_memory_manager() -> "MemoryManager":
+    global _singleton
+    if _singleton is None:
+        _singleton = MemoryManager()
+    return _singleton

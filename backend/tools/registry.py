@@ -53,6 +53,7 @@ class ToolRegistry:
         """Execute a tool by name with the given arguments. Returns result dict."""
         tool = self.get_tool(name)
         if not tool:
+            self._record_activity(name, arguments, None, 0.0, success=False, error="Unknown tool")
             return {"success": False, "error": f"Unknown tool: {name}"}
 
         start = time.time()
@@ -60,11 +61,43 @@ class ToolRegistry:
             result = await tool.execute(**arguments)
             elapsed = time.time() - start
             logger.info(f"Tool '{name}' executed in {elapsed:.2f}s")
+            self._record_activity(name, arguments, result, elapsed * 1000)
             return result
         except Exception as exc:
             elapsed = time.time() - start
             logger.error(f"Tool '{name}' failed after {elapsed:.2f}s: {exc}")
+            self._record_activity(name, arguments, None, elapsed * 1000, success=False, error=str(exc))
             return {"success": False, "error": str(exc)}
+
+    @staticmethod
+    def _record_activity(name: str, arguments: dict, result: Any, duration_ms: float,
+                         success: bool | None = None, error: str | None = None) -> None:
+        """Append a tool-call entry to the global activity ring buffer."""
+        try:
+            from backend.observability.activity_log import ActivityKind, record
+            ok = success
+            if ok is None:
+                ok = bool(isinstance(result, dict) and result.get("success", True)) and error is None
+            args_preview = ", ".join(f"{k}={v}" for k, v in list((arguments or {}).items())[:3])
+            summary = f"{name}({args_preview})" if args_preview else name
+            detail = {"args": arguments or {}}
+            if isinstance(result, dict):
+                if "result" in result:
+                    detail["result"] = result.get("result")
+                if "error" in result:
+                    detail["error"] = result.get("error")
+            if error:
+                detail["error"] = error
+            record(
+                ActivityKind.TOOL_CALL,
+                summary,
+                actor="bot",
+                detail=detail,
+                duration_ms=duration_ms,
+                success=ok,
+            )
+        except Exception:
+            pass  # observability must never break tool execution
 
     def get_ollama_tools(self) -> list[dict]:
         """Get all tools in Ollama's JSON Schema format."""

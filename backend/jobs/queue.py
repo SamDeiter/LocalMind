@@ -38,12 +38,28 @@ logger = logging.getLogger("localmind.jobs.queue")
 # ---------------------------------------------------------------------------
 
 
+import threading
+
+# Thread-local shared connection — avoids opening/closing per operation while
+# staying safe across the async worker thread and any sync callers.
+_local = threading.local()
+
+
 def _get_conn() -> sqlite3.Connection:
+    conn = getattr(_local, "conn", None)
+    if conn is not None:
+        try:
+            conn.execute("SELECT 1")
+            return conn
+        except Exception:
+            # Connection went stale — recreate
+            pass
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
+    _local.conn = conn
     return conn
 
 
@@ -69,7 +85,7 @@ def _ensure_delegation_columns() -> None:
                 # Column already exists, or jobs table not yet created — both OK
                 pass
     finally:
-        conn.close()
+        pass
 
 
 # Run migration on module import so columns exist before any CRUD call.
@@ -87,6 +103,10 @@ def _new_id() -> str:
 # ---------------------------------------------------------------------------
 # JobQueue
 # ---------------------------------------------------------------------------
+
+
+# Cache whether delegation columns exist (checked once per process, not per call)
+_has_delegation_cols: bool | None = None
 
 
 class JobQueue:
@@ -115,9 +135,11 @@ class JobQueue:
         now = _now()
         conn = _get_conn()
         try:
-            # Check if delegation columns exist (they may not in test DBs).
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()}
-            has_delegation = "parent_job_id" in cols
+            global _has_delegation_cols
+            if _has_delegation_cols is None:
+                cols = {r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+                _has_delegation_cols = "parent_job_id" in cols
+            has_delegation = _has_delegation_cols
 
             if has_delegation:
                 conn.execute(
@@ -172,22 +194,23 @@ class JobQueue:
     def list_jobs(
         self,
         workspace_id: str,
-        status: str | None = None,
+        statuses: list[str] | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
-        """Return jobs for a workspace, optionally filtered by status."""
+        """Return jobs for a workspace, optionally filtered by status(es)."""
         conn = _get_conn()
         try:
-            if status is not None:
+            if statuses:
+                placeholders = ",".join("?" for _ in statuses)
                 rows = conn.execute(
-                    """
+                    f"""
                     SELECT * FROM jobs
-                    WHERE workspace_id = ? AND status = ?
+                    WHERE workspace_id = ? AND status IN ({placeholders})
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?
                     """,
-                    (workspace_id, status, limit, offset),
+                    (workspace_id, *statuses, limit, offset),
                 ).fetchall()
             else:
                 rows = conn.execute(
@@ -225,7 +248,7 @@ class JobQueue:
             conn.commit()
         finally:
             conn.close()
-        logger.debug("Job %s → status=%s", job_id, status)
+        logger.debug("Job %s -> status=%s", job_id, status)
 
     def cancel_job(self, job_id: str, cascade: bool = False) -> None:
         """Transition a job to 'cancelling' status.
@@ -335,6 +358,30 @@ class JobQueue:
             conn.execute(
                 "UPDATE jobs SET cost_cents = cost_cents + ?, updated_at = ? WHERE id = ?",
                 (cents, now, job_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def track_usage(
+        self,
+        job_id: str,
+        tokens_in: int,
+        tokens_out: int,
+        cloud_cost_cents: float,
+    ) -> None:
+        """Atomically accumulate token counts and cloud-equivalent cost."""
+        now = _now()
+        conn = _get_conn()
+        try:
+            conn.execute(
+                """UPDATE jobs
+                   SET tokens_in_total = COALESCE(tokens_in_total, 0) + ?,
+                       tokens_out_total = COALESCE(tokens_out_total, 0) + ?,
+                       cloud_cost_cents = COALESCE(cloud_cost_cents, 0) + ?,
+                       updated_at = ?
+                   WHERE id = ?""",
+                (tokens_in, tokens_out, cloud_cost_cents, now, job_id),
             )
             conn.commit()
         finally:
@@ -671,6 +718,12 @@ class JobQueue:
     ) -> PipelineTemplate:
         """Extract completed job nodes and save them as a reusable template."""
         nodes = self.get_nodes(job_id)
+
+        # Build a node-ID → title map so that depends_on UUIDs (resolved during
+        # create_nodes) can be converted back to portable title strings.  This
+        # ensures templates work when instantiated as new jobs with fresh UUIDs.
+        id_to_title: dict[str, str] = {n.id: n.title for n in nodes}
+
         nodes_snapshot = [
             {
                 "title": n.title,
@@ -679,7 +732,9 @@ class JobQueue:
                 "expected_output": n.expected_output,
                 "input_schema_json": n.input_schema_json,
                 "output_schema_json": n.output_schema_json,
-                "depends_on": n.depends_on,
+                "depends_on": [
+                    id_to_title.get(dep_id, dep_id) for dep_id in n.depends_on
+                ],
                 "timeout_sec": n.timeout_sec,
                 "retry_policy_json": n.retry_policy.to_json(),
             }
@@ -787,6 +842,60 @@ class JobQueue:
         finally:
             conn.close()
         return PipelineTemplate.from_row(row) if row else None
+
+    def update_template(
+        self,
+        template_id: str,
+        name: str | None = None,
+        description: str | None = None,
+        nodes: list[dict] | None = None,
+    ) -> PipelineTemplate | None:
+        """Update a template's name, description, and/or nodes.
+
+        Only non-None fields are updated.  Returns the updated template,
+        or None if the template doesn't exist.
+        """
+        existing = self.get_template(template_id)
+        if existing is None:
+            return None
+
+        now = _now()
+        conn = _get_conn()
+        try:
+            if name is not None:
+                conn.execute(
+                    "UPDATE pipeline_templates SET name = ?, updated_at = ? WHERE id = ?",
+                    (name, now, template_id),
+                )
+            if description is not None:
+                conn.execute(
+                    "UPDATE pipeline_templates SET description = ?, updated_at = ? WHERE id = ?",
+                    (description, now, template_id),
+                )
+            if nodes is not None:
+                conn.execute(
+                    "UPDATE pipeline_templates SET nodes_json = ?, updated_at = ? WHERE id = ?",
+                    (json.dumps(nodes), now, template_id),
+                )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM pipeline_templates WHERE id = ?", (template_id,)
+            ).fetchone()
+            return PipelineTemplate.from_row(row) if row else None
+        finally:
+            conn.close()
+
+    def delete_template(self, template_id: str) -> bool:
+        """Delete a template by ID.  Returns True if a row was removed."""
+        conn = _get_conn()
+        try:
+            cur = conn.execute(
+                "DELETE FROM pipeline_templates WHERE id = ?", (template_id,)
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
 
     def increment_template_use(self, template_id: str) -> None:
         """Atomically increment the use_count for a template."""

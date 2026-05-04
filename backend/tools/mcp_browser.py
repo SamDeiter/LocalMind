@@ -56,20 +56,76 @@ def _is_blocked_url(url: str) -> bool:
     return False
 
 
+try:
+    import trafilatura  # type: ignore
+    _HAS_TRAFILATURA = True
+except ImportError:
+    _HAS_TRAFILATURA = False
+
+
 def _html_to_text(html: str) -> str:
-    """Strip HTML tags, scripts, styles → clean text."""
-    # Remove script and style blocks
-    text = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.S | re.I)
-    text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.S | re.I)
-    text = re.sub(r"<nav[^>]*>.*?</nav>", "", text, flags=re.S | re.I)
-    text = re.sub(r"<footer[^>]*>.*?</footer>", "", text, flags=re.S | re.I)
-    # Remove all remaining tags
+    """Extract main-content text from an HTML page.
+
+    Tries trafilatura first (purpose-built article extractor that drops
+    nav/header/aside/footer and other chrome). Falls back to a regex strip
+    that's still substantially better than the v1 version: it removes
+    role-based banners and hidden elements before stripping tags.
+    """
+    if _HAS_TRAFILATURA:
+        try:
+            extracted = trafilatura.extract(
+                html,
+                favor_precision=True,
+                include_comments=False,
+                include_tables=False,
+                include_links=False,
+                include_images=False,
+                no_fallback=False,
+            )
+            if extracted:
+                # Trafilatura already handles whitespace, but collapse runs
+                # of blank lines to single blank lines for readability.
+                cleaned = re.sub(r"\n{3,}", "\n\n", extracted).strip()
+                if cleaned:
+                    return cleaned
+        except Exception:
+            pass  # fall through to regex path
+
+    return _regex_fallback_extract(html)
+
+
+def _regex_fallback_extract(html: str) -> str:
+    """Best-effort extraction without trafilatura."""
+    text = html
+    # Drop any script/style/template/svg payloads outright.
+    for tag in ("script", "style", "template", "svg", "noscript"):
+        text = re.sub(rf"<{tag}\b[^>]*>.*?</{tag}>", "", text, flags=re.S | re.I)
+    # Drop semantic chrome blocks.
+    for tag in ("nav", "footer", "header", "aside", "form"):
+        text = re.sub(rf"<{tag}\b[^>]*>.*?</{tag}>", "", text, flags=re.S | re.I)
+    # Drop role-based regions (banner, navigation, complementary, contentinfo, search).
+    text = re.sub(
+        r'<[^>]*\brole=["\'](?:banner|navigation|complementary|contentinfo|search)["\'][^>]*>.*?</[^>]+>',
+        "",
+        text,
+        flags=re.S | re.I,
+    )
+    # Drop elements explicitly hidden / aria-hidden.
+    text = re.sub(
+        r'<[^>]*\baria-hidden=["\']true["\'][^>]*>.*?</[^>]+>',
+        "",
+        text,
+        flags=re.S | re.I,
+    )
+    # Strip remaining tags.
     text = re.sub(r"<[^>]+>", " ", text)
-    # Decode HTML entities
     text = unescape(text)
-    # Collapse whitespace
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+    # Normalize whitespace: keep paragraph breaks (>=2 newlines) as one blank line,
+    # collapse other whitespace.
+    text = re.sub(r"[ \t\f\v]+", " ", text)
+    text = re.sub(r"\n[ \t]+", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 def _extract_title(html: str) -> str:

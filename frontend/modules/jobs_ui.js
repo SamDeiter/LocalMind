@@ -230,142 +230,6 @@ function buildShellHTML() {
     <!-- Job Cards Grid -->
     <div id="jobsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" role="list" aria-live="polite" aria-label="Job list">
     </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- DETAIL VIEW                                                   -->
-  <!-- ============================================================ -->
-  <div id="jobsDetailView" class="jobs-detail-view hidden flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-6">
-
-    <!-- Back button + Title -->
-    <div class="flex items-center gap-4">
-      <button
-        id="jobBackBtn"
-        aria-label="Back to job list"
-        class="p-2 rounded-lg hover:bg-slate-800/60 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
-      >
-        <span class="material-symbols-outlined text-slate-400" aria-hidden="true">arrow_back</span>
-      </button>
-      <div class="flex-1 min-w-0">
-        <h2 id="jobDetailTitle" class="text-lg font-headline font-bold text-slate-100 truncate"></h2>
-        <div class="flex items-center gap-3 mt-1 flex-wrap">
-          <span id="jobDetailStatus" class="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full"></span>
-          <span id="jobDetailPriority" class="text-xs font-mono text-slate-500"></span>
-          <span id="jobDetailCreated" class="text-xs font-mono text-slate-500"></span>
-          <span id="jobDetailMode" class="text-xs font-mono text-slate-500 uppercase"></span>
-        </div>
-      </div>
-      <div class="flex gap-2 shrink-0 flex-wrap">
-        <!-- Review Gate Buttons -->
-        <button
-          id="jobApproveBtn"
-          aria-label="Approve this job"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
-        >
-          <span class="material-symbols-outlined text-sm" aria-hidden="true">check_circle</span><span>Approve</span>
-        </button>
-        <button
-          id="jobRejectBtn"
-          aria-label="Reject this job"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-        >
-          <span class="material-symbols-outlined text-sm" aria-hidden="true">cancel</span><span>Reject</span>
-        </button>
-        <button
-          id="jobCancelBtn"
-          aria-label="Cancel this job"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-        >
-          <span class="material-symbols-outlined text-sm" aria-hidden="true">cancel</span><span>Cancel</span>
-        </button>
-        <button
-          id="jobDeleteBtn"
-          aria-label="Delete this job"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-        >
-          <span class="material-symbols-outlined text-sm" aria-hidden="true">delete</span><span>Delete</span>
-        </button>
-        <button
-          id="jobSaveTemplateBtn"
-          aria-label="Save job as pipeline template"
-          class="hidden items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg border border-emerald-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
-        >
-          <span class="material-symbols-outlined text-sm" aria-hidden="true">bookmark_add</span><span>Save as Template</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Description -->
-    <div id="jobDetailDesc" class="text-xs text-slate-400 leading-relaxed hidden"></div>
-
-    <!-- Progress Bar -->
-    <div class="bg-slate-900/40 border border-slate-800/60 rounded-xl p-4">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Pipeline Progress</span>
-        <span id="jobProgressLabel" class="text-xs font-mono text-slate-400">0/0 nodes</span>
-      </div>
-      <div class="w-full bg-slate-800/50 h-2 rounded-full overflow-hidden">
-        <div
-          id="jobProgressBar"
-          role="progressbar"
-          aria-valuenow="0"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-label="Job pipeline progress"
-          class="jobs-progress-bar bg-indigo-500 h-full rounded-full"
-          style="width: 0%"
-        ></div>
-      </div>
-    </div>
-
-    <!-- Node Pipeline Timeline -->
-    <div>
-      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Node Pipeline</div>
-      <div id="jobNodesContainer" class="flex gap-3 overflow-x-auto pb-2 custom-scrollbar snap-x snap-mandatory" role="list" aria-label="Pipeline nodes"></div>
-    </div>
-
-    <!-- Expanded Node Detail -->
-    <div id="jobNodeDetail" class="hidden jobs-node-detail bg-slate-900/40 border border-slate-800/60 rounded-xl p-5 space-y-3" aria-live="polite">
-      <div class="flex items-center justify-between">
-        <h3 id="nodeDetailTitle" class="text-sm font-headline font-bold text-slate-200"></h3>
-        <button id="nodeDetailClose" aria-label="Close node detail" class="p-1 rounded hover:bg-slate-800/60 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400">
-          <span class="material-symbols-outlined text-slate-500 text-sm" aria-hidden="true">close</span>
-        </button>
-      </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <div id="nodeDetailStatus" class="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"></div>
-        <div id="nodeDetailModel" class="text-[11px] font-mono text-slate-600"></div>
-        <div id="nodeDetailElapsed" class="text-[11px] font-mono text-slate-600"></div>
-      </div>
-      <!-- Node Progress Bar (for running nodes) -->
-      <div id="nodeProgressSection" class="hidden">
-        <div class="w-full bg-slate-800/50 h-1.5 rounded-full overflow-hidden">
-          <div id="nodeProgressBar" class="jobs-progress-bar bg-amber-500 h-full rounded-full" style="width: 0%"
-               role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Node progress"></div>
-        </div>
-        <div id="nodeProgressText" class="text-[11px] font-mono text-slate-600 mt-1"></div>
-      </div>
-      <div id="nodeDetailInstructions" class="text-xs text-slate-400 leading-relaxed"></div>
-      <div id="nodeDetailTools" class="flex flex-wrap gap-1.5"></div>
-      <div id="nodeDetailOutput" class="hidden bg-slate-950/50 border border-slate-800/40 rounded-lg p-3 text-xs font-mono text-slate-400 max-h-40 overflow-y-auto custom-scrollbar whitespace-pre-wrap"></div>
-      <div id="nodeDetailFiles" class="hidden flex flex-wrap gap-2"></div>
-    </div>
-
-    <!-- Output Files -->
-    <div id="jobFilesSection" class="hidden">
-      <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Output Files</div>
-      <div id="jobFilesList" class="space-y-2" role="list" aria-label="Job output files"></div>
-    </div>
-
-    <!-- Audit Trail -->
-    <details class="group">
-      <summary class="text-xs font-bold uppercase tracking-widest text-slate-500 cursor-pointer hover:text-slate-400 transition-colors flex items-center gap-1 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded">
-        <span class="material-symbols-outlined text-xs transition-transform group-open:rotate-90" aria-hidden="true">chevron_right</span>
-        Audit Trail
-      </summary>
-      <div id="jobAuditList" class="mt-3 space-y-1 max-h-64 overflow-y-auto custom-scrollbar" role="log" aria-label="Job audit trail"></div>
-    </details>
-
   </div>`;
 }
 
@@ -493,6 +357,44 @@ function _injectStyles() {
     .jobs-priority-high { color: #f87171; }
     .jobs-priority-low  { color: #64748b; }
 
+    /* ---- Rendered node output (markdown / JSON) ---- */
+    .node-output-rendered { word-break: break-word; }
+    .node-output-rendered p { margin: 0.25em 0; }
+    .node-output-rendered ul, .node-output-rendered ol { margin: 0.25em 0 0.25em 1.25em; }
+    .node-output-rendered li { margin: 0.125em 0; }
+    .node-output-rendered h1, .node-output-rendered h2, .node-output-rendered h3 {
+      font-weight: 700; color: #e2e8f0; margin: 0.5em 0 0.25em;
+    }
+    .node-output-rendered h1 { font-size: 1.1em; }
+    .node-output-rendered h2 { font-size: 1em; }
+    .node-output-rendered h3 { font-size: 0.95em; }
+    .node-output-rendered code {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.85em;
+      background: rgba(30,41,59,0.6); border-radius: 3px; padding: 0.1em 0.35em;
+    }
+    .node-output-rendered pre {
+      background: rgba(15,23,42,0.8); border: 1px solid rgba(51,65,85,0.4);
+      border-radius: 0.5rem; padding: 0.75rem; margin: 0.5em 0;
+      overflow-x: auto; font-size: 0.8em;
+    }
+    .node-output-rendered pre code { background: none; padding: 0; }
+    .node-output-rendered a { color: rgb(129,140,248); text-decoration: underline; }
+    .node-output-rendered blockquote {
+      border-left: 3px solid rgba(99,102,241,0.4); padding-left: 0.75em;
+      color: rgb(148,163,184); margin: 0.5em 0;
+    }
+    .node-output-rendered table { border-collapse: collapse; margin: 0.5em 0; font-size: 0.85em; }
+    .node-output-rendered th, .node-output-rendered td {
+      border: 1px solid rgba(51,65,85,0.5); padding: 0.3em 0.6em;
+    }
+    .node-output-rendered th { background: rgba(30,41,59,0.5); font-weight: 600; }
+    .node-output-json { white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; font-size: 0.8em; color: rgb(148,163,184); }
+    .node-output-json .json-key { color: rgb(129,140,248); }
+    .node-output-json .json-string { color: rgb(110,231,183); }
+    .node-output-json .json-number { color: rgb(251,191,36); }
+    .node-output-json .json-boolean { color: rgb(248,113,113); }
+    .node-output-json .json-null { color: rgb(100,116,139); }
+
     /* ---- Responsive ---- */
     @media (max-width: 640px) {
       .jobs-list-view { padding: 1rem; gap: 1rem; }
@@ -614,34 +516,6 @@ export function initJobsUI() {
     }
   });
 
-  // Detail view: back
-  el("jobBackBtn")?.addEventListener("click", () => {
-    _showListView();
-    // Restore focus to the job card that was clicked (if still present)
-    if (_selectedJobId) {
-      const card = document.querySelector(`[data-job-id="${_selectedJobId}"]`);
-      if (card) card.focus();
-    }
-  });
-
-  // Detail view: close expanded node
-  el("nodeDetailClose")?.addEventListener("click", () => {
-    el("jobNodeDetail")?.classList.add("hidden");
-  });
-
-  // Detail view: cancel job
-  el("jobCancelBtn")?.addEventListener("click", _cancelCurrentJob);
-
-  // Detail view: delete job
-  el("jobDeleteBtn")?.addEventListener("click", _deleteCurrentJob);
-
-  // Detail view: save as template
-  el("jobSaveTemplateBtn")?.addEventListener("click", _saveAsTemplate);
-
-  // Detail view: review gate -- approve/reject
-  el("jobApproveBtn")?.addEventListener("click", () => _reviewJob("approve"));
-  el("jobRejectBtn")?.addEventListener("click", () => _reviewJob("reject"));
-
   // Enter key in title input triggers Run
   el("jobTitleInput")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -656,17 +530,6 @@ export function initJobsUI() {
     // Show description hint for long inputs
     if (val.length > 80 && !_creationExpanded) {
       // subtle hint but don't force expand
-    }
-  });
-
-  // Keyboard: Escape from detail goes back to list
-  view.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      const detail = el("jobsDetailView");
-      if (detail && !detail.classList.contains("hidden")) {
-        e.preventDefault();
-        _showListView();
-      }
     }
   });
 
@@ -704,21 +567,17 @@ function _showListView() {
   el("jobsDetailView")?.classList.add("hidden");
   el("jobNodeDetail")?.classList.add("hidden");
   _selectedJobId = null;
-  // Focus the title input for keyboard users
-  el("jobTitleInput")?.focus();
 }
 
 function _showDetailView(jobId) {
-  el("jobsListView")?.classList.add("hidden");
-  const detail = el("jobsDetailView");
-  if (detail) {
-    detail.classList.remove("hidden");
-  }
-  el("jobNodeDetail")?.classList.add("hidden");
+  // Delegate to the new v2 Job Detail overlay (3-pane: timeline / output / inspector).
+  // The legacy inline view is retained in the DOM but no longer surfaced.
   _selectedJobId = jobId;
-  _loadJobDetail(jobId);
-  // Focus the back button for keyboard navigation
-  el("jobBackBtn")?.focus();
+  import("./job_detail.js")
+    .then((m) => m.openJobDetail?.(jobId))
+    .catch((err) => {
+      console.warn("[jobs_ui] Failed to open job_detail module:", err);
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -771,8 +630,8 @@ async function _loadTemplatesForSelector() {
 function _startPolling() {
   _stopPolling();
   _pollTimer = setInterval(() => {
+    if (document.hidden) return; // Skip when tab is in background
     _loadJobs();
-    if (_selectedJobId) _loadJobDetail(_selectedJobId);
   }, 5000);
 }
 
@@ -806,9 +665,6 @@ function _connectSSE() {
       refreshList();
       try {
         const data = JSON.parse(e.data);
-        if (_selectedJobId && data.job_id === _selectedJobId) {
-          _loadJobDetail(_selectedJobId);
-        }
         // Flash the affected card in the grid
         if (data.job_id) {
           const card = document.querySelector(`[data-job-id="${data.job_id}"]`);
@@ -827,25 +683,13 @@ function _connectSSE() {
         _announceStatus(`New job created: ${data.title || "Untitled"}`);
       } catch { /* ignore */ }
     });
-    _sseSource.addEventListener("job_completed", (e) => {
+    _sseSource.addEventListener("job_completed", () => {
       refreshList();
-      try {
-        const data = JSON.parse(e.data);
-        if (_selectedJobId && data.job_id === _selectedJobId) {
-          _loadJobDetail(_selectedJobId);
-        }
-        _announceStatus("Job completed");
-      } catch { /* ignore */ }
+      _announceStatus("Job completed");
     });
-    _sseSource.addEventListener("job_failed", (e) => {
+    _sseSource.addEventListener("job_failed", () => {
       refreshList();
-      try {
-        const data = JSON.parse(e.data);
-        if (_selectedJobId && data.job_id === _selectedJobId) {
-          _loadJobDetail(_selectedJobId);
-        }
-        _announceStatus("Job failed");
-      } catch { /* ignore */ }
+      _announceStatus("Job failed");
     });
     _sseSource.addEventListener("job_status_changed", refreshDetail);
     _sseSource.addEventListener("node_progress", refreshDetail);
@@ -922,27 +766,6 @@ async function _loadJobs() {
 }
 
 // ---------------------------------------------------------------------------
-// API: Load single job detail
-// ---------------------------------------------------------------------------
-
-async function _loadJobDetail(jobId) {
-  try {
-    const res = await fetch(`${API}/api/jobs/${encodeURIComponent(jobId)}`);
-    if (!res.ok) {
-      if (res.status === 404) {
-        showToast("Job not found", "error");
-        _showListView();
-      }
-      return;
-    }
-    const job = await res.json();
-    _renderJobDetail(job);
-  } catch (err) {
-    console.error("[jobs_ui] Failed to load job detail:", err);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // API: Create job
 // ---------------------------------------------------------------------------
 
@@ -1011,135 +834,10 @@ async function _createJob() {
     if (job.id) _showDetailView(job.id);
   } catch (err) {
     console.error("[jobs_ui] Create job error:", err);
-    showToast("Failed to create job", "error");
+    showToast("Couldn't create the job. Check that the backend is running, then try again.", "error");
   } finally {
     if (runBtn) runBtn.disabled = false;
     if (customBtn) customBtn.disabled = false;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// API: Cancel job
-// ---------------------------------------------------------------------------
-
-async function _cancelCurrentJob() {
-  if (!_selectedJobId) return;
-  const btn = el("jobCancelBtn");
-  if (btn) btn.disabled = true;
-
-  try {
-    const res = await fetch(
-      `${API}/api/jobs/${encodeURIComponent(_selectedJobId)}/cancel`,
-      { method: "POST" },
-    );
-    if (res.ok) {
-      showToast("Job cancellation requested", "info");
-      _announceStatus("Job cancellation requested");
-      _loadJobDetail(_selectedJobId);
-      _loadJobs();
-    } else {
-      const errData = await res.json().catch(() => ({}));
-      showToast(errData.detail || "Cancel failed", "error");
-    }
-  } catch {
-    showToast("Cancel request failed", "error");
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// API: Delete job
-// ---------------------------------------------------------------------------
-
-async function _deleteCurrentJob() {
-  if (!_selectedJobId) return;
-  if (!confirm("Delete this job? This cannot be undone.")) return;
-
-  const btn = el("jobDeleteBtn");
-  if (btn) btn.disabled = true;
-
-  try {
-    const res = await fetch(
-      `${API}/api/jobs/${encodeURIComponent(_selectedJobId)}`,
-      { method: "DELETE" },
-    );
-    if (res.ok) {
-      showToast("Job deleted", "info");
-      _announceStatus("Job deleted");
-      _showListView();
-      _loadJobs();
-    } else {
-      const errData = await res.json().catch(() => ({}));
-      showToast(errData.detail || "Delete failed", "error");
-    }
-  } catch {
-    showToast("Delete request failed", "error");
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// API: Review job (approve / reject)
-// ---------------------------------------------------------------------------
-
-async function _reviewJob(action) {
-  if (!_selectedJobId) return;
-  const approveBtn = el("jobApproveBtn");
-  const rejectBtn = el("jobRejectBtn");
-  if (approveBtn) approveBtn.disabled = true;
-  if (rejectBtn) rejectBtn.disabled = true;
-
-  try {
-    // The approve/reject endpoint. Try standard patterns.
-    const endpoint = `${API}/api/jobs/${encodeURIComponent(_selectedJobId)}/${action}`;
-    const res = await fetch(endpoint, { method: "POST" });
-    if (res.ok) {
-      showToast(`Job ${action === "approve" ? "approved" : "rejected"}`, "info");
-      _announceStatus(`Job ${action === "approve" ? "approved" : "rejected"}`);
-      _loadJobDetail(_selectedJobId);
-      _loadJobs();
-    } else {
-      const errData = await res.json().catch(() => ({}));
-      showToast(errData.detail || `${action} failed`, "error");
-    }
-  } catch {
-    showToast(`${action} request failed`, "error");
-  } finally {
-    if (approveBtn) approveBtn.disabled = false;
-    if (rejectBtn) rejectBtn.disabled = false;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// API: Save as template
-// ---------------------------------------------------------------------------
-
-async function _saveAsTemplate() {
-  if (!_selectedJobId) return;
-  const name = prompt("Template name:");
-  if (!name || !name.trim()) return;
-
-  const btn = el("jobSaveTemplateBtn");
-  if (btn) btn.disabled = true;
-
-  try {
-    const res = await fetch(`${API}/api/jobs/templates`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job_id: _selectedJobId, name: name.trim() }),
-    });
-    if (res.ok) {
-      showToast(`Template "${escapeHtml(name.trim())}" saved`, "info");
-    } else {
-      const errData = await res.json().catch(() => ({}));
-      showToast(errData.detail || "Failed to save template", "error");
-    }
-  } catch {
-    showToast("Failed to save template", "error");
-  } finally {
-    if (btn) btn.disabled = false;
   }
 }
 
@@ -1257,8 +955,19 @@ function _renderJobCards() {
   }
 
   if (filtered.length === 0) {
-    grid.innerHTML =
-      '<div class="text-sm text-slate-500 italic col-span-full py-8 text-center" role="status">No jobs found</div>';
+    const filterMsg = _currentFilter === "all"
+      ? "No active jobs — create one from the chat or use the task creation form above."
+      : _currentFilter === "running"
+        ? "No running jobs right now. Submit a new task to get started."
+        : _currentFilter === "completed"
+          ? "No completed jobs yet. Jobs will appear here once they finish."
+          : "No failed jobs — that's a good thing!";
+    grid.innerHTML = `
+      <div class="col-span-full flex flex-col items-center justify-center py-12 text-center" role="status" aria-label="No jobs found">
+        <span class="material-symbols-outlined text-3xl text-slate-700 mb-3" aria-hidden="true">work_history</span>
+        <p class="text-sm text-slate-400 font-medium mb-1">No jobs found</p>
+        <p class="text-xs text-slate-600 max-w-xs">${escapeHtml(filterMsg)}</p>
+      </div>`;
     return;
   }
 
@@ -1382,427 +1091,6 @@ function _renderJobCards() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Render: Job Detail
-// ---------------------------------------------------------------------------
-
-function _renderJobDetail(job) {
-  const cfg = STATUS_CFG[job.status] || STATUS_CFG.pending;
-
-  // Title
-  const titleEl = el("jobDetailTitle");
-  if (titleEl) titleEl.textContent = job.title || "Untitled Job";
-
-  // Status badge
-  const statusEl = el("jobDetailStatus");
-  if (statusEl) {
-    const isRunning = ["executing", "planning"].includes(job.status);
-    const spinClass = isRunning ? "jobs-spin" : "";
-    statusEl.className = `inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-${cfg.color}-500/15 text-${cfg.color}-400 border border-${cfg.color}-500/20`;
-    statusEl.innerHTML = `<span class="material-symbols-outlined text-xs ${spinClass}" aria-hidden="true">${isRunning ? "progress_activity" : cfg.icon}</span> ${cfg.label}`;
-  }
-
-  // Priority
-  const priorityEl = el("jobDetailPriority");
-  if (priorityEl) {
-    const pl = _priorityLabel(job.priority);
-    priorityEl.textContent = pl ? pl.text : "";
-    priorityEl.className = `text-xs font-mono ${pl ? pl.cls : "text-slate-500"}`;
-  }
-
-  // Meta
-  const createdEl = el("jobDetailCreated");
-  if (createdEl) createdEl.textContent = job.created_at ? _formatDate(job.created_at) : "";
-
-  const modeEl = el("jobDetailMode");
-  if (modeEl) modeEl.textContent = job.mode ? `Mode: ${job.mode}` : "";
-
-  // Description
-  const descEl = el("jobDetailDesc");
-  if (descEl) {
-    if (job.description && job.description !== job.title) {
-      descEl.textContent = job.description;
-      descEl.classList.remove("hidden");
-    } else {
-      descEl.classList.add("hidden");
-    }
-  }
-
-  // Cancel button -- only visible for non-terminal jobs
-  const cancelBtn = el("jobCancelBtn");
-  const terminalStates = ["done", "failed", "cancelled"];
-  if (cancelBtn) {
-    if (terminalStates.includes(job.status)) {
-      cancelBtn.classList.add("hidden");
-      cancelBtn.classList.remove("flex");
-    } else {
-      cancelBtn.classList.remove("hidden");
-      cancelBtn.classList.add("flex");
-    }
-  }
-
-  // Delete button -- only visible for terminal jobs
-  const deleteBtn = el("jobDeleteBtn");
-  if (deleteBtn) {
-    if (terminalStates.includes(job.status)) {
-      deleteBtn.classList.remove("hidden");
-      deleteBtn.classList.add("flex");
-    } else {
-      deleteBtn.classList.add("hidden");
-      deleteBtn.classList.remove("flex");
-    }
-  }
-
-  // Review gate buttons -- visible only when reviewing
-  const approveBtn = el("jobApproveBtn");
-  const rejectBtn = el("jobRejectBtn");
-  if (approveBtn && rejectBtn) {
-    if (job.status === "reviewing") {
-      approveBtn.classList.remove("hidden");
-      approveBtn.classList.add("flex");
-      rejectBtn.classList.remove("hidden");
-      rejectBtn.classList.add("flex");
-    } else {
-      approveBtn.classList.add("hidden");
-      approveBtn.classList.remove("flex");
-      rejectBtn.classList.add("hidden");
-      rejectBtn.classList.remove("flex");
-    }
-  }
-
-  // Save-as-template button -- only for done jobs
-  const templateBtn = el("jobSaveTemplateBtn");
-  if (templateBtn) {
-    if (job.status === "done") {
-      templateBtn.classList.remove("hidden");
-      templateBtn.classList.add("flex");
-    } else {
-      templateBtn.classList.add("hidden");
-      templateBtn.classList.remove("flex");
-    }
-  }
-
-  // Nodes
-  const nodes = job.nodes || [];
-  _renderNodes(nodes, job.status);
-
-  // Progress bar
-  const completedCount = nodes.filter((n) => n.status === "completed").length;
-  const runningCount = nodes.filter((n) => n.status === "running").length;
-  const totalCount = nodes.length;
-  const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const isActive = ["executing", "planning"].includes(job.status);
-
-  const bar = el("jobProgressBar");
-  if (bar) {
-    bar.style.width = `${pct}%`;
-    bar.setAttribute("aria-valuenow", String(pct));
-    bar.setAttribute("aria-valuemax", "100");
-    if (isActive && runningCount > 0) {
-      bar.classList.add("jobs-progress-active");
-    } else {
-      bar.classList.remove("jobs-progress-active");
-    }
-  }
-  const progressLabel = el("jobProgressLabel");
-  if (progressLabel) {
-    let labelText = `${completedCount}/${totalCount} nodes (${pct}%)`;
-    if (isActive && totalCount > 0) {
-      const eta = _estimateETA(nodes);
-      if (eta) labelText += ` \u2014 ${eta}`;
-    }
-    progressLabel.textContent = labelText;
-  }
-
-  // Output files
-  const outputFiles = (job.files || []).filter((f) => f.file_type === "output");
-  const filesSection = el("jobFilesSection");
-  const filesList = el("jobFilesList");
-  if (filesSection && filesList) {
-    if (outputFiles.length > 0) {
-      filesSection.classList.remove("hidden");
-      filesList.innerHTML = outputFiles
-        .map(
-          (f) => `
-          <a
-            href="${API}/api/jobs/${encodeURIComponent(job.id)}/files/${encodeURIComponent(f.id)}"
-            download="${escapeHtml(f.filename)}"
-            class="flex items-center gap-3 bg-slate-800/40 border border-slate-700/40 rounded-lg px-4 py-3 hover:bg-slate-800/60 transition-colors group focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            role="listitem"
-            aria-label="Download ${escapeHtml(f.filename)}"
-          >
-            <span class="material-symbols-outlined text-indigo-400 group-hover:text-indigo-300" aria-hidden="true">download</span>
-            <div class="flex-1 min-w-0">
-              <div class="text-xs font-medium text-slate-200 truncate">${escapeHtml(f.filename)}</div>
-              <div class="text-[11px] font-mono text-slate-500">${f.mime_type || "unknown"}${f.size_bytes ? " - " + _formatSize(f.size_bytes) : ""}</div>
-            </div>
-          </a>`,
-        )
-        .join("");
-    } else {
-      filesSection.classList.add("hidden");
-    }
-  }
-
-  // Audit trail
-  const auditList = el("jobAuditList");
-  const audit = job.audit || [];
-  if (auditList) {
-    if (audit.length === 0) {
-      auditList.innerHTML =
-        '<div class="text-xs text-slate-600 italic">No audit entries</div>';
-    } else {
-      auditList.innerHTML = audit
-        .map(
-          (a) => `
-          <div class="flex items-start gap-2 text-xs font-mono text-slate-500 py-1 border-b border-slate-800/30 last:border-0">
-            <span class="text-slate-600 shrink-0">${_formatTime(a.timestamp)}</span>
-            <span class="text-slate-400 font-bold">${escapeHtml(a.action)}</span>
-            ${a.detail ? `<span class="text-slate-600 truncate flex-1">${escapeHtml(a.detail)}</span>` : ""}
-            ${a.actor ? `<span class="text-slate-700 ml-auto shrink-0">${escapeHtml(a.actor)}</span>` : ""}
-          </div>`,
-        )
-        .join("");
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Render: Nodes Pipeline (horizontal timeline cards with colored left border)
-// ---------------------------------------------------------------------------
-
-function _renderNodes(nodes, jobStatus) {
-  const container = el("jobNodesContainer");
-  if (!container) return;
-
-  if (nodes.length === 0) {
-    container.innerHTML =
-      '<div class="text-xs text-slate-500 italic py-4" role="status">No pipeline nodes yet</div>';
-    return;
-  }
-
-  container.innerHTML = nodes
-    .map((node, i) => {
-      const cfg = NODE_STATUS_CFG[node.status] || NODE_STATUS_CFG.pending;
-      const isLast = i === nodes.length - 1;
-      const isRunning = node.status === "running";
-      const spinClass = isRunning ? "jobs-spin" : "";
-
-      // Elapsed time (uses started_at/completed_at when available)
-      const elapsedStr = _nodeElapsed(node);
-
-      // Model info
-      const modelStr = node.model || "";
-
-      // Truncated output preview for completed nodes
-      let outputPreview = "";
-      if (node.status === "completed" && node.output_json) {
-        try {
-          const parsed = typeof node.output_json === "string"
-            ? JSON.parse(node.output_json) : node.output_json;
-          const raw = typeof parsed === "string" ? parsed : JSON.stringify(parsed);
-          outputPreview = _truncate(raw, 200);
-        } catch {
-          outputPreview = _truncate(String(node.output_json), 200);
-        }
-      }
-
-      // File links for nodes that produced output files
-      const nodeFiles = node.output_files || [];
-
-      return `
-      <div class="flex items-center shrink-0 snap-start">
-        <div
-          class="jobs-node-card node-card bg-slate-900/60 border border-slate-800/50 rounded-xl p-4 min-w-[180px] max-w-[220px] cursor-pointer hover:bg-slate-800/50 transition-all"
-          data-color="${cfg.color}"
-          tabindex="0"
-          role="listitem"
-          data-node-idx="${i}"
-          aria-label="Node ${i + 1}: ${escapeHtml(node.title || "Untitled")}, status ${cfg.label}"
-        >
-          <div class="flex items-center gap-2 mb-2">
-            <span class="material-symbols-outlined text-${cfg.color}-400 text-sm ${spinClass}" aria-hidden="true">${isRunning ? "progress_activity" : cfg.icon}</span>
-            <span class="text-[11px] font-bold uppercase tracking-widest text-${cfg.color}-400">${cfg.label}</span>
-          </div>
-          <div class="text-xs font-medium text-slate-200 truncate">${escapeHtml(node.title || "Untitled")}</div>
-          <div class="flex items-center gap-2 text-[11px] font-mono text-slate-600 mt-1.5 flex-wrap">
-            <span>Step ${node.sequence ?? i + 1}</span>
-            ${elapsedStr ? `<span class="text-slate-500" title="Elapsed time">${escapeHtml(elapsedStr)}</span>` : ""}
-            ${modelStr ? `<span class="text-slate-600 truncate max-w-[80px]" title="${escapeHtml(modelStr)}">${escapeHtml(modelStr)}</span>` : ""}
-          </div>
-          ${isRunning && node.progress != null ? `
-            <div class="mt-2 w-full bg-slate-800/50 h-1 rounded-full overflow-hidden">
-              <div class="jobs-progress-bar jobs-progress-active bg-amber-500 h-full rounded-full" style="width: ${Math.min(100, Math.max(0, node.progress))}%" role="progressbar" aria-valuenow="${Math.min(100, Math.max(0, node.progress))}" aria-valuemin="0" aria-valuemax="100" aria-label="Node progress"></div>
-            </div>
-          ` : ""}
-          ${outputPreview ? `
-            <div class="mt-2 text-[11px] text-slate-500 leading-relaxed line-clamp-3 break-all" title="Node output preview">${escapeHtml(outputPreview)}</div>
-          ` : ""}
-          ${nodeFiles.length > 0 ? `
-            <div class="mt-2 flex flex-wrap gap-1">
-              ${nodeFiles.map((f) => `<span class="inline-flex items-center gap-0.5 text-xs font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded px-1.5 py-0.5 truncate max-w-[120px]" title="${escapeHtml(f.filename || f.name || "file")}"><span class="material-symbols-outlined text-xs" aria-hidden="true">description</span>${escapeHtml(_truncate(f.filename || f.name || "file", 20))}</span>`).join("")}
-            </div>
-          ` : ""}
-        </div>
-        ${!isLast ? '<span class="material-symbols-outlined text-slate-700 text-sm mx-1 shrink-0" aria-hidden="true">chevron_right</span>' : ""}
-      </div>`;
-    })
-    .join("");
-
-  // Wire node click -> expand detail
-  container.querySelectorAll("[data-node-idx]").forEach((card) => {
-    const handler = () => {
-      const idx = parseInt(card.dataset.nodeIdx, 10);
-      _renderNodeDetail(nodes[idx]);
-    };
-    card.addEventListener("click", handler);
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handler();
-      }
-      // Arrow keys navigate between nodes
-      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-        e.preventDefault();
-        const cards = container.querySelectorAll("[data-node-idx]");
-        const currentIdx = parseInt(card.dataset.nodeIdx, 10);
-        const nextIdx = e.key === "ArrowRight" ? currentIdx + 1 : currentIdx - 1;
-        if (nextIdx >= 0 && nextIdx < cards.length) {
-          cards[nextIdx].focus();
-        }
-      }
-    });
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Render: Expanded Node Detail
-// ---------------------------------------------------------------------------
-
-function _renderNodeDetail(node) {
-  const panel = el("jobNodeDetail");
-  if (!panel) return;
-  panel.classList.remove("hidden");
-
-  const cfg = NODE_STATUS_CFG[node.status] || NODE_STATUS_CFG.pending;
-  const isRunning = node.status === "running";
-
-  // Title
-  const titleEl = el("nodeDetailTitle");
-  if (titleEl) titleEl.textContent = node.title || "Untitled Node";
-
-  // Status
-  const statusEl = el("nodeDetailStatus");
-  if (statusEl) {
-    const spinClass = isRunning ? "jobs-spin" : "";
-    statusEl.className = `inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-${cfg.color}-500/15 text-${cfg.color}-400 border border-${cfg.color}-500/20`;
-    statusEl.innerHTML = `<span class="material-symbols-outlined text-xs ${spinClass}" aria-hidden="true">${isRunning ? "progress_activity" : cfg.icon}</span> ${cfg.label}`;
-  }
-
-  // Model
-  const modelEl = el("nodeDetailModel");
-  if (modelEl) {
-    modelEl.textContent = node.model ? `Model: ${node.model}` : "";
-  }
-
-  // Elapsed time (prefer started_at/completed_at)
-  const elapsedEl = el("nodeDetailElapsed");
-  if (elapsedEl) {
-    const elapsed = _nodeElapsed(node);
-    elapsedEl.textContent = elapsed ? `Elapsed: ${elapsed}` : "";
-  }
-
-  // Node progress bar (running nodes)
-  const progressSection = el("nodeProgressSection");
-  const progressBar = el("nodeProgressBar");
-  const progressText = el("nodeProgressText");
-  if (progressSection && progressBar) {
-    if (isRunning && node.progress != null) {
-      progressSection.classList.remove("hidden");
-      const pct = Math.min(100, Math.max(0, node.progress));
-      progressBar.style.width = `${pct}%`;
-      progressBar.setAttribute("aria-valuenow", String(Math.round(pct)));
-      if (progressText) {
-        progressText.textContent = node.current_operation
-          ? `${node.current_operation} (${Math.round(pct)}%)`
-          : `${Math.round(pct)}% complete`;
-      }
-    } else {
-      progressSection.classList.add("hidden");
-    }
-  }
-
-  // Instructions
-  const instrEl = el("nodeDetailInstructions");
-  if (instrEl) instrEl.textContent = node.instructions || "No instructions specified";
-
-  // Allowed tools
-  const toolsEl = el("nodeDetailTools");
-  if (toolsEl) {
-    const tools = node.tools_allowed || [];
-    toolsEl.innerHTML =
-      tools.length > 0
-        ? tools
-            .map(
-              (t) =>
-                `<span class="text-[11px] font-mono bg-slate-800/60 border border-slate-700/40 text-slate-400 px-2 py-0.5 rounded">${escapeHtml(t)}</span>`,
-            )
-            .join("")
-        : '<span class="text-[11px] text-slate-600 italic">No tool restrictions</span>';
-  }
-
-  // Output preview
-  const outputEl = el("nodeDetailOutput");
-  if (outputEl) {
-    if (node.output_json) {
-      try {
-        const parsed =
-          typeof node.output_json === "string"
-            ? JSON.parse(node.output_json)
-            : node.output_json;
-        outputEl.textContent = JSON.stringify(parsed, null, 2);
-      } catch {
-        outputEl.textContent = String(node.output_json);
-      }
-      outputEl.classList.remove("hidden");
-    } else {
-      outputEl.classList.add("hidden");
-    }
-  }
-
-  // Node output files
-  const nodeFilesEl = el("nodeDetailFiles");
-  if (nodeFilesEl) {
-    const nFiles = node.output_files || [];
-    if (nFiles.length > 0) {
-      nodeFilesEl.classList.remove("hidden");
-      nodeFilesEl.innerHTML =
-        `<div class="w-full text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Output Files</div>` +
-        nFiles
-          .map(
-            (f) => `
-            <a
-              href="${f.url || "#"}"
-              ${f.url ? `download="${escapeHtml(f.filename || f.name || "file")}"` : ""}
-              class="inline-flex items-center gap-1.5 text-xs font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-2.5 py-1.5 hover:bg-indigo-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              title="Download ${escapeHtml(f.filename || f.name || "file")}"
-            >
-              <span class="material-symbols-outlined text-xs" aria-hidden="true">download</span>
-              ${escapeHtml(f.filename || f.name || "file")}
-              ${f.size_bytes ? `<span class="text-slate-600">(${_formatSize(f.size_bytes)})</span>` : ""}
-            </a>`,
-          )
-          .join("");
-    } else {
-      nodeFilesEl.classList.add("hidden");
-      nodeFilesEl.innerHTML = "";
-    }
-  }
-
-  // Focus the close button for keyboard accessibility
-  el("nodeDetailClose")?.focus();
-  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
 
 // ---------------------------------------------------------------------------
 // Running-badge update (sidebar #jobsRunningBadge)
@@ -1860,33 +1148,6 @@ function _timeAgo(iso) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function _formatDate(iso) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function _formatTime(iso) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
 function _formatDuration(sec) {
   if (sec < 60) return `${sec}s`;
   if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
@@ -1918,33 +1179,10 @@ function _estimateETA(nodes) {
   return `~${_formatDuration(etaSec)} remaining`;
 }
 
-/**
- * Get elapsed time string for a node, using started_at/completed_at when
- * available, falling back to created_at/updated_at.
- */
-function _nodeElapsed(node) {
-  const start = node.started_at || node.created_at;
-  const end = node.completed_at || node.updated_at;
-  if (!start || node.status === "pending") return "";
-  // For running nodes, measure from start to now
-  const startMs = new Date(start).getTime();
-  const endMs = node.status === "running" ? Date.now() : (end ? new Date(end).getTime() : Date.now());
-  const diffSec = Math.max(0, Math.round((endMs - startMs) / 1000));
-  return _formatDuration(diffSec);
-}
-
-/**
- * Truncate a string to maxLen characters, adding ellipsis if needed.
- */
-function _truncate(str, maxLen) {
-  if (!str) return "";
-  if (str.length <= maxLen) return str;
-  return str.substring(0, maxLen) + "\u2026";
-}
-
 function _formatSize(bytes) {
   if (!bytes || bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
+

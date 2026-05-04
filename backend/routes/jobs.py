@@ -6,17 +6,25 @@ task-worker jobs.
 
 Endpoints
 ---------
-POST   /api/jobs                        — Create a new job (+ optional file uploads)
-GET    /api/jobs                        — List jobs (paginated, filterable by status)
-GET    /api/jobs/activity               — SSE stream for real-time job progress
-GET    /api/jobs/templates              — List pipeline templates
-POST   /api/jobs/templates              — Save a completed job as a reusable template
-GET    /api/jobs/{job_id}               — Fetch a single job with nodes, files, audit
-POST   /api/jobs/{job_id}/cancel        — Cancel a running job
-GET    /api/jobs/{job_id}/files/{file_id} — Download an output file
+POST   /api/jobs                             — Create a new job (+ optional file uploads)
+GET    /api/jobs                             — List jobs (paginated, filterable by status)
+GET    /api/jobs/activity                    — SSE stream for real-time job progress
+GET    /api/jobs/templates                   — List pipeline templates
+POST   /api/jobs/templates                   — Save a completed job as a reusable template
+GET    /api/jobs/templates/{template_id}     — Fetch a single template
+PUT    /api/jobs/templates/{template_id}     — Update a template (name, nodes, description)
+DELETE /api/jobs/templates/{template_id}     — Delete a template
+GET    /api/jobs/{job_id}                    — Fetch a single job with nodes, files, audit
+POST   /api/jobs/{job_id}/cancel             — Cancel a running job
+DELETE /api/jobs/{job_id}                    — Permanently delete a job
+GET    /api/jobs/{job_id}/tree               — Get delegation tree for a job
+GET    /api/jobs/{job_id}/artifacts              — List artifacts for a job
+GET    /api/jobs/{job_id}/artifacts/{id}/download — Download an artifact
+GET    /api/jobs/{job_id}/artifacts/{id}/lineage  — Trace artifact provenance
+GET    /api/jobs/{job_id}/files/{file_id}    — Download an output file
 
-NOTE: /activity and /templates are declared BEFORE /{job_id} so FastAPI's router
-does not match those literal path segments as a job_id.
+NOTE: /activity, /templates, and /templates/{template_id} are declared BEFORE
+/{job_id} so FastAPI's router does not match those literal path segments as a job_id.
 
 Auth: workspace_id defaults to "default" — will be replaced with real auth later.
 """
@@ -61,6 +69,21 @@ def configure(**kwargs) -> None:
 # ---------------------------------------------------------------------------
 
 _subscribers: list[asyncio.Queue] = []
+_shutdown_event: asyncio.Event | None = None
+
+
+def _get_shutdown_event() -> asyncio.Event:
+    """Lazily create the shutdown event on the current event loop."""
+    global _shutdown_event
+    if _shutdown_event is None:
+        _shutdown_event = asyncio.Event()
+    return _shutdown_event
+
+
+def signal_sse_shutdown() -> None:
+    """Signal all SSE generators to stop. Called during server lifespan shutdown."""
+    if _shutdown_event is not None:
+        _shutdown_event.set()
 
 
 async def emit_activity(event_type: str, data: dict) -> None:
@@ -177,16 +200,17 @@ async def activity_stream(request: Request) -> StreamingResponse:
     """
     q: asyncio.Queue = asyncio.Queue(maxsize=100)
     _subscribers.append(q)
+    shutdown = _get_shutdown_event()
     logger.debug("SSE client connected — %d subscriber(s) active", len(_subscribers))
 
     async def event_generator():
         try:
-            while True:
+            while not shutdown.is_set():
                 if await request.is_disconnected():
                     logger.debug("SSE client disconnected")
                     break
                 try:
-                    event = await asyncio.wait_for(q.get(), timeout=30.0)
+                    event = await asyncio.wait_for(q.get(), timeout=15.0)
                     yield (
                         f"event: {event['type']}\n"
                         f"data: {json.dumps(event['data'])}\n\n"
@@ -255,6 +279,383 @@ async def create_template(request: Request) -> JSONResponse:
 
     logger.info("Template '%s' (%s) created from job %s", template.name, template.id, job_id)
     return JSONResponse({"template": template.to_dict()}, status_code=201)
+
+
+@router.get("/templates/{template_id}")
+async def get_template(template_id: str) -> JSONResponse:
+    """Return a single template by ID."""
+    queue = _queue()
+    tmpl = queue.get_template(template_id)
+    if tmpl is None:
+        raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+    return JSONResponse({"template": tmpl.to_dict()})
+
+
+@router.put("/templates/{template_id}")
+async def update_template(template_id: str, request: Request) -> JSONResponse:
+    """Update a template's name, description, and/or node configuration.
+
+    Body: { "name": "...", "description": "...", "nodes": [...] }
+    All fields are optional; only provided fields are updated.
+    """
+    try:
+        body: dict = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    queue = _queue()
+    tmpl = queue.update_template(
+        template_id=template_id,
+        name=body.get("name"),
+        description=body.get("description"),
+        nodes=body.get("nodes"),
+    )
+    if tmpl is None:
+        raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+
+    logger.info("Template '%s' (%s) updated", tmpl.name, tmpl.id)
+    return JSONResponse({"template": tmpl.to_dict()})
+
+
+@router.delete("/templates/{template_id}")
+async def delete_template(template_id: str) -> JSONResponse:
+    """Delete a template by ID."""
+    queue = _queue()
+    deleted = queue.delete_template(template_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+    logger.info("Template %s deleted", template_id)
+    return JSONResponse({"deleted": True, "template_id": template_id})
+
+
+@router.get("/stats")
+async def job_stats() -> JSONResponse:
+    """Aggregate job statistics: totals, cost, and cost-by-period.
+
+    Returns total_jobs, completed_jobs, failed_jobs, total_cost_cents,
+    avg_cost_cents, and a daily cost breakdown for the last 30 days.
+    """
+    import sqlite3 as _sqlite3
+    from backend.config import DB_PATH
+
+    conn = _sqlite3.connect(str(DB_PATH))
+    conn.row_factory = _sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    try:
+        # Aggregate job-level stats
+        rows = conn.execute(
+            "SELECT status, cost_cents, cloud_cost_cents, tokens_in_total, tokens_out_total FROM jobs"
+        ).fetchall()
+        total_jobs = len(rows)
+        completed_jobs = 0
+        failed_jobs = 0
+        total_cost_cents = 0.0
+        total_cloud_cost_cents = 0.0
+        total_tokens_in = 0
+        total_tokens_out = 0
+        for r in rows:
+            s = r["status"]
+            if s == "done":
+                completed_jobs += 1
+            elif s == "failed":
+                failed_jobs += 1
+            total_cost_cents += r["cost_cents"] or 0.0
+            total_cloud_cost_cents += r["cloud_cost_cents"] or 0.0
+            total_tokens_in += r["tokens_in_total"] or 0
+            total_tokens_out += r["tokens_out_total"] or 0
+
+        avg_cost_cents = round(total_cost_cents / total_jobs, 4) if total_jobs > 0 else 0.0
+
+        # Most expensive recent job
+        most_expensive = conn.execute(
+            """
+            SELECT id, title, cost_cents, status, created_at
+            FROM jobs
+            WHERE cost_cents > 0
+            ORDER BY cost_cents DESC
+            LIMIT 1
+            """,
+        ).fetchone()
+        most_expensive_job = None
+        if most_expensive:
+            most_expensive_job = {
+                "id": most_expensive["id"],
+                "title": most_expensive["title"],
+                "cost_cents": most_expensive["cost_cents"],
+                "status": most_expensive["status"],
+                "created_at": most_expensive["created_at"],
+            }
+
+        # Cost by day (last 30 days)
+        daily_rows = conn.execute(
+            """
+            SELECT DATE(created_at) AS day,
+                   COUNT(*) AS job_count,
+                   SUM(COALESCE(cost_cents, 0)) AS cost_cents
+            FROM jobs
+            WHERE created_at >= DATE('now', '-30 days')
+            GROUP BY DATE(created_at)
+            ORDER BY day DESC
+            """,
+        ).fetchall()
+        cost_by_day = [
+            {
+                "date": r["day"],
+                "job_count": r["job_count"],
+                "cost_cents": round(r["cost_cents"] or 0, 4),
+            }
+            for r in daily_rows
+        ]
+
+        # Cost this week and this month (actual + cloud equivalent)
+        week_row = conn.execute(
+            """
+            SELECT SUM(COALESCE(cost_cents, 0)) AS cost,
+                   SUM(COALESCE(cloud_cost_cents, 0)) AS cloud_cost,
+                   SUM(COALESCE(tokens_in_total, 0)) AS tokens_in,
+                   SUM(COALESCE(tokens_out_total, 0)) AS tokens_out
+            FROM jobs
+            WHERE created_at >= DATE('now', '-7 days')
+            """,
+        ).fetchone()
+        cost_this_week = round((week_row["cost"] or 0), 4) if week_row else 0.0
+        cloud_cost_this_week = round((week_row["cloud_cost"] or 0), 4) if week_row else 0.0
+
+        month_row = conn.execute(
+            """
+            SELECT SUM(COALESCE(cost_cents, 0)) AS cost,
+                   SUM(COALESCE(cloud_cost_cents, 0)) AS cloud_cost,
+                   SUM(COALESCE(tokens_in_total, 0)) AS tokens_in,
+                   SUM(COALESCE(tokens_out_total, 0)) AS tokens_out
+            FROM jobs
+            WHERE created_at >= DATE('now', '-30 days')
+            """,
+        ).fetchone()
+        cost_this_month = round((month_row["cost"] or 0), 4) if month_row else 0.0
+        cloud_cost_this_month = round((month_row["cloud_cost"] or 0), 4) if month_row else 0.0
+
+    finally:
+        conn.close()
+
+    return JSONResponse({
+        "total_jobs": total_jobs,
+        "completed_jobs": completed_jobs,
+        "failed_jobs": failed_jobs,
+        "total_cost_cents": round(total_cost_cents, 4),
+        "avg_cost_cents": avg_cost_cents,
+        "cost_this_week": cost_this_week,
+        "cost_this_month": cost_this_month,
+        "cloud_cost_this_week": cloud_cost_this_week,
+        "cloud_cost_this_month": cloud_cost_this_month,
+        "total_cloud_cost_cents": round(total_cloud_cost_cents, 4),
+        "total_tokens_in": total_tokens_in,
+        "total_tokens_out": total_tokens_out,
+        "most_expensive_job": most_expensive_job,
+        "cost_by_day": cost_by_day,
+    })
+
+
+@router.post("/worker/reset")
+async def reset_worker(request: Request) -> JSONResponse:
+    """Reset the job worker circuit breaker so pending jobs can run again."""
+    worker = getattr(request.app.state, "job_worker", None)
+    if worker is None:
+        raise HTTPException(status_code=503, detail="Job worker not initialized")
+    worker._consecutive_failures = 0
+    worker._circuit_open_until = 0.0
+    logger.info("Circuit breaker reset by user.")
+    return JSONResponse({"reset": True})
+
+
+# ---------------------------------------------------------------------------
+# Approval API — PolicyEngine DB-backed approvals
+# ---------------------------------------------------------------------------
+
+
+@router.get("/approvals/pending")
+async def list_pending_approvals() -> JSONResponse:
+    """List all pending approval requests from the PolicyEngine DB.
+
+    Returns approvals with status='pending' that haven't expired.
+    Used by the frontend approval queue to show items needing human decision.
+    """
+    from backend.core.policy import PolicyEngine
+
+    engine = PolicyEngine()
+    # Expire stale approvals first
+    engine.expire_stale_approvals()
+
+    import sqlite3 as _sqlite3
+    from backend.config import DB_PATH
+
+    conn = _sqlite3.connect(str(DB_PATH))
+    conn.row_factory = _sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT a.id, a.policy_id, a.job_id, a.node_id, a.tool_call_json,
+                   a.status, a.requested_at, a.expires_at,
+                   p.name AS policy_name, p.description AS policy_description
+            FROM approvals a
+            LEFT JOIN approval_policies p ON a.policy_id = p.id
+            WHERE a.status = 'pending'
+            ORDER BY a.requested_at ASC
+            """,
+        ).fetchall()
+        pending = []
+        for r in rows:
+            pending.append({
+                "id": r["id"],
+                "policy_id": r["policy_id"],
+                "policy_name": r["policy_name"],
+                "policy_description": r["policy_description"],
+                "job_id": r["job_id"],
+                "node_id": r["node_id"],
+                "tool_call": json.loads(r["tool_call_json"]),
+                "status": r["status"],
+                "requested_at": r["requested_at"],
+                "expires_at": r["expires_at"],
+            })
+    finally:
+        conn.close()
+
+    return JSONResponse({"pending": pending, "count": len(pending)})
+
+
+@router.get("/approvals/all")
+async def list_all_approvals(
+    limit: int = Query(default=50, ge=1, le=500),
+) -> JSONResponse:
+    """List all approval requests (pending, approved, denied, expired).
+
+    Used by the audit trail panel in the frontend.
+    """
+    import sqlite3 as _sqlite3
+    from backend.config import DB_PATH
+
+    conn = _sqlite3.connect(str(DB_PATH))
+    conn.row_factory = _sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT a.id, a.policy_id, a.job_id, a.node_id, a.tool_call_json,
+                   a.status, a.requested_at, a.expires_at,
+                   a.decided_by, a.decided_at, a.reason,
+                   p.name AS policy_name
+            FROM approvals a
+            LEFT JOIN approval_policies p ON a.policy_id = p.id
+            ORDER BY a.requested_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        approvals = []
+        for r in rows:
+            approvals.append({
+                "id": r["id"],
+                "policy_id": r["policy_id"],
+                "policy_name": r["policy_name"],
+                "job_id": r["job_id"],
+                "node_id": r["node_id"],
+                "tool_call": json.loads(r["tool_call_json"]),
+                "status": r["status"],
+                "requested_at": r["requested_at"],
+                "expires_at": r["expires_at"],
+                "decided_by": r["decided_by"],
+                "decided_at": r["decided_at"],
+                "reason": r["reason"],
+            })
+    finally:
+        conn.close()
+
+    return JSONResponse({"approvals": approvals, "count": len(approvals)})
+
+
+@router.post("/approvals/{approval_id}/decide")
+async def decide_approval(
+    approval_id: str,
+    request: Request,
+) -> JSONResponse:
+    """Approve or deny a pending approval request.
+
+    Body: { "approved": true/false, "reason": "optional reason", "decided_by": "user" }
+
+    Emits an SSE event so the executor/worker can be notified.
+    """
+    from backend.core.policy import PolicyEngine
+
+    try:
+        body: dict = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    approved = bool(body.get("approved", False))
+    reason = str(body.get("reason", ""))
+    decided_by = str(body.get("decided_by", "unknown"))
+
+    engine = PolicyEngine()
+    try:
+        engine.decide_approval(
+            approval_id=approval_id,
+            decided_by=decided_by,
+            approved=approved,
+            reason=reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    status_str = "approved" if approved else "denied"
+    logger.info("Approval '%s' %s by '%s'.", approval_id, status_str, decided_by)
+
+    # Log to the job's audit trail for accountability
+    import sqlite3 as _sqlite3
+    from backend.config import DB_PATH as _DB_PATH
+
+    try:
+        _conn = _sqlite3.connect(str(_DB_PATH))
+        _conn.row_factory = _sqlite3.Row
+        _row = _conn.execute(
+            "SELECT job_id FROM approvals WHERE id = ?", (approval_id,)
+        ).fetchone()
+        _conn.close()
+        if _row:
+            queue = _queue()
+            queue.add_audit(
+                _row["job_id"],
+                action=f"approval_{status_str}",
+                detail=f"approval_id={approval_id} decided_by={decided_by} reason={reason}",
+                actor=decided_by,
+            )
+    except Exception as _audit_exc:
+        logger.warning("Failed to log approval audit: %s", _audit_exc)
+
+    await emit_activity("approval_decided", {
+        "approval_id": approval_id,
+        "status": status_str,
+        "decided_by": decided_by,
+        "reason": reason,
+    })
+
+    return JSONResponse({
+        "approval_id": approval_id,
+        "status": status_str,
+        "decided_by": decided_by,
+    })
+
+
+@router.get("/approvals/{approval_id}")
+async def get_approval(approval_id: str) -> JSONResponse:
+    """Get the current status of a single approval request."""
+    from backend.core.policy import PolicyEngine
+
+    engine = PolicyEngine()
+    try:
+        status = engine.check_approval(approval_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return JSONResponse({"approval_id": approval_id, "status": status})
 
 
 # ---------------------------------------------------------------------------
@@ -389,19 +790,22 @@ async def list_jobs(
       - limit   — default 50, max 500
       - offset  — default 0
     """
-    # Validate status value if provided
+    # Validate status value(s) — supports comma-separated list
+    statuses: list[str] | None = None
     if status is not None:
         valid_statuses = {s.value for s in JobStatus}
-        if status not in valid_statuses:
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        invalid = [s for s in statuses if s not in valid_statuses]
+        if invalid:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid status '{status}'. Valid values: {sorted(valid_statuses)}",
+                detail=f"Invalid status(es): {invalid}. Valid values: {sorted(valid_statuses)}",
             )
 
     queue = _queue()
     jobs = queue.list_jobs(
         workspace_id=_get_default_workspace_id(),
-        status=status,
+        statuses=statuses,
         limit=limit,
         offset=offset,
     )
@@ -441,6 +845,38 @@ async def get_job(
     if getattr(job, "tree_root_id", None):
         result["tree_root_id"] = job.tree_root_id
 
+    # Include artifacts with current version metadata
+    try:
+        from backend.core.artifacts import ArtifactManager
+        mgr = ArtifactManager()
+        artifacts = mgr.get_artifacts_by_job(job_id)
+        artifact_list = []
+        for art in artifacts:
+            entry = {
+                "id": art["id"],
+                "name": art["name"],
+                "artifact_type": art["artifact_type"],
+                "created_at": art["created_at"],
+                "current_version": None,
+            }
+            ver = mgr.get_current_version(art["id"])
+            if ver:
+                entry["current_version"] = {
+                    "id": ver["id"],
+                    "version_number": ver["version_number"],
+                    "file_size_bytes": ver["file_size_bytes"],
+                    "sha256": ver["sha256"],
+                    "mime_type": ver["mime_type"],
+                    "node_attempt_id": ver["node_attempt_id"],
+                    "parent_version_id": ver["parent_version_id"],
+                    "created_at": ver["created_at"],
+                }
+            artifact_list.append(entry)
+        result["artifacts"] = artifact_list
+    except Exception as exc:
+        logger.warning("Failed to load artifacts for job %s: %s", job_id, exc)
+        result["artifacts"] = []
+
     return JSONResponse(result)
 
 
@@ -465,8 +901,17 @@ async def cancel_job(
             detail=f"Job '{job_id}' is already in a terminal state ('{job.status}')",
         )
 
+    # If the job isn't actively being processed by a worker (executing),
+    # skip the 'cancelling' intermediate state and go straight to 'cancelled'
+    # — no worker will pick it up to complete the transition.
+    active_statuses = {JobStatus.EXECUTING.value, JobStatus.PLANNING.value}
+    immediate_cancel = job.status not in active_statuses
+
     try:
-        queue.cancel_job(job_id)
+        if immediate_cancel:
+            queue.update_job_status(job_id, JobStatus.CANCELLED.value)
+        else:
+            queue.cancel_job(job_id)
     except Exception as exc:
         logger.exception("Failed to cancel job %s", job_id)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -475,11 +920,12 @@ async def cancel_job(
 
     # Fetch the refreshed job to return current state
     updated = queue.get_job(job_id)
-    logger.info("Cancellation requested for job %s", job_id)
+    final_status = updated.status if updated else JobStatus.CANCELLED.value
+    logger.info("Cancellation requested for job %s (immediate=%s)", job_id, immediate_cancel)
 
     await emit_activity("job_status_changed", {
         "job_id": job_id,
-        "status": updated.status if updated else JobStatus.CANCELLING.value,
+        "status": final_status,
     })
 
     return JSONResponse((updated or job).to_api_dict())
@@ -491,20 +937,24 @@ async def delete_job(
 ) -> JSONResponse:
     """Permanently delete a job and all its related data.
 
-    Only jobs in a terminal state (done, failed, cancelled) can be deleted.
-    Returns 404 if not found, 422 if the job is still running.
+    If the job is still active it will be force-cancelled first, then deleted.
+    Returns 404 if not found.
     """
     queue = _queue()
     job = queue.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
 
-    terminal_statuses = {JobStatus.DONE.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value}
+    terminal_statuses = {JobStatus.DONE.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value, JobStatus.CANCELLING.value}
     if job.status not in terminal_statuses:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Cannot delete job '{job_id}' — it is still active ('{job.status}'). Cancel it first.",
-        )
+        try:
+            queue.cancel_job(job_id)
+        except Exception:
+            pass
+    # Ensure status is fully terminal before delete
+    if job.status not in {JobStatus.DONE.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value}:
+        queue.update_job_status(job_id, JobStatus.CANCELLED.value)
+        queue.add_audit(job_id, action="force_cancelled_for_delete", actor="user")
 
     try:
         queue.delete_job(job_id)
@@ -538,6 +988,168 @@ async def get_job_tree(
     except Exception as exc:
         logger.exception("Failed to get delegation tree for job %s", job_id)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/{job_id}/artifacts")
+async def list_artifacts(
+    job_id: str = FPath(..., description="Job UUID"),
+) -> JSONResponse:
+    """List all artifacts and their current versions for a job.
+
+    Returns artifact metadata including name, type, size, producing node,
+    SHA-256 hash, and lineage (parent_version_id).
+    """
+    queue = _queue()
+    job = queue.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+
+    from backend.core.artifacts import ArtifactManager
+
+    mgr = ArtifactManager()
+    artifacts = mgr.get_artifacts_by_job(job_id)
+
+    result = []
+    for art in artifacts:
+        entry = {
+            "id": art["id"],
+            "name": art["name"],
+            "artifact_type": art["artifact_type"],
+            "created_at": art["created_at"],
+            "current_version": None,
+        }
+        ver = mgr.get_current_version(art["id"])
+        if ver:
+            entry["current_version"] = {
+                "id": ver["id"],
+                "version_number": ver["version_number"],
+                "file_path": ver["file_path"],
+                "file_size_bytes": ver["file_size_bytes"],
+                "sha256": ver["sha256"],
+                "mime_type": ver["mime_type"],
+                "created_by": ver["created_by"],
+                "node_attempt_id": ver["node_attempt_id"],
+                "parent_version_id": ver["parent_version_id"],
+                "metadata_json": ver["metadata_json"],
+                "created_at": ver["created_at"],
+            }
+        result.append(entry)
+
+    return JSONResponse({"artifacts": result, "count": len(result)})
+
+
+@router.get("/{job_id}/artifacts/{artifact_id}/download")
+async def download_artifact(
+    job_id: str = FPath(..., description="Job UUID"),
+    artifact_id: str = FPath(..., description="Artifact UUID"),
+) -> FileResponse:
+    """Download the current version of an artifact.
+
+    Validates ownership and serves the file from disk.
+    """
+    queue = _queue()
+    job = queue.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+
+    from backend.core.artifacts import ArtifactManager
+
+    mgr = ArtifactManager()
+    artifact = mgr.get_artifact(artifact_id)
+    if artifact is None or artifact["job_id"] != job_id:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Artifact '{artifact_id}' not found for job '{job_id}'",
+        )
+
+    version = mgr.get_current_version(artifact_id)
+    if version is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Artifact '{artifact_id}' has no versions",
+        )
+
+    file_path = Path(version["file_path"])
+
+    # Path-jail check
+    try:
+        safe_resolve(JOBS_DIR, file_path)
+    except SecurityError as exc:
+        logger.error("Artifact path jail violation for %s: %s", artifact_id, exc)
+        raise HTTPException(
+            status_code=403,
+            detail="File path is outside the permitted directory",
+        ) from exc
+
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Artifact file exists in DB but not on disk",
+        )
+
+    media_type = version["mime_type"] or "application/octet-stream"
+    filename = file_path.name
+    logger.info(
+        "Serving artifact %s (%s) for job %s",
+        artifact_id[:12], filename, job_id[:12],
+    )
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type=media_type,
+    )
+
+
+@router.get("/{job_id}/artifacts/{artifact_id}/lineage")
+async def get_artifact_lineage(
+    job_id: str = FPath(..., description="Job UUID"),
+    artifact_id: str = FPath(..., description="Artifact UUID"),
+) -> JSONResponse:
+    """Trace the production lineage of an artifact back to its source.
+
+    Follows parent_version_id links to build the full provenance chain.
+    """
+    queue = _queue()
+    job = queue.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+
+    from backend.core.artifacts import ArtifactManager
+
+    mgr = ArtifactManager()
+    artifact = mgr.get_artifact(artifact_id)
+    if artifact is None or artifact["job_id"] != job_id:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Artifact '{artifact_id}' not found for job '{job_id}'",
+        )
+
+    version = mgr.get_current_version(artifact_id)
+    if version is None:
+        return JSONResponse({"lineage": [], "count": 0})
+
+    chain = []
+    current_vid = version["id"]
+    seen = set()
+    while current_vid and current_vid not in seen:
+        seen.add(current_vid)
+        ver = mgr.get_version(current_vid)
+        if ver is None:
+            break
+        chain.append({
+            "version_id": ver["id"],
+            "version_number": ver["version_number"],
+            "artifact_id": ver["artifact_id"],
+            "node_attempt_id": ver["node_attempt_id"],
+            "created_by": ver["created_by"],
+            "sha256": ver["sha256"],
+            "file_size_bytes": ver["file_size_bytes"],
+            "mime_type": ver["mime_type"],
+            "created_at": ver["created_at"],
+        })
+        current_vid = ver["parent_version_id"]
+
+    return JSONResponse({"lineage": chain, "count": len(chain)})
 
 
 @router.get("/{job_id}/files/{file_id}")

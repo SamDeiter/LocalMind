@@ -59,12 +59,31 @@ try {
 # Step 4: Pull model
 Write-Host ''
 Write-Host '[STEP] Pulling AI model (this takes a while on first run)...' -ForegroundColor Cyan
-Write-Host '  Pulling qwen2.5-coder:32b (~20GB) to D: drive...' -ForegroundColor Gray
+Write-Host '  Pulling qwen2.5-coder:32b and gemma4:e2b to D: drive...' -ForegroundColor Gray
 try {
     & ollama pull qwen2.5-coder:32b
-    Write-Host '  [OK] Model ready' -ForegroundColor Green
+    Write-Host '  Pulling gemma4:e2b (Micro local model)...' -ForegroundColor Gray
+    & ollama pull gemma4:e2b
+    Write-Host '  [OK] Models ready' -ForegroundColor Green
 } catch {
     Write-Host '  [WARN] Model pull failed. Run later: ollama pull qwen2.5-coder:32b' -ForegroundColor Yellow
+}
+
+# Step 4b: Optional MedGemma 4B (clinical-reasoning workflows)
+Write-Host ''
+Write-Host '[STEP] Optional: MedGemma 4B (clinical-reasoning model)' -ForegroundColor Cyan
+Write-Host '  LocalMind can use MedGemma 4B for clinical-reasoning workflows' -ForegroundColor Gray
+Write-Host '  (personal medical assistant). This is an OPTIONAL ~3 GB download.' -ForegroundColor Gray
+$medgemmaAnswer = Read-Host '  Pull medgemma:4b now? [y/N]'
+if ($medgemmaAnswer -match '^(y|yes)$') {
+    try {
+        & ollama pull medgemma:4b
+        Write-Host '  [OK] medgemma:4b ready' -ForegroundColor Green
+    } catch {
+        Write-Host '  [WARN] medgemma:4b pull failed. Run later: ollama pull medgemma:4b' -ForegroundColor Yellow
+    }
+} else {
+    Write-Host '  [SKIP] You can pull it later with: ollama pull medgemma:4b' -ForegroundColor Gray
 }
 
 # Step 5: Python venv
@@ -110,9 +129,36 @@ try {
     Write-Host '  [WARN] Could not create shortcut.' -ForegroundColor Yellow
 }
 
+# Step 8: Post-install self-test (fast — venv backend import check)
+Write-Host ''
+Write-Host '[STEP] Running post-install self-test...' -ForegroundColor Cyan
+$pythonExe = Join-Path $VenvPath 'Scripts' 'python.exe'
+$selfTestOk = $false
+if (Test-Path $pythonExe) {
+    try {
+        $output = & $pythonExe -c "import backend.server; print('IMPORT_OK')" 2>&1
+        if ($LASTEXITCODE -eq 0 -and ($output -match 'IMPORT_OK')) {
+            Write-Host '  [OK] Self-test passed (backend.server imports cleanly)' -ForegroundColor Green
+            $selfTestOk = $true
+        } else {
+            Write-Host '  [FAIL] Self-test failed. Diagnostic output:' -ForegroundColor Red
+            Write-Host ('  ' + ($output -join "`n  ")) -ForegroundColor Red
+        }
+    } catch {
+        Write-Host '  [FAIL] Self-test raised an exception:' -ForegroundColor Red
+        Write-Host ('  ' + $_.Exception.Message) -ForegroundColor Red
+    }
+} else {
+    Write-Host '  [WARN] venv python not found; skipping self-test' -ForegroundColor Yellow
+}
+
 Write-Host ''
 Write-Host '============================================' -ForegroundColor Magenta
-Write-Host '   LocalMind is ready!' -ForegroundColor Green
+if ($selfTestOk) {
+    Write-Host '   LocalMind is ready!' -ForegroundColor Green
+} else {
+    Write-Host '   LocalMind installed (self-test did not pass — review output above)' -ForegroundColor Yellow
+}
 Write-Host '============================================' -ForegroundColor Magenta
 Write-Host ''
 Write-Host '   To start:  .\start.ps1' -ForegroundColor White

@@ -132,6 +132,180 @@ async def session_stats():
         return {"error": str(e)}
 
 
+@router.get("/profile")
+async def get_user_profile():
+    """Return what the AI has learned about the user.
+
+    Combines durable preferences (>= 0.3 confidence, post-decay) into a
+    flat dict keyed by stable dotted slots (identity.name, prefs.style, etc.).
+    Used by the UI to show "what I know about you" and let the user edit it.
+    """
+    try:
+        from backend.metacognition.memory_manager import get_memory_manager
+        from backend.logic.curiosity import PROFILE_SLOTS, find_unfilled_slot
+        mm = get_memory_manager()
+        prefs = mm.read_preferences()
+        profile = {p.key: {
+            "value": p.value,
+            "confidence": round(p.confidence, 3),
+            "source": p.source,
+            "observations": p.observation_count,
+        } for p in prefs}
+
+        known_keys = set(profile.keys())
+        unfilled = [s for s in PROFILE_SLOTS if s["key"] not in known_keys]
+        next_question = find_unfilled_slot(known_keys)
+
+        return {
+            "profile": profile,
+            "known_count": len(profile),
+            "unfilled_slots": [s["key"] for s in unfilled],
+            "next_curiosity": next_question["example"] if next_question else None,
+        }
+    except Exception as e:
+        logger.warning(f"Failed to load user profile: {e}")
+        return {"profile": {}, "known_count": 0, "error": str(e)}
+
+
+@router.post("/profile/reload")
+async def reload_user_profile():
+    """Re-read user_preferences.json from disk (refreshes the in-memory singleton).
+
+    Use after migrating the JSON file by hand or after restoring a backup.
+    """
+    try:
+        from backend.metacognition import memory_manager as mm_module
+        mm_module._singleton = None  # force re-init on next access
+        fresh = mm_module.get_memory_manager()
+        prefs = fresh.read_preferences()
+        return {"reloaded": True, "count": len(prefs), "keys": [p.key for p in prefs]}
+    except Exception as e:
+        logger.warning(f"Profile reload failed: {e}")
+        return {"reloaded": False, "error": str(e)}
+
+
+@router.delete("/profile/{key:path}")
+async def forget_profile_key(key: str):
+    """Remove one learned fact from the user profile."""
+    try:
+        from backend.metacognition.memory_manager import get_memory_manager
+        mm = get_memory_manager()
+        removed = mm.forget(key)
+        return {"success": removed, "key": key}
+    except Exception as e:
+        logger.warning(f"Failed to forget profile key {key}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+# ── AI identity ───────────────────────────────────────────────────────
+
+
+@router.get("/identity")
+async def get_ai_identity():
+    """Return the AI's current name, persona, and change history."""
+    try:
+        from backend.identity.store import get_identity_store
+        ident = get_identity_store().get()
+        return {"identity": ident.to_dict()}
+    except Exception as e:
+        logger.warning(f"Failed to load identity: {e}")
+        return {"identity": None, "error": str(e)}
+
+
+@router.post("/identity")
+async def update_ai_identity(request: Request):
+    """User-initiated identity update (rename, persona, voice)."""
+    try:
+        body = await request.json()
+        from backend.identity.store import get_identity_store
+        store = get_identity_store()
+        result = store.update(
+            name=body.get("name"),
+            persona=body.get("persona"),
+            voice=body.get("voice"),
+            reason=body.get("reason", "user edit"),
+            actor="user",
+        )
+        return result
+    except Exception as e:
+        logger.warning(f"Identity update failed: {e}")
+        return {"ok": False, "errors": [str(e)]}
+
+
+@router.post("/identity/reset")
+async def reset_ai_identity():
+    """Restore the default LocalMind identity."""
+    try:
+        from backend.identity.store import get_identity_store
+        result = get_identity_store().reset_to_default()
+        return result
+    except Exception as e:
+        return {"ok": False, "errors": [str(e)]}
+
+
+# ── Agent activity log ────────────────────────────────────────────────
+
+
+@router.get("/agent/activity")
+async def get_agent_activity(since_id: int = 0, limit: int = 200):
+    """Return what the bot has done recently (newest first).
+
+    Sources merged into the feed:
+      - Tool calls (auto-recorded by ToolRegistry)
+      - Identity self-changes (rename, persona, voice)
+      - Facts learned about the user
+      - Theme rewrites
+
+    Use `since_id` for delta polling: only entries with id > since_id are
+    returned. The UI polls every 2s and tracks the highest id seen.
+    """
+    try:
+        from backend.observability.activity_log import get_activity_log
+        entries = get_activity_log(since_id=max(0, int(since_id)),
+                                   limit=max(1, min(int(limit), 500)))
+        return {"entries": entries, "count": len(entries)}
+    except Exception as e:
+        logger.warning(f"Activity log read failed: {e}")
+        return {"entries": [], "count": 0, "error": str(e)}
+
+
+@router.delete("/agent/activity")
+async def clear_agent_activity():
+    """Wipe the activity buffer. Local-only, no external effect."""
+    try:
+        from backend.observability.activity_log import clear
+        return {"cleared": clear()}
+    except Exception as e:
+        return {"cleared": 0, "error": str(e)}
+
+
+# ── Theme lock ────────────────────────────────────────────────────────
+
+
+@router.get("/theme/lock")
+async def theme_lock_status():
+    from pathlib import Path
+    lock = Path.home() / "LocalMind_Workspace" / "theme_lock"
+    return {"locked": lock.exists()}
+
+
+@router.post("/theme/lock")
+async def theme_lock_set(request: Request):
+    from pathlib import Path
+    body = await request.json()
+    locked = bool(body.get("locked", False))
+    lock = Path.home() / "LocalMind_Workspace" / "theme_lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    if locked:
+        lock.touch()
+    elif lock.exists():
+        try:
+            lock.unlink()
+        except OSError:
+            pass
+    return {"locked": lock.exists()}
+
+
 @router.delete("/memories/{memory_id}")
 async def delete_memory(memory_id: str):
     """Delete a specific memory by its ID.

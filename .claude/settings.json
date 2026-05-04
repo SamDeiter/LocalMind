@@ -57,7 +57,30 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\('backend/tts/piper_service.py'\\).read\\(\\)\\); print\\('piper_service.py OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('backend/routes/tts.py'\\).read\\(\\)\\); print\\('tts.py OK'\\)\")",
       "Bash(node -e ':*)",
-      "Bash(ls frontend/modules/*.js)"
+      "Bash(ls frontend/modules/*.js)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "mcp__claude_ai_Hodor__google_docs_create",
+      "Bash(python3 -c \"import json; data=json.load\\(open\\(r'C:\\\\Users\\\\Sam Deiter\\\\.claude\\\\projects\\\\c--Users-Sam-Deiter-Documents-GitHub-LocalMind\\\\1ff941ef-03c0-414e-928a-839dfe0d2033\\\\tool-results\\\\mcp-claude_ai_Hodor-google_docs_create-1775701775143.txt'\\)\\); inner=json.loads\\(data[0]['text']\\); print\\(inner.get\\('documentId','NOT FOUND'\\)\\)\")",
+      "Bash(python3 -c \"import json; data=json.load\\(open\\(r'C:\\\\Users\\\\Sam Deiter\\\\.claude\\\\projects\\\\c--Users-Sam-Deiter-Documents-GitHub-LocalMind\\\\1ff941ef-03c0-414e-928a-839dfe0d2033\\\\tool-results\\\\mcp-claude_ai_Hodor-google_docs_create-1775701775143.txt', encoding='utf-8'\\)\\); inner=json.loads\\(data[0]['text']\\); print\\(inner.get\\('documentId','NOT FOUND'\\)\\)\")",
+      "mcp__claude_ai_Hodor__google_slides_create",
+      "mcp__claude_ai_Hodor__hodor_status",
+      "WebFetch(domain:stitch.withgoogle.com)",
+
+      "Bash(claude mcp:*)",
+      "mcp__stitch__create_project",
+      "mcp__stitch__create_design_system",
+      "mcp__stitch__update_design_system",
+      "mcp__stitch__apply_design_system",
+      "mcp__stitch__list_design_systems",
+      "mcp__stitch__list_projects",
+      "mcp__stitch__list_screens",
+      "mcp__stitch__get_project",
+      "mcp__stitch__get_screen",
+      "mcp__stitch__generate_screen_from_text",
+      "mcp__stitch__edit_screens",
+      "mcp__stitch__generate_variants"
     ]
-  }
+  },
+  "enabledMcpjsonServers": ["stitch"]
 }

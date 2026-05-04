@@ -75,7 +75,49 @@ GOOGLE_REDIRECT_URI = os.getenv(
 
 CONFIG_DIR = Path.home() / ".localmind"
 CREDENTIALS_FILE = CONFIG_DIR / "credentials.json"
+# Legacy single-profile token file. Treated as the "personal" profile if it
+# exists at startup and no per-profile file has been written yet.
 TOKEN_FILE = CONFIG_DIR / "google_token.json"
+ACTIVE_PROFILE_FILE = CONFIG_DIR / "google_active_profile.txt"
+
+VALID_PROFILES = ("personal", "work")
+DEFAULT_PROFILE = "personal"
+
+
+def _normalize_profile(profile: Optional[str]) -> str:
+    """Coerce a profile string to one of the valid profiles, defaulting safely."""
+    p = (profile or "").strip().lower()
+    if p in VALID_PROFILES:
+        return p
+    return DEFAULT_PROFILE
+
+
+def _token_file_for(profile: str) -> Path:
+    """Per-profile token file path."""
+    return CONFIG_DIR / f"google_token_{profile}.json"
+
+
+def get_active_profile() -> str:
+    """Return the currently active Google profile (personal | work)."""
+    try:
+        if ACTIVE_PROFILE_FILE.exists():
+            v = ACTIVE_PROFILE_FILE.read_text(encoding="utf-8").strip().lower()
+            if v in VALID_PROFILES:
+                return v
+    except OSError:
+        pass
+    return DEFAULT_PROFILE
+
+
+def set_active_profile(profile: str) -> str:
+    """Persist the active Google profile."""
+    p = _normalize_profile(profile)
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        ACTIVE_PROFILE_FILE.write_text(p, encoding="utf-8")
+    except OSError as exc:
+        logger.warning("Could not persist active Google profile: %s", exc)
+    return p
 
 # ---------------------------------------------------------------------------
 # Scopes — Google Workspace (Drive, Slides, Sheets, Gmail)
@@ -175,22 +217,26 @@ def _default_workspace_id() -> str:
 def store_credentials(
     credentials: "GoogleCredentials",
     user_id: Optional[str] = None,
+    profile: Optional[str] = None,
 ) -> None:
-    """Encrypt and store Google OAuth credentials.
+    """Encrypt and store Google OAuth credentials for a given profile.
 
     Storage strategy:
-    1. Always write to the file-based token (backwards compat, single-user).
-    2. Also persist to DB if the provider manager is available.
+    1. Per-profile token file (backwards compat for the "personal" file).
+    2. DB row keyed by profile name (mapped onto user_id for the providers table).
 
     Args:
         credentials: google.oauth2.credentials.Credentials object.
-        user_id: Optional user ID. Defaults to "local" for single-user mode.
+        user_id: Deprecated alias for `profile`. Ignored if profile is set.
+        profile: "personal" or "work". Defaults to the currently active profile.
     """
     if not _GOOGLE_AUTH_AVAILABLE:
         logger.error("Cannot store credentials: google-auth not installed")
         return
 
-    user_id = user_id or "local"
+    p = _normalize_profile(profile or user_id or get_active_profile())
+    token_file = _token_file_for(p)
+
     token_data = {
         "token": credentials.token,
         "refresh_token": credentials.refresh_token,
@@ -199,72 +245,84 @@ def store_credentials(
         "client_secret": credentials.client_secret,
         "scopes": list(credentials.scopes or []),
         "expiry": credentials.expiry.isoformat() if credentials.expiry else None,
+        "profile": p,
     }
 
-    # 1. File-based storage
+    # 1. File-based storage (per profile).
     try:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        TOKEN_FILE.write_text(json.dumps(token_data, indent=2), encoding="utf-8")
-        logger.info("Google OAuth token saved to %s", TOKEN_FILE)
+        token_file.write_text(json.dumps(token_data, indent=2), encoding="utf-8")
+        logger.info("Google OAuth token saved to %s (profile=%s)", token_file, p)
     except OSError as exc:
-        logger.error("Failed to write token file: %s", exc)
+        logger.error("Failed to write token file %s: %s", token_file, exc)
 
-    # 2. DB-backed encrypted storage
+    # 2. DB-backed encrypted storage — profile is the user_id key.
     mgr = _get_db_provider_manager()
     if mgr is not None:
         try:
             expires_at = credentials.expiry.isoformat() if credentials.expiry else None
             mgr.store_oauth_token(
                 workspace_id=_default_workspace_id(),
-                user_id=user_id,
+                user_id=p,
                 provider="google",
                 token_json=token_data,
                 scopes=list(credentials.scopes or SCOPES),
                 expires_at=expires_at,
             )
-            logger.info("Google OAuth token saved to DB for user=%s", user_id)
+            logger.info("Google OAuth token saved to DB for profile=%s", p)
         except Exception as exc:
             logger.warning("DB token store failed (file fallback OK): %s", exc)
 
 
 def get_credentials(
     user_id: Optional[str] = None,
+    profile: Optional[str] = None,
 ) -> Optional["GoogleCredentials"]:
-    """Load stored Google OAuth credentials, auto-refreshing if expired.
+    """Load stored Google OAuth credentials for a profile, auto-refreshing if expired.
 
     Resolution order:
     1. DB (encrypted) — preferred.
-    2. File-based token — fallback for single-user/local.
+    2. Per-profile token file.
+    3. Legacy single-profile token file (only if asking for "personal").
 
     Returns None if no valid credentials are found.
 
     Args:
-        user_id: Optional user ID. Defaults to "local" for single-user mode.
+        user_id: Deprecated alias for `profile`. Ignored if profile is set.
+        profile: "personal" or "work". Defaults to the currently active profile.
     """
     if not _GOOGLE_AUTH_AVAILABLE:
         return None
 
-    user_id = user_id or "local"
+    p = _normalize_profile(profile or user_id or get_active_profile())
     token_data: Optional[dict] = None
 
-    # Try DB first
+    # Try DB first.
     mgr = _get_db_provider_manager()
     if mgr is not None:
         try:
             token_data = mgr.get_oauth_token(
                 workspace_id=_default_workspace_id(),
-                user_id=user_id,
+                user_id=p,
                 provider="google",
             )
         except Exception as exc:
             logger.debug("DB token lookup failed: %s", exc)
 
-    # Fall back to file
-    if token_data is None and TOKEN_FILE.exists():
+    # Fall back to per-profile file.
+    profile_file = _token_file_for(p)
+    if token_data is None and profile_file.exists():
+        try:
+            token_data = json.loads(profile_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.error("Failed to read token file %s: %s", profile_file, exc)
+
+    # Legacy fallback: the v1 single-profile file maps to "personal".
+    if token_data is None and p == DEFAULT_PROFILE and TOKEN_FILE.exists():
         try:
             token_data = json.loads(TOKEN_FILE.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as exc:
-            logger.error("Failed to read token file: %s", exc)
+            logger.error("Failed to read legacy token file: %s", exc)
 
     if token_data is None:
         return None
@@ -283,12 +341,12 @@ def get_credentials(
         logger.error("Failed to construct Credentials: %s", exc)
         return None
 
-    # Auto-refresh if expired
+    # Auto-refresh if expired.
     if creds.expired and creds.refresh_token:
         try:
             creds.refresh(GoogleAuthRequest())
-            store_credentials(creds, user_id=user_id)
-            logger.info("Google OAuth token auto-refreshed for user=%s", user_id)
+            store_credentials(creds, profile=p)
+            logger.info("Google OAuth token auto-refreshed for profile=%s", p)
         except Exception as exc:
             logger.warning("Token refresh failed: %s", exc)
             return None
@@ -296,17 +354,9 @@ def get_credentials(
     return creds if (creds.valid or creds.refresh_token) else None
 
 
-def has_scope(scope: str, user_id: Optional[str] = None) -> bool:
-    """Check if stored credentials include a specific scope.
-
-    Args:
-        scope: Full scope URL, e.g. "https://www.googleapis.com/auth/gmail.send".
-        user_id: Optional user ID. Defaults to "local".
-
-    Returns:
-        True if the scope is present in the stored credentials.
-    """
-    creds = get_credentials(user_id=user_id)
+def has_scope(scope: str, profile: Optional[str] = None) -> bool:
+    """Check if stored credentials for a profile include a specific scope."""
+    creds = get_credentials(profile=profile)
     if creds is None:
         return False
     granted = set(creds.scopes or [])
@@ -314,20 +364,10 @@ def has_scope(scope: str, user_id: Optional[str] = None) -> bool:
 
 
 def needs_reauth(
-    user_id: Optional[str] = None,
+    profile: Optional[str] = None,
 ) -> tuple[bool, list[str]]:
-    """Check if the user needs to re-authenticate due to missing scopes.
-
-    Compares the stored credential scopes against the full SCOPES list.
-
-    Args:
-        user_id: Optional user ID. Defaults to "local".
-
-    Returns:
-        Tuple of (needs_reauth: bool, missing_scopes: list[str]).
-        If no credentials exist at all, returns (True, SCOPES).
-    """
-    creds = get_credentials(user_id=user_id)
+    """Check if the user needs to re-authenticate due to missing scopes."""
+    creds = get_credentials(profile=profile)
     if creds is None:
         return True, list(SCOPES)
 
@@ -342,13 +382,15 @@ def needs_reauth(
 # ---------------------------------------------------------------------------
 
 @router.get("/auth")
-async def google_auth_start():
-    """Initiate Google OAuth flow.
+async def google_auth_start(profile: str = DEFAULT_PROFILE):
+    """Initiate Google OAuth flow for a given profile (personal | work).
 
-    Generates an authorization URL with all SCOPES and redirects the user
-    to Google's consent screen.
+    The profile name is encoded into the OAuth `state` param so the callback
+    knows which slot to save the resulting tokens into.
     """
     _require_google_libs()
+
+    p = _normalize_profile(profile)
 
     client_config = _get_client_config()
     if not client_config:
@@ -364,13 +406,15 @@ async def google_auth_start():
     flow = OAuthFlow.from_client_config(
         client_config, scopes=SCOPES, redirect_uri=GOOGLE_REDIRECT_URI
     )
-    auth_url, state = flow.authorization_url(
+    # Encode the profile in the state param so the callback can route the token.
+    auth_url, _state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
+        state=f"profile:{p}",
     )
 
-    logger.info("Redirecting to Google OAuth consent: %s...", auth_url[:80])
+    logger.info("Redirecting to Google OAuth consent for profile=%s", p)
     return RedirectResponse(auth_url)
 
 
@@ -378,11 +422,15 @@ async def google_auth_start():
 async def google_auth_callback(request: Request):
     """Handle OAuth callback from Google.
 
-    Exchanges the authorization code for tokens, encrypts them, and stores
-    them in both the DB and the file system.
+    Exchanges the authorization code for tokens and stores them under the
+    profile encoded into the `state` param.
     """
     code = request.query_params.get("code")
     error = request.query_params.get("error")
+    state = request.query_params.get("state", "")
+    callback_profile = DEFAULT_PROFILE
+    if state.startswith("profile:"):
+        callback_profile = _normalize_profile(state.split(":", 1)[1])
 
     if error:
         logger.warning("Google OAuth returned error: %s", error)
@@ -425,19 +473,26 @@ async def google_auth_callback(request: Request):
         flow.fetch_token(code=code)
         creds = flow.credentials
 
-        store_credentials(creds)
+        store_credentials(creds, profile=callback_profile)
+        # Make the just-connected profile the active one if no other profile
+        # has been activated yet — otherwise leave the user's choice alone.
+        if not ACTIVE_PROFILE_FILE.exists():
+            set_active_profile(callback_profile)
 
         granted_scopes = list(creds.scopes or [])
         logger.info(
-            "Google OAuth completed. Granted scopes: %s",
+            "Google OAuth completed for profile=%s. Granted scopes: %s",
+            callback_profile,
             ", ".join(granted_scopes),
         )
 
+        label = callback_profile.capitalize()
         return HTMLResponse(
             content=_result_page(
-                "Google Connected",
-                "LocalMind can now access your Google Workspace (Gmail, Drive, "
-                "Sheets, Slides). You can close this tab and return to LocalMind.",
+                f"Google ({label}) Connected",
+                f"LocalMind can now access your {label} Google Workspace "
+                f"(Gmail, Drive, Sheets, Slides). You can close this tab and "
+                f"return to LocalMind.",
                 success=True,
             )
         )
@@ -453,18 +508,12 @@ async def google_auth_callback(request: Request):
         )
 
 
-@router.get("/status")
-async def google_auth_status():
-    """Check if user has valid Google OAuth tokens.
-
-    Returns:
-        JSON with authenticated status, granted scopes, and expiry info.
-    """
-    has_client_credentials = bool(_get_client_config())
-
-    creds = get_credentials()
+def _status_for_profile(profile: str, has_client_credentials: bool) -> dict:
+    """Build the JSON status payload for a single profile."""
+    creds = get_credentials(profile=profile)
     if creds is None:
         return {
+            "profile": profile,
             "authenticated": False,
             "has_client_credentials": has_client_credentials,
             "scopes": [],
@@ -476,10 +525,10 @@ async def google_auth_status():
     is_valid = creds.valid or (creds.expired and creds.refresh_token is not None)
     granted_scopes = list(creds.scopes or [])
     expires_at = creds.expiry.isoformat() if creds.expiry else None
-
-    reauth_needed, missing = needs_reauth()
+    reauth_needed, missing = needs_reauth(profile=profile)
 
     return {
+        "profile": profile,
         "authenticated": is_valid,
         "has_client_credentials": has_client_credentials,
         "scopes": granted_scopes,
@@ -489,13 +538,63 @@ async def google_auth_status():
     }
 
 
-@router.post("/revoke")
-async def google_revoke():
-    """Revoke Google OAuth tokens and remove stored credentials.
+@router.get("/status")
+async def google_auth_status(profile: Optional[str] = None):
+    """Status of one Google profile (defaults to the currently active one).
 
-    Calls Google's revoke endpoint if possible, then removes local storage.
+    The response shape stays backwards compatible (the same fields a v1
+    single-profile caller would see), but with a `profile` field added.
     """
-    creds = get_credentials()
+    has_client_credentials = bool(_get_client_config())
+    p = _normalize_profile(profile or get_active_profile())
+    return _status_for_profile(p, has_client_credentials)
+
+
+@router.get("/status/all")
+async def google_auth_status_all():
+    """Combined status for all profiles plus the currently active one."""
+    has_client_credentials = bool(_get_client_config())
+    return {
+        "active_profile": get_active_profile(),
+        "has_client_credentials": has_client_credentials,
+        "profiles": {
+            p: _status_for_profile(p, has_client_credentials) for p in VALID_PROFILES
+        },
+    }
+
+
+@router.get("/active-profile")
+async def google_active_profile_get():
+    """Return the currently active Google profile."""
+    return {"profile": get_active_profile(), "valid": list(VALID_PROFILES)}
+
+
+@router.post("/active-profile")
+async def google_active_profile_set(request: Request):
+    """Set the currently active Google profile.
+
+    Body: { "profile": "personal" | "work" }
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    requested = body.get("profile") if isinstance(body, dict) else None
+    p = _normalize_profile(requested)
+    if requested and requested.lower() not in VALID_PROFILES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"profile must be one of {list(VALID_PROFILES)}",
+        )
+    set_active_profile(p)
+    return {"profile": p, "ok": True}
+
+
+@router.post("/revoke")
+async def google_revoke(profile: Optional[str] = None):
+    """Revoke a profile's Google OAuth tokens and remove stored credentials."""
+    p = _normalize_profile(profile or get_active_profile())
+    creds = get_credentials(profile=p)
     revoked_remote = False
 
     if creds is not None and creds.token:
@@ -533,15 +632,24 @@ async def google_revoke():
         except Exception as exc:
             logger.warning("Remote token revoke failed: %s", exc)
 
-    # Remove file-based token
-    if TOKEN_FILE.exists():
+    # Remove the per-profile token file.
+    profile_file = _token_file_for(p)
+    if profile_file.exists():
         try:
-            TOKEN_FILE.unlink()
-            logger.info("Google token file removed")
+            profile_file.unlink()
+            logger.info("Google token file removed for profile=%s", p)
         except OSError as exc:
             logger.error("Failed to remove token file: %s", exc)
 
-    # Remove DB token
+    # Also remove the legacy single-profile file if we just revoked personal.
+    if p == DEFAULT_PROFILE and TOKEN_FILE.exists():
+        try:
+            TOKEN_FILE.unlink()
+            logger.info("Legacy Google token file removed")
+        except OSError as exc:
+            logger.error("Failed to remove legacy token file: %s", exc)
+
+    # Remove DB token for this profile.
     mgr = _get_db_provider_manager()
     if mgr is not None:
         try:
@@ -550,36 +658,35 @@ async def google_revoke():
                 conn.execute(
                     "DELETE FROM oauth_credentials WHERE provider = 'google' "
                     "AND workspace_id = ? AND user_id = ?",
-                    (_default_workspace_id(), "local"),
+                    (_default_workspace_id(), p),
                 )
-            logger.info("Google token removed from DB")
+            logger.info("Google token removed from DB for profile=%s", p)
         except Exception as exc:
             logger.warning("DB token removal failed: %s", exc)
 
     return {
         "ok": True,
+        "profile": p,
         "revoked_remote": revoked_remote,
-        "message": "Google disconnected",
+        "message": f"Google ({p}) disconnected",
     }
 
 
 @router.post("/refresh")
-async def google_refresh():
-    """Force-refresh Google OAuth tokens.
-
-    Useful for obtaining a fresh access token without waiting for expiry.
-    """
+async def google_refresh(profile: Optional[str] = None):
+    """Force-refresh a profile's Google OAuth tokens."""
     if not _GOOGLE_AUTH_AVAILABLE:
         raise HTTPException(
             status_code=500,
             detail="Google auth libraries not installed.",
         )
 
-    creds = get_credentials()
+    p = _normalize_profile(profile or get_active_profile())
+    creds = get_credentials(profile=p)
     if creds is None:
         raise HTTPException(
             status_code=400,
-            detail="No Google credentials found. Connect Google first.",
+            detail=f"No Google credentials found for {p}. Connect Google first.",
         )
 
     if not creds.refresh_token:
@@ -590,10 +697,11 @@ async def google_refresh():
 
     try:
         creds.refresh(GoogleAuthRequest())
-        store_credentials(creds)
-        logger.info("Google OAuth token force-refreshed")
+        store_credentials(creds, profile=p)
+        logger.info("Google OAuth token force-refreshed for profile=%s", p)
         return {
             "ok": True,
+            "profile": p,
             "expires_at": creds.expiry.isoformat() if creds.expiry else None,
             "scopes": list(creds.scopes or []),
         }

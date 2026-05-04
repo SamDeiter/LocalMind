@@ -67,7 +67,7 @@ class FailureAnalyzer:
             if len(self.lessons) > 50:
                 self.lessons = self.lessons[-50:]
             self._save()
-            logger.info(f"📝 Lesson learned: [{category}] {lesson}")
+            logger.info(f"Lesson learned: [{category}] {lesson}")
         return entry
 
     def _generate_lesson(self, category: str, error: str, proposal: dict) -> str:
@@ -99,7 +99,7 @@ class FailureAnalyzer:
         recent = self.lessons[-max_lessons:]
         lines = ["LESSONS FROM PAST FAILURES (avoid repeating these mistakes):"]
         for lesson in recent:
-            lines.append(f"  ⚠️ [{lesson['category']}] {lesson['lesson']}")
+            lines.append(f"  WARN [{lesson['category']}] {lesson['lesson']}")
         return "\n".join(lines) + "\n"
 
 class SuccessTracker:
@@ -128,7 +128,7 @@ class SuccessTracker:
         self.stats["total"][key] += 1
         self._save()
         rate = self.get_success_rate(category)
-        logger.info(f"📊 {category}: {'✅' if success else '❌'} (rate: {rate:.0%})")
+        logger.info(f"stats {category}: {'OK' if success else 'FAIL'} (rate: {rate:.0%})")
 
     def get_success_rate(self, category: str) -> float:
         cat_stats = self.stats["by_category"].get(category, {})

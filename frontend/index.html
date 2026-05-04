@@ -1,724 +1,293 @@
 <!DOCTYPE html>
-<html class="dark" lang="en">
+<html class="dark" lang="en" data-theme="dark">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>LocalMind</title>
-    <meta name="description" content="LocalMind — local-first AI assistant with autonomous task execution, multi-model routing, and safety-first tool use."/>
+    <title>LocalMind — Mission Control</title>
+    <meta name="description" content="LocalMind — local-first AI mission control. Delegate work, track jobs, review outcomes."/>
+    <meta name="color-scheme" content="dark"/>
 
-    <!-- Tailwind & Fonts -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link rel="icon" type="image/png" href="icon.png"/>
+    <link rel="apple-touch-icon" href="icon.png"/>
+    <link rel="manifest" href="manifest.json"/>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <link rel="icon" type="image/png" href="icon.png" />
-    <link rel="apple-touch-icon" href="icon.png" />
-    <link rel="manifest" href="manifest.json" />
 
-    <!-- Monaco & Highlight.js -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css" />
-    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css"/>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "surface-container-lowest": "#020617",
-                        "on-surface-variant": "#94a3b8",
-                        "background": "#020617",
-                        "surface": "#0f172a",
-                        "surface-container-low": "#0f172a",
-                        "surface-container": "#1e293b",
-                        "surface-container-high": "#334155",
-                        "surface-container-highest": "#475569",
-                        "primary": "#6366f1",
-                        "secondary": "#10b981",
-                        "tertiary": "#8b5cf6",
-                        "on-background": "#f8fafc",
-                        "on-surface": "#f1f5f9",
-                        "on-primary": "#ffffff",
-                        "outline": "#64748b",
-                        "outline-variant": "#334155",
-                        "error": "#ef4444",
-                        "surface-variant": "#1e293b",
-                        "surface-bright": "#334155",
-                    },
-                    fontFamily: {
-                        "headline": ["Space Grotesk", "sans-serif"],
-                        "body": ["Inter", "sans-serif"],
-                        "mono": ["JetBrains Mono", "monospace"]
-                    },
-                },
-            },
-        }
-    </script>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="design/tokens.css"/>
+    <link rel="stylesheet" href="design/shell.css"/>
+    <link rel="stylesheet" href="design/ops.css"/>
+    <link rel="stylesheet" href="design/knowledge.css"/>
+    <link rel="stylesheet" href="design/settings.css"/>
+    <link rel="stylesheet" href="design/responsive.css"/>
+    <link rel="stylesheet" href="design/mascot.css"/>
+    <link rel="stylesheet" href="styles.css"/>
+    <link rel="stylesheet" href="design/theme_overrides.css"/>
 </head>
+<body>
 
-<body class="bg-[#020617] text-slate-300 font-body selection:bg-indigo-500/30 overflow-hidden h-screen flex flex-col">
-<a href="#workTab" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[200] focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">Skip to main content</a>
+<div class="lm-app" id="lmApp">
 
-<!-- ════════════════════════════════════════════════════════════════
-     TOP BAR
-     ════════════════════════════════════════════════════════════════ -->
-<header id="topBar" class="h-12 z-50 flex-shrink-0 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/40 flex items-center justify-between px-4 gap-4">
-    <!-- Left: Logo + status -->
-    <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
-                <span class="material-symbols-outlined text-white text-sm">psychology</span>
-            </div>
-            <div class="hidden sm:block">
-                <div class="text-sm font-black tracking-tight text-white font-headline leading-none">LocalMind</div>
-                <div class="text-[10px] font-mono text-indigo-400/70 tracking-widest uppercase font-bold version-badge leading-none mt-0.5" title="Application version">v0.0.0</div>
-            </div>
-        </div>
-        <div class="flex items-center gap-1.5 pl-3 border-l border-slate-800/60">
-            <span id="brainPulse" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" title="Server connection status" aria-hidden="true"></span>
-            <span id="brainStatus" class="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Online</span>
-        </div>
-        <span class="text-slate-600 font-mono text-[11px] tracking-wider uppercase hidden lg:inline-block" id="tokenCounter" title="Tokens used in current conversation context">0 / 16384 TX</span>
+  <!-- ── NAV RAIL ──────────────────────────────────────────────── -->
+  <aside class="lm-nav" id="navRail" aria-label="Primary navigation">
+
+    <div class="lm-nav__brand">
+      <span class="lm-nav__brand-mark" aria-hidden="true">L</span>
+      <span class="lm-nav__brand-name">LocalMind</span>
     </div>
 
-    <!-- Right: Metrics + Settings -->
-    <div class="flex items-center gap-1.5">
-        <!-- System Metrics -->
-        <div class="hidden md:flex items-center gap-1" role="status" aria-live="polite">
-            <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-900/50 border border-slate-800/30" title="Current CPU usage">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">CPU</span>
-                <span class="text-[10px] font-bold text-slate-400 tabular-nums font-mono" id="cpuVal">--%</span>
-            </div>
-            <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-900/50 border border-slate-800/30" title="GPU video memory usage">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">VRAM</span>
-                <span class="text-[10px] font-bold text-slate-400 tabular-nums font-mono" id="vramVal">--</span>
-            </div>
-            <div class="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-900/50 border border-slate-800/30" title="System RAM usage">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">RAM</span>
-                <span class="text-[10px] font-bold text-slate-400 tabular-nums font-mono" id="ramVal">--</span>
-            </div>
-            <!-- Token panel injected here by token_panel.js -->
-        </div>
+    <div class="lm-nav__cta-wrap">
+      <button type="button" class="lm-nav__cta" id="newJobBtn" aria-label="New job">
+        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        <span class="lm-nav__cta-label">New Job</span>
+      </button>
+    </div>
 
-        <!-- Settings -->
-        <button id="systemPromptBtn" title="Open Settings" aria-label="Open Settings"
-            class="ml-1 p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800/50 transition-colors">
-            <span class="material-symbols-outlined text-lg">settings</span>
+    <nav class="lm-nav__list" role="tablist" aria-label="Sections">
+      <button type="button" class="lm-nav__item" data-nav="home" role="tab" aria-current="page" aria-selected="true">
+        <span class="material-symbols-outlined" aria-hidden="true">grid_view</span>
+        <span class="lm-nav__item-label">Home</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="jobs" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">work</span>
+        <span class="lm-nav__item-label">Jobs</span>
+        <span class="lm-nav__item-badge" id="navJobsBadge" hidden>0</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="artifacts" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">folder</span>
+        <span class="lm-nav__item-label">Artifacts</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="knowledge" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">hub</span>
+        <span class="lm-nav__item-label">Knowledge</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="ops" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">monitoring</span>
+        <span class="lm-nav__item-label">Operations</span>
+      </button>
+      <button type="button" class="lm-nav__item" data-nav="settings" role="tab" aria-selected="false">
+        <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+        <span class="lm-nav__item-label">Settings</span>
+      </button>
+    </nav>
+
+    <div class="lm-nav__divider"></div>
+
+    <div class="lm-nav__starred">
+      <div class="lm-nav__section-label">Starred</div>
+      <div class="lm-nav__starred-list" id="navStarred">
+        <div class="lm-nav__empty lm-mute">No starred jobs yet</div>
+      </div>
+    </div>
+
+    <div class="lm-nav__recent">
+      <div class="lm-nav__section-label">Recent</div>
+      <div class="lm-nav__recent-list" id="navRecent">
+        <div class="lm-nav__empty lm-mute">Recent jobs will appear here</div>
+      </div>
+    </div>
+
+    <div class="lm-nav__footer">
+      <button type="button" class="lm-nav__collapse-btn" id="navCollapseBtn" aria-label="Collapse navigation">
+        <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── NAV SCRIM (mobile off-canvas backdrop) ────────────────── -->
+  <div class="lm-nav-scrim" id="navScrim" aria-hidden="true"></div>
+
+  <!-- ── TOP BAR ───────────────────────────────────────────────── -->
+  <header class="lm-topbar" role="banner">
+    <button type="button" class="lm-topbar__hamburger" id="navHamburger" aria-label="Open navigation" aria-controls="navRail" aria-expanded="false">
+      <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+    </button>
+    <div class="lm-topbar__search">
+      <span class="material-symbols-outlined" aria-hidden="true">search</span>
+      <input type="search" id="globalSearch" placeholder="Search jobs, artifacts, memory…" aria-label="Global search"/>
+      <span class="lm-topbar__kbd">⌘K</span>
+    </div>
+
+    <div class="lm-topbar__spacer"></div>
+
+    <div class="lm-topbar__actions">
+      <div class="lm-topbar__mode" id="modeToggle" role="group" aria-label="Profile mode">
+        <button type="button" class="lm-topbar__mode-btn" data-mode="personal" aria-pressed="true">
+          <span class="material-symbols-outlined" aria-hidden="true">person</span>
+          <span class="lm-topbar__mode-label">Personal</span>
         </button>
+        <button type="button" class="lm-topbar__mode-btn" data-mode="work" aria-pressed="false">
+          <span class="material-symbols-outlined" aria-hidden="true">work</span>
+          <span class="lm-topbar__mode-label">Work</span>
+        </button>
+      </div>
+
+      <div class="lm-topbar__model" id="modelIndicator" title="Active model">
+        <span class="lm-topbar__model-dot" aria-hidden="true"></span>
+        <span class="lm-topbar__model-name" id="modelIndicatorName">—</span>
+        <span class="lm-topbar__model-locale" id="modelIndicatorLoc">local</span>
+      </div>
+
+      <button type="button" class="lm-topbar__icon-btn" id="activityBtn" aria-label="Agent activity" title="See what the AI just did" aria-controls="activityPanel" aria-expanded="false">
+        <span class="material-symbols-outlined" aria-hidden="true">monitor_heart</span>
+        <span class="lm-topbar__icon-btn-dot" id="activityBadge" hidden></span>
+      </button>
+
+      <button type="button" class="lm-topbar__icon-btn" id="notificationsBtn" aria-label="Notifications">
+        <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+        <span class="lm-topbar__icon-btn-dot" id="notificationsBadge" hidden></span>
+      </button>
+
+      <button type="button" class="lm-topbar__icon-btn" id="helpBtn" aria-label="Help">
+        <span class="material-symbols-outlined" aria-hidden="true">help</span>
+      </button>
+
+      <button type="button" class="lm-topbar__avatar" id="profileBtn" aria-label="Profile">S</button>
     </div>
-</header>
+  </header>
 
-<!-- ════════════════════════════════════════════════════════════════
-     TAB BAR
-     ════════════════════════════════════════════════════════════════ -->
-<nav id="tabBar" class="flex-shrink-0 flex items-center gap-1 px-4 bg-slate-950/70 border-b border-slate-800/40 backdrop-blur-sm" role="tablist" aria-label="Main navigation">
-    <button id="tabWork" role="tab" aria-selected="true" aria-controls="workTab"
-        class="tab-btn tab-active flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all">
-        <span class="material-symbols-outlined text-base pointer-events-none">rocket_launch</span>
-        <span>Work</span>
-        <span id="workApprovalBadge" class="hidden text-[10px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full" title="Pending approvals" aria-label="0 approvals pending">0</span>
-    </button>
-    <button id="tabChat" role="tab" aria-selected="false" aria-controls="chatTab"
-        class="tab-btn flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all text-slate-500 hover:text-slate-200">
-        <span class="material-symbols-outlined text-base pointer-events-none">chat</span>
-        <span>Chat</span>
-    </button>
-    <button id="tabSystem" role="tab" aria-selected="false" aria-controls="systemTab"
-        class="tab-btn flex items-center gap-2 px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all text-slate-500 hover:text-slate-200">
-        <span class="material-symbols-outlined text-base pointer-events-none">settings_suggest</span>
-        <span>System</span>
-        <span id="swarmAgentCount" class="text-[10px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full" title="Active worker agents" aria-label="0 active workers">0</span>
-    </button>
-</nav>
+  <!-- ── MAIN ──────────────────────────────────────────────────── -->
+  <main class="lm-main" role="main">
 
-<!-- ════════════════════════════════════════════════════════════════
-     TAB CONTENT
-     ════════════════════════════════════════════════════════════════ -->
-<main class="flex-1 overflow-hidden relative bg-[#020617]" id="tabContent">
-
-    <!-- ══════════════════════════════════════════════════════════
-         TAB 1 — WORK (Default)
-         ══════════════════════════════════════════════════════════ -->
-    <section id="workTab" role="tabpanel" aria-labelledby="tabWork"
-        class="tab-panel flex flex-col h-full overflow-y-auto custom-scrollbar">
-        <div class="flex flex-col gap-5 p-5 lg:p-7 max-w-5xl w-full mx-auto">
-
-            <!-- ── Welcome / Header ─────────────────────────────────────── -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="font-headline font-bold text-xl text-slate-100 tracking-tight">Work</h1>
-                    <p class="text-xs text-slate-500 mt-0.5">Autonomous task execution &amp; pipeline management</p>
-                </div>
-            <div class="flex items-center gap-2">
-                    <span id="taskPipelineCountHeader" class="text-[11px] font-semibold text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-full font-mono">0 Active</span>
-                </div>
-            </div>
-
-            <!-- ── Task Creation (injected by task_creation.js) ────────── -->
-            <div id="taskCreationArea"></div>
-
-
-            <!-- ── Pipeline ─────────────────────────────────────────── -->
-            <div class="bg-slate-900/40 border border-slate-800/40 rounded-xl p-5 flex flex-col gap-4" id="aiThinkingPanel">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-primary text-lg">alt_route</span>
-                        <h2 class="font-headline font-semibold text-sm tracking-tight text-slate-200">Pipeline</h2>
-                        <span class="text-[11px] text-slate-600 font-mono uppercase tracking-widest">Live</span>
-                    </div>
-                </div>
-
-                <!-- Workflow Stepper -->
-                <div id="agent-workflow-stepper" class="flex items-center z-10 w-full" role="list" aria-label="Agent workflow steps">
-                    <div class="flex items-center gap-2 flex-1" role="listitem" aria-label="Step 1: Planner">
-                        <div id="step-planner" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-500/15 border border-indigo-500/40 transition-all duration-300">
-                            <span class="material-symbols-outlined text-indigo-400 text-base">schema</span>
-                            <span class="text-xs font-bold text-indigo-400">Planner</span>
-                        </div>
-                    </div>
-                    <div class="w-6 h-px bg-slate-700/40 flex-shrink-0" aria-hidden="true"></div>
-                    <div class="flex items-center gap-2 flex-1" role="listitem" aria-label="Step 2: Coder">
-                        <div id="step-coder" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
-                            <span class="material-symbols-outlined text-slate-500 text-base">code_blocks</span>
-                            <span class="text-xs font-bold text-slate-500">Coder</span>
-                        </div>
-                    </div>
-                    <div class="w-6 h-px bg-slate-700/40 flex-shrink-0" aria-hidden="true"></div>
-                    <div class="flex items-center gap-2 flex-1" role="listitem" aria-label="Step 3: Execute">
-                        <div id="step-execute" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
-                            <span class="material-symbols-outlined text-slate-500 text-base">terminal</span>
-                            <span class="text-xs font-bold text-slate-500">Execute</span>
-                        </div>
-                    </div>
-                    <div class="w-6 h-px bg-slate-700/40 flex-shrink-0" aria-hidden="true"></div>
-                    <div class="flex items-center gap-2 flex-1" role="listitem" aria-label="Step 4: Review">
-                        <div id="step-reviewer" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/40 transition-all duration-300">
-                            <span class="material-symbols-outlined text-slate-500 text-base">verified_user</span>
-                            <span class="text-xs font-bold text-slate-500">Review</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="aiThinkingFeed" class="flex-1 space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-2 z-10 text-sm" aria-live="polite">
-                    <div class="empty-state py-6">
-                        <span class="material-symbols-outlined">hourglass_empty</span>
-                        <p>No pipeline activity yet. Submit a task to get started.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Active Jobs ──────────────────────────────────────── -->
-            <div>
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="section-label flex items-center gap-2">
-                        <span class="material-symbols-outlined text-sm text-slate-500">work</span>
-                        Active Jobs
-                    </h3>
-                    <span class="text-[11px] font-semibold text-slate-400 bg-slate-800/60 px-2.5 py-0.5 rounded-full font-mono" id="taskPipelineCount">0 Active</span>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="taskPipelineBody">
-                    <!-- Populated by jobs_ui.js -->
-                </div>
-            </div>
-
-            <!-- ── Needs Approval (conditional) ────────────────────── -->
-            <div id="approvalsInlineSection" class="hidden">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
-                    <h3 class="section-label text-red-400">Needs Approval</h3>
-                    <span id="approvalsBadge" class="text-[10px] font-mono bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full" aria-label="0 approvals pending">0</span>
-                </div>
-                <div id="approvalsView" class="space-y-3" role="region" aria-label="Approval queue and corrections history">
-                    <!-- Populated by approvals_ui.js -->
-                </div>
-            </div>
-
-            <!-- ── Templates ────────────────────────────────────────── -->
-            <div id="templatesSection">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="section-label flex items-center gap-2">
-                        <span class="material-symbols-outlined text-sm text-slate-500">library_books</span>
-                        Templates
-                    </h3>
-                </div>
-                <div id="templatesView">
-                    <!-- Populated by templates_ui.js -->
-                </div>
-            </div>
-
-            <!-- ── Generated Tools ──────────────────────────────────── -->
-            <div id="generatedToolsPanel"></div>
-
-        </div>
+    <section class="lm-page" id="mainHome" data-nav="home" role="tabpanel">
+      <div class="lm-page__inner" id="homeContainer"></div>
     </section>
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB 2 — CHAT
-         ══════════════════════════════════════════════════════════ -->
-    <section id="chatTab" role="tabpanel" aria-labelledby="tabChat"
-        class="tab-panel hidden flex-col h-full">
-
-        <div class="flex flex-1 h-full overflow-hidden">
-
-            <!-- Left: Conversation List -->
-            <aside id="chatSidebar" class="chat-sidebar w-56 flex-shrink-0 flex flex-col border-r border-slate-800/40 bg-slate-950/40">
-                <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800/30">
-                    <span class="text-[11px] font-bold uppercase tracking-widest text-slate-500">Conversations</span>
-                    <button id="newChatInlineBtn" title="Start a new conversation" aria-label="New conversation"
-                        class="p-1 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-800/50 transition-colors">
-                        <span class="material-symbols-outlined text-base">add</span>
-                    </button>
-                </div>
-                <div id="conversationList" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-0.5">
-                    <!-- Populated by conversations.js -->
-                </div>
-            </aside>
-
-            <!-- Toggle sidebar on mobile -->
-            <button id="chatSidebarToggle" title="Toggle conversations panel" aria-label="Toggle conversations"
-                class="absolute top-14 left-0 z-30 hidden md:hidden p-1.5 bg-slate-900 border border-slate-700/40 rounded-r-lg text-slate-400">
-                <span class="material-symbols-outlined text-sm">chevron_right</span>
+    <section class="lm-page" id="mainJobs" data-nav="jobs" role="tabpanel" hidden>
+      <div class="lm-page__inner">
+        <header class="lm-page__header">
+          <div>
+            <div class="lm-page__eyebrow">Delegated work</div>
+            <h1 class="lm-page__title">Jobs</h1>
+            <p class="lm-page__subtitle">Everything you've asked LocalMind to do.</p>
+          </div>
+          <div class="lm-page__actions">
+            <button type="button" class="lm-btn lm-btn--primary lm-btn--sm" data-open-new-job>
+              <span class="material-symbols-outlined" aria-hidden="true">add</span> New Job
             </button>
+          </div>
+        </header>
 
-            <!-- Right: Chat Panel -->
-            <section id="chatScreen" class="flex-1 flex flex-col overflow-hidden">
-                <!-- Chat Header -->
-                <div class="flex items-center justify-between px-5 py-2.5 border-b border-slate-800/25 flex-shrink-0">
-                    <h2 class="font-headline text-sm font-semibold text-slate-300 flex items-center gap-2">
-                        <span id="chatIndicator" class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                        Chat
-                    </h2>
-                    <span id="chatModelLabel" class="text-[11px] text-slate-600 font-mono uppercase tracking-wider">auto</span>
-                </div>
-
-                <!-- Messages -->
-                <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar px-5 sm:px-8 py-6 space-y-4">
-                    <div id="chatEmptyState" class="flex flex-col items-center justify-center h-full select-none">
-                        <span class="material-symbols-outlined text-primary/40 text-5xl mb-4">chat</span>
-                        <h3 class="text-base font-headline font-semibold text-slate-300 mb-1">Start a conversation</h3>
-                        <p class="text-sm text-slate-500 max-w-xs text-center mb-6">Ask a question, analyze a file, generate code, or explore ideas.</p>
-                        <div class="flex flex-wrap justify-center gap-2 max-w-md">
-                            <button class="prompt-pill px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-xs text-slate-400 hover:text-white hover:border-primary/30 transition-all cursor-pointer">Summarize this project</button>
-                            <button class="prompt-pill px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-xs text-slate-400 hover:text-white hover:border-primary/30 transition-all cursor-pointer">Write a Python script to...</button>
-                            <button class="prompt-pill px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-xs text-slate-400 hover:text-white hover:border-primary/30 transition-all cursor-pointer">Explain how RAG works</button>
-                            <button class="prompt-pill px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/40 text-xs text-slate-400 hover:text-white hover:border-primary/30 transition-all cursor-pointer">Debug this error</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chat Input -->
-                <div class="px-4 py-3 border-t border-slate-800/25 flex-shrink-0">
-                    <div class="max-w-3xl mx-auto">
-                        <div class="bg-slate-900/50 rounded-xl border border-slate-800/40 focus-within:border-primary/30 transition-all">
-                            <textarea id="messageInput" aria-label="Message Input" title="Type your message here"
-                                class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-slate-600 font-body resize-none overflow-y-auto min-h-[48px] px-4 pt-3 pb-2"
-                                placeholder="Ask a question or describe what you need..." rows="1"></textarea>
-                            <div class="flex items-center justify-between px-2.5 pb-2.5">
-                                <div class="flex items-center gap-0.5">
-                                    <button id="micBtn" aria-label="Voice Input" title="Use voice input"
-                                        class="p-1.5 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-lg">
-                                        <span class="material-symbols-outlined text-lg">mic</span>
-                                    </button>
-                                    <button id="openCameraBtn" aria-label="Open Camera" title="Take a photo"
-                                        class="p-1.5 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-lg">
-                                        <span class="material-symbols-outlined text-lg">photo_camera</span>
-                                    </button>
-                                    <button id="ttsToggleBtn" aria-label="Toggle TTS" title="Toggle text-to-speech"
-                                        class="p-1.5 text-slate-500 hover:text-primary transition-colors hover:bg-slate-800/50 rounded-lg">
-                                        <span class="material-symbols-outlined text-lg">volume_up</span>
-                                    </button>
-                                </div>
-                                <button id="sendBtn" aria-label="Send Message" title="Send this message"
-                                    class="primary-gradient p-2 rounded-lg text-on-primary transition-all">
-                                    <span class="material-symbols-outlined text-lg">arrow_upward</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
+        <!-- jobs_ui.js renders filter tabs, sort, refresh, and job cards into #jobsView -->
+        <div id="jobsView" class="lm-jobs__view"></div>
+      </div>
     </section>
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB 3 — SYSTEM
-         ══════════════════════════════════════════════════════════ -->
-    <section id="systemTab" role="tabpanel" aria-labelledby="tabSystem"
-        class="tab-panel hidden flex-col h-full overflow-y-auto custom-scrollbar">
-        <div class="flex flex-col p-5 lg:p-7 max-w-5xl w-full mx-auto gap-3">
-
-            <!-- ── Worker Pool ──────────────────────────────────────── -->
-            <div class="accordion-section" id="accordionWorkerPool">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionWorkerPoolBody"
-                    data-accordion="accordionWorkerPoolBody">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-amber-400 text-lg">hive</span>
-                        <span class="accordion-title">Worker Pool</span>
-                        <span id="swarmStatusBadge" class="text-[11px] font-semibold uppercase tracking-widest bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full">Initializing</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button id="swarmScanBtn" title="Scan for worker agents" aria-label="Scan for worker agents"
-                            class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[11px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider transition-colors border border-amber-500/20"
-                            onclick="event.stopPropagation()">
-                            <span class="material-symbols-outlined text-xs align-middle mr-1">radar</span>Scan
-                        </button>
-                        <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform">expand_more</span>
-                    </div>
-                </button>
-                <div id="accordionWorkerPoolBody" class="accordion-body hidden">
-                    <!-- Metrics bar -->
-                    <div class="flex items-center gap-4 text-xs text-slate-500 font-mono mb-4">
-                        <span class="flex items-center gap-1.5">
-                            <span id="swarmHeartbeat" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            Uptime: <span id="swarmUptime" class="text-slate-400">0s</span>
-                        </span>
-                        <span>Tasks: <span id="swarmTotalTasks" class="text-cyan-400">0</span></span>
-                        <span>Failed: <span id="swarmTotalFailed" class="text-red-400">0</span></span>
-                        <span class="ml-auto">Last poll: <span id="swarmLastPoll" class="text-slate-400">--</span></span>
-                    </div>
-                    <!-- Metrics grid -->
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="swarmMetrics">
-                        <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Tasks Done</div>
-                            <div class="text-2xl font-bold text-cyan-400 font-mono" id="swarmActiveCount">0</div>
-                        </div>
-                        <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">GPU Slots</div>
-                            <div class="text-2xl font-bold font-mono">
-                                <span id="swarmGpuUsed" class="text-violet-400">0</span>
-                                <span class="text-slate-600">/</span>
-                                <span id="swarmGpuTotal" class="text-slate-400">3</span>
-                            </div>
-                        </div>
-                        <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1 flex justify-between">
-                                Queue<span class="text-xs text-amber-500/50">PEAK: <span id="swarmQueuePeak">0</span></span>
-                            </div>
-                            <div class="text-2xl font-bold text-amber-400 font-mono" id="swarmQueueDepth">0</div>
-                        </div>
-                        <div class="bg-slate-900/60 border border-slate-800/60 rounded-xl p-4">
-                            <div class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-1">Success Rate</div>
-                            <div class="text-2xl font-bold text-emerald-400 font-mono" id="swarmSuccessRate">--</div>
-                        </div>
-                    </div>
-                    <!-- Agent grid -->
-                    <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Agent Pool</div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" id="swarmAgentGrid"></div>
-                    <!-- Result streams -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-4">
-                        <div>
-                            <div class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Recent Task Results</div>
-                            <div class="space-y-1 max-h-48 overflow-y-auto custom-scrollbar" id="swarmResultStream">
-                                <div class="text-xs text-slate-500 italic p-3">Waiting for tasks...</div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="text-xs font-bold uppercase tracking-widest text-cyan-500 mb-2">Recent Improvements</div>
-                            <div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar" id="swarmImprovementsStream">
-                                <div class="text-xs text-slate-500 italic p-3">No improvements merged yet...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Swarm tab bar (populated by swarm_ui.js) -->
-                    <div id="swarmTabBar" class="flex gap-2 mt-4 p-3 border-t border-slate-700/30"></div>
-                    <div id="swarmTreeView" class="hidden p-3"></div>
-                    <div id="swarmMemoryView" class="hidden p-3"></div>
-                    <div id="swarmMessageLog" class="hidden p-3"></div>
-                    <div id="swarmLockStatus" class="hidden p-3"></div>
-                </div>
-            </div>
-
-            <!-- ── Learning Lab ─────────────────────────────────────── -->
-            <div class="accordion-section" id="accordionLearning">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionLearningBody"
-                    data-accordion="accordionLearningBody">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-violet-400 text-lg">school</span>
-                        <span class="accordion-title">Learning Lab</span>
-                    </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
-                </button>
-                <div id="accordionLearningBody" class="accordion-body hidden">
-                    <div id="learningPage" class="flex flex-col">
-                        <!-- Populated by learning_ui.js on first expand -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── AI Profile ───────────────────────────────────────── -->
-            <div class="accordion-section" id="accordionAIProfile">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionAIProfileBody"
-                    data-accordion="accordionAIProfileBody">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-purple-400 text-lg">auto_awesome</span>
-                        <span class="accordion-title">AI Profile</span>
-                    </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
-                </button>
-                <div id="accordionAIProfileBody" class="accordion-body hidden">
-                    <div id="aiProfileView" class="flex flex-col">
-                        <!-- Populated by ai_profile.js on first expand -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Monitoring & Health ──────────────────────────────── -->
-            <div class="accordion-section" id="accordionMonitoring">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionMonitoringBody"
-                    data-accordion="accordionMonitoringBody">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-emerald-400 text-lg">monitor_heart</span>
-                        <span class="accordion-title">Monitoring & Health</span>
-                    </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
-                </button>
-                <div id="accordionMonitoringBody" class="accordion-body hidden">
-                    <div id="monitoringView" class="flex flex-col gap-4">
-                        <!-- Populated by monitoring_ui.js on first expand -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Evaluations ─────────────────────────────────────────── -->
-            <div class="accordion-section" id="accordionEvals">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionEvalsBody"
-                    data-accordion="accordionEvalsBody">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-indigo-300 text-lg">labs</span>
-                        <span class="accordion-title">Evaluations</span>
-                        <span id="evalStatusBadge" class="text-[11px] font-semibold uppercase tracking-widest bg-slate-700/50 text-slate-500 px-2 py-0.5 rounded-full">Ready</span>
-                    </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
-                </button>
-                <div id="accordionEvalsBody" class="accordion-body hidden">
-                    <div id="evalView" class="flex flex-col">
-                        <!-- Populated by eval_ui.js on first expand -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Token Usage ──────────────────────────────────────── -->
-            <div class="accordion-section" id="accordionTokens">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionTokensBody"
-                    data-accordion="accordionTokensBody">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-indigo-400 text-lg">toll</span>
-                        <span class="accordion-title">Token Usage</span>
-                    </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
-                </button>
-                <div id="accordionTokensBody" class="accordion-body hidden">
-                    <div id="tokenPanelContent" class="flex flex-col gap-4">
-                        <!-- Populated by token_panel.js on first expand -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Generated Tools ─────────────────────────────────── -->
-            <div class="accordion-section" id="accordionTools">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionToolsBody"
-                    data-accordion="accordionToolsBody">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-cyan-400 text-lg">build</span>
-                        <span class="accordion-title">Generated Tools</span>
-                    </div>
-                    <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
-                </button>
-                <div id="accordionToolsBody" class="accordion-body hidden">
-                    <div id="generatedToolsList" class="flex flex-col gap-3">
-                        <!-- Populated by tools_generated.js on first expand -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Code Editor ─────────────────────────────────────── -->
-            <div class="accordion-section" id="accordionEditor">
-                <button class="accordion-header" aria-expanded="false" aria-controls="accordionEditorBody"
-                    data-accordion="accordionEditorBody" id="editorToggle">
-                    <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-slate-400 text-lg">code</span>
-                        <span class="accordion-title">Code Editor</span>
-                    </div>
-                    <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-                        <button id="editorRunBtn" title="Execute the current Python script"
-                            class="bg-primary/20 hover:bg-primary/30 text-primary text-[11px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider transition-colors">Run Script</button>
-                        <button id="editorSendToAI" title="Send current file to AI as context"
-                            class="bg-surface-variant hover:bg-surface-bright text-on-surface text-[11px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider transition-colors border border-outline-variant/30">Attach to Context</button>
-                        <span class="accordion-chevron material-symbols-outlined text-slate-500 transition-transform -rotate-90">expand_more</span>
-                    </div>
-                </button>
-                <div id="accordionEditorBody" class="accordion-body accordion-editor hidden">
-                    <div class="flex overflow-hidden" style="height: calc(100vh - 220px)">
-                        <div id="editorFileTree" class="w-56 border-r border-slate-800/15 bg-transparent p-2 overflow-y-auto custom-scrollbar flex-shrink-0">
-                            <div id="editorFileList" class="space-y-0.5 text-xs text-outline"></div>
-                        </div>
-                        <div id="panelDivider" class="w-1 cursor-col-resize bg-outline-variant/10 hover:bg-primary/50 transition-colors z-50 flex-shrink-0" title="Drag to resize" tabindex="-1" aria-hidden="true"></div>
-                        <div class="flex-1 relative">
-                            <div id="monacoContainer" class="absolute inset-0"></div>
-                        </div>
-                    </div>
-                    <div id="editorStatus" class="p-2 border-t border-outline-variant/20 bg-transparent text-[11px] text-outline uppercase tracking-widest flex justify-between">
-                        <span id="editorPath">No file open</span>
-                        <span id="editorLang">plaintext</span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
+    <section class="lm-page" id="mainArtifacts" data-nav="artifacts" role="tabpanel" hidden>
+      <div class="lm-page__inner" id="artifactsContainer"></div>
     </section>
 
-    <!-- ── Thinking Terminal (slide-up panel, shared) ──────────── -->
-    <div id="thinking-terminal" class="absolute bottom-0 left-0 right-0 h-[240px] bg-slate-950 border-t border-slate-800/60 flex flex-col z-40 transform translate-y-full transition-transform duration-300">
-        <div class="flex items-center justify-between px-5 py-2 border-b border-slate-800/40">
-            <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-emerald-400 text-sm">terminal</span>
-                <span class="font-mono text-[11px] text-emerald-400 font-semibold uppercase tracking-widest">Task Output</span>
-            </div>
-            <button id="closeThinkingTerminalBtn" aria-label="Close Terminal" title="Close Terminal"
-                class="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded">
-                <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
-            </button>
-        </div>
-        <div id="mini-stepper" class="flex items-center gap-2.5 px-5 py-1.5 border-b border-slate-800/30">
-            <span class="text-[11px] uppercase font-semibold text-slate-500 tracking-widest">Step:</span>
-            <span id="miniStepperLabel" class="text-[11px] uppercase font-semibold text-primary flex items-center gap-1">
-                <span class="material-symbols-outlined text-[11px]">schema</span> Planner
-            </span>
-        </div>
-        <div id="thinkingTerminalOutput" class="flex-1 overflow-y-auto p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap custom-scrollbar">Initializing sandbox...</div>
+    <section class="lm-page" id="mainKnowledge" data-nav="knowledge" role="tabpanel" hidden>
+      <div class="lm-page__inner" id="knowledgeContainer"></div>
+    </section>
+
+    <section class="lm-page" id="mainOps" data-nav="ops" role="tabpanel" hidden>
+      <div class="lm-page__inner" id="opsContainer"></div>
+    </section>
+
+    <section class="lm-page" id="mainSettings" data-nav="settings" role="tabpanel" hidden>
+      <div class="lm-page__inner" id="settingsContainer"></div>
+    </section>
+
+  </main>
+
+  <!-- ── UTILITY STRIP ─────────────────────────────────────────── -->
+  <footer class="lm-utility" role="contentinfo">
+    <div class="lm-util__group">
+      <span class="lm-util__label">CPU</span>
+      <span class="lm-util__val" id="utilCpu">—</span>
+      <svg class="lm-util__sparkline" id="utilCpuSpark" viewBox="0 0 52 10" aria-hidden="true"></svg>
+    </div>
+    <span class="lm-util__sep"></span>
+    <div class="lm-util__group">
+      <span class="lm-util__label">RAM</span>
+      <span class="lm-util__val" id="utilRam">—</span>
+      <svg class="lm-util__sparkline" id="utilRamSpark" viewBox="0 0 52 10" aria-hidden="true"></svg>
+    </div>
+    <span class="lm-util__sep"></span>
+    <div class="lm-util__group">
+      <span class="lm-util__label">GPU</span>
+      <span class="lm-util__val" id="utilGpu">—</span>
+      <svg class="lm-util__sparkline" id="utilGpuSpark" viewBox="0 0 52 10" aria-hidden="true"></svg>
+    </div>
+    <span class="lm-util__sep"></span>
+    <div class="lm-util__group">
+      <span class="lm-util__label">Queue</span>
+      <span class="lm-util__val" id="utilQueue">0</span>
+    </div>
+    <span class="lm-util__sep"></span>
+    <div class="lm-util__group">
+      <span class="lm-util__label">Workers</span>
+      <span class="lm-util__val" id="utilWorkers">—</span>
     </div>
 
-</main>
+    <div class="lm-util__spacer"></div>
 
-<!-- ════════════════════════════════════════════════════════════════
-     SETTINGS MODAL
-     ════════════════════════════════════════════════════════════════ -->
-<div id="settingsModal" class="hidden fixed inset-0 z-[100] items-center justify-center bg-black/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Settings">
-    <div class="glass-panel w-full max-w-lg rounded-xl border border-outline-variant/25 flex flex-col max-h-[90vh] overflow-hidden">
-        <div class="px-5 py-4 border-b border-outline-variant/15 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-                <span class="material-symbols-outlined text-primary text-xl">settings</span>
-                <h2 class="font-headline font-bold text-lg tracking-tight text-on-background">Settings</h2>
-            </div>
-            <button id="closeSettingsBtn" aria-label="Close Settings" title="Close Settings"
-                class="text-slate-500 hover:text-slate-300 transition-colors p-1.5 rounded-lg hover:bg-white/5">
-                <span class="material-symbols-outlined text-xl">close</span>
-            </button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
-            <!-- SMS Notifications -->
-            <div class="space-y-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="font-headline font-bold text-sm text-slate-100">SMS Notifications</h3>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Get alerts via Twilio when tasks complete or need approval.</p>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer" title="Enable or disable SMS notifications">
-                        <input type="checkbox" id="smsEnabled" class="sr-only peer" title="Toggle SMS notifications">
-                        <div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
-                    </label>
-                </div>
-                <div class="grid grid-cols-1 gap-4">
-                    <div class="space-y-2">
-                        <label for="twilioSid" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Account SID</label>
-                        <input type="text" id="twilioSid" title="Twilio Account SID"
-                            class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-                    </div>
-                    <div class="space-y-2">
-                        <label for="twilioToken" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Auth Token</label>
-                        <input type="password" id="twilioToken" title="Twilio Auth Token"
-                            class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                            placeholder="••••••••••••••••••••••••••••••••">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-2">
-                            <label for="twilioPhone" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Twilio Number</label>
-                            <input type="text" id="twilioPhone" title="Twilio Phone Number"
-                                class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                                placeholder="+15550000000">
-                        </div>
-                        <div class="space-y-2">
-                            <label for="targetPhone" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Your Number</label>
-                            <input type="text" id="targetPhone" title="Target Phone Number"
-                                class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                                placeholder="+15559998888">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Cloud Intelligence -->
-            <div class="pt-5 border-t border-outline-variant/15">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="font-headline font-bold text-sm text-slate-100">Cloud Intelligence</h3>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Enable complex reasoning with Google Gemini.</p>
-                    </div>
-                </div>
-                <div class="space-y-3">
-                    <div class="space-y-2">
-                        <label for="geminiKey" class="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Gemini API Key</label>
-                        <input type="password" id="geminiKey" title="Gemini API Key"
-                            class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none transition-all placeholder:text-slate-600"
-                            placeholder="AIzaSy...">
-                    </div>
-                    <button id="testGeminiBtn" title="Test Gemini API connection"
-                        class="w-full py-2 bg-surface-variant/50 hover:bg-surface-variant text-xs font-bold rounded-lg uppercase tracking-widest transition-all border border-outline-variant/20 flex items-center justify-center gap-2">
-                        <span class="material-symbols-outlined text-xs">analytics</span> Verify Connection
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="px-5 py-4 border-t border-outline-variant/15 flex justify-between gap-3">
-            <button id="testSmsBtn" title="Send a test SMS notification" class="btn-base btn-ghost flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-sm">send</span> Test Alert
-            </button>
-            <button id="saveSettingsBtn" title="Save all configuration changes" class="btn-base btn-primary flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-sm">save</span> Save Config
-            </button>
-        </div>
+    <div class="lm-util__group">
+      <span class="lm-util__dot" id="utilOnlineDot" aria-hidden="true"></span>
+      <span class="lm-util__val" id="utilOnline">online</span>
     </div>
+  </footer>
+
 </div>
 
-<!-- Hidden compatibility shims (consumed by modules not yet refactored) -->
-<div class="hidden" aria-hidden="true">
-    <textarea id="systemPromptText"></textarea>
-    <div id="systemPromptEditor"></div>
-    <button id="saveSystemPrompt"></button>
-    <select id="modelSelect" title="Select the AI model routing mode">
-        <option value="auto">Auto</option>
-        <option value="fast">Fast</option>
-        <option value="deep">Deep</option>
-    </select>
-    <!-- Legacy view containers (kept as shims until modules are refactored) -->
-    <div id="mainScrollArea"></div>
-    <div id="welcomeScreen"></div>
-    <div id="mainDashboardView"></div>
-    <div id="swarmDashboardView"></div>
-    <div id="crossProjectHub"></div>
-    <div id="jobsView"></div>
-    <div id="sidebarImagePreview"><img id="sidebarPreviewImg" alt=""/><button id="sidebarRemoveImageBtn"></button></div>
-    <input id="docUploadInput" type="file" multiple/>
-    <button id="uploadDocsBtn"></button>
-    <button id="memoryToggleBtn"></button>
-    <button id="sidebarUploadBtn"></button>
-    <button id="sidebarCameraBtn"></button>
-    <!-- Work tab shims for state.js / events.js back-compat -->
-    <textarea id="priorityInput" aria-hidden="true" tabindex="-1"></textarea>
-    <div id="priorityList"></div>
-    <button id="addPriorityBtn" aria-hidden="true" tabindex="-1"></button>
-    <div id="workImagePreview"><img id="workPreviewImg" alt=""/><button id="workRemoveImageBtn"></button></div>
-    <!-- SM/mobile shims -->
-    <div id="chatSidebarShim"></div>
+<!-- ── New Job drawer ─────────────────────────────────────────── -->
+<div class="lm-drawer" id="newJobDrawer" data-open="false" aria-hidden="true" role="dialog" aria-labelledby="newJobDrawerTitle">
+  <div class="lm-drawer__scrim" data-close-drawer></div>
+  <aside class="lm-drawer__panel" aria-modal="true">
+    <header class="lm-drawer__header">
+      <h2 class="lm-drawer__title" id="newJobDrawerTitle">New Job</h2>
+      <button type="button" class="lm-icon-btn lm-topbar__icon-btn" data-close-drawer aria-label="Close">
+        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+      </button>
+    </header>
+    <div class="lm-drawer__body" id="taskCreationArea"></div>
+  </aside>
 </div>
 
-<script type="module" src="app.js?v=4"></script>
-    <!-- Mobile Sidebar Backdrop -->
-    <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 z-20 hidden"></div>
+<!-- ── Agent Activity drawer ──────────────────────────────────── -->
+<div class="lm-activity" id="activityPanel" data-open="false" aria-hidden="true" role="dialog" aria-labelledby="activityPanelTitle">
+  <div class="lm-activity__scrim" data-close-activity></div>
+  <aside class="lm-activity__panel" aria-modal="true">
+    <header class="lm-activity__header">
+      <div class="lm-activity__title-group">
+        <h2 class="lm-activity__title" id="activityPanelTitle">Agent activity</h2>
+        <p class="lm-activity__sub">Every tool call, identity change, fact learned, and theme rewrite. Newest first.</p>
+      </div>
+      <div class="lm-activity__header-actions">
+        <button type="button" class="lm-btn lm-btn--ghost lm-btn--sm" id="activityClearBtn" title="Clear log">
+          <span class="material-symbols-outlined" aria-hidden="true">delete_sweep</span>
+        </button>
+        <button type="button" class="lm-icon-btn lm-topbar__icon-btn" data-close-activity aria-label="Close">
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      </div>
+    </header>
+    <div class="lm-activity__filters" role="group" aria-label="Filter by event kind">
+      <button type="button" class="lm-activity__filter lm-activity__filter--active" data-kind="all">All</button>
+      <button type="button" class="lm-activity__filter" data-kind="tool_call">Tools</button>
+      <button type="button" class="lm-activity__filter" data-kind="fact_learned">Facts</button>
+      <button type="button" class="lm-activity__filter" data-kind="identity_change">Identity</button>
+      <button type="button" class="lm-activity__filter" data-kind="theme_change">Theme</button>
+    </div>
+    <div class="lm-activity__body" id="activityList">
+      <div class="lm-activity__empty">No activity yet. Chat with the bot or trigger a job.</div>
+    </div>
+  </aside>
+</div>
+
+<!-- Toast region -->
+<div id="toastRegion" class="lm-toast-region" role="status" aria-live="polite"></div>
+
+<!-- Entry point -->
+<script type="module" src="app.js"></script>
+
 </body>
 </html>

@@ -148,7 +148,8 @@ def save(content: str, wing: str = "wing_general",
         else:
             # Fallback: use ChromaDB collection directly
             import chromadb
-            import hashlib, time as _time
+            import hashlib
+            import time as _time
             client = chromadb.PersistentClient(path=str(_palace_path))
             collection = client.get_or_create_collection("mempalace_drawers")
             doc_id = hashlib.sha1(

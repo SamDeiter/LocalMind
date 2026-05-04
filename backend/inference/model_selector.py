@@ -66,7 +66,7 @@ _CODE_TOOLS: frozenset[str] = frozenset({
 
 # Tool names that indicate document-related work
 _DOCUMENT_TOOLS: frozenset[str] = frozenset({
-    "pptx_create", "pptx_edit", "pptx_read",
+    "pptx", "pptx_create", "pptx_edit", "pptx_read",
     "excel_create", "excel_edit", "excel_read",
     "docx_create", "docx_edit", "docx_read",
     "pdf_read", "pdf_create",

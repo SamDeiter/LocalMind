@@ -141,7 +141,7 @@ def _do_list_files(
         response = service.files().list(
             q=q,
             pageSize=min(page_size, 100),
-            fields="files(id, name, mimeType, modifiedTime, size, parents)",
+            fields="files(id, name, mimeType, modifiedTime, size, parents, webViewLink)",
             orderBy="modifiedTime desc",
         ).execute()
     except Exception as exc:
@@ -178,7 +178,7 @@ def _do_search(query: str, credentials, page_size: int = 20) -> dict:
         response = service.files().list(
             q=full_query,
             pageSize=min(page_size, 100),
-            fields="files(id, name, mimeType, modifiedTime, size, parents)",
+            fields="files(id, name, mimeType, modifiedTime, size, parents, webViewLink)",
             orderBy="modifiedTime desc",
         ).execute()
     except Exception as exc:

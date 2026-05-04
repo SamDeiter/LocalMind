@@ -207,7 +207,7 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
             f"Path {user_path_str!r} escapes the jail {resolved_base!r}"
         )
 
-    logger.debug("safe_resolve OK: %r → %r", user_path_str, resolved_candidate)
+    logger.debug("safe_resolve OK: %r -> %r", user_path_str, resolved_candidate)
     return resolved_candidate
 
 
@@ -281,7 +281,7 @@ def sanitize_filename(filename: str) -> str:
                 f"Filename {filename!r} could not be truncated to valid UTF-8"
             )
 
-    logger.debug("sanitize_filename: %r → %r", filename, cleaned)
+    logger.debug("sanitize_filename: %r -> %r", filename, cleaned)
     return cleaned
 
 

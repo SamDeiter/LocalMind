@@ -68,7 +68,8 @@ class ChatService:
         model, provider = await self.ctx.route_model(task_estimate, model_override)
 
         # 2. Build or load conversation
-        if not conversation_id:
+        is_new_conversation = not conversation_id
+        if is_new_conversation:
             conversation_id = await self._create_conversation(message, model, system_prompt)
 
         # 3. Load history
@@ -84,6 +85,7 @@ class ChatService:
             editor_context=body.get("editor_context"),
             metacog_controller=self.metacog_controller,
             conversation_id=conversation_id,
+            turn_count=len([h for h in history if h.get("role") == "user"]),
         )
 
         # 5. Prepare messages
@@ -114,26 +116,21 @@ class ChatService:
         except Exception as e:
             logger.debug("Session cache user_intent save failed (non-fatal): %s", e)
 
-        # 8. Choose loop
-        use_react = (
-            task_estimate["score"] >= 5
-            and task_estimate.get("needs_tools")
-            and provider == "ollama"
-            and body.get("agent_mode") != "disabled"
-        )
-        if use_react:
-            return self._react_agent_loop(conversation_id, model, message, task_estimate)
-
-        return self._agent_loop(conversation_id, model, provider, messages, task_estimate, metacog_decision)
+        # 8. Always use the standard agent loop — it has proper conversation
+        # history, native Ollama tool calling, and synthetic tool fallback.
+        # The ReAct loop (_react_agent_loop) doesn't pass history and uses a
+        # text-based tool format that smaller models don't reliably produce.
+        return self._agent_loop(conversation_id, model, provider, messages, task_estimate, metacog_decision, is_new_conversation, message)
 
     # ------------------------------------------------------------------
     # ReAct agent loop
     # ------------------------------------------------------------------
 
-    async def _react_agent_loop(self, conversation_id, model, message, task_estimate):
+    async def _react_agent_loop(self, conversation_id, model, message, task_estimate, is_new_conversation=False, provider="ollama"):
         start_time = time.time()
         yield f"data: {json.dumps({'thinking': {'model': model, 'provider': 'react_agent', 'tier': task_estimate['tier']}})}\n\n"
 
+        response = ""
         try:
             from src.agent.core import Agent
             from src.agent.adapter import import_backend_tools
@@ -156,8 +153,15 @@ class ChatService:
         except Exception as e:
             logger.error(f"ReAct agent failed: {e}", exc_info=True)
             error_msg = f"Agent encountered an error: {e}"
+            response = error_msg
             yield f"data: {json.dumps({'token': error_msg, 'conversation_id': conversation_id})}\n\n"
             await self._save_msg(conversation_id, "assistant", error_msg)
+
+        # Generate AI title for new conversations
+        if is_new_conversation and response:
+            title = await self._generate_title(conversation_id, message, response, model, provider)
+            if title:
+                yield f"data: {json.dumps({'title_update': {'conversation_id': conversation_id, 'title': title}})}\n\n"
 
         elapsed = time.time() - start_time
         yield f"data: {json.dumps({'analytics': {'elapsed': round(elapsed, 2), 'model': model, 'provider': 'react_agent', 'tier': task_estimate['tier']}})}\n\n"
@@ -167,7 +171,7 @@ class ChatService:
     # Standard streaming + tool execution loop
     # ------------------------------------------------------------------
 
-    async def _agent_loop(self, conversation_id, model, provider, messages, task_estimate, metacog_decision):
+    async def _agent_loop(self, conversation_id, model, provider, messages, task_estimate, metacog_decision, is_new_conversation=False, user_message=""):
         full_response = ""
         total_tokens = 0
         total_tool_calls = 0
@@ -178,10 +182,17 @@ class ChatService:
         if metacog_decision:
             from backend.metacognition.models.actions import Action
             if metacog_decision.action == Action.ASK:
-                yield f"data: {json.dumps({'token': metacog_decision.clarification_question, 'conversation_id': conversation_id, 'metacog': metacog_decision.to_dict()})}\n\n"
-                await self._save_msg(conversation_id, "assistant", metacog_decision.clarification_question)
-                yield f"data: {json.dumps({'done': True})}\n\n"
-                return
+                # Don't block with clarification questions when we can infer
+                # the tool to call.  Action-oriented requests like "make me a
+                # powerpoint" should just execute, not interrogate the user.
+                synthetic_override = self.tools.infer_tool_call(user_message) if task_estimate.get("needs_tools") else None
+                if not synthetic_override:
+                    yield f"data: {json.dumps({'token': metacog_decision.clarification_question, 'conversation_id': conversation_id, 'metacog': metacog_decision.to_dict()})}\n\n"
+                    await self._save_msg(conversation_id, "assistant", metacog_decision.clarification_question)
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+                    return
+                else:
+                    logger.info("Metacog wanted to ASK, but synthetic tool call available — proceeding with action")
 
         # Fast-path synthetic tool call
         _pre_synthetic = None
@@ -199,6 +210,11 @@ class ChatService:
                 num_ctx = 16384
 
             llm_options = {"num_ctx": num_ctx, "num_gpu": 99}
+            # Disable qwen3 extended thinking for light/medium tasks — it
+            # generates hidden <think> tokens that eat time without visible
+            # output, making the response feel much slower than it is.
+            if "qwen3" in model and task_estimate["tier"] in ("light", "medium"):
+                llm_options["num_predict"] = 2048  # cap output length
             ollama_tools = [t.to_ollama_tool() for t in self.registry.tools]
 
             chunk_text = ""
@@ -314,7 +330,7 @@ class ChatService:
                 break
 
         # Finalize
-                # Phase 3: Automated Root Cause Analysis if task failed or exhausted iterations
+        # Phase 3: Automated Root Cause Analysis if task failed or exhausted iterations
         if iteration >= config.MAX_AGENT_ITERATIONS - 1:
             logger.warning(f"Conversation {conversation_id} exhausted max iterations. Triggering RCA.")
             rca_result = await self.reflection.analyze_failure(conversation_id)
@@ -325,15 +341,22 @@ class ChatService:
         
         await self._save_msg(conversation_id, "assistant", full_response)
 
+        # Generate AI title for new conversations
+        if is_new_conversation and full_response:
+            title = await self._generate_title(conversation_id, user_message, full_response, model, provider)
+            if title:
+                yield f"data: {json.dumps({'title_update': {'conversation_id': conversation_id, 'title': title}})}\n\n"
+
         elapsed = time.time() - start_time
         yield f"data: {json.dumps({'analytics': {'elapsed': round(elapsed, 2), 'tokens': total_tokens, 'tps': round(total_tokens / elapsed, 1) if elapsed > 0 else 0, 'model': model, 'total_tokens': total_tokens, 'tokens_per_sec': round(total_tokens / elapsed, 1) if elapsed > 0 else 0, 'elapsed_sec': round(elapsed, 2), 'tool_calls': total_tool_calls}})}\n\n"
         yield f"data: {json.dumps({'done': True, 'conversation_id': conversation_id})}\n\n"
 
         try:
             if len(messages) >= 2:
-                await self._auto_save_facts(messages[-2]["content"], True)
+                import asyncio
+                asyncio.create_task(self._auto_save_facts(messages[-2]["content"], True))
         except Exception as e:
-            logger.warning(f"Auto-save facts failed: {e}")
+            logger.warning(f"Auto-save facts task creation failed: {e}")
 
         # ── MemPalace Tier-3 auto-save (verbatim turn archival) ──────────
         try:
@@ -478,11 +501,49 @@ class ChatService:
         db.close()
         return cid
 
+    async def _generate_title(self, conversation_id: str, user_msg: str, assistant_msg: str, model: str, provider: str):
+        """Ask the LLM to produce a short summary title for the conversation."""
+        try:
+            prompt_messages = [
+                {"role": "system", "content": "Generate a short title (max 6 words) that summarizes this conversation. Reply with ONLY the title, no quotes, no punctuation at the end."},
+                {"role": "user", "content": user_msg},
+                {"role": "assistant", "content": assistant_msg[:300]},
+                {"role": "user", "content": "Give a short title for this conversation."},
+            ]
+            result = await self.llm.generate(model, prompt_messages, provider=provider)
+            title = (result.get("content") or "").strip().strip('"').strip("'")
+            if not title or len(title) > 80:
+                title = user_msg[:50] + ("..." if len(user_msg) > 50 else "")
+            # Persist updated title
+            db = self.db_factory()
+            db.execute("UPDATE conversations SET title = ? WHERE id = ?", (title, conversation_id))
+            db.commit()
+            db.close()
+            logger.info(f"Generated title for {conversation_id}: {title}")
+            return title
+        except Exception as e:
+            logger.warning(f"Title generation failed (non-fatal): {e}")
+            return None
+
     async def _auto_save_facts(self, last_user_message: str, enabled: bool):
+        """Persist durable user-facts from the latest message.
+
+        Two-step pipeline:
+          1. Episodic save: raw turn -> FTS5 (catches everything as a fallback)
+          2. Fact extraction: LLM pulls structured {key,value} -> MemoryManager
+             preference store (with confidence + decay) AND -> FTS5 as
+             semantic/preference rows so recall_memories can surface them.
+        """
         if not enabled:
             return
-        from backend.tools.memory import _get_retriever
+
+        from backend.tools.memory import _get_retriever, get_learning_enabled
+        if not get_learning_enabled():
+            return
+
         retriever = _get_retriever()
+
+        # 1. Episodic raw save (existing behavior).
         if retriever:
             try:
                 retriever.save_from_conversation(
@@ -493,6 +554,51 @@ class ChatService:
                 )
             except Exception as e:
                 logger.warning(f"Episodic memory save failed: {e}")
+
+        # 2. Structured fact extraction.
+        try:
+            from backend.logic.fact_extractor import FactExtractor
+            from backend.metacognition.memory_manager import get_memory_manager
+            extractor = FactExtractor(llm=self.llm)
+            facts = await extractor.extract(last_user_message)
+            if not facts:
+                return
+
+            mm = get_memory_manager()
+            for fact in facts:
+                key = fact.get("key", "").strip()
+                value = fact.get("value", "").strip()
+                source = fact.get("source", "inferred")
+                if not key or not value:
+                    continue
+                mm.propose_preference(key=key, value=value, source=source)
+
+                # Mirror into FTS5 so recall_memories can find it semantically.
+                if retriever:
+                    try:
+                        retriever.save_from_conversation(
+                            content=f"{key}: {value}",
+                            category="semantic",
+                            subcategory="preference",
+                            source="fact_extractor",
+                        )
+                    except Exception as e:
+                        logger.debug("FTS5 mirror of extracted fact failed: %s", e)
+            logger.info("Auto-learned %d fact(s) about user", len(facts))
+            try:
+                from backend.observability.activity_log import ActivityKind, record
+                preview = ", ".join(f"{f.get('key')}={f.get('value')}" for f in facts[:4])
+                record(
+                    ActivityKind.FACT_LEARNED,
+                    f"Learned {len(facts)} fact(s) about user: {preview}",
+                    actor="bot",
+                    detail={"facts": facts},
+                    success=True,
+                )
+            except Exception:
+                pass
+        except Exception as e:
+            logger.warning(f"Fact extraction failed (non-fatal): {e}")
 
     async def _palace_save_turn(self, user_msg: str, assistant_msg: str, conversation_id: str):
         """Save a full conversation turn verbatim to MemPalace (Tier-3).

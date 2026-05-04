@@ -1,0 +1,571 @@
+/* =============================================================
+   LocalMind v2 — Operations page
+   Industrial mission-control dashboard. Scoped to #mainOps.
+   All classes use the .lm-ops__{element}--{modifier} convention.
+   Relies exclusively on tokens from tokens.css.
+   ============================================================= */
+
+/* ── Last-updated meta in the page header actions ─────────── */
+#mainOps .lm-ops__updated {
+  font-size: var(--lm-fs-11);
+  color: var(--lm-text-muted);
+  letter-spacing: var(--lm-tracking-tight);
+  margin-right: var(--lm-space-2);
+  white-space: nowrap;
+}
+
+/* =============================================================
+   HARDWARE STRIP
+   ============================================================= */
+.lm-ops__strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--lm-space-4);
+  margin-bottom: var(--lm-space-5);
+}
+
+.lm-ops__tile {
+  background: var(--lm-surface-1);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: var(--lm-radius);
+  padding: var(--lm-space-4) var(--lm-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-space-3);
+  min-width: 0;
+  transition: border-color var(--lm-dur-base) var(--lm-ease),
+              background   var(--lm-dur-base) var(--lm-ease);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Thin left-edge accent that reflects utilization level. */
+.lm-ops__tile::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--lm-status-ok);
+  opacity: 0.6;
+  transition: background var(--lm-dur-base) var(--lm-ease),
+              opacity    var(--lm-dur-base) var(--lm-ease);
+}
+.lm-ops__tile[data-level="idle"]::before { background: var(--lm-text-muted); opacity: 0.35; }
+.lm-ops__tile[data-level="ok"]::before   { background: var(--lm-status-ok); }
+.lm-ops__tile[data-level="warn"]::before { background: var(--lm-status-waiting); }
+.lm-ops__tile[data-level="err"]::before  { background: var(--lm-status-failed); }
+
+.lm-ops__tile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+}
+
+.lm-ops__tile-head .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.lm-ops__tile-label {
+  font-family: var(--lm-font-body);
+  font-size: var(--lm-fs-11);
+  font-weight: var(--lm-fw-semi);
+  text-transform: uppercase;
+  letter-spacing: var(--lm-tracking-caps);
+  color: var(--lm-text-tertiary);
+}
+
+.lm-ops__tile-body {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lm-space-3);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.lm-ops__tile-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lm-space-1);
+  min-width: 0;
+  line-height: 1;
+}
+
+.lm-ops__tile-number {
+  font-family: var(--lm-font-mono);
+  font-size: var(--lm-fs-30);
+  font-weight: var(--lm-fw-semi);
+  color: var(--lm-text-primary);
+  letter-spacing: var(--lm-tracking-tight);
+  line-height: 1;
+}
+
+.lm-ops__tile-unit {
+  font-family: var(--lm-font-mono);
+  font-size: var(--lm-fs-14);
+  color: var(--lm-text-tertiary);
+  font-weight: var(--lm-fw-medium);
+}
+
+.lm-ops__sparkline {
+  flex: 1;
+  min-width: 80px;
+  max-width: 180px;
+  height: 36px;
+  display: block;
+  color: var(--lm-accent);
+}
+
+.lm-ops__tile[data-level="idle"] .lm-ops__sparkline { color: var(--lm-text-muted); }
+.lm-ops__tile[data-level="ok"]   .lm-ops__sparkline { color: var(--lm-accent); }
+.lm-ops__tile[data-level="warn"] .lm-ops__sparkline { color: var(--lm-status-waiting); }
+.lm-ops__tile[data-level="err"]  .lm-ops__sparkline { color: var(--lm-status-failed); }
+
+.lm-ops__tile-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lm-space-2);
+  font-size: var(--lm-fs-11);
+  padding-top: var(--lm-space-2);
+  border-top: 1px solid var(--lm-border-subtle);
+}
+
+.lm-ops__tile-sub {
+  text-transform: uppercase;
+  letter-spacing: var(--lm-tracking-caps);
+  font-size: 10px;
+}
+
+.lm-ops__tile-sub-val {
+  color: var(--lm-text-secondary);
+  font-size: var(--lm-fs-11);
+}
+
+/* =============================================================
+   ROW LAYOUT
+   ============================================================= */
+.lm-ops__row {
+  display: grid;
+  gap: var(--lm-space-4);
+  margin-bottom: var(--lm-space-5);
+  align-items: stretch;
+}
+
+.lm-ops__row--2 {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+
+.lm-ops__panel {
+  min-width: 0;
+}
+
+.lm-ops__panel-note {
+  font-size: var(--lm-fs-11);
+  font-weight: var(--lm-fw-medium);
+  color: var(--lm-text-tertiary);
+  letter-spacing: var(--lm-tracking-tight);
+  margin-left: auto;
+}
+
+/* =============================================================
+   QUEUE CHART (bar timeline)
+   ============================================================= */
+.lm-ops__chart {
+  height: 140px;
+  display: flex;
+  align-items: flex-end;
+  padding: var(--lm-space-2) 0;
+}
+
+.lm-ops__bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: stretch;
+  gap: 2px;
+  height: 100%;
+  width: 100%;
+}
+
+.lm-ops__bar {
+  flex: 1;
+  min-width: 3px;
+  background: var(--lm-accent);
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+  opacity: 0.85;
+  transition: opacity var(--lm-dur-quick) var(--lm-ease),
+              background var(--lm-dur-quick) var(--lm-ease);
+}
+.lm-ops__bar:hover { opacity: 1; background: var(--lm-accent-hover); }
+
+.lm-ops__bar--placeholder {
+  background: var(--lm-surface-3);
+  opacity: 0.55;
+}
+
+.lm-ops__chart-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+  flex-wrap: wrap;
+  padding-top: var(--lm-space-3);
+  margin-top: var(--lm-space-2);
+  border-top: 1px solid var(--lm-border-subtle);
+  font-size: var(--lm-fs-11);
+  color: var(--lm-text-secondary);
+}
+
+.lm-ops__chart-meta .lm-mute {
+  text-transform: uppercase;
+  letter-spacing: var(--lm-tracking-caps);
+  font-size: 10px;
+  color: var(--lm-text-muted);
+}
+
+.lm-ops__chart-meta .lm-mono {
+  color: var(--lm-text-primary);
+  font-size: var(--lm-fs-13);
+  font-weight: var(--lm-fw-semi);
+}
+
+.lm-ops__sep {
+  width: 1px;
+  height: 12px;
+  background: var(--lm-border-subtle);
+  display: inline-block;
+}
+
+/* =============================================================
+   WORKERS LIST
+   ============================================================= */
+.lm-ops__workers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-space-2);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.lm-ops__worker {
+  display: flex;
+  align-items: center;
+  gap: var(--lm-space-3);
+  padding: var(--lm-space-3);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: var(--lm-radius);
+  background: var(--lm-surface-2);
+  transition: border-color var(--lm-dur-quick) var(--lm-ease),
+              background   var(--lm-dur-quick) var(--lm-ease);
+}
+.lm-ops__worker:hover {
+  border-color: var(--lm-border-strong);
+  background: var(--lm-surface-3);
+}
+
+.lm-ops__worker-status {
+  padding: 0;
+  background: transparent !important;
+  min-width: 10px;
+  display: inline-flex;
+}
+
+.lm-ops__worker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.lm-ops__worker-name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lm-space-2);
+  min-width: 0;
+}
+
+.lm-ops__worker-title {
+  font-family: var(--lm-font-mono);
+  font-size: var(--lm-fs-13);
+  font-weight: var(--lm-fw-medium);
+  color: var(--lm-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lm-ops__worker-role {
+  font-size: var(--lm-fs-10);
+  text-transform: uppercase;
+  letter-spacing: var(--lm-tracking-caps);
+}
+
+.lm-ops__worker-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+  font-size: var(--lm-fs-11);
+  min-width: 0;
+}
+
+.lm-ops__worker-task {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =============================================================
+   MODELS TABLE
+   ============================================================= */
+.lm-ops__models {
+  overflow-x: auto;
+}
+
+.lm-ops__models-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lm-fs-13);
+}
+
+.lm-ops__models-table thead th {
+  text-align: left;
+  font-family: var(--lm-font-body);
+  font-size: var(--lm-fs-10);
+  font-weight: var(--lm-fw-semi);
+  text-transform: uppercase;
+  letter-spacing: var(--lm-tracking-caps);
+  color: var(--lm-text-muted);
+  padding: var(--lm-space-2) var(--lm-space-3);
+  border-bottom: 1px solid var(--lm-border-subtle);
+}
+
+.lm-ops__models-table tbody td {
+  padding: var(--lm-space-3);
+  border-bottom: 1px solid var(--lm-border-subtle);
+  color: var(--lm-text-secondary);
+  vertical-align: middle;
+}
+
+.lm-ops__models-table tbody tr:last-child td { border-bottom: none; }
+
+.lm-ops__models-table tbody tr:hover td {
+  background: var(--lm-surface-2);
+  color: var(--lm-text-primary);
+}
+
+.lm-ops__model-row.is-loaded .lm-ops__model-name .lm-mono {
+  color: var(--lm-text-primary);
+  font-weight: var(--lm-fw-medium);
+}
+
+.lm-ops__col-right {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lm-ops__model-family .lm-chip {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--lm-fs-11);
+  padding: 2px 8px;
+}
+
+/* =============================================================
+   ALERTS
+   ============================================================= */
+.lm-ops__alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-space-2);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.lm-ops__alerts-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+  padding: var(--lm-space-5) var(--lm-space-3);
+  color: var(--lm-status-ok);
+  font-size: var(--lm-fs-13);
+}
+
+.lm-ops__alerts-empty .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.lm-ops__alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lm-space-3);
+  padding: var(--lm-space-3);
+  border-radius: var(--lm-radius);
+  border: 1px solid var(--lm-border-subtle);
+  background: var(--lm-surface-2);
+}
+
+.lm-ops__alert--waiting {
+  border-color: color-mix(in srgb, var(--lm-status-waiting) 35%, var(--lm-border-subtle));
+  background: color-mix(in srgb, var(--lm-status-waiting-soft) 40%, var(--lm-surface-2));
+}
+
+.lm-ops__alert--failed {
+  border-color: color-mix(in srgb, var(--lm-status-failed) 35%, var(--lm-border-subtle));
+  background: color-mix(in srgb, var(--lm-status-failed-soft) 40%, var(--lm-surface-2));
+}
+
+.lm-ops__alert--ok {
+  border-color: color-mix(in srgb, var(--lm-status-ok) 35%, var(--lm-border-subtle));
+  background: color-mix(in srgb, var(--lm-status-ok-soft) 40%, var(--lm-surface-2));
+}
+
+.lm-ops__alert-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.lm-ops__alert--waiting .lm-ops__alert-icon { color: var(--lm-status-waiting); }
+.lm-ops__alert--failed  .lm-ops__alert-icon { color: var(--lm-status-failed); }
+.lm-ops__alert--ok      .lm-ops__alert-icon { color: var(--lm-status-ok); }
+
+.lm-ops__alert-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lm-ops__alert-msg {
+  font-size: var(--lm-fs-13);
+  color: var(--lm-text-primary);
+  line-height: var(--lm-lh-snug);
+}
+
+.lm-ops__alert-src {
+  font-size: var(--lm-fs-10);
+  text-transform: uppercase;
+  letter-spacing: var(--lm-tracking-caps);
+}
+
+.lm-ops__alert-time {
+  font-size: var(--lm-fs-10);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+/* =============================================================
+   LOG VIEWER
+   ============================================================= */
+.lm-ops__log-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lm-space-2);
+  margin-left: auto;
+}
+
+.lm-ops__log {
+  font-family: var(--lm-font-mono);
+  font-size: var(--lm-fs-11);
+  line-height: var(--lm-lh-snug);
+  color: var(--lm-text-secondary);
+  background: var(--lm-surface-input);
+  border: 1px solid var(--lm-border-subtle);
+  border-radius: var(--lm-radius);
+  padding: var(--lm-space-3);
+  margin: 0;
+  height: 240px;
+  overflow: auto;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+.lm-ops__log:focus {
+  outline: none;
+  box-shadow: var(--lm-focus-ring);
+  border-color: var(--lm-border-focus);
+}
+
+/* =============================================================
+   EMPTY / SKELETON states
+   ============================================================= */
+.lm-ops__empty {
+  padding: var(--lm-space-5) var(--lm-space-3);
+  text-align: center;
+  color: var(--lm-text-muted);
+  font-size: var(--lm-fs-12);
+  font-style: italic;
+}
+
+.lm-ops__skeleton-row {
+  height: 18px;
+  margin: var(--lm-space-2) 0;
+  border-radius: var(--lm-radius-sm);
+}
+
+/* Small "Copied" flash pill that animates in from a button */
+.lm-ops__flash {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  padding: 2px 6px;
+  background: var(--lm-status-ok);
+  color: var(--lm-text-inverse);
+  font-family: var(--lm-font-body);
+  font-size: var(--lm-fs-10);
+  font-weight: var(--lm-fw-semi);
+  border-radius: var(--lm-radius-pill);
+  animation: lm-ops-flash var(--lm-dur-slow) var(--lm-ease-out);
+  pointer-events: none;
+}
+
+#opsLogCopyBtn, #opsLogPauseBtn { position: relative; }
+
+@keyframes lm-ops-flash {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =============================================================
+   RESPONSIVE
+   Mobile nav / topbar handled by the Responsive agent —
+   only the ops-specific grid fallbacks live here.
+   ============================================================= */
+@media (max-width: 1024px) {
+  .lm-ops__strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lm-ops__row--2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lm-ops__chart { height: 120px; }
+}
+
+@media (max-width: 640px) {
+  .lm-ops__strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lm-ops__tile-number {
+    font-size: var(--lm-fs-24);
+  }
+  .lm-ops__sparkline {
+    min-width: 60px;
+    max-width: 120px;
+    height: 28px;
+  }
+  .lm-ops__log { height: 180px; }
+}
+
+/* Reduced motion — freeze any animations */
+@media (prefers-reduced-motion: reduce) {
+  .lm-ops__flash,
+  .lm-ops__bar,
+  .lm-ops__tile,
+  .lm-ops__worker {
+    animation: none !important;
+    transition: none !important;
+  }
+}

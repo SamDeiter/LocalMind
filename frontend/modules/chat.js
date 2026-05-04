@@ -23,9 +23,8 @@ import {
   autoResize,
 } from "./state.js";
 import { escapeHtml, getLang } from "./utils.js";
-import { loadConversations } from "./conversations.js";
+import { loadConversations, renderConversations } from "./conversations.js";
 import { clearCapturedImage } from "./media.js";
-import { loadMemories } from "./sidebar.js";
 import { streamChat } from "./streaming.js";
 import { createToolCallCard, updateToolResult, highlightCode } from "./tools.js";
 import { speakText, isTTSEnabled, renderTTSButton } from "./tts.js";
@@ -44,7 +43,7 @@ export async function checkHealth() {
       loadingStatus.textContent = d.status === "ok" ? "Connected to Ollama" : "Ollama not found";
     }
   } catch {
-    if (loadingStatus) loadingStatus.textContent = "Cannot reach server";
+    if (loadingStatus) loadingStatus.textContent = "Cannot reach server — check that the backend is running";
   }
 }
 
@@ -81,6 +80,7 @@ export async function loadModels() {
 
 // ── Send Message ────────────────────────────────────────────────
 export async function sendMessage() {
+  if (!messageInput) return;
   const text = messageInput.value.trim();
   if (!text || state.streaming) return;
 
@@ -88,12 +88,7 @@ export async function sendMessage() {
   autoResize();
 
   // Switch to chat view if not already visible
-  const chatScreen = document.getElementById("chatScreen");
-  if (chatScreen && chatScreen.classList.contains("hidden")) {
-    // Trigger the chat nav button to properly hide other views
-    const chatBtn = document.getElementById("chatBtn");
-    if (chatBtn) chatBtn.click();
-  }
+  import("./nav_rail.js").then((m) => m.switchNav("chat")).catch(() => {});
 
   state.messages.push({ role: "user", content: text });
   appendMessage("user", text);
@@ -105,11 +100,21 @@ export async function sendMessage() {
   let typingRemoved = false;
 
   state.streaming = true;
-  sendBtn.disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
   resetAutoScroll();
   const stopBtn = document.getElementById("stopBtn");
   if (stopBtn) stopBtn.style.display = "";
   state.abortController = new AbortController();
+
+  // Safety: auto-reset streaming flag after 2 min to prevent permanent lock-out
+  const streamingTimeout = setTimeout(() => {
+    if (state.streaming) {
+      console.warn("[LocalMind] Streaming safety timeout — resetting stuck state");
+      state.streaming = false;
+      if (sendBtn) sendBtn.disabled = false;
+      if (state.abortController) { state.abortController.abort(); state.abortController = null; }
+    }
+  }, 120_000);
 
   resetTokenPanel();
 
@@ -117,7 +122,7 @@ export async function sendMessage() {
     model: resolveModel(),
     message: text,
     conversation_id: state.currentConvId || undefined,
-    system_prompt: systemPromptText.value || undefined,
+    system_prompt: systemPromptText?.value || undefined,
   };
 
   // Auto-inject editor context if a file is open
@@ -146,18 +151,33 @@ export async function sendMessage() {
     }
   };
 
+  // Debounce streaming DOM updates — batch token renders via rAF instead
+  // of re-rendering full markdown on every single token (~10x fewer reflows).
+  let _pendingText = "";
+  let _rafId = null;
+
+  function _flushTokenRender() {
+    _rafId = null;
+    if (contentEl && _pendingText) {
+      contentEl.innerHTML = renderMarkdown(_pendingText);
+      highlightCode();
+      scrollToBottom();
+    }
+  }
+
   try {
     const fullText = await streamChat(
       body,
       {
         onToken(_token, fullText) {
           removeTyping();
-          if (contentEl) {
-            contentEl.innerHTML = renderMarkdown(fullText);
-            highlightCode();
-          }
+          _pendingText = fullText;
           updateTokenStream(fullText.length);
-          scrollToBottom();
+          // Coalesce renders into a single rAF — avoids re-rendering
+          // markdown + forcing layout on every individual token.
+          if (!_rafId) {
+            _rafId = requestAnimationFrame(_flushTokenRender);
+          }
         },
 
         onToolCall(tc) {
@@ -252,6 +272,15 @@ export async function sendMessage() {
           // Currently just logged in streaming.js
         },
 
+        onTitleUpdate(data) {
+          // Update the conversation title in state and re-render sidebar
+          const conv = state.conversations.find((c) => c.id === data.conversation_id);
+          if (conv) {
+            conv.title = data.title;
+            renderConversations();
+          }
+        },
+
         onAnalytics(a) {
           removeTyping();
           updateTokenAnalytics(a);
@@ -291,6 +320,11 @@ export async function sendMessage() {
       state.abortController.signal,
     );
 
+    // Final flush — ensure the last batch of tokens is rendered
+    if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+    _pendingText = fullText;
+    _flushTokenRender();
+
     state.messages.push({ role: "assistant", content: fullText });
 
     // Auto-play TTS for new AI responses when enabled
@@ -307,25 +341,25 @@ export async function sendMessage() {
     // which flashes away the streamed response. Instead, just update the
     // sidebar conversation list so the title/timestamp refresh.
     await loadConversations();
-
-    // Refresh memory badge — auto-save heuristic may have saved new memories
-    // during this chat turn, so update the sidebar count + list
-    await loadMemories();
   } catch (e) {
     if (e.name === "AbortError") {
       console.log("[LocalMind] Request aborted by user");
     } else {
       console.error("[LocalMind] Stream error:", e);
       if (contentEl) {
-        contentEl.innerHTML = `<div class="flex items-center gap-2 text-red-400 text-sm"><span class="material-symbols-outlined text-base">cloud_off</span> Connection error: ${escapeHtml(e.message)}</div>`;
+        const hint = e.message?.includes("fetch")
+          ? "Check that Ollama is running and the backend server is accessible, then try again."
+          : "This may be a temporary issue. Try sending your message again.";
+        contentEl.innerHTML = `<div class="flex flex-col gap-1 text-sm"><div class="flex items-center gap-2 text-red-400"><span class="material-symbols-outlined text-base" aria-hidden="true">cloud_off</span> Couldn't reach the AI model</div><p class="text-xs text-slate-500 ml-6">${escapeHtml(hint)}</p></div>`;
       }
     }
   } finally {
+    clearTimeout(streamingTimeout);
     state.streaming = false;
-    sendBtn.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
     state.abortController = null;
-    const stopBtn = document.getElementById("stopBtn");
-    if (stopBtn) stopBtn.style.display = "none";
+    const stopBtn2 = document.getElementById("stopBtn");
+    if (stopBtn2) stopBtn2.style.display = "none";
   }
 }
 
@@ -341,16 +375,10 @@ export function clearMessages() {
 export function renderMessages() {
   if (!messagesContainer) return;
   // messagesContainer.innerHTML = ""; // Managed by clearMessages
-  const chatScreen = document.getElementById("chatScreen");
-  // Dashboard UI is no longer obscured when chatting
-  if (chatScreen) {
-    if (state.messages.length > 0) {
-      chatScreen.classList.remove("hidden");
-      chatScreen.style.display = "flex";
-    } else {
-      chatScreen.style.display = "none";
-    }
-  }
+  // Only toggle the empty-state hint; never hide the entire chatPanel
+  // (it wraps the input area too, so hiding it blocks follow-up messages)
+  const emptyState = document.getElementById("chatEmptyState");
+  if (emptyState) emptyState.style.display = state.messages.length > 0 ? "none" : "";
   state.messages.forEach((m) => {
     createMessageEl(m.role, m.content);
   });
@@ -370,6 +398,8 @@ export function createMessageEl(role, content) {
   const wrapper = document.createElement("div");
   const isUser = role === "user";
   wrapper.className = `message ${role}-message flex w-full mb-3 ${isUser ? "justify-end" : "justify-start"}`;
+  wrapper.setAttribute("role", "article");
+  wrapper.setAttribute("aria-label", isUser ? "You said" : "LocalMind said");
 
   const contentDiv = document.createElement("div");
   contentDiv.className = `message-content max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
@@ -394,7 +424,9 @@ export function createMessageEl(role, content) {
 export function addTypingIndicator(el) {
   const dots = document.createElement("div");
   dots.className = "typing-dots";
-  dots.innerHTML = "<span></span><span></span><span></span>";
+  dots.setAttribute("role", "status");
+  dots.setAttribute("aria-label", "LocalMind is typing");
+  dots.innerHTML = "<span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span><span aria-hidden=\"true\"></span>";
   el.querySelector(".message-content")?.appendChild(dots);
 }
 
@@ -402,7 +434,13 @@ export function addTypingIndicator(el) {
 export function renderMarkdown(text) {
   if (!text) return "";
   try {
-    return marked.parse(text, { breaks: true, gfm: true });
+    // Strip qwen3-style <think>…</think> reasoning blocks (full content, not just tags)
+    let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+    // Strip model XML wrapper tags that marked treats as invisible custom HTML elements
+    cleaned = cleaned.replace(/<\/?(?:tool_response|tool_call|function_call|function_response|result|observation|thinking|think)[^>]*>/gi, "");
+    // Collapse any leftover blank lines from tag removal
+    cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+    return marked.parse(cleaned, { breaks: true, gfm: true });
   } catch {
     return escapeHtml(text);
   }

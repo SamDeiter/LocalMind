@@ -21,6 +21,17 @@ logger = logging.getLogger("localmind.routes.system")
 # Module-level start time for uptime calculation
 _START_TIME = time.time()
 
+# Shared async client for Ollama health/status checks — avoids creating
+# a new TCP connection on every /health, /models, /hardware request.
+_ollama_client: httpx.AsyncClient | None = None
+
+
+def _get_ollama_client() -> httpx.AsyncClient:
+    global _ollama_client
+    if _ollama_client is None or _ollama_client.is_closed:
+        _ollama_client = httpx.AsyncClient(timeout=httpx.Timeout(3.0, connect=2.0))
+    return _ollama_client
+
 # ⚡ Bolt: Prime psutil CPU calculation at module load.
 # This allows us to use interval=None in the route handler for non-blocking
 # CPU percentage retrieval, saving ~100ms of event loop block per request.
@@ -61,19 +72,20 @@ def _db_size_mb() -> float:
 
 
 def _job_counts() -> dict:
-    """Query job counts from the jobs table. Returns active and completed counts."""
+    """Query job counts from the jobs table in a single query."""
     active = 0
     completed = 0
     try:
         conn = _get_db_conn()
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'running'"
+            """SELECT
+                 SUM(CASE WHEN status IN ('executing','planning','reviewing') THEN 1 ELSE 0 END) AS active,
+                 SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS completed
+               FROM jobs"""
         ).fetchone()
-        active = row["cnt"] if row else 0
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'completed'"
-        ).fetchone()
-        completed = row["cnt"] if row else 0
+        if row:
+            active = row["active"] or 0
+            completed = row["completed"] or 0
         conn.close()
     except Exception:
         pass
@@ -85,9 +97,9 @@ async def health_check():
     """Check server and Ollama connectivity with enhanced system metrics."""
     # Ollama status
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        client = _get_ollama_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
     except Exception:
         ollama_ok = False
 
@@ -148,16 +160,16 @@ async def hardware_status():
 
     models = []
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
-            data = r.json()
-            for m in data.get("models", []):
-                models.append({
-                    "name": m.get("name", "unknown"),
-                    "size_gb": round(m.get("size", 0) / (1024**3), 1),
-                    "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
-                    "processor": m.get("details", {}).get("quantization_level", ""),
-                })
+        client = _get_ollama_client()
+        r = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
+        data = r.json()
+        for m in data.get("models", []):
+            models.append({
+                "name": m.get("name", "unknown"),
+                "size_gb": round(m.get("size", 0) / (1024**3), 1),
+                "vram_gb": round(m.get("size_vram", 0) / (1024**3), 1),
+                "processor": m.get("details", {}).get("quantization_level", ""),
+            })
     except Exception:
         pass
 
@@ -167,14 +179,14 @@ async def hardware_status():
 async def list_models():
     """List available Ollama models."""
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
-            data = resp.json()
-            models = [
-                {"name": m["name"], "size": m.get("size", 0)}
-                for m in data.get("models", [])
-            ]
-            return {"models": models}
+        client = _get_ollama_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3.0)
+        data = resp.json()
+        models = [
+            {"name": m["name"], "size": m.get("size", 0)}
+            for m in data.get("models", [])
+        ]
+        return {"models": models}
     except Exception as e:
         return {"models": [], "error": str(e)}
 
@@ -202,9 +214,9 @@ async def health_ready():
     # Ollama check
     ollama_ok = False
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
-            ollama_ok = resp.status_code == 200
+        client = _get_ollama_client()
+        resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=2.0)
+        ollama_ok = resp.status_code == 200
         checks["ollama"] = "pass" if ollama_ok else "fail"
     except Exception:
         checks["ollama"] = "fail"

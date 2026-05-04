@@ -27,3 +27,45 @@
 - Google OAuth requires manual credential setup (no admin UI yet)
 - Slack bot requires `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` environment variables (documented in `.env.example`)
 - Best-of-N PRM integration is stub-only (LLM-as-judge and heuristic scoring work; PRM deferred to Phase 9)
+
+## Test Coverage
+
+**Total: 382 tests collected, 381 passed, 1 skipped**
+
+### What IS tested
+
+| Test file | Count | Covers |
+|---|---|---|
+| `test_approvals.py` | 42 | Policy CRUD, approval lifecycle, expiry, priority, conditions, built-in policies, API endpoints, end-to-end approve/deny/expire |
+| `test_artifacts.py` | 15 | Artifact creation, SHA-256 hashing, tamper detection, lineage chains, provenance trace, listing, immutability, metadata |
+| `test_cost_tracking.py` | 14 | Usage recording, job-level aggregation, cost accumulation, serialization, stats endpoint, metrics summary |
+| `test_job_pipeline.py` | 89 | Job CRUD, node CRUD, DAG ordering, templates, planner (complexity, validation, circular deps), executor (tools, timeout, errors), reviewer (tiers, human flag), worker (full cycle, circuit breaker, dequeue), models, file operations |
+| `test_pipeline_e2e.py` | 21 | Multi-node pipeline creation, output piping, partial failure, rerun/resume, template save/load, DAG integrity, audit trail |
+| `test_security.py` | 75 | API key auth, bootstrap mode, RBAC (admin/operator/viewer), policy engine (egress, rate limit, SSRF, bulk delete, approval), prompt guard (injection, jailbreak, homoglyphs, secret scrubbing, anomaly detection), path jailing (traversal, symlinks, null bytes, filename sanitization, upload validation) |
+| `test_slack_bot.py` | 66 | Bot init, authorization (team/user allowlists), progress bar, mention/message/file-shared/action handlers, worker event routing, lifecycle start/stop, factory function, job creation from Slack, rate limiting, file upload |
+| `test_tools_integration.py` | 59 | PPTX (read/extract/edit/styles), Excel (read/write/range/sheets/formulas), Word (read/edit/styles/metadata/tables), PDF (extract/metadata/search), file tools (read/write/list/binary detection/path traversal) |
+
+### What is NOT tested yet
+
+- **TTS** (`backend/tts/piper_service.py`) -- text-to-speech via Piper
+- **Browser tool** (`backend/tools/browser_tool.py`, `mcp_browser.py`) -- headless browser automation
+- **Android emulator** (`backend/tools/android_emulator.py`) -- ADB-based device control
+- **Google OAuth flow** (`backend/routes/google_auth.py`) -- OAuth2 callback handling
+- **Google integrations** (`google_docs_tool.py`, `google_drive_tool.py`, `google_sheets_tool.py`, `google_slides_tool.py`, `gmail_tool.py`) -- all Google Workspace tools
+- **Chat routes** (`backend/routes/chat.py`) -- main chat/streaming endpoint
+- **LLM client** (`backend/inference/`, `backend/model_router.py`) -- Ollama/Gemini inference layer
+- **Memory system** (`backend/memory/`, `backend/tools/memory.py`, `backend/tools/mempalace_tool.py`) -- MemPalace, ChromaDB RAG
+- **RAG** (`backend/tools/rag.py`) -- retrieval-augmented generation
+- **Code editor** (`backend/code_editor.py`) -- AI-driven code editing
+- **Git tools** (`backend/tools/git_tools.py`) -- git operations
+- **Terminal / run_code** (`backend/tools/terminal.py`, `backend/tools/run_code.py`) -- shell and code execution
+- **Screenshot / vision** (`backend/tools/screenshot.py`, `backend/tools/vision.py`) -- screen capture, image analysis
+- **Self-edit / self-extend / self-reflect / self-test** -- metacognition tools
+- **Web search** (`backend/tools/web_search.py`) -- DuckDuckGo search
+- **Swarm routes** (`backend/routes/swarm_routes.py`) -- multi-agent swarm orchestration
+- **Knowledge graph** (`backend/routes/knowledge_graph.py`) -- entity/relationship storage
+- **Time machine** (`backend/time_machine/`) -- state snapshots and rollback
+- **Middleware** (`backend/middleware/`) -- request/response middleware
+- **Validation** (`backend/validation/`) -- input validation layer
+- **Tool registry** (`backend/tools/registry.py`) -- dynamic tool registration
+- **Notifications** (`backend/notifications.py`) -- push notification system

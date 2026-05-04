@@ -1,0 +1,137 @@
+/* =============================================================
+   LocalMind v2 — Design Tokens
+   Industrial calm. Jobs-first mission control.
+   Neutral slate, single indigo accent, semantic status only.
+   ============================================================= */
+
+:root {
+  /* ── Canvas & surfaces (dark) ─────────────────────────────── */
+  --lm-canvas:            #0B0F14;   /* app background */
+  --lm-surface-1:         #111821;   /* cards, sidebars */
+  --lm-surface-2:         #1A2230;   /* elevated (inspector, modal) */
+  --lm-surface-3:         #222C3B;   /* hover / active states */
+  --lm-surface-input:     #0E141C;   /* inputs */
+  --lm-scrim:             rgba(5, 8, 13, 0.72);
+
+  /* ── Borders ──────────────────────────────────────────────── */
+  --lm-border-subtle:     #1F2A37;   /* default 1px divider */
+  --lm-border-strong:     #2C3A4C;   /* hovered / emphasized */
+  --lm-border-focus:      rgba(99, 102, 241, 0.55);
+
+  /* ── Text ─────────────────────────────────────────────────── */
+  --lm-text-primary:      #E6ECF3;   /* headings, main content */
+  --lm-text-secondary:    #B4BECC;   /* body */
+  --lm-text-tertiary:     #7B8896;   /* labels, hints */
+  --lm-text-muted:        #55626F;   /* disabled, separators */
+  --lm-text-inverse:      #0B0F14;   /* on accent backgrounds */
+
+  /* ── Accent (single) ──────────────────────────────────────── */
+  --lm-accent:            #6366F1;   /* primary indigo */
+  --lm-accent-hover:      #7A7CF3;
+  --lm-accent-active:     #4F52D6;
+  --lm-accent-soft:       rgba(99, 102, 241, 0.14);
+  --lm-accent-ring:       rgba(99, 102, 241, 0.30);
+  --lm-accent-text:       #A5AAF9;   /* accent text on dark */
+
+  /* ── Semantic status ──────────────────────────────────────── */
+  --lm-status-running:    #3B82F6;   /* blue */
+  --lm-status-running-soft: rgba(59, 130, 246, 0.14);
+  --lm-status-waiting:    #F59E0B;   /* amber — needs approval */
+  --lm-status-waiting-soft: rgba(245, 158, 11, 0.14);
+  --lm-status-ok:         #10B981;   /* emerald — done, healthy */
+  --lm-status-ok-soft:    rgba(16, 185, 129, 0.14);
+  --lm-status-failed:     #EF4444;   /* red */
+  --lm-status-failed-soft: rgba(239, 68, 68, 0.14);
+  --lm-status-paused:     #94A3B8;   /* muted slate */
+  --lm-status-paused-soft: rgba(148, 163, 184, 0.14);
+
+  /* ── Typography ───────────────────────────────────────────── */
+  --lm-font-body:         'Inter', system-ui, -apple-system, sans-serif;
+  --lm-font-headline:     'Space Grotesk', 'Inter', sans-serif;
+  --lm-font-mono:         'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+
+  --lm-fs-10:  0.625rem;  /* 10px — micro labels, timestamps */
+  --lm-fs-11:  0.6875rem; /* 11px — labels, chips */
+  --lm-fs-12:  0.75rem;   /* 12px — dense UI */
+  --lm-fs-13:  0.8125rem; /* 13px — compact body */
+  --lm-fs-14:  0.875rem;  /* 14px — body */
+  --lm-fs-15:  0.9375rem; /* 15px — emphasized body */
+  --lm-fs-16:  1rem;      /* 16px — strong body */
+  --lm-fs-18:  1.125rem;  /* 18px — card titles */
+  --lm-fs-20:  1.25rem;   /* 20px — page subtitle */
+  --lm-fs-24:  1.5rem;    /* 24px — page title */
+  --lm-fs-30:  1.875rem;  /* 30px — display */
+
+  --lm-fw-regular: 400;
+  --lm-fw-medium:  500;
+  --lm-fw-semi:    600;
+  --lm-fw-bold:    700;
+
+  --lm-lh-tight:   1.2;
+  --lm-lh-snug:    1.4;
+  --lm-lh-normal:  1.55;
+  --lm-lh-relaxed: 1.7;
+
+  --lm-tracking-tight:  -0.015em;
+  --lm-tracking-normal: 0;
+  --lm-tracking-wide:   0.06em;
+  --lm-tracking-caps:   0.14em;
+
+  /* ── Spacing (4px grid) ───────────────────────────────────── */
+  --lm-space-1:  4px;
+  --lm-space-2:  8px;
+  --lm-space-3:  12px;
+  --lm-space-4:  16px;
+  --lm-space-5:  20px;
+  --lm-space-6:  24px;
+  --lm-space-7:  32px;
+  --lm-space-8:  40px;
+  --lm-space-9:  48px;
+  --lm-space-10: 64px;
+
+  /* ── Radius ───────────────────────────────────────────────── */
+  --lm-radius-sm: 4px;
+  --lm-radius:    8px;      /* default */
+  --lm-radius-md: 10px;
+  --lm-radius-lg: 12px;
+  --lm-radius-pill: 999px;
+
+  /* ── Shadows (restrained — no glow) ───────────────────────── */
+  --lm-shadow-none: none;
+  --lm-shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.25);
+  --lm-shadow-md:   0 4px 12px rgba(0, 0, 0, 0.32);
+  --lm-shadow-lg:   0 12px 32px rgba(0, 0, 0, 0.48);
+  --lm-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+
+  /* ── Motion ───────────────────────────────────────────────── */
+  --lm-dur-quick:  120ms;
+  --lm-dur-base:   180ms;
+  --lm-dur-slow:   260ms;
+  --lm-ease:       cubic-bezier(0.32, 0.72, 0.28, 1);
+  --lm-ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  --lm-nav-width:          224px;
+  --lm-nav-width-collapsed: 56px;
+  --lm-inspector-width:    360px;
+  --lm-topbar-height:      48px;
+  --lm-utility-height:     28px;
+
+  /* ── Z-index ──────────────────────────────────────────────── */
+  --lm-z-base:        1;
+  --lm-z-sticky:      10;
+  --lm-z-drawer:      40;
+  --lm-z-modal:       50;
+  --lm-z-tooltip:     60;
+  --lm-z-toast:       70;
+
+  /* ── Focus ring ───────────────────────────────────────────── */
+  --lm-focus-ring: 0 0 0 2px var(--lm-canvas), 0 0 0 4px var(--lm-accent-ring);
+}
+
+/* =============================================================
+   Light-mode overrides (future-proofing; not wired yet)
+   ============================================================= */
+@media (prefers-color-scheme: light) {
+  /* LocalMind is dark-first for Phase 1. Light mode reserved. */
+}

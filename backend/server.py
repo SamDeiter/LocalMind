@@ -10,6 +10,7 @@ Constants live in backend/config.py.
 """
 
 import logging
+from logging.handlers import RotatingFileHandler
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -41,10 +42,18 @@ from backend.security.data_protection import (
 )
 
 # -- Logging --
+# Ensure logs directory exists
+from backend.config import LOG_FILE_PATH
+LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
+    handlers=[
+        logging.StreamHandler(),
+        RotatingFileHandler(LOG_FILE_PATH, maxBytes=10*1024*1024, backupCount=5, encoding="utf-8")
+    ]
 )
 logger = logging.getLogger("localmind")
 
@@ -162,6 +171,20 @@ async def lifespan(app: FastAPI):
     )
     app.state.job_worker = job_worker
 
+    # ── Swarm & Autonomy (Phase F) ──────────────────────────────
+    from backend.swarm.coordinator import HiveCoordinator
+    from backend.autonomy.engine import AutonomyEngine
+    
+    coordinator = HiveCoordinator(
+        emit_activity=_activity_multiplex
+    )
+    autonomy_engine = AutonomyEngine(coordinator=coordinator)
+    app.state.autonomy_engine = autonomy_engine
+    
+    # Start the hive
+    asyncio.create_task(coordinator.start())
+    logger.info("HiveCoordinator active and attached to AutonomyEngine")
+
     # ── GC worker ───────────────────────────────────────────────
     try:
         from backend.core.gc import GCWorker
@@ -215,21 +238,54 @@ async def lifespan(app: FastAPI):
                 VACUUM_INTERVAL_HOURS, JOB_RETENTION_DAYS)
 
     # ── Start main workers ──────────────────────────────────────
-    asyncio.create_task(job_worker.start())
+    _worker_task = asyncio.create_task(job_worker.start())
 
     # ── Background learning loop (self-discovery + skill learning) ──
     from backend.autonomy.loops.research import run_learning_loop
-    asyncio.create_task(run_learning_loop())
+    _learning_task = asyncio.create_task(run_learning_loop())
+
+    # ── Overnight research scheduler (off by default) ───────────────
+    try:
+        from backend.research.scheduler import start_scheduler
+        start_scheduler()
+    except Exception as exc:
+        logger.warning("Research scheduler did not start: %s", exc)
 
     logger.info("LocalMind server initialized (job worker + learning loop + GC active)")
     yield
 
     # ── Graceful shutdown ───────────────────────────────────────
+    # Signal SSE streams to close so uvicorn doesn't hang waiting for connections
+    from backend.routes.jobs import signal_sse_shutdown
+    signal_sse_shutdown()
+
     await job_worker.stop()
     if gc_worker:
         await gc_worker.stop()
     if slack_bot:
         await slack_bot.stop()
+
+    # Stop research scheduler before cancelling tasks.
+    try:
+        from backend.research.scheduler import stop_scheduler
+        stop_scheduler()
+    except Exception:
+        pass
+
+    # Close shared HTTP clients to release TCP connections
+    from backend.routes.chat import _chat_service
+    if _chat_service and hasattr(_chat_service, 'llm'):
+        await _chat_service.llm.close()
+
+    from backend.routes.system import _ollama_client
+    if _ollama_client and not _ollama_client.is_closed:
+        await _ollama_client.aclose()
+
+    # Cancel background tasks and give them a short grace period to exit
+    for task in (_worker_task, _learning_task):
+        if task and not task.done():
+            task.cancel()
+    await asyncio.gather(_worker_task, _learning_task, return_exceptions=True)
 
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""
@@ -352,8 +408,10 @@ from backend.routes.tts import router as tts_router
 from backend.routes.eval_routes import router as eval_router
 from backend.routes.push import router as push_router
 from backend.routes.tools_generated import router as tools_generated_router
+from backend.routes.autonomy import router as autonomy_router
 from backend.routes.self_discovery import router as self_discovery_router
 from backend.routes.skill_learning import router as skill_learning_router
+from backend.routes.intelligence import router as intelligence_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
@@ -379,6 +437,8 @@ app.include_router(push_router)
 app.include_router(tools_generated_router)
 app.include_router(self_discovery_router)
 app.include_router(skill_learning_router)
+app.include_router(autonomy_router)
+app.include_router(intelligence_router)
 
 # -- Health Check Endpoints --
 @app.get("/health")
@@ -409,3 +469,16 @@ if __name__ == "__main__":
     import uvicorn
     # kill_existing_server(8000) # Optional, run.py usually handles this
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+# ── Cross-Project Hub (Phase D) ──────────────────────────────────
+@app.get("/api/hub/context")
+async def hub_context(project_path: str = ""):
+    """Return tech stack + metadata for a local project directory.
+    
+    Query param: project_path (optional) — absolute path to scan.
+    Defaults to the LocalMind project root if omitted.
+    """
+    from backend.integrations.cross_project_hub import build_hub_context
+    context = build_hub_context(project_path or None)
+    return context

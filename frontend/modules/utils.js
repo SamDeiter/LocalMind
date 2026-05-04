@@ -114,7 +114,10 @@ export function extToLang(ext) {
  */
 export function showToast(message, type = "info") {
   const TOAST_ICONS = { success: "check_circle", error: "error", info: "info" };
-  const container = document.getElementById("toast-container") || createToastContainer();
+  const container =
+    document.getElementById("toastRegion") ||
+    document.getElementById("toast-container") ||
+    createToastContainer();
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
 

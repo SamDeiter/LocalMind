@@ -213,14 +213,14 @@ class CalibrationTracker:
             recommended_ask = min(0.85, current_ask + 0.1)
             logger.info(
                 f"SELF-TUNE: ASK helpful rate {ask_helpful_rate:.0%} is low "
-                f"→ raising ASK threshold from {current_ask} to {recommended_ask}"
+                f"-> raising ASK threshold from {current_ask} to {recommended_ask}"
             )
         elif answer_success_rate < 0.5 and ask_helpful_rate > 0.7:
             # Answers often fail + ASK is usually helpful → lower threshold
             recommended_ask = max(0.3, current_ask - 0.1)
             logger.info(
                 f"SELF-TUNE: Answer success {answer_success_rate:.0%} low, "
-                f"ASK helpful {ask_helpful_rate:.0%} → lowering ASK to {recommended_ask}"
+                f"ASK helpful {ask_helpful_rate:.0%} -> lowering ASK to {recommended_ask}"
             )
 
         # Adjust ABSTAIN threshold
@@ -230,7 +230,7 @@ class CalibrationTracker:
             recommended_abstain = min(0.95, current_abstain + 0.05)
             logger.info(
                 f"SELF-TUNE: ABSTAIN helpful rate {abstain_helpful_rate:.0%} low "
-                f"→ raising ABSTAIN threshold to {recommended_abstain}"
+                f"-> raising ABSTAIN threshold to {recommended_abstain}"
             )
 
         return {

@@ -47,5 +47,23 @@ backend/memory_db/
 
 # Temp outputs & scratch files
 tmp/
+scratch/
 *.bak
 pytest_out.txt
+
+# Logs
+logs/
+
+# Local MCP config (may contain API keys)
+.mcp.json
+
+# One-off scripts & generated artifacts
+apply_logging_fix.py
+entities.json
+mempalace.yaml
+backend/tools/generated/
+
+# Stale session/task tracking (not part of the app)
+SESSION_CHECKPOINT.md
+TASK_LIST.md
+test_validation_smoke.py

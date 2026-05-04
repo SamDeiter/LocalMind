@@ -1,142 +1,72 @@
 /**
- * Sidebar features — Hardware dashboard, Memory viewer, Document RAG,
- * Version badge.
+ * sidebar.js — Hardware polling for the utility footer + version badge.
+ *
+ * The v1 sidebar's memory viewer and document uploader lived here too; in
+ * v2 the Knowledge tab owns both surfaces (see knowledge_ui.js), and the
+ * old DOM containers were removed from the shell. Only the always-on
+ * footer poll and the version badge remain.
  */
 
 import { API } from "./state.js";
-import { escapeHtml } from "./utils.js";
 
-// ── Hardware Dashboard ──────────────────────────────────────────
 let hwInterval = null;
 
+function setText(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v;
+}
+
 export async function pollHardware() {
-  // hardware polling consolidated to dashboard.js
+  try {
+    const r = await fetch(`${API}/api/hardware`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const h = await r.json();
+    const sys = h.system || {};
+
+    const cpu = sys.cpu_percent ?? h.cpu;
+    const ram = sys.ram_percent ?? h.ram ?? h.memory;
+    const gpu = sys.gpu_percent ?? h.gpu;
+
+    setText("utilCpu", cpu != null ? `${Math.round(cpu)}%` : "—");
+    setText("utilRam", ram != null ? `${Math.round(ram)}%` : "—");
+    setText("utilGpu", gpu != null ? `${Math.round(gpu)}%` : "—");
+
+    const dot = document.getElementById("utilOnlineDot");
+    if (dot) dot.style.background = "var(--lm-status-ok)";
+    setText("utilOnline", "online");
+  } catch (_) {
+    const dot = document.getElementById("utilOnlineDot");
+    if (dot) dot.style.background = "var(--lm-status-failed)";
+    setText("utilOnline", "offline");
+  }
+
+  try {
+    const r = await fetch(`${API}/api/health`);
+    if (r.ok) {
+      const h = await r.json();
+      setText("utilQueue",   String(h.queued_jobs ?? h.queue_depth ?? 0));
+      setText("utilWorkers", String(h.active_jobs ?? "0"));
+    }
+  } catch (_) { /* silent */ }
 }
 
 export function startHwPolling() {
   if (hwInterval) return;
   pollHardware();
-  hwInterval = setInterval(pollHardware, 3000);
+  hwInterval = setInterval(() => {
+    if (!document.hidden) pollHardware();
+  }, 3000);
 }
 
-// ── Memory Viewer ───────────────────────────────────────────────
-export async function loadMemories() {
-  try {
-    const res = await fetch("/api/memories");
-    const data = await res.json();
-    const countEl = document.getElementById("memoryCount");
-    const listEl = document.getElementById("memoryList");
-    if (!countEl || !listEl) return;
-    countEl.textContent = data.count || 0;
-    if (!data.memories || data.memories.length === 0) {
-      listEl.innerHTML =
-        '<div class="memory-empty">No memories yet. Chat naturally and I\'ll learn!</div>';
-      return;
-    }
-    listEl.innerHTML = data.memories
-      .map(
-        (m) => `
-      <div class="memory-item">
-        <span class="memory-cat memory-cat-${m.category}">${m.category}</span>
-        <span class="memory-text">${escapeHtml(m.content)}</span>
-        <span class="memory-time">${m.created_at}</span>
-        <button class="memory-del" data-memory-id="${m.id}" title="Delete">✕</button>
-      </div>
-    `,
-      )
-      .join("");
-
-    // Attach event listeners instead of inline onclick
-    listEl.querySelectorAll(".memory-del").forEach((btn) => {
-      btn.addEventListener("click", () => deleteMemory(btn.dataset.memoryId));
-    });
-  } catch (e) {
-    console.warn("Memory load failed:", e);
-  }
-}
-
-export async function deleteMemory(id) {
-  try {
-    await fetch(`/api/memories/${id}`, { method: "DELETE" });
-    await loadMemories();
-  } catch (e) {
-    console.warn("Memory delete failed:", e);
-  }
-}
-
-export function toggleMemoryList() {
-  const list = document.getElementById("memoryList");
-  if (list) list.classList.toggle("open");
-}
-
-// ── Document RAG ────────────────────────────────────────────────
-export async function uploadDocuments(files) {
-  for (const file of files) {
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const r = await fetch(`${API}/api/documents/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const d = await r.json();
-      if (d.success) {
-        console.log(`Indexed ${file.name}: ${d.chunks} chunks`);
-      } else {
-        console.error(`Upload failed: ${d.error}`);
-      }
-    } catch (e) {
-      console.error("Upload error:", e);
-    }
-  }
-  await loadDocuments();
-}
-
-export async function loadDocuments() {
-  try {
-    const r = await fetch(`${API}/api/documents/`);
-    const d = await r.json();
-    const list = document.getElementById("documentList");
-    const count = document.getElementById("docCount");
-    if (!list) return;
-
-    const docs = d.documents || [];
-    if (count) count.textContent = docs.length;
-    list.innerHTML = "";
-
-    docs.forEach((doc) => {
-      const div = document.createElement("div");
-      div.className = "document-item";
-      div.innerHTML = `
-        <span class="doc-icon">📄</span>
-        <span class="doc-name" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
-        <span class="doc-chunks">${doc.chunks} chunks</span>
-        <button class="delete-btn" title="Remove">✕</button>
-      `;
-      div.querySelector(".delete-btn").addEventListener("click", async () => {
-        await fetch(`${API}/api/documents/${encodeURIComponent(doc.filename)}`, {
-          method: "DELETE",
-        });
-        await loadDocuments();
-      });
-      list.appendChild(div);
-    });
-  } catch {
-    /* ignore */
-  }
-}
-
-// ── Version Badge ───────────────────────────────────────────────
 export async function loadVersion() {
   try {
     const r = await fetch(`${API}/api/version`);
+    if (!r.ok) return;
     const d = await r.json();
     const badge = document.querySelector(".version-badge");
     if (badge && d.version) {
       badge.textContent = `v${d.version} #${d.build || "?"}`;
       badge.title = `LocalMind v${d.version} build #${d.build} — ${d.codename || ""}`;
     }
-  } catch {
-    /* ignore — version badge stays at placeholder */
-  }
+  } catch (_) { /* badge stays at placeholder */ }
 }
