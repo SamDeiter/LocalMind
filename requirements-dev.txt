@@ -1,3 +1,9 @@
 pytest
 pytest-asyncio
 httpx
+
+# Document tooling — optional at runtime, required for test_tools_integration.py
+# (Excel/Word/PDF tool tests). Listed in dev so CI can run the full suite.
+openpyxl
+python-docx
+pymupdf
