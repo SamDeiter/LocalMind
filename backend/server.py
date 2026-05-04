@@ -29,6 +29,7 @@ from backend.tools.registry import ToolRegistry
 from backend.metacognition.controller import MetaCognitiveController
 from backend import notifications, gemini_client, db
 from backend.db import DB_PATH, get_db
+from backend.utils.http_client import close_async_client
 from backend.core.schema import init_phase0_schema, ensure_default_tenant
 from backend.core.telemetry import (
     init_telemetry_schema, health_checker, metrics_collector, alert_manager,
@@ -225,6 +226,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # ── Graceful shutdown ───────────────────────────────────────
+    await close_async_client()
     await job_worker.stop()
     if gc_worker:
         await gc_worker.stop()
