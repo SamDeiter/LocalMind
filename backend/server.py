@@ -10,8 +10,9 @@ Constants live in backend/config.py.
 """
 
 import logging
+import posixpath
 from contextlib import asynccontextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -289,13 +290,29 @@ async def auth_middleware(request: Request, call_next):
     """
     from fastapi.responses import JSONResponse as _JSONResponse
     path = request.url.path
+    normalized_path = posixpath.normpath(path)
+    path_obj = PurePosixPath(normalized_path)
 
     # Skip auth for non-API routes
-    if path in _AUTH_SKIP_EXACT or any(path.startswith(p) for p in _AUTH_SKIP_PREFIXES):
+    if normalized_path in _AUTH_SKIP_EXACT:
         return await call_next(request)
 
+    for prefix in _AUTH_SKIP_PREFIXES:
+        try:
+            if path_obj.is_relative_to(prefix):
+                return await call_next(request)
+        except ValueError:
+            continue
+
     # Only enforce auth on /api/ routes
-    if path.startswith("/api/"):
+    is_api = False
+    try:
+        if path_obj.is_relative_to("/api"):
+            is_api = True
+    except ValueError:
+        pass
+
+    if is_api:
         try:
             from backend.security.auth import authenticate_request
             from backend.security.rbac import check_permission
