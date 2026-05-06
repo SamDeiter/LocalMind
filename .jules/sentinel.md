@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2024-05-24 - Hardcoded environment-specific paths
+**Vulnerability:** Hardcoded absolute paths (e.g., `C:\Users\...`) leak developer environment details and cause tools to fail in different environments (e.g., Linux containers).
+**Learning:** Tools that perform file system traversal must use relative paths or project-relative roots (like `PROJECT_ROOT`) to remain portable and secure.
+**Prevention:** Always use a centralized configuration variable for the project root and ensure all tool-driven file operations are relative to it.
