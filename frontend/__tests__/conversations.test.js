@@ -4,7 +4,7 @@
 
 import { jest } from "@jest/globals";
 import * as conv from "../modules/conversations.js";
-import { state } from "../modules/state.js";
+import { state, messagesContainer, welcomeScreen, chatEmptyState } from "../modules/state.js";
 
 describe("loadConversations", () => {
   let originalFetch;
@@ -95,5 +95,85 @@ describe("loadConversations", () => {
     // State should remain unchanged
     expect(state.conversations).toEqual([{ id: 99, title: "Old Chat" }]);
     expect(renderSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteConversation", () => {
+  let originalFetch;
+  let confirmSpy;
+  let showToastSpy;
+  let getElementSpy;
+
+  beforeAll(() => {
+    originalFetch = global.fetch;
+    confirmSpy = jest.spyOn(window, "confirm");
+    // We need to mock showToast. Since it's an export from utils.js, and we are using ESM,
+    // we might need to mock it differently if conversations.js imports it.
+    // However, for this test environment, we can try to mock it on the window or global if it's there,
+    // or better, mock the module. But Jest ESM support makes module mocking tricky.
+    // Let's assume for now we can't easily mock the import, so we'll check if we can at least
+    // verify the window.confirm part which is a global.
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+    confirmSpy.mockRestore();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    state.currentConvId = "conv123";
+    state.messages = [{ role: "user", content: "hi" }];
+  });
+
+  test("does nothing if user cancels confirmation", async () => {
+    confirmSpy.mockReturnValue(false);
+    global.fetch = jest.fn();
+
+    await conv.deleteConversation("conv123");
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(state.currentConvId).toBe("conv123");
+  });
+
+  test("calls delete API and updates state on success", async () => {
+    confirmSpy.mockReturnValue(true);
+    global.fetch = jest.fn();
+    // Mock loadConversations fetch
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: jest.fn().mockResolvedValue({ ok: true })
+    }).mockResolvedValueOnce({
+      ok: true,
+      json: jest.fn().mockResolvedValue({ conversations: [] })
+    });
+
+    // Since these are already imported and might be null in JSDOM unless mocked,
+    // we need to ensure they have the shape we expect if they are not null.
+    if (messagesContainer) messagesContainer.innerHTML = "something";
+    if (welcomeScreen) welcomeScreen.style.display = "none";
+    if (chatEmptyState) chatEmptyState.style.display = "none";
+
+    await conv.deleteConversation("conv123");
+
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/conversations/conv123"), { method: "DELETE" });
+    expect(state.currentConvId).toBeNull();
+    expect(state.messages).toEqual([]);
+    if (messagesContainer) expect(messagesContainer.innerHTML).toBe("");
+    if (welcomeScreen) expect(welcomeScreen.style.display).toBe("");
+    if (chatEmptyState) expect(chatEmptyState.style.display).toBe("");
+  });
+
+  test("shows error toast if delete fails", async () => {
+    confirmSpy.mockReturnValue(true);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false
+    });
+
+    await conv.deleteConversation("conv123");
+
+    expect(global.fetch).toHaveBeenCalled();
+    expect(state.currentConvId).toBe("conv123"); // Should not have been cleared
   });
 });

@@ -58,6 +58,7 @@ export const sendBtn = $("#sendBtn");
 export const messageInput = $("#messageInput");
 export const messagesContainer = $("#messagesContainer");
 export const welcomeScreen = $("#welcomeScreen");
+export const chatEmptyState = $("#chatEmptyState");
 export const chatScreen = document.getElementById("chatScreen");
 // Voice / camera
 export const micBtn = $("#micBtn");

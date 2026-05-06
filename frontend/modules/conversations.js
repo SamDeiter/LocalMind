@@ -2,8 +2,8 @@
  * Conversation CRUD — list, load, delete, export.
  */
 
-import { API, state, messagesContainer, welcomeScreen } from "./state.js";
-import { escapeHtml } from "./utils.js";
+import { API, state, messagesContainer, welcomeScreen, chatEmptyState } from "./state.js";
+import { escapeHtml, showToast } from "./utils.js";
 import { renderMessages } from "./chat.js";
 
 export async function loadConversations() {
@@ -63,17 +63,25 @@ export async function loadConversation(id) {
 }
 
 export async function deleteConversation(id) {
+  if (!window.confirm("Are you sure you want to delete this conversation? This action cannot be undone.")) {
+    return;
+  }
   try {
-    await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Delete failed on server");
+
     if (state.currentConvId === id) {
       state.currentConvId = null;
       state.messages = [];
       if (messagesContainer) messagesContainer.innerHTML = "";
       if (welcomeScreen) welcomeScreen.style.display = "";
+      if (chatEmptyState) chatEmptyState.style.display = "";
     }
     await loadConversations();
+    showToast("Conversation deleted", "success");
   } catch (e) {
     console.error("Delete conversation failed:", e);
+    showToast("Failed to delete conversation", "error");
   }
 }
 
