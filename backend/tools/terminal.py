@@ -15,8 +15,20 @@ logger = logging.getLogger("localmind.tools.terminal")
 
 # Security: Block dangerous commands and shell operators.
 # Use word boundaries (\b) to prevent bypasses (e.g. 'army' instead of 'rm').
+# We also account for backslash escaping (e.g. 'r\m') by allowing optional backslashes between characters.
 DANGEROUS_PATTERN = re.compile(
-    r"\b(rm|del|pip install|npm install|apt|cargo install|format|curl|wget|git push)\b",
+    r"\b("
+    r"r\\*m|"
+    r"d\\*e\\*l|"
+    r"p\\*i\\*p(\s|\\)*i\\*n\\*s\\*t\\*a\\*l\\*l|"
+    r"n\\*p\\*m(\s|\\)*i\\*n\\*s\\*t\\*a\\*l\\*l|"
+    r"a\\*p\\*t|"
+    r"c\\*a\\*r\\*g\\*o(\s|\\)*i\\*n\\*s\\*t\\*a\\*l\\*l|"
+    r"f\\*o\\*r\\*m\\*a\\*t|"
+    r"c\\*u\\*r\\*l|"
+    r"w\\*g\\*e\\*t|"
+    r"g\\*i\\*t(\s|\\)*p\\*u\\*s\\*h"
+    r")\b",
     re.IGNORECASE
 )
 # Shell operator detection to prevent command chaining bypasses.
