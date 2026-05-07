@@ -15,23 +15,28 @@ TIMEOUT_SECONDS = 30
 
 # Patterns that are BLOCKED before execution (file deletion, system damage)
 BLOCKLIST_PATTERNS = [
+    # Basic blocking of dangerous modules and functions
     r"\bos\.remove\b",
     r"\bos\.unlink\b",
     r"\bos\.rmdir\b",
     r"\bos\.removedirs\b",
+    r"\bos\.system\b",
+    r"\bos\.spawn\b",
+    r"\bos\.popen\b",
     r"\bshutil\.rmtree\b",
     r"\bshutil\.move\b",
     r"\bpathlib\.Path\([^)]*\)\.unlink\b",
     r"\.unlink\s*\(",
     r"\.rmdir\s*\(",
-    r"\bsubprocess\b.*\brm\b",
-    r"\bsubprocess\b.*\bdel\b",
-    r"\bsubprocess\b.*\brmdir\b",
-    r"\bsubprocess\b.*\bformat\b",
+    r"\bsubprocess\b",
     r"\bsend2trash\b",
-    r"\b__import__\s*\(\s*['\"]os['\"]\s*\)\s*\.remove\b",
     r"\bexec\s*\(",
     r"\beval\s*\(",
+    r"\bbreakpoint\s*\(",
+    # Obfuscation-resistant patterns for critical calls
+    r"\bgetattr\b",
+    r"\b__getattribute__\b",
+    r"\b__import__\b",
 ]
 
 
