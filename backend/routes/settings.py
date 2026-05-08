@@ -36,6 +36,17 @@ def _save_plaintext_profile(user_id: str, profile: dict) -> None:
     _PROFILE_JSON_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
+def _mask_notification_settings(settings: dict) -> dict:
+    """Return a copy of notification settings with sensitive fields masked."""
+    masked = settings.copy()
+    if masked.get("smtp_pass"):
+        pw = str(masked["smtp_pass"])
+        # Security: Mask SMTP password to prevent plain-text exposure.
+        # Always use at least four stars to ensure update detects it on round-trip.
+        masked["smtp_pass"] = "****" + (pw[-4:] if len(pw) > 4 else "")
+    return masked
+
+
 def _load_profile(user_id: str, enc) -> dict | None:
     """Load a user profile, decrypting if necessary."""
     # Try encrypted first
@@ -124,14 +135,22 @@ async def get_user_profile(user_id: str = "default"):
 
 @router.get("/settings/notifications")
 async def get_notification_settings():
-    """Return current SMS/Text notification settings."""
-    return notifications.get_settings()
+    """Return current SMS/Text notification settings with masked password."""
+    settings = notifications.get_settings()
+    return _mask_notification_settings(settings)
 
 @router.post("/settings/notifications")
 async def update_notification_settings(settings: dict):
-    """Update phone, carrier, and enable/disable status."""
+    """Update notification settings, preserving existing password if masked."""
+    incoming_pass = settings.get("smtp_pass")
+    # Detect if the password was passed back in its masked form.
+    if isinstance(incoming_pass, str) and incoming_pass.startswith("****"):
+        current = notifications.get_settings()
+        if current.get("smtp_pass"):
+            settings["smtp_pass"] = current["smtp_pass"]
     notifications.save_settings(settings)
-    return {"status": "ok", "settings": settings}
+    # Security: Ensure the response also contains masked settings to prevent leak.
+    return {"status": "ok", "settings": _mask_notification_settings(settings)}
 
 @router.get("/settings/cloud")
 async def get_cloud_settings():
