@@ -301,7 +301,7 @@ class TestCallOllama:
         mock_client = _make_mock_client(data)
         sampler = BestOfNSampler(ollama_url="http://localhost:11434")
         with patch(
-            "backend.inference.best_of_n.httpx.AsyncClient",
+            "backend.inference.best_of_n.get_async_client",
             return_value=mock_client,
         ):
             result = await sampler._call_ollama(
@@ -321,7 +321,7 @@ class TestCallOllama:
         mock_client = _make_mock_client({"error": "bad"}, status_code=500)
         sampler = BestOfNSampler(ollama_url="http://localhost:11434")
         with patch(
-            "backend.inference.best_of_n.httpx.AsyncClient",
+            "backend.inference.best_of_n.get_async_client",
             return_value=mock_client,
         ):
             result = await sampler._call_ollama(
@@ -344,7 +344,7 @@ class TestCallOllama:
 
         sampler = BestOfNSampler(ollama_url="http://localhost:11434")
         with patch(
-            "backend.inference.best_of_n.httpx.AsyncClient",
+            "backend.inference.best_of_n.get_async_client",
             return_value=mock_client,
         ):
             result = await sampler._call_ollama(
@@ -363,7 +363,7 @@ class TestCallOllama:
         mock_client = _make_mock_client(data)
         sampler = BestOfNSampler(ollama_url="http://localhost:11434")
         with patch(
-            "backend.inference.best_of_n.httpx.AsyncClient",
+            "backend.inference.best_of_n.get_async_client",
             return_value=mock_client,
         ):
             result = await sampler._call_ollama(
@@ -382,7 +382,7 @@ class TestCallOllama:
         mock_client = _make_mock_client(data, status_code=200)
         sampler = BestOfNSampler(ollama_url="http://localhost:11434")
         with patch(
-            "backend.inference.best_of_n.httpx.AsyncClient",
+            "backend.inference.best_of_n.get_async_client",
             return_value=mock_client,
         ):
             result = await sampler._call_ollama(
@@ -410,7 +410,7 @@ class TestSample:
         mock_client = _make_mock_client(data)
         sampler = BestOfNSampler(ollama_url="http://localhost:11434")
         with patch(
-            "backend.inference.best_of_n.httpx.AsyncClient",
+            "backend.inference.best_of_n.get_async_client",
             return_value=mock_client,
         ):
             result = await sampler.sample(
@@ -526,7 +526,7 @@ class TestSample:
 
         with patch.object(sampler, "_call_ollama", side_effect=_one_candidate):
             with patch(
-                "backend.inference.best_of_n.httpx.AsyncClient",
+                "backend.inference.best_of_n.get_async_client",
                 return_value=mock_client,
             ):
                 result = await sampler.sample(

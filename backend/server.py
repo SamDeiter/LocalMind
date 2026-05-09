@@ -39,6 +39,7 @@ from backend.security.redact import install_redacting_filter
 from backend.security.data_protection import (
     harden_db_permissions, schedule_vacuum, daily_purge_loop,
 )
+from backend.utils.http_client import close_async_client
 
 # -- Logging --
 logging.basicConfig(
@@ -225,6 +226,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # ── Graceful shutdown ───────────────────────────────────────
+    await close_async_client()
     await job_worker.stop()
     if gc_worker:
         await gc_worker.stop()
