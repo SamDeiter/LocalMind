@@ -3,7 +3,7 @@
  */
 
 import { API, state, messagesContainer, welcomeScreen } from "./state.js";
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, showToast } from "./utils.js";
 import { renderMessages } from "./chat.js";
 
 export async function loadConversations() {
@@ -30,9 +30,13 @@ export function renderConversations() {
     }`;
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded flex items-center" title="Export" aria-label="Export conversation">
+          <span class="material-symbols-outlined text-base">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded flex items-center" title="Delete" aria-label="Delete conversation">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
@@ -63,8 +67,16 @@ export async function loadConversation(id) {
 }
 
 export async function deleteConversation(id) {
+  if (
+    !confirm(
+      "Are you sure you want to delete this conversation? This action cannot be undone."
+    )
+  )
+    return;
   try {
-    await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
+    const r = await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
+    if (!r.ok) throw new Error("Failed to delete");
+
     if (state.currentConvId === id) {
       state.currentConvId = null;
       state.messages = [];
@@ -72,15 +84,20 @@ export async function deleteConversation(id) {
       if (welcomeScreen) welcomeScreen.style.display = "";
     }
     await loadConversations();
+    showToast("Conversation deleted", "success");
   } catch (e) {
     console.error("Delete conversation failed:", e);
+    showToast("Failed to delete conversation", "error");
   }
 }
 
 export async function exportConversation(id, title) {
   try {
     const r = await fetch(`${API}/api/conversations/${id}/export?format=md`);
-    if (!r.ok) return;
+    if (!r.ok) {
+      showToast("Export failed", "error");
+      return;
+    }
     const text = await r.text();
     const blob = new Blob([text], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -89,7 +106,9 @@ export async function exportConversation(id, title) {
     a.download = `${title.replace(/[^a-z0-9]/gi, "_")}.md`;
     a.click();
     URL.revokeObjectURL(url);
+    showToast("Conversation exported", "success");
   } catch (e) {
     console.error("Export failed:", e);
+    showToast("Export failed", "error");
   }
 }
