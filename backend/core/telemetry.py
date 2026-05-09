@@ -41,6 +41,7 @@ from uuid import uuid4
 import httpx
 
 from backend.config import DB_PATH, OLLAMA_BASE_URL, WORKSPACE_ROOT
+from backend.utils.http_client import get_async_client
 
 logger = logging.getLogger("localmind.core.telemetry")
 
@@ -740,10 +741,11 @@ class HealthChecker:
         # Ollama reachable
         t0 = _epoch_ms()
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-                resp.raise_for_status()
-                data = resp.json()
+            client = get_async_client()
+            # ⚡ Bolt: Use shared pooled client to avoid handshake overhead.
+            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5.0)
+            resp.raise_for_status()
+            data = resp.json()
 
             models = data.get("models", [])
             elapsed = round(_epoch_ms() - t0, 2)
@@ -863,10 +865,11 @@ class HealthChecker:
         # -- VRAM via Ollama /api/ps ------------------------------------------
         t0 = _epoch_ms()
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(f"{OLLAMA_BASE_URL}/api/ps")
-                resp.raise_for_status()
-                data = resp.json()
+            client = get_async_client()
+            # ⚡ Bolt: Use shared pooled client to avoid handshake overhead.
+            resp = await client.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=5.0)
+            resp.raise_for_status()
+            data = resp.json()
 
             running = data.get("models", [])
             elapsed = round(_epoch_ms() - t0, 2)

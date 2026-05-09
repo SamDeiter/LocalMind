@@ -45,6 +45,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
+from backend.utils.http_client import get_async_client
 
 logger = logging.getLogger("localmind.inference.best_of_n")
 
@@ -298,10 +299,9 @@ class BestOfNSampler:
         url = f"{self._ollama_url}/api/chat"
 
         try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(_OLLAMA_CALL_TIMEOUT, connect=10.0)
-            ) as client:
-                resp = await client.post(url, json=payload)
+            client = get_async_client()
+            # ⚡ Bolt: Use shared pooled client to avoid handshake overhead.
+            resp = await client.post(url, json=payload, timeout=_OLLAMA_CALL_TIMEOUT)
 
             if resp.status_code != 200:
                 body = resp.text[:500]
@@ -407,13 +407,13 @@ class BestOfNSampler:
 
             try:
                 async with self._semaphore:
-                    async with httpx.AsyncClient(
-                        timeout=httpx.Timeout(60.0, connect=10.0)
-                    ) as client:
-                        resp = await client.post(
-                            f"{self._ollama_url}/api/chat",
-                            json=payload,
-                        )
+                    client = get_async_client()
+                    # ⚡ Bolt: Use shared pooled client to avoid handshake overhead.
+                    resp = await client.post(
+                        f"{self._ollama_url}/api/chat",
+                        json=payload,
+                        timeout=60.0
+                    )
 
                 if resp.status_code != 200:
                     raise RuntimeError(f"Judge HTTP {resp.status_code}")
