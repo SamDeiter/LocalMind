@@ -225,6 +225,10 @@ async def lifespan(app: FastAPI):
     yield
 
     # ── Graceful shutdown ───────────────────────────────────────
+    # ⚡ Bolt: Close shared HTTP client
+    from backend.utils.http_client import close_async_client
+    await close_async_client()
+
     await job_worker.stop()
     if gc_worker:
         await gc_worker.stop()
