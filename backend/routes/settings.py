@@ -122,16 +122,35 @@ async def get_user_profile(user_id: str = "default"):
         return {"status": "ok", "profile": profile}
     return {"status": "not_found", "profile": None}
 
+def _mask_settings(settings: dict) -> dict:
+    """Mask sensitive fields in a copy of the settings dictionary."""
+    masked = settings.copy()
+    for field in ["smtp_pass", "twilio_auth_token"]:
+        if masked.get(field):
+            val = masked[field]
+            masked[field] = "*" * (len(val) - 4) + val[-4:] if len(val) > 4 else "****"
+    return masked
+
+
 @router.get("/settings/notifications")
 async def get_notification_settings():
     """Return current SMS/Text notification settings."""
-    return notifications.get_settings()
+    settings = notifications.get_settings()
+    return _mask_settings(settings)
+
 
 @router.post("/settings/notifications")
 async def update_notification_settings(settings: dict):
     """Update phone, carrier, and enable/disable status."""
+    current = notifications.get_settings()
+    # If placeholder is sent, restore the existing secret
+    for field in ["smtp_pass", "twilio_auth_token"]:
+        incoming_val = settings.get(field, "")
+        if incoming_val.startswith("****") and current.get(field):
+            settings[field] = current[field]
+
     notifications.save_settings(settings)
-    return {"status": "ok", "settings": settings}
+    return {"status": "ok", "settings": _mask_settings(settings)}
 
 @router.get("/settings/cloud")
 async def get_cloud_settings():
