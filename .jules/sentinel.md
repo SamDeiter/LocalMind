@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2024-06-18 - Command Injection bypass via Character Obfuscation
+**Vulnerability:** Regex-based command blocklists using word boundaries (\b) can be bypassed by inserting shell escape characters like backslashes (\), quotes (' or "), or line continuations (\\n) within the command name (e.g., r\m, r''m).
+**Learning:** Shells normalize these characters before execution, but static regex checks do not.
+**Prevention:** Normalize the command string by stripping quotes and backslashes before running it through the security regex. Perform this normalization BEFORE splitting the command string by shell operators to catch bypasses like r\\nm.

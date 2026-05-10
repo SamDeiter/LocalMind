@@ -68,3 +68,38 @@ async def test_terminal_tool_bypass_attempt():
             assert result["success"] is True
             # Proposer should NOT have been called
             assert MockProposer.call_count == 0
+
+@pytest.mark.asyncio
+async def test_terminal_tool_bypass_normalization():
+    tool = TerminalTool()
+
+    # Mock ProposeActionTool
+    with patch("backend.tools.terminal.ProposeActionTool") as MockProposer:
+        mock_proposer_instance = MockProposer.return_value
+        mock_proposer_instance.execute = AsyncMock(return_value={"approved": False})
+
+        # Test backslash bypass
+        result = await tool.execute(command="r\\m -rf /")
+        assert result["success"] is False
+        assert "User denied execution" in result["error"]
+
+        # Test single quote bypass
+        result = await tool.execute(command="r''m -rf /")
+        assert result["success"] is False
+        assert "User denied execution" in result["error"]
+
+        # Test double quote bypass
+        result = await tool.execute(command='r""m -rf /')
+        assert result["success"] is False
+        assert "User denied execution" in result["error"]
+
+        # Test line continuation bypass
+        # Note: in Python strings, we need to escape the backslash
+        result = await tool.execute(command="r\\\nm -rf /")
+        assert result["success"] is False
+        assert "User denied execution" in result["error"]
+
+        # Test combined bypass
+        result = await tool.execute(command="r'\"\\m -rf /")
+        assert result["success"] is False
+        assert "User denied execution" in result["error"]
