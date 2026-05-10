@@ -11,11 +11,9 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -44,9 +42,8 @@ class TestProfilePlaintextRoundTrip:
     def test_save_and_load(self, tmp_path):
         """Profile should survive a save -> load cycle as plain JSON."""
         from backend.routes.settings import (
-            _save_plaintext_profile,
             _load_profile,
-            _PROFILE_JSON_PATH,
+            _save_plaintext_profile,
         )
 
         profile = {
@@ -87,7 +84,7 @@ class TestProfilePlaintextRoundTrip:
 
     def test_load_returns_none_for_wrong_user(self, tmp_path):
         """_load_profile returns None when user_id doesn't match."""
-        from backend.routes.settings import _save_plaintext_profile, _load_profile
+        from backend.routes.settings import _load_profile, _save_plaintext_profile
 
         json_path = tmp_path / "user_profile.json"
         with patch("backend.routes.settings._PROFILE_JSON_PATH", json_path), \
@@ -118,8 +115,8 @@ class TestProfileEncryptedRoundTrip:
     def test_encrypted_save_and_load(self, tmp_path):
         """Profile survives encrypt -> save -> load -> decrypt cycle."""
         from backend.routes.settings import (
-            _save_encrypted_profile,
             _load_profile,
+            _save_encrypted_profile,
         )
 
         enc = self._get_encryption()
@@ -153,8 +150,8 @@ class TestProfileEncryptedRoundTrip:
     def test_encrypted_load_fails_with_wrong_key(self, tmp_path):
         """Decryption with a different key should fail gracefully (return None)."""
         from backend.routes.settings import (
-            _save_encrypted_profile,
             _load_profile,
+            _save_encrypted_profile,
         )
         from backend.security.memory_encryption import MemoryEncryption
 
@@ -239,7 +236,7 @@ class TestProfileEdgeCases:
 
     def test_empty_profile_saves(self, tmp_path):
         """An empty profile (user skipped all fields) should still save."""
-        from backend.routes.settings import _save_plaintext_profile, _load_profile
+        from backend.routes.settings import _load_profile, _save_plaintext_profile
 
         json_path = tmp_path / "user_profile.json"
         profile = {
@@ -263,9 +260,9 @@ class TestProfileEdgeCases:
     def test_encrypted_preferred_over_plaintext(self, tmp_path):
         """When both .enc and .json exist, encrypted file takes precedence."""
         from backend.routes.settings import (
-            _save_plaintext_profile,
-            _save_encrypted_profile,
             _load_profile,
+            _save_encrypted_profile,
+            _save_plaintext_profile,
         )
 
         try:

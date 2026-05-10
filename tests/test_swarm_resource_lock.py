@@ -120,7 +120,7 @@ class TestAcquire:
 
     def test_raises_lock_conflict_for_exclusive(self, test_conn):
         with patch("backend.swarm.resource_lock.get_db", return_value=test_conn):
-            from backend.swarm.resource_lock import ResourceLockManager, LockConflictError
+            from backend.swarm.resource_lock import LockConflictError, ResourceLockManager
             mgr = ResourceLockManager()
             mgr.acquire(RES, "job-a")
             with pytest.raises(LockConflictError) as exc_info:
@@ -140,7 +140,7 @@ class TestAcquire:
 
     def test_exclusive_fails_when_shared_exists(self, test_conn):
         with patch("backend.swarm.resource_lock.get_db", return_value=test_conn):
-            from backend.swarm.resource_lock import ResourceLockManager, LockConflictError
+            from backend.swarm.resource_lock import LockConflictError, ResourceLockManager
             mgr = ResourceLockManager()
             mgr.acquire(RES, "job-shared", lock_type="shared")
             with pytest.raises(LockConflictError):
@@ -149,7 +149,7 @@ class TestAcquire:
     def test_shared_fails_when_exclusive_exists(self, test_conn):
         """Acquiring shared when another job holds exclusive should fail."""
         with patch("backend.swarm.resource_lock.get_db", return_value=test_conn):
-            from backend.swarm.resource_lock import ResourceLockManager, LockConflictError
+            from backend.swarm.resource_lock import LockConflictError, ResourceLockManager
             mgr = ResourceLockManager()
             mgr.acquire(RES, "job-excl-holder", lock_type="exclusive")
             with pytest.raises(LockConflictError):

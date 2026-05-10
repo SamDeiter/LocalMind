@@ -4,7 +4,8 @@ import time
 from pathlib import Path
 
 from fastapi import APIRouter, Request, Response
-from backend import notifications, gemini_client
+
+from backend import gemini_client, notifications
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger("localmind.routes.settings")
@@ -124,14 +125,35 @@ async def get_user_profile(user_id: str = "default"):
 
 @router.get("/settings/notifications")
 async def get_notification_settings():
-    """Return current SMS/Text notification settings."""
-    return notifications.get_settings()
+    """
+    Return current SMS/Text notification settings.
+    Security: Mask sensitive credentials before returning to UI.
+    """
+    settings = notifications.get_settings().copy()
+    if settings.get("smtp_pass"):
+        settings["smtp_pass"] = "****"
+    return settings
+
 
 @router.post("/settings/notifications")
 async def update_notification_settings(settings: dict):
-    """Update phone, carrier, and enable/disable status."""
+    """
+    Update phone, carrier, and enable/disable status.
+    Security: If '****' is received, preserve the existing password.
+    Always mask sensitive data in the response.
+    """
+    incoming_pass = settings.get("smtp_pass", "")
+    if incoming_pass == "****":
+        current = notifications.get_settings()
+        if current.get("smtp_pass"):
+            settings["smtp_pass"] = current["smtp_pass"]
     notifications.save_settings(settings)
-    return {"status": "ok", "settings": settings}
+
+    # Return a masked version to avoid leaking secret in response
+    resp_settings = settings.copy()
+    if resp_settings.get("smtp_pass"):
+        resp_settings["smtp_pass"] = "****"
+    return {"status": "ok", "settings": resp_settings}
 
 @router.get("/settings/cloud")
 async def get_cloud_settings():

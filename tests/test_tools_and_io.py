@@ -13,7 +13,6 @@ Covers:
 import asyncio
 import hashlib
 import json
-import os
 import sys
 import zipfile
 from pathlib import Path
@@ -33,12 +32,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from backend.core.atomic_io import (
     AtomicFileWriter,
     FileWriteResult,
-    compute_sha256,
-    validate_file,
-    _validate_json,
+    _validate_docx,
     _validate_pptx,
     _validate_xlsx,
-    _validate_docx,
+    compute_sha256,
+    validate_file,
 )
 
 
@@ -90,7 +88,7 @@ class TestAtomicFileWriterBasic:
         target = tmp_path / "deep" / "nested" / "dir" / "output.txt"
         writer = AtomicFileWriter()
 
-        result = writer.write_atomic(
+        writer.write_atomic(
             target, lambda tmp: tmp.write_text("nested")
         )
 
@@ -103,7 +101,7 @@ class TestAtomicFileWriterBasic:
         target.write_text("old content")
         writer = AtomicFileWriter()
 
-        result = writer.write_atomic(
+        writer.write_atomic(
             target, lambda tmp: tmp.write_text("new content")
         )
 
@@ -234,10 +232,10 @@ class TestComputeSHA256:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from backend.core.error_strategy import (
-    ErrorCategory,
-    ErrorResponse,
     ERROR_RESPONSES,
     DegradationCascade,
+    ErrorCategory,
+    ErrorResponse,
     classify_error,
 )
 
@@ -394,9 +392,8 @@ def _passthrough_safe_path(file_path: str) -> Path:
 
 def _make_pptx(path: Path, slide_count: int = 1):
     """Create a minimal PPTX file using python-pptx (importskip guarded)."""
-    pptx = pytest.importorskip("pptx")
+    pytest.importorskip("pptx")
     from pptx import Presentation
-    from pptx.util import Inches
 
     prs = Presentation()
     layout = prs.slide_layouts[0]  # Title Slide
@@ -481,6 +478,7 @@ class TestPptxToolSync:
     def test_edit_slide_changes_text(self, _mock_sp, tmp_path):
         pytest.importorskip("pptx")
         from pptx import Presentation
+
         from backend.tools.pptx_tool import _do_edit_slide
 
         pptx_file = _make_pptx(tmp_path / "edit.pptx", slide_count=1)
@@ -523,6 +521,7 @@ class TestPptxToolSync:
     def test_apply_edits_multi_slide(self, _mock_sp, tmp_path):
         pytest.importorskip("pptx")
         from pptx import Presentation
+
         from backend.tools.pptx_tool import _do_apply_edits
 
         pptx_file = _make_pptx(tmp_path / "multi.pptx", slide_count=2)
@@ -569,7 +568,7 @@ class TestPptxToolPathSafety:
             "backend.config": MagicMock(WORKSPACE_ROOT=tmp_path),
             "backend.security.paths": MagicMock(safe_resolve=mock_safe, SecurityError=Exception),
         }):
-            result = pptx_tool._safe_path("jailed.pptx")
+            pptx_tool._safe_path("jailed.pptx")
             mock_safe.assert_called_once()
 
 
@@ -677,6 +676,7 @@ class TestExcelToolSync:
     def test_extract_formulas(self, _mock_sp, tmp_path):
         pytest.importorskip("openpyxl")
         import openpyxl
+
         from backend.tools.excel_tool import _do_extract_formulas
 
         xlsx_path = tmp_path / "formulas.xlsx"
@@ -767,7 +767,7 @@ class TestExcelToolClass:
 
 def _make_docx(path: Path, paragraphs=None):
     """Create a minimal DOCX file using python-docx (importskip guarded)."""
-    docx = pytest.importorskip("docx")
+    pytest.importorskip("docx")
     from docx import Document
 
     doc = Document()
@@ -840,6 +840,7 @@ class TestWordToolSync:
     def test_get_tables_with_table(self, _mock_sp, tmp_path):
         pytest.importorskip("docx")
         from docx import Document
+
         from backend.tools.word_tool import _do_get_tables
 
         docx_path = tmp_path / "with_table.docx"
