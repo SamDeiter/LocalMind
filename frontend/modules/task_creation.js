@@ -13,7 +13,7 @@
  *   initTaskCreation()  -- inject HTML into #taskCreationArea, bind events
  */
 
-import { API } from "./state.js";
+import { API, autoResize } from "./state.js";
 import { escapeHtml, showToast } from "./utils.js";
 
 // ---------------------------------------------------------------------------
@@ -95,6 +95,7 @@ function _buildHTML() {
   <div class="mb-3">
     <textarea
       id="tcDescription"
+      aria-label="Task description"
       class="w-full bg-surface-container-low border border-outline-variant/25 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 resize-none custom-scrollbar transition-all"
       rows="2"
       placeholder="What would you like me to do? e.g., Research competitor pricing and create a summary report"
@@ -105,7 +106,10 @@ function _buildHTML() {
   <!-- File drop zone -->
   <div
     id="tcDropZone"
-    class="mb-3 border border-dashed border-slate-700/60 rounded-lg px-4 py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all group"
+    role="button"
+    tabindex="0"
+    aria-label="Drop files or click to upload"
+    class="mb-3 border border-dashed border-slate-700/60 rounded-lg px-4 py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-primary/40 hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all group"
     title="Drag and drop files here, or click to browse for files to attach"
   >
     <span class="material-symbols-outlined text-lg text-slate-500 group-hover:text-primary transition-colors">cloud_upload</span>
@@ -213,7 +217,7 @@ function _buildNodeCard(index, node) {
       <span class="flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-bold">${index + 1}</span>
       <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Step ${index + 1}</span>
     </div>
-    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline">
+    <button class="tc-remove-node text-slate-600 hover:text-red-400 transition-colors p-1 rounded" data-node="${index}" title="Remove this step from the pipeline" aria-label="Remove step ${index + 1}">
       <span class="material-symbols-outlined text-sm pointer-events-none">close</span>
     </button>
   </div>
@@ -221,6 +225,7 @@ function _buildNodeCard(index, node) {
   <!-- Title -->
   <input
     type="text"
+    aria-label="Step title"
     class="tc-node-title bg-surface-container-low border border-outline-variant/25 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
     placeholder="Step title"
     data-node="${index}"
@@ -230,6 +235,7 @@ function _buildNodeCard(index, node) {
 
   <!-- Instructions -->
   <textarea
+    aria-label="Step instructions"
     class="tc-node-instructions bg-surface-container-low border border-outline-variant/25 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none custom-scrollbar transition-all"
     rows="3"
     placeholder="Instructions for this step..."
@@ -255,6 +261,8 @@ function _renderNodes() {
   const container = el("tcNodeContainer");
   if (!container) return;
   container.innerHTML = _nodes.map((n, i) => _buildNodeCard(i, n)).join("");
+  // Auto-resize instructions textareas after render
+  container.querySelectorAll(".tc-node-instructions").forEach((ta) => autoResize(ta));
 }
 
 function _renderFilePreview() {
@@ -270,7 +278,7 @@ function _renderFilePreview() {
     <div class="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/40 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
       <span class="material-symbols-outlined text-xs text-slate-500">description</span>
       <span class="max-w-[120px] truncate" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
-      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file">
+      <button class="tc-remove-file text-slate-500 hover:text-red-400 transition-colors ml-1" data-index="${i}" title="Remove this file" aria-label="Remove file ${escapeHtml(f.name)}">
         <span class="material-symbols-outlined text-xs pointer-events-none">close</span>
       </button>
     </div>`
@@ -386,6 +394,9 @@ function _applyTemplate(templateId) {
     }));
   }
   _renderNodes();
+
+  // Resize main description if template affects it (future proofing)
+  autoResize(el("tcDescription"));
 
   // Set priority if template has one
   if (tmpl.priority) {
@@ -532,6 +543,16 @@ async function submitPipelineTask(nodes, priority, files) {
 // ---------------------------------------------------------------------------
 
 function _bindEvents() {
+  // Auto-resize for main description
+  el("tcDescription")?.addEventListener("input", autoResize);
+
+  // Auto-resize for node instructions (delegated)
+  el("tcNodeContainer")?.addEventListener("input", (e) => {
+    if (e.target.classList.contains("tc-node-instructions")) {
+      autoResize(e.target);
+    }
+  });
+
   // Run Now
   el("tcRunNowBtn")?.addEventListener("click", () => {
     const desc = el("tcDescription")?.value?.trim() || "";
@@ -582,6 +603,14 @@ function _bindEvents() {
     _droppedFiles.push(...files);
     _renderFilePreview();
     fileInput.value = ""; // reset so same file can be re-selected
+  });
+
+  // Keyboard support for drop zone
+  dropZone?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInput?.click();
+    }
   });
 
   // Drag & drop
