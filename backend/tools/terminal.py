@@ -45,14 +45,33 @@ class TerminalTool(BaseTool):
             "required": ["command"]
         }
 
+    @staticmethod
+    def _normalize(command: str) -> str:
+        """Strip shell escapes and quotes that bypass pattern detection."""
+        # Remove line continuations (backslash followed by newline)
+        c = re.sub(r"\\\n", "", command)
+        # Remove backslashes
+        c = re.sub(r"\\", "", c)
+        # Remove quotes
+        c = re.sub(r"['\"]", "", c)
+        return c
+
     async def execute(self, **kwargs) -> dict[str, Any]:
         command = kwargs.get("command", "")
         timeout = kwargs.get("timeout", 10)
         
         # Security: Multi-stage check for dangerous patterns and shell chaining.
-        # We split by operators to check EACH command in a chain.
-        commands_to_check = SHELL_OPERATORS.split(command)
-        is_dangerous = any(DANGEROUS_PATTERN.search(cmd) for cmd in commands_to_check)
+
+        # 1. Normalize the entire command to strip escapes/quotes that bypass detection.
+        # We do this BEFORE splitting by operators to handle line continuations correctly.
+        normalized_command = self._normalize(command)
+
+        # 2. Split by operators to check EACH command in a chain.
+        commands_to_check = SHELL_OPERATORS.split(normalized_command)
+
+        is_dangerous = any(
+            DANGEROUS_PATTERN.search(cmd) for cmd in commands_to_check
+        )
 
         if is_dangerous:
             proposer = ProposeActionTool()
