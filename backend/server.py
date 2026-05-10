@@ -230,6 +230,8 @@ async def lifespan(app: FastAPI):
         await gc_worker.stop()
     if slack_bot:
         await slack_bot.stop()
+    from backend.routes.system import close_httpx_client
+    await close_httpx_client()
 
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""
