@@ -447,6 +447,12 @@ def init_phase0_schema():
         CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON jobs(workspace_id);
         CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at);
 
+        -- ⚡ Bolt: Composite indexes for faster listing and filtering
+        CREATE INDEX IF NOT EXISTS idx_jobs_workspace_created
+            ON jobs(workspace_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_jobs_workspace_status_created
+            ON jobs(workspace_id, status, created_at DESC);
+
         CREATE TABLE IF NOT EXISTS job_nodes (
             id TEXT PRIMARY KEY,
             job_id TEXT NOT NULL REFERENCES jobs(id),
@@ -500,6 +506,10 @@ def init_phase0_schema():
         CREATE INDEX IF NOT EXISTS idx_audit_time ON job_audit_log(timestamp);
         CREATE INDEX IF NOT EXISTS idx_audit_action ON job_audit_log(action);
 
+        -- ⚡ Bolt: Optimize newest-first audit log retrieval
+        CREATE INDEX IF NOT EXISTS idx_audit_job_timestamp
+            ON job_audit_log(job_id, timestamp DESC);
+
         CREATE TABLE IF NOT EXISTS pipeline_templates (
             id TEXT PRIMARY KEY,
             workspace_id TEXT NOT NULL REFERENCES workspaces(id),
@@ -513,6 +523,10 @@ def init_phase0_schema():
         );
         CREATE INDEX IF NOT EXISTS idx_templates_name
             ON pipeline_templates(name);
+
+        -- ⚡ Bolt: Optimize template listing by workspace
+        CREATE INDEX IF NOT EXISTS idx_templates_workspace_name
+            ON pipeline_templates(workspace_id, name);
     """)
 
     # ── Security: Recycle Bin ───────────────────────────────────
