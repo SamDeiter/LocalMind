@@ -231,6 +231,10 @@ async def lifespan(app: FastAPI):
     if slack_bot:
         await slack_bot.stop()
 
+    # ⚡ Bolt: Close shared HTTP client
+    from backend.utils.http_client import close_async_client
+    await close_async_client()
+
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""
     from backend.routes import chat, conversations, documents
