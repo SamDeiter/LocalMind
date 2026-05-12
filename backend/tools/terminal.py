@@ -23,6 +23,17 @@ DANGEROUS_PATTERN = re.compile(
 SHELL_OPERATORS = re.compile(r"[;&|\n]")
 
 class TerminalTool(BaseTool):
+    @staticmethod
+    def _normalize(command: str) -> str:
+        """Remove shell escape characters and quotes to prevent obfuscation."""
+        # 1. Remove line continuations: \ followed by newline
+        cmd = re.sub(r"\\\n", "", command)
+        # 2. Remove backslashes used for escaping (e.g. r\m -> rm)
+        cmd = cmd.replace("\\", "")
+        # 3. Remove quotes (e.g. 'r'm -> rm)
+        cmd = cmd.replace("'", "").replace('"', "")
+        return cmd
+
     @property
     def name(self) -> str:
         return "terminal"
@@ -50,8 +61,11 @@ class TerminalTool(BaseTool):
         timeout = kwargs.get("timeout", 10)
         
         # Security: Multi-stage check for dangerous patterns and shell chaining.
+        # We normalize the command first to strip obfuscation (quotes, backslashes).
+        normalized_command = self._normalize(command)
+
         # We split by operators to check EACH command in a chain.
-        commands_to_check = SHELL_OPERATORS.split(command)
+        commands_to_check = SHELL_OPERATORS.split(normalized_command)
         is_dangerous = any(DANGEROUS_PATTERN.search(cmd) for cmd in commands_to_check)
 
         if is_dangerous:

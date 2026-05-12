@@ -1,9 +1,4 @@
-## 2024-05-24 - Path Traversal bypass via `.startswith()`
-**Vulnerability:** In Python, verifying if a target path is inside a workspace using `str(target).startswith(str(workspace))` is vulnerable to directory traversal bypasses. For example, `/home/user/workspace_evil/file.txt` will pass the check against `/home/user/workspace` because it shares the same string prefix, even though it is in a different directory.
-**Learning:** `startswith()` only checks string prefixes and does not respect path boundaries or directory separators.
-**Prevention:** Use `os.path.commonpath([workspace, target]) == workspace` or `target.relative_to(workspace)` instead. These functions parse path segments properly and ensure the target is strictly a child directory or file of the workspace.
-
-## 2024-06-12 - Command Injection bypass via Shell Operators
-**Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
-**Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
-**Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+## 2025-05-15 - Command Obfuscation Bypass in TerminalTool
+**Vulnerability:** Shell commands could bypass `DANGEROUS_PATTERN` regex checks using backslashes (e.g., `r\m`) or quotes (e.g., `'r'm`).
+**Learning:** Regex word boundaries (`\b`) are effective against common sub-word matches but fail when shell-specific escape characters are interspersed in the command string, as shells strip these characters before execution.
+**Prevention:** Normalize raw shell commands by stripping backslashes, quotes, and line continuations before evaluating them against security patterns.
