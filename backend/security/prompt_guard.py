@@ -30,8 +30,19 @@ try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
     def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+        """Fallback: resolve with directory-boundary aware prefix check."""
+        resolved_base = Path(base).resolve()
+        resolved_path = (resolved_base / str(path)).resolve()
+
+        # Security: Use is_relative_to (Python 3.9+) to ensure path is inside base.
+        # Fallback to string prefix check with trailing separator for older Pythons.
+        try:
+            resolved_path.relative_to(resolved_base)
+        except ValueError:
+            logger.warning("Path escape attempt in fallback safe_resolve: %r", path)
+            raise ValueError(f"Path escapes jail: {path}")
+
+        return resolved_path
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -488,7 +499,11 @@ class PromptGuard:
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
                         resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Redundant security check: Ensure the resolved path is strictly within job_dir.
+                        # safe_resolve in backend.security.paths already does this, but we reinforce it here.
+                        try:
+                            resolved.relative_to(job_dir.resolve())
+                        except ValueError:
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
