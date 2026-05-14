@@ -29,9 +29,13 @@ BLOCKLIST_PATTERNS = [
     r"\bsubprocess\b.*\brmdir\b",
     r"\bsubprocess\b.*\bformat\b",
     r"\bsend2trash\b",
-    r"\b__import__\s*\(\s*['\"]os['\"]\s*\)\s*\.remove\b",
+    r"\b__import__\b",
     r"\bexec\s*\(",
     r"\beval\s*\(",
+    r"\bgetattr\b",
+    r"\bos\.(system|popen|spawn[a-z]*|posix_spawn[a-z]*)\b",
+    r"\bsubprocess\.(run|call|check_call|check_output|Popen)\b",
+    r"\bpty\.spawn\b",
 ]
 
 
@@ -40,7 +44,7 @@ def _safety_check(code: str) -> str | None:
     for pattern in BLOCKLIST_PATTERNS:
         match = re.search(pattern, code, re.IGNORECASE)
         if match:
-            return f"BLOCKED: Code contains dangerous operation: '{match.group()}'. LocalMind cannot delete files."
+            return f"BLOCKED: Code contains dangerous operation: '{match.group()}'. LocalMind cannot execute potentially dangerous operations for security reasons."
     return None
 
 
