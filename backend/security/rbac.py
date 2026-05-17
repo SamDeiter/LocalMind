@@ -72,11 +72,20 @@ ROLE_PERMISSIONS: dict[str, list[tuple[str, str]]] = {
 
 
 def _is_allowed(role: str, method: str, path: str) -> bool:
-    """Return ``True`` if *role* may perform *method* on *path*."""
+    """Return ``True`` if *role* may perform *method* on *path*.
+
+    Uses segment-aware prefix matching to prevent bypasses (e.g. /api/chat
+    matching /api/chat_admin).
+    """
     permissions = ROLE_PERMISSIONS.get(role, [])
     method_upper = method.upper()
     for allowed_method, allowed_prefix in permissions:
-        if path.startswith(allowed_prefix):
+        # Segment-aware check: path must be exact match or have prefix + "/"
+        is_path_match = (
+            path == allowed_prefix or
+            path.startswith(allowed_prefix.rstrip("/") + "/")
+        )
+        if is_path_match:
             if allowed_method == "*" or allowed_method == method_upper:
                 return True
     return False

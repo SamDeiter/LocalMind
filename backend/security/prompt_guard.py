@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -486,20 +487,18 @@ class PromptGuard:
                 # Path jailing
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
-                    try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                    if os.path.isabs(arg_value):
+                        issues.append(f"Arg '{arg_name}' must be a relative path: {arg_value}")
+                        logger.warning("Blocked absolute path in tool arg %s.%s: %r", tool_name, arg_name, arg_value)
+                    else:
+                        try:
+                            # Correct argument order: (base_dir, user_path)
+                            # safe_resolve already performs internal jail validation.
+                            safe_resolve(job_dir, arg_value)
+                        except Exception as exc:
                             issues.append(
-                                f"Arg '{arg_name}' escapes job directory: {resolved}"
+                                f"Arg '{arg_name}' path resolution failed: {exc}"
                             )
-                            logger.warning(
-                                "Path escape attempt in tool arg %s.%s: %r -> %s",
-                                tool_name, arg_name, arg_value, resolved,
-                            )
-                    except Exception as exc:
-                        issues.append(
-                            f"Arg '{arg_name}' path resolution failed: {exc}"
-                        )
 
         valid = len(issues) == 0
         return ValidationResult(valid=valid, cleaned_text="", issues=issues)
