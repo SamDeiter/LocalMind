@@ -229,7 +229,8 @@ async def metrics_summary():
     Queries both the jobs table and the telemetry metrics table to build a
     comprehensive summary.
     """
-    # Job-level stats from the jobs table
+    # ⚡ Bolt: Use SQL aggregate queries to avoid O(N) Python loops over result sets.
+    # This keeps response times constant even as the number of jobs/evals grows.
     total_jobs = 0
     completed_jobs = 0
     failed_jobs = 0
@@ -238,21 +239,22 @@ async def metrics_summary():
 
     try:
         conn = _get_db_conn()
-        rows = conn.execute(
-            "SELECT status, cost_cents FROM jobs"
-        ).fetchall()
+        stats = conn.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+                SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running,
+                SUM(cost_cents) as total_cost
+            FROM jobs
+        """).fetchone()
         conn.close()
-
-        for row in rows:
-            total_jobs += 1
-            s = row["status"]
-            if s == "completed":
-                completed_jobs += 1
-            elif s == "failed":
-                failed_jobs += 1
-            elif s == "running":
-                running_jobs += 1
-            total_cost_cents += row["cost_cents"] or 0.0
+        if stats:
+            total_jobs = stats["total"] or 0
+            completed_jobs = stats["completed"] or 0
+            failed_jobs = stats["failed"] or 0
+            running_jobs = stats["running"] or 0
+            total_cost_cents = stats["total_cost"] or 0.0
     except Exception:
         pass
 
@@ -264,24 +266,18 @@ async def metrics_summary():
     eval_avg_duration_ms = 0.0
     try:
         conn = _get_db_conn()
-        eval_rows = conn.execute(
-            "SELECT score, duration_ms FROM eval_runs"
-        ).fetchall()
+        eval_stats = conn.execute("""
+            SELECT
+                COUNT(*) as total,
+                AVG(score) as avg_score,
+                AVG(duration_ms) as avg_duration
+            FROM eval_runs
+        """).fetchone()
         conn.close()
-
-        scores = []
-        durations = []
-        for r in eval_rows:
-            eval_total += 1
-            if r["score"] is not None:
-                scores.append(r["score"])
-            if r["duration_ms"] is not None:
-                durations.append(r["duration_ms"])
-
-        if scores:
-            eval_avg_score = round(sum(scores) / len(scores), 3)
-        if durations:
-            eval_avg_duration_ms = round(sum(durations) / len(durations), 1)
+        if eval_stats:
+            eval_total = eval_stats["total"] or 0
+            eval_avg_score = round(eval_stats["avg_score"], 3) if eval_stats["avg_score"] is not None else None
+            eval_avg_duration_ms = round(eval_stats["avg_duration"], 1) if eval_stats["avg_duration"] is not None else 0.0
     except Exception:
         pass
 
