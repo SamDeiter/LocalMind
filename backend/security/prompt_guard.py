@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -29,7 +30,7 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
+    def safe_resolve(base: Path | str, path: str | Path) -> Path:  # type: ignore[misc]
         """Fallback: resolve without jail check."""
         return Path(path).resolve()
 
@@ -56,6 +57,11 @@ SSRF_PATTERNS: list[str] = [
     r"100\.64\.\d{1,3}\.\d{1,3}",    # shared address space (RFC 6598)
 ]
 _SSRF_RE: list[re.Pattern] = [re.compile(p, re.IGNORECASE) for p in SSRF_PATTERNS]
+
+# Detect a Windows absolute path like C:\ or C:/ anywhere in the string.
+_WIN_DRIVE_RE = re.compile(r"^[A-Za-z]:[/\\]")
+# Detect a Windows UNC path like \\server\share
+_WIN_UNC_RE = re.compile(r"^[\\/]{2}[^\\/]+[\\/]+[^\\/]+")
 
 # ---------------------------------------------------------------------------
 # Injection patterns (Layer 1 — sanitize_input)
@@ -486,19 +492,38 @@ class PromptGuard:
                 # Path jailing
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
+                    # Defense in Depth: Layered path jailing.
+                    # 1. Block absolute paths (POSIX, Windows drive letters, and UNC).
+                    arg_value_stripped = str(arg_value).strip()
+                    is_absolute = (
+                        os.path.isabs(arg_value_stripped) or
+                        _WIN_DRIVE_RE.match(arg_value_stripped) or
+                        _WIN_UNC_RE.match(arg_value_stripped)
+                    )
+                    if is_absolute:
+                        issues.append(f"Arg '{arg_name}' must be a relative path: {arg_value}")
+                        logger.warning("Absolute path blocked in tool arg %s.%s: %r", tool_name, arg_name, arg_value)
+                        continue
+
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
-                            issues.append(
-                                f"Arg '{arg_name}' escapes job directory: {resolved}"
-                            )
-                            logger.warning(
-                                "Path escape attempt in tool arg %s.%s: %r -> %s",
-                                tool_name, arg_name, arg_value, resolved,
-                            )
+                        # 2. Resolve via safe_resolve (throws SecurityError on jail escape).
+                        resolved = safe_resolve(job_dir, arg_value)
+
+                        # 3. Final safety check: ensure resolved path is strictly within the jail.
+                        # This protects against a missing/permissive safe_resolve fallback.
+                        jail_root = job_dir.resolve()
+                        if not str(resolved).startswith(str(jail_root).rstrip(os.sep) + os.sep):
+                            if resolved != jail_root:
+                                issues.append(f"Arg '{arg_name}' escapes job directory: {resolved}")
+                                logger.warning(
+                                    "Path escape attempt in tool arg %s.%s: %r -> %s",
+                                    tool_name, arg_name, arg_value, resolved,
+                                )
                     except Exception as exc:
-                        issues.append(
-                            f"Arg '{arg_name}' path resolution failed: {exc}"
+                        issues.append(f"Arg '{arg_name}' path resolution failed: {exc}")
+                        logger.warning(
+                            "Path validation failed in tool arg %s.%s: %r -> %s",
+                            tool_name, arg_name, arg_value, exc,
                         )
 
         valid = len(issues) == 0
