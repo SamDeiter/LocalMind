@@ -22,6 +22,9 @@ DANGEROUS_PATTERN = re.compile(
 # Shell operator detection to prevent command chaining bypasses.
 SHELL_OPERATORS = re.compile(r"[;&|\n]")
 
+# ANSI escape sequence pattern for stripping color codes etc.
+ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
 class TerminalTool(BaseTool):
     @property
     def name(self) -> str:
@@ -45,14 +48,29 @@ class TerminalTool(BaseTool):
             "required": ["command"]
         }
 
+    @staticmethod
+    def _normalize(command: str) -> str:
+        """Strip ANSI escapes, backslashes, and quotes to prevent obfuscation."""
+        # 1. Remove ANSI escape codes
+        cmd = ANSI_ESCAPE.sub('', command)
+        # 2. Remove backslashes (common shell obfuscation: r\m)
+        cmd = cmd.replace('\\', '')
+        # 3. Remove quotes (common shell obfuscation: r""m or r''m)
+        cmd = cmd.replace("'", "").replace('"', "")
+        return cmd
+
     async def execute(self, **kwargs) -> dict[str, Any]:
         command = kwargs.get("command", "")
         timeout = kwargs.get("timeout", 10)
         
         # Security: Multi-stage check for dangerous patterns and shell chaining.
         # We split by operators to check EACH command in a chain.
+        # We also NORMALIZE each segment to catch obfuscated bypasses.
         commands_to_check = SHELL_OPERATORS.split(command)
-        is_dangerous = any(DANGEROUS_PATTERN.search(cmd) for cmd in commands_to_check)
+        is_dangerous = any(
+            DANGEROUS_PATTERN.search(self._normalize(cmd))
+            for cmd in commands_to_check
+        )
 
         if is_dangerous:
             proposer = ProposeActionTool()

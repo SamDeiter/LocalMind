@@ -29,9 +29,14 @@ BLOCKLIST_PATTERNS = [
     r"\bsubprocess\b.*\brmdir\b",
     r"\bsubprocess\b.*\bformat\b",
     r"\bsend2trash\b",
-    r"\b__import__\s*\(\s*['\"]os['\"]\s*\)\s*\.remove\b",
+    r"\b__import__\s*\(",
     r"\bexec\s*\(",
     r"\beval\s*\(",
+    r"\bos\.system\b",
+    r"\bos\.popen\b",
+    r"\bgetattr\s*\(",
+    r"\b__getattribute__\b",
+    r"\bimportlib\b",
 ]
 
 
