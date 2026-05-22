@@ -76,7 +76,10 @@ def _is_allowed(role: str, method: str, path: str) -> bool:
     permissions = ROLE_PERMISSIONS.get(role, [])
     method_upper = method.upper()
     for allowed_method, allowed_prefix in permissions:
-        if path.startswith(allowed_prefix):
+        # Segment-aware prefix matching to prevent bypasses like
+        # /api/chat_admin matching /api/chat.
+        normalized_prefix = allowed_prefix.rstrip("/")
+        if path == normalized_prefix or path.startswith(normalized_prefix + "/"):
             if allowed_method == "*" or allowed_method == method_upper:
                 return True
     return False
