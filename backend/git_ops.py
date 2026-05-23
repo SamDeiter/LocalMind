@@ -8,6 +8,7 @@ import logging
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 logger = logging.getLogger("localmind.autonomy.git")
@@ -18,13 +19,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 def git_run(args: list[str]) -> str:
     """Run a git command in the project root. Returns stdout."""
     try:
+        # Security: Use list of arguments and shell=False to prevent injection.
+        # We also drop 'cmd /c' and use 'git' directly for cross-platform compatibility.
+        cmd = ["git"] + args
         result = subprocess.run(
-            f'cmd /c "git {" ".join(args)}"',
+            cmd,
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
             timeout=30,
-            shell=True,
+            shell=False,
         )
         if result.returncode != 0:
             error = result.stderr.strip() or f"git exited with code {result.returncode}"
@@ -80,12 +84,13 @@ async def run_tests(target_files: list[str] = None) -> tuple[bool, str]:
             test_targets = ["tests/"]
 
     try:
-        test_args = " ".join(test_targets + ["-q", "--tb=short", "-x"])
+        # Security: Avoid shell=True and manual string concatenation for commands.
+        cmd = [sys.executable, "-m", "pytest"] + test_targets + ["-q", "--tb=short", "-x"]
         result = subprocess.run(
-            f'cmd /c "python -m pytest {test_args}"',
+            cmd,
             capture_output=True, text=True, timeout=180,
             cwd=str(PROJECT_ROOT),
-            shell=True,
+            shell=False,
         )
 
         output = result.stdout.strip() or result.stderr.strip()
@@ -121,11 +126,13 @@ def count_tests() -> int:
     Uses --collect-only for speed. Returns 0 on error.
     """
     try:
+        # Security: Avoid shell=True.
+        cmd = [sys.executable, "-m", "pytest", "tests/", "--collect-only", "-q"]
         result = subprocess.run(
-            'cmd /c "python -m pytest tests/ --collect-only -q"',
+            cmd,
             capture_output=True, text=True, timeout=30,
             cwd=str(PROJECT_ROOT),
-            shell=True,
+            shell=False,
         )
         # Output ends with "X tests collected"
         for line in result.stdout.splitlines():
