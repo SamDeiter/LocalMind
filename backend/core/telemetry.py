@@ -101,6 +101,7 @@ def init_telemetry_schema() -> None:
         CREATE INDEX IF NOT EXISTS idx_metrics_type ON metrics(metric_type);
         CREATE INDEX IF NOT EXISTS idx_metrics_time ON metrics(recorded_at);
         CREATE INDEX IF NOT EXISTS idx_metrics_trace ON metrics(trace_id);
+        CREATE INDEX IF NOT EXISTS idx_metrics_report ON metrics(recorded_at, metric_type);
     """)
     conn.commit()
     conn.close()
@@ -518,7 +519,7 @@ class MetricsCollector:
         self, since: Optional[str] = None
     ) -> dict[str, Any]:
         """
-        Produce an aggregated metrics summary.
+        Produce an aggregated metrics summary using SQL-side aggregation.
 
         Parameters
         ----------
@@ -537,86 +538,83 @@ class MetricsCollector:
         """
         conn = _connect()
         try:
-            if since:
-                rows = conn.execute(
-                    "SELECT metric_type, value_json FROM metrics WHERE recorded_at >= ?",
-                    (since,),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT metric_type, value_json FROM metrics"
-                ).fetchall()
+            where_clause = "WHERE recorded_at >= ?" if since else ""
+            params = (since,) if since else ()
+
+            # Perform SQL-side aggregation to avoid loading thousands of JSON blobs into Python.
+            # Using TOTAL() instead of SUM() to ensure 0.0 is returned instead of NULL.
+            query = f"""
+                SELECT
+                    metric_type,
+                    COUNT(*) as count,
+                    TOTAL(CAST(json_extract(value_json, '$.tokens_in') AS INTEGER)) as tokens_in,
+                    TOTAL(CAST(json_extract(value_json, '$.tokens_out') AS INTEGER)) as tokens_out,
+                    TOTAL(CAST(json_extract(value_json, '$.latency_ms') AS REAL)) as latency_sum,
+                    TOTAL(CAST(json_extract(value_json, '$.cost_cents') AS REAL)) as cost_sum,
+                    TOTAL(CAST(json_extract(value_json, '$.duration_ms') AS REAL)) as duration_sum,
+                    TOTAL(CAST(json_extract(value_json, '$.total_cost') AS REAL)) as total_cost_sum,
+                    COUNT(*) FILTER (WHERE json_extract(value_json, '$.status') = 'ok') as tool_ok,
+                    COUNT(*) FILTER (WHERE json_extract(value_json, '$.status') = 'completed') as job_ok
+                FROM metrics
+                {where_clause}
+                GROUP BY metric_type
+            """
+            rows = conn.execute(query, params).fetchall()
         finally:
             conn.close()
 
-        # Accumulators
-        llm_count = 0
-        llm_tokens_in = 0
-        llm_tokens_out = 0
-        llm_latency_sum = 0.0
-        llm_cost_sum = 0.0
-
-        tool_count = 0
-        tool_ok = 0
-        tool_error = 0
-        tool_duration_sum = 0.0
-
-        job_count = 0
-        job_ok = 0
-        job_fail = 0
-        job_duration_sum = 0.0
-        job_cost_sum = 0.0
+        # Initialize defaults to ensure a complete response even if some metric types are missing.
+        res = {
+            "llm_calls": {
+                "total": 0,
+                "tokens_in": 0,
+                "tokens_out": 0,
+                "avg_latency_ms": 0,
+                "total_cost_cents": 0.0,
+            },
+            "tool_calls": {
+                "total": 0,
+                "success": 0,
+                "error": 0,
+                "avg_duration_ms": 0,
+            },
+            "job_completions": {
+                "total": 0,
+                "completed": 0,
+                "failed": 0,
+                "avg_duration_ms": 0,
+                "total_cost_cents": 0.0,
+            },
+        }
 
         for row in rows:
             mtype = row["metric_type"]
-            val = json.loads(row["value_json"])
-
+            count = row["count"]
             if mtype == "llm_call":
-                llm_count += 1
-                llm_tokens_in += val.get("tokens_in", 0)
-                llm_tokens_out += val.get("tokens_out", 0)
-                llm_latency_sum += val.get("latency_ms", 0)
-                llm_cost_sum += val.get("cost_cents", 0)
-
+                res["llm_calls"] = {
+                    "total": count,
+                    "tokens_in": int(row["tokens_in"]),
+                    "tokens_out": int(row["tokens_out"]),
+                    "avg_latency_ms": round(row["latency_sum"] / count, 1) if count else 0,
+                    "total_cost_cents": round(row["cost_sum"], 4),
+                }
             elif mtype == "tool_call":
-                tool_count += 1
-                if val.get("status") == "ok":
-                    tool_ok += 1
-                else:
-                    tool_error += 1
-                tool_duration_sum += val.get("duration_ms", 0)
-
+                res["tool_calls"] = {
+                    "total": count,
+                    "success": row["tool_ok"],
+                    "error": count - row["tool_ok"],
+                    "avg_duration_ms": round(row["duration_sum"] / count, 1) if count else 0,
+                }
             elif mtype == "job_completion":
-                job_count += 1
-                if val.get("status") == "completed":
-                    job_ok += 1
-                else:
-                    job_fail += 1
-                job_duration_sum += val.get("duration_ms", 0)
-                job_cost_sum += val.get("total_cost", 0)
+                res["job_completions"] = {
+                    "total": count,
+                    "completed": row["job_ok"],
+                    "failed": count - row["job_ok"],
+                    "avg_duration_ms": round(row["duration_sum"] / count, 1) if count else 0,
+                    "total_cost_cents": round(row["total_cost_sum"], 4),
+                }
 
-        return {
-            "llm_calls": {
-                "total": llm_count,
-                "tokens_in": llm_tokens_in,
-                "tokens_out": llm_tokens_out,
-                "avg_latency_ms": round(llm_latency_sum / llm_count, 1) if llm_count else 0,
-                "total_cost_cents": round(llm_cost_sum, 4),
-            },
-            "tool_calls": {
-                "total": tool_count,
-                "success": tool_ok,
-                "error": tool_error,
-                "avg_duration_ms": round(tool_duration_sum / tool_count, 1) if tool_count else 0,
-            },
-            "job_completions": {
-                "total": job_count,
-                "completed": job_ok,
-                "failed": job_fail,
-                "avg_duration_ms": round(job_duration_sum / job_count, 1) if job_count else 0,
-                "total_cost_cents": round(job_cost_sum, 4),
-            },
-        }
+        return res
 
     # -- internal ------------------------------------------------------------
 
