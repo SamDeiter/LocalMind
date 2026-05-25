@@ -97,3 +97,47 @@ describe("loadConversations", () => {
     expect(renderSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("deleteConversation", () => {
+  let originalFetch;
+  let originalConfirm;
+
+  beforeAll(() => {
+    originalFetch = global.fetch;
+    originalConfirm = global.confirm;
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+    global.confirm = originalConfirm;
+  });
+
+  beforeEach(() => {
+    global.confirm = jest.fn();
+    global.fetch = jest.fn();
+    state.currentConvId = "123";
+  });
+
+  test("does nothing if user cancels confirmation", async () => {
+    global.confirm.mockReturnValue(false);
+
+    await conv.deleteConversation("123");
+
+    expect(global.confirm).toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(state.currentConvId).toBe("123");
+  });
+
+  test("proceeds with deletion if user confirms", async () => {
+    global.confirm.mockReturnValue(true);
+    global.fetch.mockResolvedValue({ ok: true });
+
+    await conv.deleteConversation("123");
+
+    expect(global.confirm).toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/conversations/123"), {
+      method: "DELETE",
+    });
+    expect(state.currentConvId).toBeNull();
+  });
+});

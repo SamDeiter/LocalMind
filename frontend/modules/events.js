@@ -188,6 +188,7 @@ export function bindEvents() {
 
   // Chat tab: new conversation inline button
   document.getElementById("newChatInlineBtn")?.addEventListener("click", () => {
+    state.currentConvId = null;
     clearMessages?.();
     loadConversations?.();
   });
