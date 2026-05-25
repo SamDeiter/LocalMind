@@ -30,9 +30,13 @@ export function renderConversations() {
     }`;
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded flex items-center justify-center" title="Export" aria-label="Export conversation">
+          <span class="material-symbols-outlined text-[18px]">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded flex items-center justify-center" title="Delete" aria-label="Delete conversation">
+          <span class="material-symbols-outlined text-[18px]">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
@@ -63,6 +67,7 @@ export async function loadConversation(id) {
 }
 
 export async function deleteConversation(id) {
+  if (!confirm("Are you sure you want to delete this conversation? This action cannot be undone.")) return;
   try {
     await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
     if (state.currentConvId === id) {
