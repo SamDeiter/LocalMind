@@ -331,6 +331,7 @@ export async function sendMessage() {
 
 // ── Message Rendering ───────────────────────────────────────────
 export function clearMessages() {
+  state.currentConvId = null;
   if (messagesContainer) {
     // Remove only message elements
     const messages = messagesContainer.querySelectorAll(".message");
