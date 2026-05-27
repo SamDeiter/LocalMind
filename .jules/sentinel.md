@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2025-05-15 - Command Obfuscation bypass in TerminalTool
+**Vulnerability:** Shell commands can be obfuscated using backslashes (e.g., `r\m`), quotes (e.g., `"rm"`), or ANSI escape sequences (e.g., `\x1b[0mrm`) to bypass simple regex-based blocklists.
+**Learning:** Simple string matching or regexes without normalization are insufficient for shell security because shells have complex parsing rules that ignore certain characters.
+**Prevention:** Implement a normalization step that strips obfuscation characters (backslashes, quotes, ANSI codes) before performing security scans. Ensure that the original command is still preserved for execution if it passes the security check or is approved by the user.
