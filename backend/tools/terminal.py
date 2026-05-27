@@ -4,10 +4,12 @@ Provides safe shell execution with stderr/stdout capturing.
 """
 
 import asyncio
+import logging
 import re
 from typing import Any
-import logging
+
 from backend.config import PROJECT_ROOT
+
 from .base import BaseTool
 from .propose_action import ProposeActionTool
 
@@ -16,13 +18,26 @@ logger = logging.getLogger("localmind.tools.terminal")
 # Security: Block dangerous commands and shell operators.
 # Use word boundaries (\b) to prevent bypasses (e.g. 'army' instead of 'rm').
 DANGEROUS_PATTERN = re.compile(
-    r"\b(rm|del|pip install|npm install|apt|cargo install|format|curl|wget|git push)\b",
+    r"\b(rm|del|pip install|npm install|apt|cargo install|format|curl|wget|git push|sudo|su|chmod|chown|"
+    r"dd|reboot|shutdown|mv|mkfs|nc|netcat)\b",
     re.IGNORECASE
 )
 # Shell operator detection to prevent command chaining bypasses.
 SHELL_OPERATORS = re.compile(r"[;&|\n]")
 
+# ANSI escape sequence regex for normalization.
+ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
 class TerminalTool(BaseTool):
+    @staticmethod
+    def _normalize(cmd: str) -> str:
+        """Strip obfuscation characters (backslashes, quotes, ANSI) for security scanning."""
+        # 1. Remove ANSI escape sequences
+        cmd = ANSI_ESCAPE.sub("", cmd)
+        # 2. Remove backslashes and quotes used for shell obfuscation
+        cmd = cmd.replace("\\", "").replace("'", "").replace('"', "")
+        return cmd
+
     @property
     def name(self) -> str:
         return "terminal"
@@ -48,11 +63,15 @@ class TerminalTool(BaseTool):
     async def execute(self, **kwargs) -> dict[str, Any]:
         command = kwargs.get("command", "")
         timeout = kwargs.get("timeout", 10)
-        
+
         # Security: Multi-stage check for dangerous patterns and shell chaining.
         # We split by operators to check EACH command in a chain.
         commands_to_check = SHELL_OPERATORS.split(command)
-        is_dangerous = any(DANGEROUS_PATTERN.search(cmd) for cmd in commands_to_check)
+
+        # Normalize EACH command part before checking against the blocklist.
+        # This prevents bypasses like 'r\m' or '"rm"'.
+        normalized_commands = [self._normalize(cmd) for cmd in commands_to_check]
+        is_dangerous = any(DANGEROUS_PATTERN.search(cmd) for cmd in normalized_commands)
 
         if is_dangerous:
             proposer = ProposeActionTool()
@@ -64,7 +83,7 @@ class TerminalTool(BaseTool):
             )
             if not app_req.get("approved"):
                 return {"success": False, "error": "User denied execution of dangerous command."}
-        
+
         try:
             # Use asyncio subprocess for non-blocking execution safely.
             # Security: Ensure cwd is always within the project root.
@@ -77,7 +96,7 @@ class TerminalTool(BaseTool):
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
             out = stdout.decode().strip()
             err = stderr.decode().strip()
-            
+
             return {
                 "success": proc.returncode == 0,
                 "stdout": out[:2000] if out else "",

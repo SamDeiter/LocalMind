@@ -68,3 +68,48 @@ async def test_terminal_tool_bypass_attempt():
             assert result["success"] is True
             # Proposer should NOT have been called
             assert MockProposer.call_count == 0
+
+@pytest.mark.asyncio
+async def test_terminal_tool_obfuscation_bypasses():
+    tool = TerminalTool()
+
+    # Mock ProposeActionTool
+    with patch("backend.tools.terminal.ProposeActionTool") as MockProposer:
+        mock_proposer_instance = MockProposer.return_value
+        mock_proposer_instance.execute = AsyncMock(return_value={"approved": False})
+
+        # Test backslash escape
+        result = await tool.execute(command="r\\m -rf /")
+        assert result["success"] is False
+        assert MockProposer.call_count == 1
+        MockProposer.reset_mock()
+
+        # Test single quotes
+        result = await tool.execute(command="'rm' -rf /")
+        assert result["success"] is False
+        assert MockProposer.call_count == 1
+        MockProposer.reset_mock()
+
+        # Test double quotes
+        result = await tool.execute(command='"rm" -rf /')
+        assert result["success"] is False
+        assert MockProposer.call_count == 1
+        MockProposer.reset_mock()
+
+        # Test ANSI escape sequence
+        # \x1b[31m is red text
+        result = await tool.execute(command="\x1b[31mrm\x1b[0m -rf /")
+        assert result["success"] is False
+        assert MockProposer.call_count == 1
+        MockProposer.reset_mock()
+
+        # Test expanded blocklist: sudo
+        result = await tool.execute(command="sudo apt-get update")
+        assert result["success"] is False
+        assert MockProposer.call_count == 1
+        MockProposer.reset_mock()
+
+        # Test expanded blocklist: nc
+        result = await tool.execute(command="nc -l -p 1234")
+        assert result["success"] is False
+        assert MockProposer.call_count == 1
