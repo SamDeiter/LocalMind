@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2024-05-28 - Command Injection via shell=True and String Interpolation
+**Vulnerability:** Using `subprocess.run(command, shell=True)` with string-interpolated user input allows attackers to chain malicious commands (e.g., `&& rm -rf /`).
+**Learning:** Shell-based execution is highly dangerous when any part of the command string is influenced by external input. List-based arguments with `shell=False` bypass the shell entirely.
+**Prevention:** Always use list-based arguments (`["ls", "-l"]`) and set `shell=False`. Use `shlex.split()` to safely parse command strings if they must be accepted as input, and avoid Windows-specific shell wrappers like `cmd /c` when list-based arguments suffice.
