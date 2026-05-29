@@ -5,6 +5,7 @@ Each tool function takes keyword arguments and returns a dict with the result.
 """
 
 import os
+import shlex
 import subprocess
 import glob
 import json
@@ -125,9 +126,13 @@ def list_directory(path: str = ".", working_dir: str = ".") -> dict:
 def run_command(command: str, working_dir: str) -> dict:
     """Execute a shell command in the working directory."""
     try:
+        # Security: Use list-based arguments and shell=False to prevent injection.
+        # shlex.split preserves quoted arguments correctly on POSIX.
+        # For Windows, posix=False ensures it handles backslashes correctly.
+        cmd = shlex.split(command, posix=(os.name != 'nt'))
         result = subprocess.run(
-            command,
-            shell=True,
+            cmd,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=60,
