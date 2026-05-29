@@ -4,3 +4,7 @@
 ## 2025-05-15 - Non-blocking System Metrics in FastAPI
 **Learning:** Using `psutil.cpu_percent(interval=0.1)` in an async FastAPI route blocks the entire event loop for 100ms. This significantly increases latency for all concurrent requests.
 **Action:** Always prime `psutil.cpu_percent(interval=None)` at module load or startup and use `interval=None` in async handlers to retrieve metrics instantly without blocking.
+
+## 2025-05-20 - SQL-side Aggregation for Telemetry
+**Learning:** For telemetry systems using SQLite with JSON blobs, shifting aggregation from Python to SQL via `FILTER` and `json_extract()` provides a massive performance boost (~3x in this case). It avoids the overhead of transferring large JSON strings and the CPU cost of parsing thousands of JSON blobs in the application layer.
+**Action:** Use SQL aggregate functions (`COUNT`, `TOTAL`, `AVG`) with `FILTER` and `json_extract()` for any dashboard-style reporting or threshold checking on JSON data in SQLite.
