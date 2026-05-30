@@ -36,6 +36,7 @@ def app_with_db(seeded_db):
     conversations.configure(_get_test_db, "You are LocalMind, a helpful AI assistant.")
 
     with patch("backend.db.DB_PATH", seeded_db), \
+         patch("backend.security.auth.DB_PATH", seeded_db), \
          patch("backend.db.get_db", _get_test_db):
         from backend.server import app
         yield app
