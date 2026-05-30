@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2024-06-20 - Command Injection in Git Operations
+**Vulnerability:** Use of `subprocess.run(..., shell=True)` with string-based command construction in `backend/git_ops.py` allowed for command injection via shell operators (e.g., `;`) in arguments.
+**Learning:** Hardcoding platform-specific command prefixes like `cmd /c` and using `shell=True` creates significant security risks and reduces portability.
+**Prevention:** Always use list-based arguments with `shell=False` in `subprocess.run`. This ensures that arguments are passed directly to the executable without shell interpretation, effectively preventing command injection.

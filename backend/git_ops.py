@@ -8,6 +8,7 @@ import logging
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 logger = logging.getLogger("localmind.autonomy.git")
@@ -16,19 +17,22 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def git_run(args: list[str]) -> str:
-    """Run a git command in the project root. Returns stdout."""
+    """Run a git command in the project root safely. Returns stdout."""
     try:
+        # Security: Use list-based arguments and shell=False to prevent command injection.
+        # This also avoids platform-specific 'cmd /c' prefixes.
+        cmd = ["git"] + args
         result = subprocess.run(
-            f'cmd /c "git {" ".join(args)}"',
+            cmd,
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
             timeout=30,
-            shell=True,
+            shell=False,
         )
         if result.returncode != 0:
             error = result.stderr.strip() or f"git exited with code {result.returncode}"
-            logger.warning(f"Git command failed: git {' '.join(args)} → {error}")
+            logger.warning(f"Git command failed: {cmd} → {error}")
             return ""
         return result.stdout.strip()
     except Exception as exc:
@@ -80,12 +84,14 @@ async def run_tests(target_files: list[str] = None) -> tuple[bool, str]:
             test_targets = ["tests/"]
 
     try:
-        test_args = " ".join(test_targets + ["-q", "--tb=short", "-x"])
+        # Security: Use list-based arguments and shell=False to prevent command injection.
+        # Use sys.executable to ensure we use the correct Python interpreter.
+        cmd = [sys.executable, "-m", "pytest"] + test_targets + ["-q", "--tb=short", "-x"]
         result = subprocess.run(
-            f'cmd /c "python -m pytest {test_args}"',
+            cmd,
             capture_output=True, text=True, timeout=180,
             cwd=str(PROJECT_ROOT),
-            shell=True,
+            shell=False,
         )
 
         output = result.stdout.strip() or result.stderr.strip()
@@ -121,11 +127,13 @@ def count_tests() -> int:
     Uses --collect-only for speed. Returns 0 on error.
     """
     try:
+        # Security: Use list-based arguments and shell=False.
+        cmd = [sys.executable, "-m", "pytest", "tests/", "--collect-only", "-q"]
         result = subprocess.run(
-            'cmd /c "python -m pytest tests/ --collect-only -q"',
+            cmd,
             capture_output=True, text=True, timeout=30,
             cwd=str(PROJECT_ROOT),
-            shell=True,
+            shell=False,
         )
         # Output ends with "X tests collected"
         for line in result.stdout.splitlines():
@@ -150,7 +158,7 @@ def get_merge_commit(branch_name: str) -> str | None:
 def revert_merge(merge_sha: str) -> bool:
     """Revert a merge commit on main."""
     result = git_run(["revert", "--no-commit", "-m", "1", merge_sha])
-    if result is not None:
+    if result: # git_run returns stdout string, so non-empty means success or output
         git_run(["commit", "-m", f"Revert autonomy merge {merge_sha}"])
         logger.info(f"↩️ Reverted merge: {merge_sha}")
         return True
