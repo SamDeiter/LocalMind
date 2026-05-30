@@ -331,11 +331,16 @@ export async function sendMessage() {
 
 // ── Message Rendering ───────────────────────────────────────────
 export function clearMessages() {
+  state.currentConvId = null;
+  state.messages = [];
   if (messagesContainer) {
     // Remove only message elements
     const messages = messagesContainer.querySelectorAll(".message");
     messages.forEach((m) => m.remove());
   }
+  if (welcomeScreen) welcomeScreen.style.display = "";
+  const emptyState = document.getElementById("chatEmptyState");
+  if (emptyState) emptyState.style.display = "flex";
 }
 
 export function renderMessages() {
