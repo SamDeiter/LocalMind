@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2025-06-01 - Command Injection via `shell=True` and Import Ambiguity
+**Vulnerability:** Using `subprocess.run(..., shell=True)` with string-formatted commands allows arbitrary command execution. Additionally, the coexistence of `backend/tools.py` and `backend/tools/` package caused import ambiguity, complicating security verification.
+**Learning:** `shell=True` should be avoided in favor of list-based arguments with `shell=False`. When verifying fixes, be aware of package/module name collisions that might mask the code being tested.
+**Prevention:** Always use list-based `subprocess.run` and `shlex.split` for dynamic commands. Maintain clear separation between package names and module names to avoid shadowing imports.

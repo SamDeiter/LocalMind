@@ -8,6 +8,7 @@ import logging
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 logger = logging.getLogger("localmind.autonomy.git")
@@ -19,12 +20,12 @@ def git_run(args: list[str]) -> str:
     """Run a git command in the project root. Returns stdout."""
     try:
         result = subprocess.run(
-            f'cmd /c "git {" ".join(args)}"',
+            ["git"] + args,
             cwd=str(PROJECT_ROOT),
             capture_output=True,
             text=True,
             timeout=30,
-            shell=True,
+            shell=False,
         )
         if result.returncode != 0:
             error = result.stderr.strip() or f"git exited with code {result.returncode}"
@@ -80,12 +81,12 @@ async def run_tests(target_files: list[str] = None) -> tuple[bool, str]:
             test_targets = ["tests/"]
 
     try:
-        test_args = " ".join(test_targets + ["-q", "--tb=short", "-x"])
+        cmd = [sys.executable, "-m", "pytest"] + test_targets + ["-q", "--tb=short", "-x"]
         result = subprocess.run(
-            f'cmd /c "python -m pytest {test_args}"',
+            cmd,
             capture_output=True, text=True, timeout=180,
             cwd=str(PROJECT_ROOT),
-            shell=True,
+            shell=False,
         )
 
         output = result.stdout.strip() or result.stderr.strip()
@@ -122,10 +123,10 @@ def count_tests() -> int:
     """
     try:
         result = subprocess.run(
-            'cmd /c "python -m pytest tests/ --collect-only -q"',
+            [sys.executable, "-m", "pytest", "tests/", "--collect-only", "-q"],
             capture_output=True, text=True, timeout=30,
             cwd=str(PROJECT_ROOT),
-            shell=True,
+            shell=False,
         )
         # Output ends with "X tests collected"
         for line in result.stdout.splitlines():

@@ -8,6 +8,7 @@ import os
 import subprocess
 import glob
 import json
+import shlex
 from pathlib import Path
 
 # Maximum characters to return from file reads / command output
@@ -125,9 +126,12 @@ def list_directory(path: str = ".", working_dir: str = ".") -> dict:
 def run_command(command: str, working_dir: str) -> dict:
     """Execute a shell command in the working directory."""
     try:
+        # Security: Use shlex.split for argument parsing and shell=False to prevent
+        # command injection via shell metacharacters.
+        args = shlex.split(command, posix=(os.name != "nt"))
         result = subprocess.run(
-            command,
-            shell=True,
+            args,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=60,
