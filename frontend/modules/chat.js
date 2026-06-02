@@ -331,10 +331,19 @@ export async function sendMessage() {
 
 // ── Message Rendering ───────────────────────────────────────────
 export function clearMessages() {
+  state.currentConvId = null;
+  state.messages = [];
   if (messagesContainer) {
     // Remove only message elements
     const messages = messagesContainer.querySelectorAll(".message");
     messages.forEach((m) => m.remove());
+  }
+  const emptyState = document.getElementById("chatEmptyState");
+  if (emptyState) {
+    emptyState.style.display = "flex";
+  }
+  if (welcomeScreen) {
+    welcomeScreen.style.display = "flex";
   }
 }
 
