@@ -21,20 +21,32 @@ export function renderConversations() {
   const list = document.getElementById("conversationList");
   if (!list) return;
   list.innerHTML = "";
+
+  if (state.conversations.length === 0) {
+    list.innerHTML = `<div class="px-4 py-8 text-center text-xs text-slate-600 italic">No conversations yet</div>`;
+    return;
+  }
+
   state.conversations.forEach((c) => {
     const div = document.createElement("div");
-    div.className = `conversation-item flex items-center justify-between px-3 py-2 text-sm rounded-r-lg cursor-pointer transition-all group ${
+    div.className = `conversation-item flex items-center justify-between pl-3 pr-2 py-1.5 text-sm rounded-r-lg transition-all group ${
       c.id === state.currentConvId
         ? "text-[#c0c1ff] bg-primary/10 border-l-2 border-[#6366f1]"
         : "text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b]"
     }`;
     div.innerHTML = `
-      <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+      <button class="conv-title-btn truncate pr-2 text-left flex-1" title="${escapeHtml(c.title || "New Chat")}">
+        ${escapeHtml(c.title || "New Chat")}
+      </button>
+      <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded transition-colors" title="Export conversation" aria-label="Export conversation">
+          <span class="material-symbols-outlined text-[18px]">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded transition-colors" title="Delete conversation" aria-label="Delete conversation">
+          <span class="material-symbols-outlined text-[18px]">delete</span>
+        </button>
       </div>`;
-    div.addEventListener("click", () => loadConversation(c.id));
+    div.querySelector(".conv-title-btn").addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
       e.stopPropagation();
       deleteConversation(c.id);
@@ -63,6 +75,7 @@ export async function loadConversation(id) {
 }
 
 export async function deleteConversation(id) {
+  if (!confirm("Delete this conversation? This cannot be undone.")) return;
   try {
     await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
     if (state.currentConvId === id) {
