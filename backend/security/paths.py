@@ -156,19 +156,9 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         raise SecurityError(f"Cannot resolve base directory {base_dir!r}: {exc}") from exc
 
     # --- Build a candidate path --------------------------------------------
-    # Strip leading separators / Windows drive letters so we always treat
-    # user_path as a *relative* path inside the jail.
-    user_path_stripped = user_path_str
-
-    if _WIN_DRIVE_RE.match(user_path_stripped):
-        # e.g. "C:\secret\data" → "secret\data" (drop drive + root sep)
-        user_path_stripped = re.sub(r"^[A-Za-z]:[/\\]", "", user_path_stripped)
-        logger.debug("Stripped Windows drive letter from user path")
-
-    # Strip leading POSIX or Windows root separators.
-    user_path_stripped = user_path_stripped.lstrip("/\\")
-
-    candidate = resolved_base / user_path_stripped
+    # We do NOT strip leading separators here; if the user provides an
+    # absolute path, we resolve it and then check if it's within the jail.
+    candidate = resolved_base / user_path_str
 
     # --- Resolve ALL symlinks in candidate ---------------------------------
     try:
