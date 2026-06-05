@@ -29,9 +29,16 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+    def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
+        """Fallback: basic string-based jail check if primary implementation is missing."""
+        base = Path(base_dir).resolve()
+        # Strip separators and resolve
+        path_str = str(user_path).lstrip("/\\")
+        candidate = (base / path_str).resolve()
+        # Basic check
+        if not str(candidate).startswith(str(base)):
+            raise ValueError(f"Path {user_path} escapes jail {base_dir}")
+        return candidate
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -487,18 +494,14 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
-                            issues.append(
-                                f"Arg '{arg_name}' escapes job directory: {resolved}"
-                            )
-                            logger.warning(
-                                "Path escape attempt in tool arg %s.%s: %r -> %s",
-                                tool_name, arg_name, arg_value, resolved,
-                            )
+                        safe_resolve(job_dir, arg_value)
                     except Exception as exc:
                         issues.append(
-                            f"Arg '{arg_name}' path resolution failed: {exc}"
+                            f"Arg '{arg_name}' path resolution failed or escapes jail: {exc}"
+                        )
+                        logger.warning(
+                            "Path validation failed in tool arg %s.%s: %r (%s)",
+                            tool_name, arg_name, arg_value, exc,
                         )
 
         valid = len(issues) == 0
