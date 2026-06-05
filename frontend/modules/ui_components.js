@@ -146,7 +146,7 @@ export function badge(text, color = "slate") {
  * Standard view header with icon, title, and optional count badge.
  */
 export function viewHeader({ icon, iconColor = "indigo", title, count, actionBtn = "" }) {
-  const countBadge = count != null
+  const countBadge = count !== null && count !== undefined
     ? badge(`${count} ${title.toLowerCase()}${count !== 1 ? "s" : ""}`, iconColor)
     : "";
   return `<div class="flex items-center justify-between">
