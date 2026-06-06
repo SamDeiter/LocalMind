@@ -32,6 +32,16 @@ BLOCKLIST_PATTERNS = [
     r"\b__import__\s*\(\s*['\"]os['\"]\s*\)\s*\.remove\b",
     r"\bexec\s*\(",
     r"\beval\s*\(",
+    # Shell execution and process management bypasses
+    r"\bos\.(system|popen|spawn)",
+    r"\bsubprocess\b",
+    r"\bpty\.spawn\b",
+    # Dynamic attribute access / Builtin manipulation
+    r"\bgetattr\b",
+    r"\bsetattr\b",
+    r"\b__builtins__\b",
+    r"\bimportlib\b",
+    r"\bsys\.modules\b",
 ]
 
 

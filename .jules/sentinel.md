@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2024-10-24 - RunCode Sandbox Bypass via Shell/Process Functions
+**Vulnerability:** The `RunCodeTool` used a regex blocklist that missed common Python functions for process creation and shell execution like `os.system`, `subprocess`, and `os.popen`. This allowed an attacker to execute arbitrary shell commands, bypassing the restrictions intended for the tool.
+**Learning:** Regex-based blocklists for code execution must be comprehensive and include dynamic access methods like `getattr` and `__builtins__` to prevent obfuscated bypasses.
+**Prevention:** Explicitly block all known process-spawning modules and functions, and restrict access to low-level Python internals in the pre-execution scan.
