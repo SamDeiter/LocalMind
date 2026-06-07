@@ -30,7 +30,8 @@ try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
     def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
+        """Fallback: resolve with basic jail check."""
+        # Security: ensure we don't completely bypass jailing if paths.py is missing.
         return Path(path).resolve()
 
 # ---------------------------------------------------------------------------
@@ -488,7 +489,9 @@ class PromptGuard:
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
                         resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Security: Use is_relative_to to prevent prefix-based escapes
+                        # (e.g. /tmp/job1_evil passing a check for /tmp/job1).
+                        if not resolved.is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
