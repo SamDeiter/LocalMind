@@ -21,18 +21,34 @@ export function renderConversations() {
   const list = document.getElementById("conversationList");
   if (!list) return;
   list.innerHTML = "";
+
+  if (state.conversations.length === 0) {
+    list.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-8 px-4 text-center opacity-40 select-none">
+        <span class="material-symbols-outlined text-2xl mb-2">chat_bubble</span>
+        <p class="text-[11px] font-medium tracking-wide uppercase">No conversations yet</p>
+      </div>`;
+    return;
+  }
+
   state.conversations.forEach((c) => {
     const div = document.createElement("div");
-    div.className = `conversation-item flex items-center justify-between px-3 py-2 text-sm rounded-r-lg cursor-pointer transition-all group ${
+    div.className = `conversation-item flex items-center justify-between px-3 py-2 text-sm rounded-r-lg cursor-pointer transition-all group focus-within:bg-slate-800/50 ${
       c.id === state.currentConvId
         ? "text-[#c0c1ff] bg-primary/10 border-l-2 border-[#6366f1]"
         : "text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b]"
     }`;
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+      <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded-md hover:bg-slate-800 transition-colors"
+                title="Export Conversation" aria-label="Export Conversation">
+          <span class="material-symbols-outlined text-base">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded-md hover:bg-slate-800 transition-colors"
+                title="Delete Conversation" aria-label="Delete Conversation">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
