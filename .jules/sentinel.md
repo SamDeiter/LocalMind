@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2024-05-25 - RBAC Path Prefix Bypass
+**Vulnerability:** Using `path.startswith(allowed_prefix)` for RBAC authorization allows bypassing restrictions. For example, if `/api/chat` is allowed, an attacker could access `/api/chat_evil` because it shares the same string prefix.
+**Learning:** Prefix matching without boundary awareness (checking for exact match or trailing slash) is insufficient for path-based authorization.
+**Prevention:** Always ensure the path either exactly matches the allowed prefix or starts with `allowed_prefix + "/"`.
