@@ -488,7 +488,17 @@ class PromptGuard:
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
                         resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Boundary-aware jail check:
+                        # Ensures resolved path is either the job_dir itself or a child.
+                        # safe_resolve usually does this, but we reinforce it here correctly.
+                        try:
+                            # Path.is_relative_to (Python 3.9+) is the robust way to check boundaries.
+                            is_inside = resolved.resolve().is_relative_to(job_dir.resolve())
+                        except (ValueError, AttributeError):
+                            # Fallback if is_relative_to fails or is missing (though Python 3.12 has it)
+                            is_inside = False
+
+                        if not is_inside:
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
