@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2026-06-12 - Prefix-matching bypass in Path/URL validation
+**Vulnerability:** Using `path.startswith("/api/chat")` allows a bypass for `/api/chat_admin` because it shares the same string prefix. This can lead to unauthorized access to sensitive endpoints or directory traversal.
+**Learning:** Simple string prefix checks do not respect path or URL segment boundaries (like `/`).
+**Prevention:** Use boundary-aware matching: `path == prefix or path.startswith(prefix.rstrip("/") + "/")`. This ensures the match is either exact or followed by a directory separator.

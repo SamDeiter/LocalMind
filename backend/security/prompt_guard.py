@@ -488,7 +488,14 @@ class PromptGuard:
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
                         resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        resolved_str = str(resolved)
+                        job_dir_str = str(job_dir.resolve())
+                        # Boundary-aware jail check to prevent /tmp/job1_secret matching /tmp/job1
+                        is_inside = (
+                            resolved_str == job_dir_str
+                            or resolved_str.startswith(job_dir_str.rstrip("/") + "/")
+                        )
+                        if not is_inside:
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
