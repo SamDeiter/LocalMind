@@ -291,7 +291,11 @@ async def auth_middleware(request: Request, call_next):
     path = request.url.path
 
     # Skip auth for non-API routes
-    if path in _AUTH_SKIP_EXACT or any(path.startswith(p) for p in _AUTH_SKIP_PREFIXES):
+    is_skip_prefix = any(
+        path == p or path.startswith(p.rstrip("/") + "/")
+        for p in _AUTH_SKIP_PREFIXES
+    )
+    if path in _AUTH_SKIP_EXACT or is_skip_prefix:
         return await call_next(request)
 
     # Only enforce auth on /api/ routes

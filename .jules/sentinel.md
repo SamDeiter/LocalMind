@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2025-05-15 - Broken Jail Validation via Argument Misalignment
+**Vulnerability:** `PromptGuard.validate_tool_call` called `safe_resolve(arg_value, job_dir)`, but `safe_resolve` expected `(base, user_path)`. This caused absolute `arg_value` to override the jail entirely because `Path(arg_value)` was treated as the base.
+**Learning:** Security utility functions must have consistent signatures across the codebase. Misalignment at the call site can silently disable critical protections like path jailing.
+**Prevention:** Always use keyword arguments for security-critical functions or enforce strict type/content checks on "jail root" parameters to ensure they are not being overridden by user input.
