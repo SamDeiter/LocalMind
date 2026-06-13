@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -29,9 +30,9 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
+    def safe_resolve(base: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
         """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+        return Path(user_path).resolve()
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -487,8 +488,23 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Force relative path behavior to ensure it stays in jail
+                        clean_val = str(arg_value).lstrip("/\\")
+                        if os.name == "nt":
+                            clean_val = re.sub(r"^[A-Za-z]:[/\\]", "", clean_val)
+
+                        resolved = safe_resolve(job_dir, clean_val)
+                        resolved_str = str(resolved)
+                        job_dir_resolved = str(job_dir.resolve())
+
+                        # Boundary-aware prefix check
+                        jail_prefix = job_dir_resolved.rstrip(os.sep) + os.sep
+                        is_inside = (
+                            resolved_str == job_dir_resolved.rstrip(os.sep)
+                            or resolved_str.startswith(jail_prefix)
+                        )
+
+                        if not is_inside:
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
