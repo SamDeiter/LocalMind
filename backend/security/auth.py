@@ -289,12 +289,14 @@ class APIKeyManager:
 
 
 def _has_any_keys() -> bool:
-    """Return ``True`` if at least one (non-revoked) API key exists."""
+    """Return ``True`` if at least one API key exists (including revoked ones).
+
+    This ensures that once the system has been bootstrapped, it does not
+    revert to an unauthenticated state if all keys are revoked.
+    """
     conn = _get_conn()
     try:
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM api_keys WHERE revoked_at IS NULL"
-        ).fetchone()
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM api_keys").fetchone()
         return row["cnt"] > 0
     finally:
         conn.close()
