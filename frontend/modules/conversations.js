@@ -3,7 +3,7 @@
  */
 
 import { API, state, messagesContainer, welcomeScreen } from "./state.js";
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, showToast } from "./utils.js";
 import { renderMessages } from "./chat.js";
 
 export async function loadConversations() {
@@ -31,12 +31,17 @@ export function renderConversations() {
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
       <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded flex items-center justify-center" title="Export" aria-label="Export conversation">
+          <span class="material-symbols-outlined text-base">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded flex items-center justify-center" title="Delete" aria-label="Delete conversation">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
       e.stopPropagation();
+      if (!confirm("Delete this conversation? This cannot be undone.")) return;
       deleteConversation(c.id);
     });
     div.querySelector(".export-btn").addEventListener("click", (e) => {
@@ -72,6 +77,7 @@ export async function deleteConversation(id) {
       if (welcomeScreen) welcomeScreen.style.display = "";
     }
     await loadConversations();
+    showToast("Conversation deleted", "success");
   } catch (e) {
     console.error("Delete conversation failed:", e);
   }
@@ -89,6 +95,7 @@ export async function exportConversation(id, title) {
     a.download = `${title.replace(/[^a-z0-9]/gi, "_")}.md`;
     a.click();
     URL.revokeObjectURL(url);
+    showToast("Conversation exported", "success");
   } catch (e) {
     console.error("Export failed:", e);
   }
