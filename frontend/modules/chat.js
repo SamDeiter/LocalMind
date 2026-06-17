@@ -394,6 +394,8 @@ export function createMessageEl(role, content) {
 export function addTypingIndicator(el) {
   const dots = document.createElement("div");
   dots.className = "typing-dots";
+  dots.setAttribute("role", "status");
+  dots.setAttribute("aria-label", "AI is thinking");
   dots.innerHTML = "<span></span><span></span><span></span>";
   el.querySelector(".message-content")?.appendChild(dots);
 }
