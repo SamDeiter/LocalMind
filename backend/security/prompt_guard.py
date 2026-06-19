@@ -29,7 +29,7 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
+    def safe_resolve(base: Path | str, path: str | Path) -> Path:  # type: ignore[misc]
         """Fallback: resolve without jail check."""
         return Path(path).resolve()
 
@@ -39,7 +39,10 @@ except ImportError:  # paths module not yet available (circular / missing)
 
 MAX_INPUT_LENGTH: int = 50_000
 
-SHELL_METACHARACTERS: set[str] = {";", "|", "&", "$", "`", "\\"}
+# 🛡️ Sentinel: Expanded to catch redirection, grouping, globbing, and newlines.
+SHELL_METACHARACTERS: set[str] = {
+    ";", "|", "&", "$", "`", "\\", ">", "<", "(", ")", "{", "}", "*", "?", "[", "]", "\n", "\r"
+}
 
 SSRF_PATTERNS: list[str] = [
     r"^file://",
@@ -487,8 +490,10 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # 🛡️ Sentinel: Fixed argument swap (job_dir must be base)
+                        resolved = safe_resolve(job_dir, arg_value)
+                        # 🛡️ Sentinel: Use is_relative_to for robust boundary check
+                        if not resolved.is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
