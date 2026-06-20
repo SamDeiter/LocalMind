@@ -39,7 +39,13 @@ except ImportError:  # paths module not yet available (circular / missing)
 
 MAX_INPUT_LENGTH: int = 50_000
 
-SHELL_METACHARACTERS: set[str] = {";", "|", "&", "$", "`", "\\"}
+SHELL_METACHARACTERS: set[str] = {
+    ";", "|", "&", "$", "`", "\\",
+    "\n", "\r",        # Line separators
+    ">", "<",          # Redirection
+    "(", ")", "{", "}", # Grouping
+    "*", "?", "[", "]", "!", "~", # Globbing / expansion
+}
 
 SSRF_PATTERNS: list[str] = [
     r"^file://",

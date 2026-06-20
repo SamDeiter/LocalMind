@@ -13,32 +13,41 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from backend import db
 from backend.config import (
-    DEFAULT_SYSTEM_PROMPT, OLLAMA_BASE_URL, FRONTEND_URLS,
-    SLACK_ENABLED, GPU_VRAM_GB, VACUUM_INTERVAL_HOURS, JOB_RETENTION_DAYS,
-    WORKSPACE_ROOT, BEST_OF_N_ENABLED, PRM_MODEL, LORA_ADAPTERS_DIR,
+    BEST_OF_N_ENABLED,
+    DEFAULT_SYSTEM_PROMPT,
+    FRONTEND_URLS,
+    JOB_RETENTION_DAYS,
+    LORA_ADAPTERS_DIR,
     MODEL_TIERS,
+    OLLAMA_BASE_URL,
+    PRM_MODEL,
+    SLACK_ENABLED,
+    VACUUM_INTERVAL_HOURS,
+    WORKSPACE_ROOT,
 )
-from backend.utils.server_utils import kill_existing_server, estimate_task_complexity
-from backend.tools.registry import ToolRegistry
-from backend.metacognition.controller import MetaCognitiveController
-from backend import notifications, gemini_client, db
-from backend.db import DB_PATH, get_db
-from backend.core.schema import init_phase0_schema, ensure_default_tenant
+from backend.core.audit import audit_event as _audit_event
+from backend.core.audit import get_alert_manager, get_audit_logger
+from backend.core.schema import ensure_default_tenant, init_phase0_schema
 from backend.core.telemetry import (
-    init_telemetry_schema, health_checker, metrics_collector, alert_manager,
+    health_checker,
+    init_telemetry_schema,
 )
+from backend.db import DB_PATH
 from backend.jobs.worker import JobWorker
-from backend.core.audit import audit_event as _audit_event, get_audit_logger, get_alert_manager
-from backend.security.redact import install_redacting_filter
+from backend.metacognition.controller import MetaCognitiveController
 from backend.security.data_protection import (
-    harden_db_permissions, schedule_vacuum, daily_purge_loop,
+    daily_purge_loop,
+    harden_db_permissions,
+    schedule_vacuum,
 )
+from backend.security.redact import install_redacting_filter
+from backend.tools.registry import ToolRegistry
 
 # -- Logging --
 logging.basicConfig(
@@ -51,7 +60,7 @@ logger = logging.getLogger("localmind")
 # -- RAG Availability Check --
 RAG_AVAILABLE = False
 try:
-    from backend.tools.rag import index_document, list_indexed_documents, delete_document
+    from backend.tools.rag import delete_document, index_document, list_indexed_documents
     RAG_AVAILABLE = True
     logger.info("RAG module loaded successfully")
 except ImportError:
@@ -191,7 +200,7 @@ async def lifespan(app: FastAPI):
 
     # ── MemPalace (Tier-3 long-term memory) ────────────────────
     try:
-        from backend.memory.palace_manager import initialize_palace, get_status
+        from backend.memory.palace_manager import get_status, initialize_palace
         palace_ready = initialize_palace()
         if palace_ready:
             status = get_status()
@@ -233,7 +242,7 @@ async def lifespan(app: FastAPI):
 
 def _configure_routers():
     """Inject dependencies into route modules to avoid circular imports."""
-    from backend.routes import chat, conversations, documents
+    from backend.routes import conversations, documents
     from backend.routes.chat import init_chat_service
 
     init_chat_service(
@@ -290,8 +299,11 @@ async def auth_middleware(request: Request, call_next):
     from fastapi.responses import JSONResponse as _JSONResponse
     path = request.url.path
 
-    # Skip auth for non-API routes
-    if path in _AUTH_SKIP_EXACT or any(path.startswith(p) for p in _AUTH_SKIP_PREFIXES):
+    # Skip auth for non-API routes (use boundary-aware prefix matching)
+    if path in _AUTH_SKIP_EXACT or any(
+        path == p or path.startswith(p.rstrip("/") + "/")
+        for p in _AUTH_SKIP_PREFIXES
+    ):
         return await call_next(request)
 
     # Only enforce auth on /api/ routes
@@ -330,30 +342,30 @@ async def no_cache_static(request: Request, call_next):
     return response
 
 # -- Register Routers --
+from backend.routes.admin import router as admin_router
 from backend.routes.chat import router as chat_router
 from backend.routes.conversations import router as conversations_router
-from backend.routes.memory import router as memory_router
-from backend.routes.files import router as files_router
-from backend.routes.tools import router as tools_router
 from backend.routes.documents import router as documents_router
-from backend.routes.research_routes import router as research_router
-from backend.routes.system import router as system_router
-from backend.routes.settings import router as settings_router
-from backend.routes.swarm_routes import router as swarm_router
-from backend.routes.validation_routes import router as validation_router
-from backend.routes.google_auth import router as google_auth_router
-from backend.routes.google_auth import _legacy_router as google_auth_legacy_router
-from backend.routes.jobs import router as jobs_router
-from backend.routes.admin import router as admin_router
-from backend.routes.knowledge_graph import router as knowledge_graph_router
-from backend.routes.time_machine import router as time_machine_router
-from backend.routes.hub import router as hub_router
-from backend.routes.tts import router as tts_router
 from backend.routes.eval_routes import router as eval_router
+from backend.routes.files import router as files_router
+from backend.routes.google_auth import _legacy_router as google_auth_legacy_router
+from backend.routes.google_auth import router as google_auth_router
+from backend.routes.hub import router as hub_router
+from backend.routes.jobs import router as jobs_router
+from backend.routes.knowledge_graph import router as knowledge_graph_router
+from backend.routes.memory import router as memory_router
 from backend.routes.push import router as push_router
-from backend.routes.tools_generated import router as tools_generated_router
+from backend.routes.research_routes import router as research_router
 from backend.routes.self_discovery import router as self_discovery_router
+from backend.routes.settings import router as settings_router
 from backend.routes.skill_learning import router as skill_learning_router
+from backend.routes.swarm_routes import router as swarm_router
+from backend.routes.system import router as system_router
+from backend.routes.time_machine import router as time_machine_router
+from backend.routes.tools import router as tools_router
+from backend.routes.tools_generated import router as tools_generated_router
+from backend.routes.tts import router as tts_router
+from backend.routes.validation_routes import router as validation_router
 
 app.include_router(chat_router)
 app.include_router(conversations_router)
