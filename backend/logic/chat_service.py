@@ -5,20 +5,21 @@ heuristics to ToolDispatcher. This file owns the streaming
 loops and conversation persistence.
 """
 
+import asyncio
 import json
 import logging
 import time
 import uuid
-from typing import Optional, Dict, Any, AsyncIterator
+from typing import Any, AsyncIterator, Dict, Optional
 
 from backend import config
-from backend.logic.llm_client import LLMClient
-from backend.logic.context_builder import ContextBuilder
-from backend.logic.tool_dispatcher import ToolDispatcher
-from backend.logic.token_manager import TokenManager
-from backend.logic.summarizer import Summarizer
-from backend.memory.session_cache import get_session_cache
 from backend.autonomy.services.reflection_service import ReflectionService
+from backend.logic.context_builder import ContextBuilder
+from backend.logic.llm_client import LLMClient
+from backend.logic.summarizer import Summarizer
+from backend.logic.token_manager import TokenManager
+from backend.logic.tool_dispatcher import ToolDispatcher
+from backend.memory.session_cache import get_session_cache
 
 logger = logging.getLogger("localmind.logic.chat_service")
 
@@ -135,8 +136,8 @@ class ChatService:
         yield f"data: {json.dumps({'thinking': {'model': model, 'provider': 'react_agent', 'tier': task_estimate['tier']}})}\n\n"
 
         try:
-            from src.agent.core import Agent
             from src.agent.adapter import import_backend_tools
+            from src.agent.core import Agent
 
             agent = Agent(model=model)
             for adapted in import_backend_tools(self.registry):
@@ -322,7 +323,7 @@ class ChatService:
                 rca_msg = f"\n\n[Root Cause Analysis]: {rca_result.get('root_cause', 'Unknown')}\n[Suggested Recovery]: {rca_result.get('proposed_fix', 'Contact support')}"
                 full_response += rca_msg
                 yield f"data: {json.dumps({'token': rca_msg, 'conversation_id': conversation_id})}\n\n"
-        
+
         await self._save_msg(conversation_id, "assistant", full_response)
 
         elapsed = time.time() - start_time
@@ -337,7 +338,6 @@ class ChatService:
 
         # ── MemPalace Tier-3 auto-save (verbatim turn archival) ──────────
         try:
-            import asyncio
             if full_response and len(full_response) > 100:
                 user_content = messages[-2]["content"] if len(messages) >= 2 else ""
                 asyncio.create_task(self._palace_save_turn(
@@ -419,8 +419,8 @@ class ChatService:
 
     async def _gate_tool(self, name, action, args, conversation_id):
         """Approval gate for sensitive tool actions. Returns True if approved."""
-        from backend.tools.propose_action import _pending, _decisions, _load_approval_log, _save_approval_log
-        import asyncio
+
+        from backend.tools.propose_action import _decisions, _load_approval_log, _pending, _save_approval_log
 
         preview = self._build_gate_preview(name, action, args)
         request_id = str(uuid.uuid4())
@@ -454,28 +454,34 @@ class ChatService:
     # ------------------------------------------------------------------
 
     async def _get_history(self, conversation_id: str):
-        db = self.db_factory()
-        rows = db.execute("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at", (conversation_id,)).fetchall()
-        db.close()
-        return [{"role": r["role"], "content": r["content"]} for r in rows]
+        def _sync_get():
+            db = self.db_factory()
+            rows = db.execute("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at", (conversation_id,)).fetchall()
+            db.close()
+            return [{"role": r["role"], "content": r["content"]} for r in rows]
+        return await asyncio.to_thread(_sync_get)
 
     async def _save_msg(self, conversation_id, role, content):
-        db = self.db_factory()
-        now = time.time()
-        db.execute("INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)", (conversation_id, role, content, now))
-        db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conversation_id))
-        db.commit()
-        db.close()
+        def _sync_save():
+            db = self.db_factory()
+            now = time.time()
+            db.execute("INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)", (conversation_id, role, content, now))
+            db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conversation_id))
+            db.commit()
+            db.close()
+        await asyncio.to_thread(_sync_save)
 
     async def _create_conversation(self, message, model, system_prompt):
         cid = str(uuid.uuid4())
-        db = self.db_factory()
-        now = time.time()
-        title = message[:50] + "..." if len(message) > 50 else message
-        db.execute("INSERT INTO conversations (id, title, model, system_prompt, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-                   (cid, title, model, system_prompt or config.DEFAULT_SYSTEM_PROMPT, now, now))
-        db.commit()
-        db.close()
+        def _sync_create():
+            db = self.db_factory()
+            now = time.time()
+            title = message[:50] + "..." if len(message) > 50 else message
+            db.execute("INSERT INTO conversations (id, title, model, system_prompt, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                       (cid, title, model, system_prompt or config.DEFAULT_SYSTEM_PROMPT, now, now))
+            db.commit()
+            db.close()
+        await asyncio.to_thread(_sync_create)
         return cid
 
     async def _auto_save_facts(self, last_user_message: str, enabled: bool):
@@ -485,7 +491,9 @@ class ChatService:
         retriever = _get_retriever()
         if retriever:
             try:
-                retriever.save_from_conversation(
+                # ⚡ Bolt: Offload blocking I/O to background thread
+                await asyncio.to_thread(
+                    retriever.save_from_conversation,
                     content=last_user_message[:500],
                     category="episodic",
                     subcategory="interaction",
@@ -513,7 +521,9 @@ class ChatService:
                 f"ASSISTANT: {assistant_msg[:1200]}"
             )
 
-            save(
+            # ⚡ Bolt: Offload blocking I/O to background thread
+            await asyncio.to_thread(
+                save,
                 content=content,
                 wing="wing_localmind",
                 hall="hall_events",
