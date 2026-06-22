@@ -17,6 +17,7 @@ import {
   systemPromptText,
   loadingStatus,
   modelSelect,
+  stopBtn,
   editorState,
   scrollToBottom,
   resetAutoScroll,
@@ -107,7 +108,6 @@ export async function sendMessage() {
   state.streaming = true;
   sendBtn.disabled = true;
   resetAutoScroll();
-  const stopBtn = document.getElementById("stopBtn");
   if (stopBtn) stopBtn.style.display = "";
   state.abortController = new AbortController();
 
@@ -324,7 +324,6 @@ export async function sendMessage() {
     state.streaming = false;
     sendBtn.disabled = false;
     state.abortController = null;
-    const stopBtn = document.getElementById("stopBtn");
     if (stopBtn) stopBtn.style.display = "none";
   }
 }
