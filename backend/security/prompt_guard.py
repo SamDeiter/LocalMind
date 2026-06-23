@@ -29,9 +29,17 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+    class SecurityError(Exception):
+        """Fallback SecurityError if paths.py is missing."""
+        pass
+
+    def safe_resolve(base: Path | str, path: str | Path) -> Path:  # type: ignore[misc]
+        """Fallback: resolve with basic jail check."""
+        base_path = Path(base).resolve()
+        resolved = (base_path / path).resolve()
+        if not resolved.is_relative_to(base_path):
+            raise SecurityError(f"Path {path} escapes jail {base}")
+        return resolved
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -487,8 +495,10 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Correct order: base_dir first, then user_path
+                        resolved = safe_resolve(job_dir, arg_value)
+                        # Redundant but safe check using is_relative_to
+                        if not resolved.is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
