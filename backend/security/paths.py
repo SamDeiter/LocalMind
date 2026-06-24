@@ -156,22 +156,22 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         raise SecurityError(f"Cannot resolve base directory {base_dir!r}: {exc}") from exc
 
     # --- Build a candidate path --------------------------------------------
-    # Strip leading separators / Windows drive letters so we always treat
-    # user_path as a *relative* path inside the jail.
-    user_path_stripped = user_path_str
+    # If user_path is absolute, we reject it immediately as a security risk.
+    # We only allow relative paths for safe_resolve to prevent bypasses
+    # where an absolute path is joined in a way that bypasses jailing.
+    user_path_obj = Path(user_path_str)
 
-    if _WIN_DRIVE_RE.match(user_path_stripped):
-        # e.g. "C:\secret\data" → "secret\data" (drop drive + root sep)
-        user_path_stripped = re.sub(r"^[A-Za-z]:[/\\]", "", user_path_stripped)
-        logger.debug("Stripped Windows drive letter from user path")
+    if user_path_obj.is_absolute() or _WIN_DRIVE_RE.match(user_path_str):
+        logger.warning("Rejecting absolute path in safe_resolve: %r", user_path_str)
+        raise SecurityError(f"Absolute paths are not allowed: {user_path_str!r}")
 
-    # Strip leading POSIX or Windows root separators.
-    user_path_stripped = user_path_stripped.lstrip("/\\")
-
-    candidate = resolved_base / user_path_stripped
+    # For safety, we still join relative to base
+    candidate = resolved_base / user_path_obj
 
     # --- Resolve ALL symlinks in candidate ---------------------------------
     try:
+        # If the candidate doesn't exist, resolve() might not fully canonicalize
+        # or might behave differently across OSs. We want the absolute path.
         resolved_candidate = candidate.resolve()
     except OSError as exc:
         # A dangling symlink or permission error still counts as a violation.
@@ -179,24 +179,10 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
             f"Cannot resolve candidate path {candidate!r}: {exc}"
         ) from exc
 
-    # --- Enforce jail via string prefix comparison -------------------------
-    # We must compare strings (not Path parents) so that a jail at
-    # /data/uploads does NOT match /data/uploads_evil.
-    # Add the OS separator to avoid that exact prefix-collision scenario.
-    resolved_base_str = str(resolved_base)
-    resolved_candidate_str = str(resolved_candidate)
-
-    # Normalise case on Windows (NTFS is case-insensitive).
-    if os.name == "nt":
-        resolved_base_str = resolved_base_str.lower()
-        resolved_candidate_str = resolved_candidate_str.lower()
-
-    jail_prefix = resolved_base_str.rstrip(os.sep) + os.sep
-
-    if not (
-        resolved_candidate_str == resolved_base_str.rstrip(os.sep)
-        or resolved_candidate_str.startswith(jail_prefix)
-    ):
+    # --- Enforce jail via Path.is_relative_to() ----------------------------
+    # Using is_relative_to() is more robust than string prefix comparison
+    # because it respects path boundaries (avoids /data/uploads vs /data/uploads_evil).
+    if not resolved_candidate.is_relative_to(resolved_base):
         logger.warning(
             "Path escape attempt: %r resolved to %r, outside jail %r",
             user_path_str,
