@@ -330,10 +330,16 @@
                                         <span class="material-symbols-outlined text-lg">volume_up</span>
                                     </button>
                                 </div>
-                                <button id="sendBtn" aria-label="Send Message" title="Send this message"
-                                    class="primary-gradient p-2 rounded-lg text-on-primary transition-all">
-                                    <span class="material-symbols-outlined text-lg">arrow_upward</span>
-                                </button>
+                                <div class="flex items-center gap-1">
+                                    <button id="stopBtn" aria-label="Stop Generation" title="Stop AI generation" style="display: none"
+                                        class="p-2 rounded-lg text-error hover:bg-slate-800/50 transition-colors">
+                                        <span class="material-symbols-outlined text-lg">stop_circle</span>
+                                    </button>
+                                    <button id="sendBtn" aria-label="Send Message" title="Send this message"
+                                        class="primary-gradient p-2 rounded-lg text-on-primary transition-all">
+                                        <span class="material-symbols-outlined text-lg">arrow_upward</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
