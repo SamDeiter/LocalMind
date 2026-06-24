@@ -105,10 +105,13 @@ export async function sendMessage() {
   let typingRemoved = false;
 
   state.streaming = true;
-  sendBtn.disabled = true;
-  resetAutoScroll();
   const stopBtn = document.getElementById("stopBtn");
-  if (stopBtn) stopBtn.style.display = "";
+  if (stopBtn) {
+    stopBtn.style.display = "";
+    stopBtn.focus();
+  }
+  if (sendBtn) sendBtn.style.display = "none";
+  resetAutoScroll();
   state.abortController = new AbortController();
 
   resetTokenPanel();
@@ -322,10 +325,14 @@ export async function sendMessage() {
     }
   } finally {
     state.streaming = false;
-    sendBtn.disabled = false;
-    state.abortController = null;
     const stopBtn = document.getElementById("stopBtn");
     if (stopBtn) stopBtn.style.display = "none";
+    if (sendBtn) {
+      sendBtn.style.display = "";
+      sendBtn.disabled = false;
+    }
+    state.abortController = null;
+    if (messageInput) messageInput.focus();
   }
 }
 
