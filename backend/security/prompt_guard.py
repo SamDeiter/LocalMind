@@ -29,9 +29,17 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+    def safe_resolve(base: Path, path: str | Path) -> Path:  # type: ignore[misc]
+        """Fallback: resolve with jail check (matches paths.py contract)."""
+        user_path = Path(path)
+        if user_path.is_absolute():
+            raise RuntimeError(f"Absolute paths are not allowed in fallback: {path!r}")
+
+        base_canon = base.resolve()
+        resolved = (base_canon / user_path).resolve()
+        if not resolved.is_relative_to(base_canon):
+            raise RuntimeError(f"Path escape: {resolved}")
+        return resolved
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -39,7 +47,9 @@ except ImportError:  # paths module not yet available (circular / missing)
 
 MAX_INPUT_LENGTH: int = 50_000
 
-SHELL_METACHARACTERS: set[str] = {";", "|", "&", "$", "`", "\\"}
+SHELL_METACHARACTERS: set[str] = {
+    ";", "|", "&", "$", "`", "\\", "\n", "\r", ">", "<", "(", ")", "{", "}", "*", "?", "[", "]", "!", "~"
+}
 
 SSRF_PATTERNS: list[str] = [
     r"^file://",
@@ -487,8 +497,14 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Correct order: safe_resolve(base_dir, user_path)
+                        # safe_resolve already performs jailing, but we re-verify
+                        # here with is_relative_to for defense-in-depth.
+                        resolved = safe_resolve(job_dir, arg_value)
+
+                        # canonicalize both for exact comparison
+                        canon_job = job_dir.resolve()
+                        if not resolved.is_relative_to(canon_job):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )

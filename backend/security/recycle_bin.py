@@ -44,11 +44,14 @@ except ImportError:  # pragma: no cover — paths.py not written yet
         Raises SecurityError if the resolved path escapes the base directory.
         This mirrors the contract that backend/security/paths.py will provide.
         """
+        user_path_obj = Path(user_path)
+        if user_path_obj.is_absolute():
+            raise SecurityError(f"Absolute paths are not allowed: {user_path!r}")
+
         base = base_dir.resolve()
-        candidate = (base / user_path).resolve()
-        try:
-            candidate.relative_to(base)
-        except ValueError:
+        candidate = (base / user_path_obj).resolve()
+
+        if not candidate.is_relative_to(base):
             raise SecurityError(
                 f"Path {user_path!r} escapes jail {base!r}"
             )
