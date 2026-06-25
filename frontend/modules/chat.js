@@ -17,6 +17,7 @@ import {
   systemPromptText,
   loadingStatus,
   modelSelect,
+  stopBtn,
   editorState,
   scrollToBottom,
   resetAutoScroll,
@@ -105,10 +106,9 @@ export async function sendMessage() {
   let typingRemoved = false;
 
   state.streaming = true;
-  sendBtn.disabled = true;
-  resetAutoScroll();
-  const stopBtn = document.getElementById("stopBtn");
+  sendBtn.style.display = "none";
   if (stopBtn) stopBtn.style.display = "";
+  resetAutoScroll();
   state.abortController = new AbortController();
 
   resetTokenPanel();
@@ -322,10 +322,9 @@ export async function sendMessage() {
     }
   } finally {
     state.streaming = false;
-    sendBtn.disabled = false;
-    state.abortController = null;
-    const stopBtn = document.getElementById("stopBtn");
+    sendBtn.style.display = "";
     if (stopBtn) stopBtn.style.display = "none";
+    state.abortController = null;
   }
 }
 
