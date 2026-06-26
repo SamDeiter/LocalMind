@@ -29,9 +29,16 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+    def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
+        """Fallback: resolve with basic jail check."""
+        import re as _re
+        base_dir = Path(base_dir).resolve()
+        # Basic strip of leading separators to treat as relative
+        user_path_str = _re.sub(r"^[A-Za-z]:[/\\]", "", str(user_path)).lstrip("/\\")
+        candidate = (base_dir / user_path_str).resolve()
+        if not candidate.is_relative_to(base_dir):
+            raise RuntimeError(f"Path escape detected (fallback): {candidate}")
+        return candidate
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -39,7 +46,8 @@ except ImportError:  # paths module not yet available (circular / missing)
 
 MAX_INPUT_LENGTH: int = 50_000
 
-SHELL_METACHARACTERS: set[str] = {";", "|", "&", "$", "`", "\\"}
+# 🛡️ Sentinel: Include newlines to prevent command injection bypasses
+SHELL_METACHARACTERS: set[str] = {";", "|", "&", "$", "`", "\\", "\n", "\r"}
 
 SSRF_PATTERNS: list[str] = [
     r"^file://",
@@ -487,8 +495,11 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Security fix: base_dir MUST be first argument for safe_resolve
+                        resolved = safe_resolve(job_dir, arg_value)
+                        # The startswith check below is redundant if safe_resolve works correctly,
+                        # but we'll use is_relative_to for consistency and double-safety.
+                        if not resolved.is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
