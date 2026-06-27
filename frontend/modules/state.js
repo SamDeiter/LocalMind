@@ -55,6 +55,7 @@ export const workRemoveImageBtn = document.getElementById("workRemoveImageBtn");
 export const newChatBtn = $("#newChatInlineBtn");
 export const conversationList = $("#conversationList");
 export const sendBtn = $("#sendBtn");
+export const stopBtn = $("#stopBtn");
 export const messageInput = $("#messageInput");
 export const messagesContainer = $("#messagesContainer");
 export const welcomeScreen = $("#welcomeScreen");
