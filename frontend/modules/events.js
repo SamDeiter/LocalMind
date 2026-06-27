@@ -7,6 +7,7 @@ import {
   state,
   $,
   sendBtn,
+  stopBtn,
   messageInput,
   openCameraBtn,
   closeCameraBtn,
@@ -233,7 +234,7 @@ export function bindEvents() {
   $("#uploadDocsBtn")?.addEventListener("click", () => docUpload?.click());
 
   // ── Stop ─────────────────────────────────────────────────────
-  $("#stopBtn")?.addEventListener("click", () => {
+  stopBtn?.addEventListener("click", () => {
     if (state.abortController) state.abortController.abort();
   });
 
