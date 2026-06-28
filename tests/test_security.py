@@ -19,6 +19,7 @@ for _mock_mod in ("fastapi", "httpx"):
 from backend.routes.files import PROJECT_ROOT as FILES_PROJECT_ROOT
 from backend.tools.self_edit import PROJECT_ROOT as SELF_EDIT_PROJECT_ROOT, _validate_self_path
 from backend.code_editor import PROJECT_ROOT as CODE_EDITOR_PROJECT_ROOT, is_protected_file
+from backend.security.prompt_guard import PromptGuard
 
 def test_files_project_root_type():
     """Verify that FILES_PROJECT_ROOT is now a Path object."""
@@ -59,3 +60,43 @@ def test_project_root_consistency():
     # All PROJECT_ROOTs should point to the same project root
     assert FILES_PROJECT_ROOT.resolve() == SELF_EDIT_PROJECT_ROOT.resolve()
     assert SELF_EDIT_PROJECT_ROOT.resolve() == CODE_EDITOR_PROJECT_ROOT.resolve()
+
+def test_prompt_guard_path_traversal_prefix_bypass():
+    """Verify that PromptGuard blocks path traversal even with shared prefixes."""
+    guard = PromptGuard(level="strict")
+    job_dir = Path("/tmp/localmind_job").resolve()
+
+    # Prefix bypass attempt: /tmp/localmind_job vs /tmp/localmind_job_secret
+    # In a real environment we'd use mocks or temporary directories, but here we
+    # test the logic of path containment.
+
+    allowed_tools = ["read_file"]
+
+    # Path that would pass a .startswith() check if job_dir was stringified
+    # but fails is_relative_to() check.
+    malicious_path = "../localmind_job_secret/credentials.txt"
+
+    tool_call = {
+        "name": "read_file",
+        "args": {"path": malicious_path}
+    }
+
+    result = guard.validate_tool_call(tool_call, allowed_tools, job_dir)
+    assert result.valid is False
+    assert any("escapes job directory" in issue or "path resolution failed" in issue for issue in result.issues)
+
+def test_prompt_guard_shell_injection():
+    """Verify that PromptGuard blocks shell injection metacharacters."""
+    guard = PromptGuard(level="strict")
+    allowed_tools = ["run_command"]
+    job_dir = Path("/tmp/localmind_job")
+
+    # Test critical metacharacters
+    for char in [";", "&", "|", "\n", ">", "<", "*", "(", ")", "~"]:
+        tool_call = {
+            "name": "run_command",
+            "args": {"command": f"ls {char} /etc/passwd"}
+        }
+        result = guard.validate_tool_call(tool_call, allowed_tools, job_dir)
+        assert result.valid is False
+        assert any("shell metacharacters" in issue for issue in result.issues)
