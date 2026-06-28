@@ -39,7 +39,9 @@ except ImportError:  # paths module not yet available (circular / missing)
 
 MAX_INPUT_LENGTH: int = 50_000
 
-SHELL_METACHARACTERS: set[str] = {";", "|", "&", "$", "`", "\\"}
+SHELL_METACHARACTERS: set[str] = {
+    ";", "|", "&", "$", "`", "\\", "\n", "\r", ">", "<", "(", ")", "{", "}", "*", "?", "[", "]", "!", "~"
+}
 
 SSRF_PATTERNS: list[str] = [
     r"^file://",
@@ -487,8 +489,8 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        resolved = safe_resolve(job_dir, arg_value)
+                        if not resolved.is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
