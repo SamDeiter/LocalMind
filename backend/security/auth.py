@@ -292,6 +292,13 @@ def _has_any_keys() -> bool:
     """Return ``True`` if at least one (non-revoked) API key exists."""
     conn = _get_conn()
     try:
+        # Check if table exists first to avoid error in tests where schema is not initialized
+        table_check = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'"
+        ).fetchone()
+        if not table_check:
+            return False
+
         row = conn.execute(
             "SELECT COUNT(*) AS cnt FROM api_keys WHERE revoked_at IS NULL"
         ).fetchone()
