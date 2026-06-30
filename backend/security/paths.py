@@ -158,6 +158,10 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
     # --- Build a candidate path --------------------------------------------
     # Strip leading separators / Windows drive letters so we always treat
     # user_path as a *relative* path inside the jail.
+    # Normalize backslashes to forward slashes to catch Windows-style traversal
+    # on POSIX systems.
+    user_path_str = user_path_str.replace("\\", "/")
+
     user_path_stripped = user_path_str
 
     if _WIN_DRIVE_RE.match(user_path_stripped):
