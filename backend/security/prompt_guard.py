@@ -487,8 +487,10 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Correct argument order: safe_resolve(base_dir, user_path)
+                        resolved = safe_resolve(job_dir, arg_value)
+                        # Secure check using .is_relative_to() to prevent prefix bypasses
+                        if not resolved.is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
