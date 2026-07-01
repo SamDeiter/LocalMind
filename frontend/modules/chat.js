@@ -106,9 +106,13 @@ export async function sendMessage() {
 
   state.streaming = true;
   sendBtn.disabled = true;
+  sendBtn.style.display = "none";
   resetAutoScroll();
   const stopBtn = document.getElementById("stopBtn");
-  if (stopBtn) stopBtn.style.display = "";
+  if (stopBtn) {
+    stopBtn.style.display = "";
+    stopBtn.focus();
+  }
   state.abortController = new AbortController();
 
   resetTokenPanel();
@@ -323,9 +327,11 @@ export async function sendMessage() {
   } finally {
     state.streaming = false;
     sendBtn.disabled = false;
+    sendBtn.style.display = "";
     state.abortController = null;
     const stopBtn = document.getElementById("stopBtn");
     if (stopBtn) stopBtn.style.display = "none";
+    messageInput.focus();
   }
 }
 
@@ -394,6 +400,8 @@ export function createMessageEl(role, content) {
 export function addTypingIndicator(el) {
   const dots = document.createElement("div");
   dots.className = "typing-dots";
+  dots.setAttribute("role", "status");
+  dots.setAttribute("aria-label", "AI is thinking");
   dots.innerHTML = "<span></span><span></span><span></span>";
   el.querySelector(".message-content")?.appendChild(dots);
 }
