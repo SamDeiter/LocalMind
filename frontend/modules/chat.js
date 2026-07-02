@@ -12,6 +12,7 @@ import {
   MODE_MODELS,
   messageInput,
   sendBtn,
+  stopBtn,
   messagesContainer,
   welcomeScreen,
   systemPromptText,
@@ -107,7 +108,6 @@ export async function sendMessage() {
   state.streaming = true;
   sendBtn.disabled = true;
   resetAutoScroll();
-  const stopBtn = document.getElementById("stopBtn");
   if (stopBtn) stopBtn.style.display = "";
   state.abortController = new AbortController();
 
@@ -324,7 +324,6 @@ export async function sendMessage() {
     state.streaming = false;
     sendBtn.disabled = false;
     state.abortController = null;
-    const stopBtn = document.getElementById("stopBtn");
     if (stopBtn) stopBtn.style.display = "none";
   }
 }
@@ -394,6 +393,8 @@ export function createMessageEl(role, content) {
 export function addTypingIndicator(el) {
   const dots = document.createElement("div");
   dots.className = "typing-dots";
+  dots.setAttribute("role", "status");
+  dots.setAttribute("aria-label", "AI is thinking");
   dots.innerHTML = "<span></span><span></span><span></span>";
   el.querySelector(".message-content")?.appendChild(dots);
 }
