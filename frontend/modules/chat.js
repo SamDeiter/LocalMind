@@ -12,6 +12,7 @@ import {
   MODE_MODELS,
   messageInput,
   sendBtn,
+  stopBtn,
   messagesContainer,
   welcomeScreen,
   systemPromptText,
@@ -107,8 +108,10 @@ export async function sendMessage() {
   state.streaming = true;
   sendBtn.disabled = true;
   resetAutoScroll();
-  const stopBtn = document.getElementById("stopBtn");
-  if (stopBtn) stopBtn.style.display = "";
+  if (stopBtn) {
+    stopBtn.style.display = "";
+    stopBtn.focus();
+  }
   state.abortController = new AbortController();
 
   resetTokenPanel();
@@ -324,8 +327,8 @@ export async function sendMessage() {
     state.streaming = false;
     sendBtn.disabled = false;
     state.abortController = null;
-    const stopBtn = document.getElementById("stopBtn");
     if (stopBtn) stopBtn.style.display = "none";
+    messageInput.focus();
   }
 }
 
