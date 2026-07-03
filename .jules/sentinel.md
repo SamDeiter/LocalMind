@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2026-07-03 - Path Jailing bypass via argument swap
+**Vulnerability:** The `safe_resolve` utility was called with arguments swapped: `safe_resolve(user_path, base_dir)` instead of `(base_dir, user_path)`. This caused the untrusted path to be treated as the jail root, effectively disabling jailing.
+**Learning:** Security utilities with positional arguments are prone to "human-error" bypasses at the call site.
+**Prevention:** Use keyword-only arguments for critical security functions or ensure rigorous unit testing of call sites with adversarial inputs. Replace fragile `startswith()` checks with `Path.is_relative_to()` to catch prefix-collision attacks.
