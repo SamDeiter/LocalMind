@@ -535,86 +535,76 @@ class MetricsCollector:
             - ``tool_calls`` — total count, success/error counts, avg duration
             - ``job_completions`` — total count, success/failure counts, avg duration, total cost
         """
+        where_clause = ""
+        params = []
+        if since:
+            where_clause = "WHERE recorded_at >= ?"
+            params.append(since)
+
+        # ⚡ Bolt: Offload aggregation to SQLite using FILTER and json_extract.
+        # This avoids loading thousands of JSON strings into Python memory.
+        query = f"""
+            SELECT
+                -- LLM Calls
+                COUNT(*) FILTER (WHERE metric_type = 'llm_call') as llm_count,
+                SUM(json_extract(value_json, '$.tokens_in')) FILTER (WHERE metric_type = 'llm_call') as llm_tokens_in,
+                SUM(json_extract(value_json, '$.tokens_out')) FILTER (WHERE metric_type = 'llm_call') as llm_tokens_out,
+                SUM(json_extract(value_json, '$.latency_ms')) FILTER (WHERE metric_type = 'llm_call') as llm_latency_sum,
+                SUM(json_extract(value_json, '$.cost_cents')) FILTER (WHERE metric_type = 'llm_call') as llm_cost_sum,
+
+                -- Tool Calls
+                COUNT(*) FILTER (WHERE metric_type = 'tool_call') as tool_count,
+                COUNT(*) FILTER (WHERE metric_type = 'tool_call' AND json_extract(value_json, '$.status') = 'ok') as tool_ok,
+                COUNT(*) FILTER (WHERE metric_type = 'tool_call' AND json_extract(value_json, '$.status') IS NOT 'ok') as tool_error,
+                SUM(json_extract(value_json, '$.duration_ms')) FILTER (WHERE metric_type = 'tool_call') as tool_duration_sum,
+
+                -- Job Completions
+                COUNT(*) FILTER (WHERE metric_type = 'job_completion') as job_count,
+                COUNT(*) FILTER (WHERE metric_type = 'job_completion' AND json_extract(value_json, '$.status') = 'completed') as job_ok,
+                COUNT(*) FILTER (WHERE metric_type = 'job_completion' AND json_extract(value_json, '$.status') IS NOT 'completed') as job_fail,
+                SUM(json_extract(value_json, '$.duration_ms')) FILTER (WHERE metric_type = 'job_completion') as job_duration_sum,
+                SUM(json_extract(value_json, '$.total_cost')) FILTER (WHERE metric_type = 'job_completion') as job_cost_sum
+            FROM metrics {where_clause}
+        """
+
         conn = _connect()
         try:
-            if since:
-                rows = conn.execute(
-                    "SELECT metric_type, value_json FROM metrics WHERE recorded_at >= ?",
-                    (since,),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT metric_type, value_json FROM metrics"
-                ).fetchall()
+            row = conn.execute(query, params).fetchone()
         finally:
             conn.close()
 
-        # Accumulators
-        llm_count = 0
-        llm_tokens_in = 0
-        llm_tokens_out = 0
-        llm_latency_sum = 0.0
-        llm_cost_sum = 0.0
+        # Handle empty results (SQLite returns single row with NULLs if no matches)
+        if not row or row["llm_count"] is None:
+            return {
+                "llm_calls": {"total": 0, "tokens_in": 0, "tokens_out": 0, "avg_latency_ms": 0, "total_cost_cents": 0},
+                "tool_calls": {"total": 0, "success": 0, "error": 0, "avg_duration_ms": 0},
+                "job_completions": {"total": 0, "completed": 0, "failed": 0, "avg_duration_ms": 0, "total_cost_cents": 0},
+            }
 
-        tool_count = 0
-        tool_ok = 0
-        tool_error = 0
-        tool_duration_sum = 0.0
-
-        job_count = 0
-        job_ok = 0
-        job_fail = 0
-        job_duration_sum = 0.0
-        job_cost_sum = 0.0
-
-        for row in rows:
-            mtype = row["metric_type"]
-            val = json.loads(row["value_json"])
-
-            if mtype == "llm_call":
-                llm_count += 1
-                llm_tokens_in += val.get("tokens_in", 0)
-                llm_tokens_out += val.get("tokens_out", 0)
-                llm_latency_sum += val.get("latency_ms", 0)
-                llm_cost_sum += val.get("cost_cents", 0)
-
-            elif mtype == "tool_call":
-                tool_count += 1
-                if val.get("status") == "ok":
-                    tool_ok += 1
-                else:
-                    tool_error += 1
-                tool_duration_sum += val.get("duration_ms", 0)
-
-            elif mtype == "job_completion":
-                job_count += 1
-                if val.get("status") == "completed":
-                    job_ok += 1
-                else:
-                    job_fail += 1
-                job_duration_sum += val.get("duration_ms", 0)
-                job_cost_sum += val.get("total_cost", 0)
+        llm_count = row["llm_count"]
+        tool_count = row["tool_count"]
+        job_count = row["job_count"]
 
         return {
             "llm_calls": {
                 "total": llm_count,
-                "tokens_in": llm_tokens_in,
-                "tokens_out": llm_tokens_out,
-                "avg_latency_ms": round(llm_latency_sum / llm_count, 1) if llm_count else 0,
-                "total_cost_cents": round(llm_cost_sum, 4),
+                "tokens_in": int(row["llm_tokens_in"] or 0),
+                "tokens_out": int(row["llm_tokens_out"] or 0),
+                "avg_latency_ms": round((row["llm_latency_sum"] or 0) / llm_count, 1) if llm_count else 0,
+                "total_cost_cents": round(row["llm_cost_sum"] or 0, 4),
             },
             "tool_calls": {
                 "total": tool_count,
-                "success": tool_ok,
-                "error": tool_error,
-                "avg_duration_ms": round(tool_duration_sum / tool_count, 1) if tool_count else 0,
+                "success": row["tool_ok"] or 0,
+                "error": row["tool_error"] or 0,
+                "avg_duration_ms": round((row["tool_duration_sum"] or 0) / tool_count, 1) if tool_count else 0,
             },
             "job_completions": {
                 "total": job_count,
-                "completed": job_ok,
-                "failed": job_fail,
-                "avg_duration_ms": round(job_duration_sum / job_count, 1) if job_count else 0,
-                "total_cost_cents": round(job_cost_sum, 4),
+                "completed": row["job_ok"] or 0,
+                "failed": row["job_fail"] or 0,
+                "avg_duration_ms": round((row["job_duration_sum"] or 0) / job_count, 1) if job_count else 0,
+                "total_cost_cents": round(row["job_cost_sum"] or 0, 4),
             },
         }
 
@@ -968,23 +958,34 @@ class AlertManager:
 
         conn = _connect()
         try:
-            # ── Job failure rate ────────────────────────────────────────
-            where = "WHERE metric_type = 'job_completion'"
-            params: list[Any] = []
-            if since:
-                where += " AND recorded_at >= ?"
-                params.append(since)
+            # ── Job stats (Failure Rate & P95) ──────────────────────────
+            # ⚡ Bolt: Use a CTE with window functions to calculate total count,
+            # failure count, and P95 latency in a single database pass.
+            and_since = "AND recorded_at >= ?" if since else ""
+            params = [since] if since else []
 
-            rows = conn.execute(
-                f"SELECT value_json FROM metrics {where}", params
-            ).fetchall()
-
-            if rows:
-                total = len(rows)
-                failed = sum(
-                    1 for r in rows
-                    if json.loads(r["value_json"]).get("status") != "completed"
+            query = f"""
+                WITH job_stats AS (
+                    SELECT
+                        json_extract(value_json, '$.status') as status,
+                        json_extract(value_json, '$.duration_ms') as duration,
+                        ROW_NUMBER() OVER (ORDER BY json_extract(value_json, '$.duration_ms')) as rn,
+                        COUNT(*) OVER () as total_count
+                    FROM metrics
+                    WHERE metric_type = 'job_completion' {and_since}
                 )
+                SELECT
+                    total_count as total,
+                    COUNT(*) FILTER (WHERE status IS NOT 'completed') as failed,
+                    (SELECT duration FROM job_stats WHERE rn = MIN(total_count, CAST(total_count * 0.95 AS INT) + 1)) as p95
+                FROM job_stats
+            """
+
+            row = conn.execute(query, params).fetchone()
+
+            if row and row["total"] and row["total"] > 0:
+                total = row["total"]
+                failed = row["failed"]
                 rate = (failed / total) * 100
 
                 if rate > self.failure_rate_pct:
@@ -995,20 +996,14 @@ class AlertManager:
                     )
                     fired.append(alert)
 
-                # ── P95 latency ─────────────────────────────────────────
-                latencies = sorted(
-                    json.loads(r["value_json"]).get("duration_ms", 0) for r in rows
-                )
-                if latencies:
-                    p95_idx = int(len(latencies) * 0.95)
-                    p95 = latencies[min(p95_idx, len(latencies) - 1)]
-                    if p95 > self.p95_latency_ms:
-                        alert = self.fire_alert(
-                            ALERT_HIGH_LATENCY,
-                            f"Job p95 latency {p95:.0f}ms exceeds threshold {self.p95_latency_ms:.0f}ms",
-                            {"p95_ms": p95, "threshold_ms": self.p95_latency_ms},
-                        )
-                        fired.append(alert)
+                p95 = row["p95"]
+                if p95 is not None and p95 > self.p95_latency_ms:
+                    alert = self.fire_alert(
+                        ALERT_HIGH_LATENCY,
+                        f"Job p95 latency {p95:.0f}ms exceeds threshold {self.p95_latency_ms:.0f}ms",
+                        {"p95_ms": p95, "threshold_ms": self.p95_latency_ms},
+                    )
+                    fired.append(alert)
 
             # ── Queue depth ─────────────────────────────────────────────
             try:
