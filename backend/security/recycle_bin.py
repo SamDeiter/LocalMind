@@ -44,7 +44,7 @@ except ImportError:  # pragma: no cover — paths.py not written yet
         Raises SecurityError if the resolved path escapes the base directory.
         This mirrors the contract that backend/security/paths.py will provide.
         """
-        base = base_dir.resolve()
+        base = Path(base_dir).resolve()
         candidate = (base / user_path).resolve()
         try:
             candidate.relative_to(base)
