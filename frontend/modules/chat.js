@@ -106,6 +106,7 @@ export async function sendMessage() {
 
   state.streaming = true;
   sendBtn.disabled = true;
+  sendBtn.style.display = "none";
   resetAutoScroll();
   const stopBtn = document.getElementById("stopBtn");
   if (stopBtn) stopBtn.style.display = "";
@@ -323,6 +324,7 @@ export async function sendMessage() {
   } finally {
     state.streaming = false;
     sendBtn.disabled = false;
+    sendBtn.style.display = "";
     state.abortController = null;
     const stopBtn = document.getElementById("stopBtn");
     if (stopBtn) stopBtn.style.display = "none";
