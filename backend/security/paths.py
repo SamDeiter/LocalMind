@@ -168,6 +168,9 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
     # Strip leading POSIX or Windows root separators.
     user_path_stripped = user_path_stripped.lstrip("/\\")
 
+    # Replace backslashes with forward slashes for uniform resolution.
+    user_path_stripped = user_path_stripped.replace("\\", "/")
+
     candidate = resolved_base / user_path_stripped
 
     # --- Resolve ALL symlinks in candidate ---------------------------------
