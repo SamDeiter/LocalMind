@@ -31,8 +31,12 @@ export function renderConversations() {
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
       <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export conversation" aria-label="Export conversation">
+          <span class="material-symbols-outlined text-[18px]">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete conversation" aria-label="Delete conversation">
+          <span class="material-symbols-outlined text-[18px]">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
