@@ -342,10 +342,15 @@ class TestMetricsSummary:
     def test_metrics_summary_handles_empty_db(self, client):
         """Metrics summary gracefully handles missing tables / empty DB."""
         mock_conn = MagicMock()
-        mock_conn.execute.side_effect = Exception("no such table: jobs")
+        # When jobs table is missing, _job_counts handles it.
+        # But get_metrics_summary needs to return a valid aggregate row or None.
+        mock_conn.execute.side_effect = [Exception("no such table: jobs"), MagicMock()]
+        # Configure the second call (to metrics table) to return None to simulate empty/missing metrics
+        mock_conn.execute.return_value.fetchone.return_value = None
 
         with (
             patch("backend.routes.system._get_db_conn", return_value=mock_conn),
+            patch("backend.core.telemetry._connect", return_value=mock_conn),
         ):
             resp = client.get("/api/metrics/summary")
 
