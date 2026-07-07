@@ -108,7 +108,10 @@ export async function sendMessage() {
   sendBtn.disabled = true;
   resetAutoScroll();
   const stopBtn = document.getElementById("stopBtn");
-  if (stopBtn) stopBtn.style.display = "";
+  if (stopBtn) {
+    stopBtn.style.display = "";
+    stopBtn.focus();
+  }
   state.abortController = new AbortController();
 
   resetTokenPanel();
@@ -325,7 +328,12 @@ export async function sendMessage() {
     sendBtn.disabled = false;
     state.abortController = null;
     const stopBtn = document.getElementById("stopBtn");
-    if (stopBtn) stopBtn.style.display = "none";
+    if (stopBtn) {
+      stopBtn.style.display = "none";
+      if (document.activeElement === stopBtn) {
+        messageInput?.focus();
+      }
+    }
   }
 }
 
