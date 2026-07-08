@@ -1,5 +1,5 @@
 # LocalMind Backend Package
-from . import db
+from . import db, server
 
 def set_ai_name(name):
     global _ai_name
