@@ -38,26 +38,22 @@ except ImportError:  # pragma: no cover — paths.py not written yet
     class SecurityError(Exception):
         """Raised when a path escapes its jail."""
 
-    def safe_resolve(base_dir: Path, user_path: str | Path) -> Path:  # type: ignore[misc]
+    def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
         """Resolve *user_path* relative to *base_dir* and verify it stays inside.
 
         Raises SecurityError if the resolved path escapes the base directory.
-        This mirrors the contract that backend/security/paths.py will provide.
+        This mirrors the contract that backend/security/paths.py provides.
         """
-        base = base_dir.resolve()
-        candidate = (base / user_path).resolve()
-        try:
-            candidate.relative_to(base)
-        except ValueError:
+        base = Path(base_dir).resolve()
+        candidate = (base / str(user_path)).resolve()
+        if not candidate.is_relative_to(base):
             raise SecurityError(
                 f"Path {user_path!r} escapes jail {base!r}"
             )
         # Reject symlinks that point outside the jail
         if candidate.is_symlink():
             real = Path(os.path.realpath(candidate))
-            try:
-                real.relative_to(base)
-            except ValueError:
+            if not real.is_relative_to(base):
                 raise SecurityError(
                     f"Symlink {candidate!r} resolves outside jail {base!r}"
                 )
