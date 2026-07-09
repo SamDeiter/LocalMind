@@ -156,9 +156,12 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         raise SecurityError(f"Cannot resolve base directory {base_dir!r}: {exc}") from exc
 
     # --- Build a candidate path --------------------------------------------
+    # Normalize backslashes to forward slashes (ensures ..\\..\\ is caught on POSIX)
+    user_path_norm = user_path_str.replace("\\", "/")
+
     # Strip leading separators / Windows drive letters so we always treat
     # user_path as a *relative* path inside the jail.
-    user_path_stripped = user_path_str
+    user_path_stripped = user_path_norm
 
     if _WIN_DRIVE_RE.match(user_path_stripped):
         # e.g. "C:\secret\data" → "secret\data" (drop drive + root sep)
@@ -166,7 +169,7 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         logger.debug("Stripped Windows drive letter from user path")
 
     # Strip leading POSIX or Windows root separators.
-    user_path_stripped = user_path_stripped.lstrip("/\\")
+    user_path_stripped = user_path_stripped.lstrip("/")
 
     candidate = resolved_base / user_path_stripped
 
@@ -179,24 +182,8 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
             f"Cannot resolve candidate path {candidate!r}: {exc}"
         ) from exc
 
-    # --- Enforce jail via string prefix comparison -------------------------
-    # We must compare strings (not Path parents) so that a jail at
-    # /data/uploads does NOT match /data/uploads_evil.
-    # Add the OS separator to avoid that exact prefix-collision scenario.
-    resolved_base_str = str(resolved_base)
-    resolved_candidate_str = str(resolved_candidate)
-
-    # Normalise case on Windows (NTFS is case-insensitive).
-    if os.name == "nt":
-        resolved_base_str = resolved_base_str.lower()
-        resolved_candidate_str = resolved_candidate_str.lower()
-
-    jail_prefix = resolved_base_str.rstrip(os.sep) + os.sep
-
-    if not (
-        resolved_candidate_str == resolved_base_str.rstrip(os.sep)
-        or resolved_candidate_str.startswith(jail_prefix)
-    ):
+    # --- Enforce jail ------------------------------------------------------
+    if not resolved_candidate.is_relative_to(resolved_base):
         logger.warning(
             "Path escape attempt: %r resolved to %r, outside jail %r",
             user_path_str,
