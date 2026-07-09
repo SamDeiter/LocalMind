@@ -344,8 +344,10 @@ class TestMetricsSummary:
         mock_conn = MagicMock()
         mock_conn.execute.side_effect = Exception("no such table: jobs")
 
+        # ⚡ Bolt: Patch both system and telemetry DB access to ensure isolation.
         with (
             patch("backend.routes.system._get_db_conn", return_value=mock_conn),
+            patch("backend.core.telemetry._connect", return_value=mock_conn),
         ):
             resp = client.get("/api/metrics/summary")
 
