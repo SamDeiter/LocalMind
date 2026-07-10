@@ -29,9 +29,13 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+    def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
+        """Fallback: resolve relative to base_dir and verify it stays inside."""
+        base = Path(base_dir).resolve()
+        candidate = (base / user_path).resolve()
+        if not candidate.is_relative_to(base):
+            raise RuntimeError(f"Security risk: Path {user_path} escapes jail {base}")
+        return candidate
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -39,7 +43,7 @@ except ImportError:  # paths module not yet available (circular / missing)
 
 MAX_INPUT_LENGTH: int = 50_000
 
-SHELL_METACHARACTERS: set[str] = {";", "|", "&", "$", "`", "\\"}
+SHELL_METACHARACTERS: set[str] = {";", "|", "&", "$", "`", "\\", "\n", "\r"}
 
 SSRF_PATTERNS: list[str] = [
     r"^file://",
@@ -487,8 +491,10 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        # Use path.is_relative_to() for robust boundary checks.
+                        # Also corrected argument order: base_dir first.
+                        resolved = safe_resolve(job_dir, arg_value)
+                        if not resolved.is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
