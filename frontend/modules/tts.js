@@ -318,7 +318,7 @@ export function renderTTSButton(text) {
   if (!ttsAvailable) return "";
   // Encode text as a data attribute (base64 to avoid escaping issues)
   const encoded = btoa(unescape(encodeURIComponent(text)));
-  return `<button class="tts-msg-play" data-tts-text="${encoded}" title="Play with TTS">
+  return `<button class="tts-msg-play" data-tts-text="${encoded}" title="Play with TTS" aria-label="Play with TTS">
     <span class="material-symbols-outlined">volume_up</span>
   </button>`;
 }
