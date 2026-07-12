@@ -344,9 +344,18 @@ class TestMetricsSummary:
         mock_conn = MagicMock()
         mock_conn.execute.side_effect = Exception("no such table: jobs")
 
+        # Mock telemetry summary to avoid failures from the real MetricsCollector
+        mock_telemetry = {
+            "llm_calls": {"total": 0, "tokens_in": 0, "tokens_out": 0, "avg_latency_ms": 0, "total_cost_cents": 0},
+            "tool_calls": {"total": 0, "success": 0, "error": 0, "avg_duration_ms": 0},
+            "job_completions": {"total": 0, "completed": 0, "failed": 0, "avg_duration_ms": 0, "total_cost_cents": 0},
+        }
+
         with (
             patch("backend.routes.system._get_db_conn", return_value=mock_conn),
+            patch("backend.core.telemetry.metrics_collector") as mock_mc,
         ):
+            mock_mc.get_metrics_summary.return_value = mock_telemetry
             resp = client.get("/api/metrics/summary")
 
         assert resp.status_code == 200
