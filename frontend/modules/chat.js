@@ -91,7 +91,7 @@ export async function sendMessage() {
   const chatScreen = document.getElementById("chatScreen");
   if (chatScreen && chatScreen.classList.contains("hidden")) {
     // Trigger the chat nav button to properly hide other views
-    const chatBtn = document.getElementById("chatBtn");
+    const chatBtn = document.getElementById("tabChat");
     if (chatBtn) chatBtn.click();
   }
 
