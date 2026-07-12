@@ -806,7 +806,7 @@ class TestEndpointHandlerLogic:
         mock_checker = AsyncMock()
         mock_checker.check_liveness.return_value = mock_result
 
-        with patch("backend.server.health_checker", mock_checker):
+        with patch("backend.core.telemetry.health_checker", mock_checker):
             from backend.server import health_liveness
             response = await health_liveness()
 
