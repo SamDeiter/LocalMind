@@ -25,14 +25,18 @@ export function renderConversations() {
     const div = document.createElement("div");
     div.className = `conversation-item flex items-center justify-between px-3 py-2 text-sm rounded-r-lg cursor-pointer transition-all group ${
       c.id === state.currentConvId
-        ? "text-[#c0c1ff] bg-primary/10 border-l-2 border-[#6366f1]"
-        : "text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b]"
+        ? "text-indigo-300 bg-primary/10 border-l-2 border-primary"
+        : "text-slate-500 hover:text-slate-200 hover:bg-slate-900/50"
     }`;
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
       <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded flex items-center justify-center" title="Export conversation" aria-label="Export conversation">
+          <span class="material-symbols-outlined text-base">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded flex items-center justify-center" title="Delete conversation" aria-label="Delete conversation">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
@@ -63,6 +67,7 @@ export async function loadConversation(id) {
 }
 
 export async function deleteConversation(id) {
+  if (!window.confirm("Are you sure you want to delete this conversation?")) return;
   try {
     await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
     if (state.currentConvId === id) {
