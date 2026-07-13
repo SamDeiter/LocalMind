@@ -191,12 +191,8 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         resolved_base_str = resolved_base_str.lower()
         resolved_candidate_str = resolved_candidate_str.lower()
 
-    jail_prefix = resolved_base_str.rstrip(os.sep) + os.sep
-
-    if not (
-        resolved_candidate_str == resolved_base_str.rstrip(os.sep)
-        or resolved_candidate_str.startswith(jail_prefix)
-    ):
+    # Enforce jail via is_relative_to (robust against prefix-collision)
+    if not resolved_candidate.is_relative_to(resolved_base):
         logger.warning(
             "Path escape attempt: %r resolved to %r, outside jail %r",
             user_path_str,
