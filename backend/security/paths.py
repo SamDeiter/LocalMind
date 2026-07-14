@@ -142,7 +142,8 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         If the resolved path escapes the jail for any reason.
     """
     base_dir = Path(base_dir)
-    user_path_str = str(user_path)
+    # Normalize backslashes to forward slashes for cross-platform traversal check
+    user_path_str = str(user_path).replace("\\", "/")
 
     # --- Null-byte check (would truncate C strings silently) ---------------
     if "\x00" in user_path_str:
@@ -179,24 +180,11 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
             f"Cannot resolve candidate path {candidate!r}: {exc}"
         ) from exc
 
-    # --- Enforce jail via string prefix comparison -------------------------
-    # We must compare strings (not Path parents) so that a jail at
-    # /data/uploads does NOT match /data/uploads_evil.
-    # Add the OS separator to avoid that exact prefix-collision scenario.
-    resolved_base_str = str(resolved_base)
-    resolved_candidate_str = str(resolved_candidate)
-
-    # Normalise case on Windows (NTFS is case-insensitive).
-    if os.name == "nt":
-        resolved_base_str = resolved_base_str.lower()
-        resolved_candidate_str = resolved_candidate_str.lower()
-
-    jail_prefix = resolved_base_str.rstrip(os.sep) + os.sep
-
-    if not (
-        resolved_candidate_str == resolved_base_str.rstrip(os.sep)
-        or resolved_candidate_str.startswith(jail_prefix)
-    ):
+    # --- Enforce jail via is_relative_to -----------------------------------
+    # Path.is_relative_to() correctly handles directory boundaries and
+    # prevents prefix-collision bypasses (e.g. /data/uploads matching
+    # /data/uploads_evil).
+    if not resolved_candidate.is_relative_to(resolved_base):
         logger.warning(
             "Path escape attempt: %r resolved to %r, outside jail %r",
             user_path_str,
