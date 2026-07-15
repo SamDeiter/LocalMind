@@ -79,25 +79,24 @@ def mock_db_conn():
         result = MagicMock()
         if "SELECT 1" in sql:
             return result
-        if "COUNT(*)" in sql and "running" in sql:
-            result.fetchone.return_value = {"cnt": 2}
+        if "COUNT(*)" in sql and "running" in sql and "completed" in sql:
+            result.fetchone.return_value = {"active": 2, "completed": 10}
             return result
-        if "COUNT(*)" in sql and "completed" in sql:
-            result.fetchone.return_value = {"cnt": 10}
+        if "FROM jobs" in sql and "FILTER" in sql:
+            result.fetchone.return_value = {
+                "total": 4,
+                "completed": 2,
+                "failed": 1,
+                "running": 1,
+                "total_cost": 4.0
+            }
             return result
-        if "FROM jobs" in sql:
-            result.fetchall.return_value = [
-                {"status": "completed", "cost_cents": 1.5},
-                {"status": "completed", "cost_cents": 2.0},
-                {"status": "failed", "cost_cents": 0.5},
-                {"status": "running", "cost_cents": 0.0},
-            ]
-            return result
-        if "FROM eval_runs" in sql:
-            result.fetchall.return_value = [
-                {"score": 0.85, "duration_ms": 1200},
-                {"score": 0.92, "duration_ms": 800},
-            ]
+        if "FROM eval_runs" in sql and "AVG" in sql:
+            result.fetchone.return_value = {
+                "total": 2,
+                "avg_score": 0.885,
+                "avg_duration": 1000.0
+            }
             return result
         result.fetchone.return_value = {"cnt": 0}
         result.fetchall.return_value = []
@@ -120,7 +119,7 @@ class TestHealthEndpointEnhanced:
             patch("backend.routes.system.httpx.AsyncClient", return_value=mock_ollama_ok),
             patch("backend.routes.system._get_db_conn", return_value=mock_db_conn),
             patch("backend.routes.system._PSUTIL_AVAILABLE", True),
-            patch("backend.routes.system.psutil") as mock_psutil,
+            patch("backend.routes.system.psutil", create=True) as mock_psutil,
         ):
             mock_psutil.cpu_percent.return_value = 42.5
             mock_mem = MagicMock()
@@ -346,7 +345,13 @@ class TestMetricsSummary:
 
         with (
             patch("backend.routes.system._get_db_conn", return_value=mock_conn),
+            patch("backend.core.telemetry.metrics_collector") as mock_mc,
         ):
+            mock_mc.get_metrics_summary.return_value = {
+                "llm_calls": {"total": 0, "tokens_in": 0, "tokens_out": 0, "avg_latency_ms": 0, "total_cost_cents": 0},
+                "tool_calls": {"total": 0, "success": 0, "error": 0, "avg_duration_ms": 0},
+                "job_completions": {"total": 0, "completed": 0, "failed": 0, "avg_duration_ms": 0, "total_cost_cents": 0},
+            }
             resp = client.get("/api/metrics/summary")
 
         assert resp.status_code == 200

@@ -62,19 +62,22 @@ def _db_size_mb() -> float:
 
 def _job_counts() -> dict:
     """Query job counts from the jobs table. Returns active and completed counts."""
+    # ⚡ Bolt: Use a single SQL query with FILTER to fetch counts for multiple
+    # statuses in one database call, reducing overhead.
     active = 0
     completed = 0
     try:
         conn = _get_db_conn()
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'running'"
+            """SELECT
+                COUNT(*) FILTER (WHERE status = 'running') as active,
+                COUNT(*) FILTER (WHERE status = 'completed') as completed
+               FROM jobs"""
         ).fetchone()
-        active = row["cnt"] if row else 0
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'completed'"
-        ).fetchone()
-        completed = row["cnt"] if row else 0
         conn.close()
+        if row:
+            active = row["active"]
+            completed = row["completed"]
     except Exception:
         pass
     return {"active_jobs": active, "total_jobs_completed": completed}
@@ -229,6 +232,9 @@ async def metrics_summary():
     Queries both the jobs table and the telemetry metrics table to build a
     comprehensive summary.
     """
+    # ⚡ Bolt: Offload counts and sums for jobs and eval runs to SQL aggregation.
+    # This avoids fetching all rows and iterating over them in Python.
+
     # Job-level stats from the jobs table
     total_jobs = 0
     completed_jobs = 0
@@ -238,21 +244,23 @@ async def metrics_summary():
 
     try:
         conn = _get_db_conn()
-        rows = conn.execute(
-            "SELECT status, cost_cents FROM jobs"
-        ).fetchall()
+        row = conn.execute(
+            """SELECT
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE status = 'completed') as completed,
+                COUNT(*) FILTER (WHERE status = 'failed') as failed,
+                COUNT(*) FILTER (WHERE status = 'running') as running,
+                COALESCE(SUM(cost_cents), 0.0) as total_cost
+               FROM jobs"""
+        ).fetchone()
         conn.close()
 
-        for row in rows:
-            total_jobs += 1
-            s = row["status"]
-            if s == "completed":
-                completed_jobs += 1
-            elif s == "failed":
-                failed_jobs += 1
-            elif s == "running":
-                running_jobs += 1
-            total_cost_cents += row["cost_cents"] or 0.0
+        if row:
+            total_jobs = row["total"]
+            completed_jobs = row["completed"]
+            failed_jobs = row["failed"]
+            running_jobs = row["running"]
+            total_cost_cents = row["total_cost"]
     except Exception:
         pass
 
@@ -264,32 +272,27 @@ async def metrics_summary():
     eval_avg_duration_ms = 0.0
     try:
         conn = _get_db_conn()
-        eval_rows = conn.execute(
-            "SELECT score, duration_ms FROM eval_runs"
-        ).fetchall()
+        row = conn.execute(
+            """SELECT
+                COUNT(*) as total,
+                AVG(score) as avg_score,
+                AVG(duration_ms) as avg_duration
+               FROM eval_runs"""
+        ).fetchone()
         conn.close()
 
-        scores = []
-        durations = []
-        for r in eval_rows:
-            eval_total += 1
-            if r["score"] is not None:
-                scores.append(r["score"])
-            if r["duration_ms"] is not None:
-                durations.append(r["duration_ms"])
-
-        if scores:
-            eval_avg_score = round(sum(scores) / len(scores), 3)
-        if durations:
-            eval_avg_duration_ms = round(sum(durations) / len(durations), 1)
+        if row:
+            eval_total = row["total"]
+            eval_avg_score = round(row["avg_score"], 3) if row["avg_score"] is not None else 0.0
+            eval_avg_duration_ms = round(row["avg_duration"], 1) if row["avg_duration"] is not None else 0.0
     except Exception:
         pass
 
     # Telemetry-level metrics (LLM tokens, tool calls, etc.)
     telemetry_summary = {}
     try:
-        from backend.core.telemetry import metrics_collector
-        telemetry_summary = metrics_collector.get_metrics_summary()
+        from backend.core.telemetry import metrics_collector as mc
+        telemetry_summary = mc.get_metrics_summary()
     except Exception:
         pass
 
