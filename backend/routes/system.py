@@ -3,9 +3,11 @@ import logging
 import os
 import sqlite3
 import time
-import httpx
 from pathlib import Path
+
+import httpx
 from fastapi import APIRouter
+
 from backend.config import OLLAMA_BASE_URL
 from backend.db import DB_PATH
 
@@ -62,19 +64,23 @@ def _db_size_mb() -> float:
 
 def _job_counts() -> dict:
     """Query job counts from the jobs table. Returns active and completed counts."""
+    # ⚡ Bolt: Optimized using a single SQLite query with FILTER clauses to count active/completed in one pass
     active = 0
     completed = 0
     try:
         conn = _get_db_conn()
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'running'"
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE status = 'running') AS active,
+                COUNT(*) FILTER (WHERE status = 'completed') AS completed
+            FROM jobs
+            """
         ).fetchone()
-        active = row["cnt"] if row else 0
-        row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM jobs WHERE status = 'completed'"
-        ).fetchone()
-        completed = row["cnt"] if row else 0
         conn.close()
+        if row:
+            active = row["active"] or 0
+            completed = row["completed"] or 0
     except Exception:
         pass
     return {"active_jobs": active, "total_jobs_completed": completed}
@@ -229,7 +235,9 @@ async def metrics_summary():
     Queries both the jobs table and the telemetry metrics table to build a
     comprehensive summary.
     """
-    # Job-level stats from the jobs table
+    # ⚡ Bolt: Optimized using single-query SQL aggregation for both tables
+    # (jobs and eval_runs). This avoids fetching potentially thousands of rows
+    # and doing manual loops/arithmetic in Python.
     total_jobs = 0
     completed_jobs = 0
     failed_jobs = 0
@@ -238,21 +246,24 @@ async def metrics_summary():
 
     try:
         conn = _get_db_conn()
-        rows = conn.execute(
-            "SELECT status, cost_cents FROM jobs"
-        ).fetchall()
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS total_jobs,
+                COUNT(*) FILTER (WHERE status = 'completed') AS completed_jobs,
+                COUNT(*) FILTER (WHERE status = 'failed') AS failed_jobs,
+                COUNT(*) FILTER (WHERE status = 'running') AS running_jobs,
+                COALESCE(SUM(cost_cents), 0.0) AS total_cost_cents
+            FROM jobs
+            """
+        ).fetchone()
         conn.close()
-
-        for row in rows:
-            total_jobs += 1
-            s = row["status"]
-            if s == "completed":
-                completed_jobs += 1
-            elif s == "failed":
-                failed_jobs += 1
-            elif s == "running":
-                running_jobs += 1
-            total_cost_cents += row["cost_cents"] or 0.0
+        if row:
+            total_jobs = row["total_jobs"] or 0
+            completed_jobs = row["completed_jobs"] or 0
+            failed_jobs = row["failed_jobs"] or 0
+            running_jobs = row["running_jobs"] or 0
+            total_cost_cents = row["total_cost_cents"] or 0.0
     except Exception:
         pass
 
@@ -264,24 +275,28 @@ async def metrics_summary():
     eval_avg_duration_ms = 0.0
     try:
         conn = _get_db_conn()
-        eval_rows = conn.execute(
-            "SELECT score, duration_ms FROM eval_runs"
-        ).fetchall()
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS eval_total,
+                AVG(score) AS eval_avg_score,
+                AVG(duration_ms) AS eval_avg_duration_ms
+            FROM eval_runs
+            """
+        ).fetchone()
         conn.close()
-
-        scores = []
-        durations = []
-        for r in eval_rows:
-            eval_total += 1
-            if r["score"] is not None:
-                scores.append(r["score"])
-            if r["duration_ms"] is not None:
-                durations.append(r["duration_ms"])
-
-        if scores:
-            eval_avg_score = round(sum(scores) / len(scores), 3)
-        if durations:
-            eval_avg_duration_ms = round(sum(durations) / len(durations), 1)
+        if row and row["eval_total"] > 0:
+            eval_total = row["eval_total"]
+            eval_avg_score = (
+                round(row["eval_avg_score"], 3)
+                if row["eval_avg_score"] is not None
+                else None
+            )
+            eval_avg_duration_ms = (
+                round(row["eval_avg_duration_ms"], 1)
+                if row["eval_avg_duration_ms"] is not None
+                else 0.0
+            )
     except Exception:
         pass
 
