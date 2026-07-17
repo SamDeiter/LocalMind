@@ -29,9 +29,21 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 try:
     from backend.security.paths import safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+    def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
+        """Fallback: resolve with jail check using is_relative_to."""
+        base = Path(base_dir).resolve()
+        # Normalize backslashes to forward slashes to catch traversal sequences
+        user_path_str = str(user_path).replace("\\", "/")
+        # Build candidate and resolve it safely
+        candidate = base / user_path_str.lstrip("/")
+        try:
+            resolved = candidate.resolve()
+        except OSError as exc:
+            raise RuntimeError(f"Cannot resolve path {candidate!r}: {exc}") from exc
+
+        if not resolved.is_relative_to(base):
+            raise RuntimeError(f"Path {user_path_str!r} escapes jail {base!r}")
+        return resolved
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -487,8 +499,9 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        resolved = safe_resolve(job_dir, arg_value)
+                        # Security: Avoid prefix-collision traversal bypass by using is_relative_to instead of startswith
+                        if not resolved.resolve().is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )

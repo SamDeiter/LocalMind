@@ -45,19 +45,19 @@ except ImportError:  # pragma: no cover — paths.py not written yet
         This mirrors the contract that backend/security/paths.py will provide.
         """
         base = base_dir.resolve()
-        candidate = (base / user_path).resolve()
-        try:
-            candidate.relative_to(base)
-        except ValueError:
+        # Security: Normalize backslashes to forward slashes to catch traversal sequences
+        user_path_str = str(user_path).replace("\\", "/")
+        candidate = (base / user_path_str.lstrip("/")).resolve()
+
+        # Security: Use is_relative_to for robust path jailing
+        if not candidate.is_relative_to(base):
             raise SecurityError(
-                f"Path {user_path!r} escapes jail {base!r}"
+                f"Path {user_path_str!r} escapes jail {base!r}"
             )
         # Reject symlinks that point outside the jail
         if candidate.is_symlink():
             real = Path(os.path.realpath(candidate))
-            try:
-                real.relative_to(base)
-            except ValueError:
+            if not real.is_relative_to(base):
                 raise SecurityError(
                     f"Symlink {candidate!r} resolves outside jail {base!r}"
                 )

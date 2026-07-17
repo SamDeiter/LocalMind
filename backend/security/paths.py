@@ -142,7 +142,9 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         If the resolved path escapes the jail for any reason.
     """
     base_dir = Path(base_dir)
-    user_path_str = str(user_path)
+    # Security: Normalize backslashes to forward slashes before any checks/resolution
+    # to catch Windows-style traversal sequences (e.g. ..\..\) on POSIX systems.
+    user_path_str = str(user_path).replace("\\", "/")
 
     # --- Null-byte check (would truncate C strings silently) ---------------
     if "\x00" in user_path_str:
@@ -166,7 +168,7 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         logger.debug("Stripped Windows drive letter from user path")
 
     # Strip leading POSIX or Windows root separators.
-    user_path_stripped = user_path_stripped.lstrip("/\\")
+    user_path_stripped = user_path_stripped.lstrip("/")
 
     candidate = resolved_base / user_path_stripped
 
@@ -179,24 +181,17 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
             f"Cannot resolve candidate path {candidate!r}: {exc}"
         ) from exc
 
-    # --- Enforce jail via string prefix comparison -------------------------
-    # We must compare strings (not Path parents) so that a jail at
-    # /data/uploads does NOT match /data/uploads_evil.
-    # Add the OS separator to avoid that exact prefix-collision scenario.
-    resolved_base_str = str(resolved_base)
-    resolved_candidate_str = str(resolved_candidate)
-
-    # Normalise case on Windows (NTFS is case-insensitive).
+    # --- Enforce jail via pathlib's is_relative_to -------------------------
+    # pathlib's is_relative_to is segment-aware and robust against prefix collisions.
+    # We normalise case on Windows (NTFS is case-insensitive).
     if os.name == "nt":
-        resolved_base_str = resolved_base_str.lower()
-        resolved_candidate_str = resolved_candidate_str.lower()
+        resolved_base_path = Path(str(resolved_base).lower())
+        resolved_candidate_path = Path(str(resolved_candidate).lower())
+    else:
+        resolved_base_path = resolved_base
+        resolved_candidate_path = resolved_candidate
 
-    jail_prefix = resolved_base_str.rstrip(os.sep) + os.sep
-
-    if not (
-        resolved_candidate_str == resolved_base_str.rstrip(os.sep)
-        or resolved_candidate_str.startswith(jail_prefix)
-    ):
+    if not resolved_candidate_path.is_relative_to(resolved_base_path):
         logger.warning(
             "Path escape attempt: %r resolved to %r, outside jail %r",
             user_path_str,
