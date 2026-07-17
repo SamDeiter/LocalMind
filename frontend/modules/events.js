@@ -34,10 +34,10 @@ const TAB_BTNS = ["tabWork", "tabChat", "tabSystem"];
 /** Switch the active tab. panelId: 'workTab' | 'chatTab' | 'systemTab' */
 export function switchTab(panelId) {
   TABS.forEach((id) => {
-  // Close sidebar and clear temporary media on tab switch
-  document.getElementById("chatSidebar")?.classList.remove("open");
-  document.getElementById("sidebarBackdrop")?.classList.remove("visible");
-  clearCapturedImage?.();
+    // Close sidebar and clear temporary media on tab switch
+    document.getElementById("chatSidebar")?.classList.remove("open");
+    document.getElementById("sidebarBackdrop")?.classList.remove("visible");
+    clearCapturedImage?.();
 
     const panel = document.getElementById(id);
     if (!panel) return;
@@ -100,10 +100,12 @@ function _lazyInitAccordion(bodyId) {
   switch (bodyId) {
     case "accordionWorkerPoolBody":
       // Start swarm polling when the Worker Pool section is first expanded
-      import("./swarm_ui.js").then(m => {
-        m.initSwarmTabs?.();
-        m.startPolling?.();
-      }).catch(() => {});
+      import("./swarm_ui.js")
+        .then((m) => {
+          m.initSwarmTabs?.();
+          m.startPolling?.();
+        })
+        .catch(() => {});
       break;
     case "accordionLearningBody":
       loadLearningData?.();
@@ -112,10 +114,10 @@ function _lazyInitAccordion(bodyId) {
       loadProfile?.();
       break;
     case "accordionEvalsBody":
-      import("./eval_ui.js").then(m => m.initEvalUI()).catch(() => {});
+      import("./eval_ui.js").then((m) => m.initEvalUI()).catch(() => {});
       break;
     case "accordionMonitoringBody":
-      import("./monitoring_ui.js").then(m => m.initMonitoring()).catch(() => {});
+      import("./monitoring_ui.js").then((m) => m.initMonitoring()).catch(() => {});
       break;
     case "accordionEditorBody":
       // Monaco is already initialized by editor.js init — just trigger resize
@@ -188,6 +190,8 @@ export function bindEvents() {
 
   // Chat tab: new conversation inline button
   document.getElementById("newChatInlineBtn")?.addEventListener("click", () => {
+    state.currentConvId = null;
+    state.messages = [];
     clearMessages?.();
     loadConversations?.();
   });
@@ -200,7 +204,9 @@ export function bindEvents() {
     if (voiceBtn) voiceBtn.classList.toggle("active", state.voiceEnabled);
   });
   if (voiceBtn) voiceBtn.classList.remove("active");
-  voiceSelect?.addEventListener("change", () => { /* voice stored by index */ });
+  voiceSelect?.addEventListener("change", () => {
+    /* voice stored by index */
+  });
 
   openCameraBtn?.addEventListener("click", openCamera);
   closeCameraBtn?.addEventListener("click", closeCamera);
@@ -222,7 +228,9 @@ export function bindEvents() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: text }),
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   });
 
   // ── Doc Upload ───────────────────────────────────────────────
@@ -256,7 +264,9 @@ export function bindEvents() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: learningToggle.checked }),
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   });
 
   // ── Model select ─────────────────────────────────────────────
