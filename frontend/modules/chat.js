@@ -176,7 +176,11 @@ export async function sendMessage() {
           // Render an inline approval card for the user.
           const card = document.createElement("div");
           card.className = "approval-card";
-          const riskClass = { LOW: "approval-risk-low", MEDIUM: "approval-risk-medium", HIGH: "approval-risk-high" };
+          const riskClass = {
+            LOW: "approval-risk-low",
+            MEDIUM: "approval-risk-medium",
+            HIGH: "approval-risk-high",
+          };
           const riskCls = riskClass[req.risk_level] || "approval-risk-medium";
           const icons = {
             install_package: "📦",
@@ -335,6 +339,10 @@ export function clearMessages() {
     // Remove only message elements
     const messages = messagesContainer.querySelectorAll(".message");
     messages.forEach((m) => m.remove());
+  }
+  const emptyState = document.getElementById("chatEmptyState");
+  if (emptyState) {
+    emptyState.style.display = "flex";
   }
 }
 
