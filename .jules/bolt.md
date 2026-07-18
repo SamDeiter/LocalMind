@@ -4,3 +4,7 @@
 ## 2025-05-15 - Non-blocking System Metrics in FastAPI
 **Learning:** Using `psutil.cpu_percent(interval=0.1)` in an async FastAPI route blocks the entire event loop for 100ms. This significantly increases latency for all concurrent requests.
 **Action:** Always prime `psutil.cpu_percent(interval=None)` at module load or startup and use `interval=None` in async handlers to retrieve metrics instantly without blocking.
+
+## 2026-03-12 - Non-blocking SQLite Transactions in Async IO Loops
+**Learning:** Performing synchronous SQLite database operations directly in `async def` handlers blocks the single-threaded asyncio event loop. Offloading them with `asyncio.to_thread` prevents event loop lag. However, because SQLite connections are not thread-safe by default, the database connection factory must be invoked inside the synchronous thread-offloaded helper itself to create thread-local connections.
+**Action:** Always execute synchronous database/disk operations inside a worker thread using `asyncio.to_thread` and ensure connection generation is fully contained within the offloaded block to preserve thread safety.

@@ -450,32 +450,67 @@ class ChatService:
         return _decisions.pop(request_id, False)
 
     # ------------------------------------------------------------------
-    # Conversation persistence
+    # Conversation persistence (thread-offloaded to reduce event loop lag)
     # ------------------------------------------------------------------
 
-    async def _get_history(self, conversation_id: str):
+    def _get_history_sync(self, conversation_id: str):
+        """Synchronous SQLite retrieval of history, to be run on worker thread."""
         db = self.db_factory()
-        rows = db.execute("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at", (conversation_id,)).fetchall()
-        db.close()
-        return [{"role": r["role"], "content": r["content"]} for r in rows]
+        try:
+            rows = db.execute(
+                "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at",
+                (conversation_id,)
+            ).fetchall()
+            return [{"role": r["role"], "content": r["content"]} for r in rows]
+        finally:
+            db.close()
+
+    async def _get_history(self, conversation_id: str):
+        """Get history asynchronously, offloaded to a background thread."""
+        import asyncio
+        return await asyncio.to_thread(self._get_history_sync, conversation_id)
+
+    def _save_msg_sync(self, conversation_id: str, role: str, content: str):
+        """Synchronous SQLite insertion of a message, to be run on worker thread."""
+        db = self.db_factory()
+        try:
+            now = time.time()
+            db.execute(
+                "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+                (conversation_id, role, content, now)
+            )
+            db.execute(
+                "UPDATE conversations SET updated_at = ? WHERE id = ?",
+                (now, conversation_id)
+            )
+            db.commit()
+        finally:
+            db.close()
 
     async def _save_msg(self, conversation_id, role, content):
+        """Save message asynchronously, offloaded to a background thread."""
+        import asyncio
+        await asyncio.to_thread(self._save_msg_sync, conversation_id, role, content)
+
+    def _create_conversation_sync(self, message: str, model: str, system_prompt: Optional[str], cid: str):
+        """Synchronous SQLite creation of conversation, to be run on worker thread."""
         db = self.db_factory()
-        now = time.time()
-        db.execute("INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)", (conversation_id, role, content, now))
-        db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conversation_id))
-        db.commit()
-        db.close()
+        try:
+            now = time.time()
+            title = message[:50] + "..." if len(message) > 50 else message
+            db.execute(
+                "INSERT INTO conversations (id, title, model, system_prompt, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (cid, title, model, system_prompt or config.DEFAULT_SYSTEM_PROMPT, now, now)
+            )
+            db.commit()
+        finally:
+            db.close()
 
     async def _create_conversation(self, message, model, system_prompt):
+        """Create conversation asynchronously, offloaded to a background thread."""
+        import asyncio
         cid = str(uuid.uuid4())
-        db = self.db_factory()
-        now = time.time()
-        title = message[:50] + "..." if len(message) > 50 else message
-        db.execute("INSERT INTO conversations (id, title, model, system_prompt, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-                   (cid, title, model, system_prompt or config.DEFAULT_SYSTEM_PROMPT, now, now))
-        db.commit()
-        db.close()
+        await asyncio.to_thread(self._create_conversation_sync, message, model, system_prompt, cid)
         return cid
 
     async def _auto_save_facts(self, last_user_message: str, enabled: bool):
