@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -27,11 +28,23 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 # ---------------------------------------------------------------------------
 
 try:
-    from backend.security.paths import safe_resolve  # type: ignore
+    from backend.security.paths import safe_resolve, SecurityError  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+    class SecurityError(Exception):
+        """Raised when a path escapes the jail."""
+
+    def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
+        """Fallback: resolve with jail check using is_relative_to."""
+        base = Path(base_dir).resolve()
+        user_path_str = str(user_path).replace('\\', '/')
+        candidate = (base / user_path_str).resolve()
+        if not candidate.is_relative_to(base):
+            raise SecurityError(f"Path {user_path!r} escapes jail {base!r}")
+        if candidate.is_symlink():
+            real = Path(os.path.realpath(candidate))
+            if not real.is_relative_to(base):
+                raise SecurityError(f"Symlink {candidate!r} resolves outside jail {base!r}")
+        return candidate
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -487,8 +500,8 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
+                        resolved = safe_resolve(job_dir, arg_value)
+                        if not resolved.is_relative_to(job_dir.resolve()):
                             issues.append(
                                 f"Arg '{arg_name}' escapes job directory: {resolved}"
                             )
