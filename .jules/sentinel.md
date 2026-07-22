@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2025-02-15 - Fallback Signature Mismatch and Insecure Tool-Call Path Jailing
+**Vulnerability:** In `PromptGuard`, the fallback import for `safe_resolve` used the signature `(path, base)`, while `paths.py` used `(base_dir, user_path)`. Consequently, `validate_tool_call` passed arguments in the wrong order, resulting in incorrect path resolution. It also utilized an insecure `.startswith()` prefix-collision path traversal check.
+**Learning:** Security fallbacks must maintain identical parameter signatures to production dependencies to prevent silent configuration/logic bugs.
+**Prevention:** Standardize interfaces for all security utilities. Always use `Path.is_relative_to()` rather than string `.startswith()` checks for all path-jailing boundary assertions.

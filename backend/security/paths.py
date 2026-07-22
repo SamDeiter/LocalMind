@@ -142,7 +142,8 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         If the resolved path escapes the jail for any reason.
     """
     base_dir = Path(base_dir)
-    user_path_str = str(user_path)
+    # Normalize backslashes to forward slashes to catch Windows-style traversal sequences on POSIX systems
+    user_path_str = str(user_path).replace("\\", "/")
 
     # --- Null-byte check (would truncate C strings silently) ---------------
     if "\x00" in user_path_str:
