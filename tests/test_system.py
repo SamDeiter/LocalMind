@@ -3,6 +3,11 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 @pytest.fixture
 def client():
+    from backend.core.schema import init_phase0_schema, ensure_default_tenant
+    from backend.core.telemetry import init_telemetry_schema
+    init_phase0_schema()
+    ensure_default_tenant()
+    init_telemetry_schema()
     from fastapi.testclient import TestClient
     from backend.server import app
     return TestClient(app)

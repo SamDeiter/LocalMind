@@ -93,6 +93,10 @@ class ToolRouter:
             confidence=confidence,
         )
 
+    def _adaptive_pick_tool(self, intent: IntentState) -> str:
+        """Pick appropriate tool adaptively based on intent."""
+        return self._pick_tool(intent)
+
     def _pick_tool(self, intent: IntentState) -> str:
         """Heuristic tool selection based on domain and request."""
         lower = intent.explicit_request.lower()
