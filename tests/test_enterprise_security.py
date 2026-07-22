@@ -362,6 +362,41 @@ class TestPromptGuardValidateToolCall:
         result = guard.validate_tool_call(call, ["read_file"], tmp_path)
         assert result.valid  # permissive skips this layer
 
+    def test_path_jailing_valid_path(self, tmp_path):
+        guard = PromptGuard("strict")
+        # Ensure base exists
+        base = tmp_path / "job_dir"
+        base.mkdir()
+        # Creating a valid target inside base
+        (base / "data.txt").write_text("ok")
+        call = {"name": "read_file", "args": {"file_path": "data.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], base)
+        assert result.valid
+
+    def test_path_jailing_traversal_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        base = tmp_path / "job_dir"
+        base.mkdir()
+        call = {"name": "read_file", "args": {"file_path": "../../outside.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], base)
+        assert not result.valid
+        assert any("escapes" in i for i in result.issues)
+
+    def test_path_jailing_prefix_collision_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        # Ensure job directory and an attacker directory share prefix but are distinct
+        base = tmp_path / "workspace"
+        base.mkdir()
+        evil = tmp_path / "workspace_evil"
+        evil.mkdir()
+        # Since safe_resolve strips leading /.. and path segments, we check if
+        # safe_resolve tries to resolve something resolving to evil
+        # We can construct target relative to base to hit evil: ../workspace_evil
+        call = {"name": "read_file", "args": {"file_path": "../workspace_evil"}}
+        result = guard.validate_tool_call(call, ["read_file"], base)
+        assert not result.valid
+        assert any("escapes" in i for i in result.issues)
+
 
 class TestPromptGuardValidateOutput:
     """Layer 3b tests: output secret scrubbing."""
