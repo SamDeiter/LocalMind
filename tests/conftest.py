@@ -42,6 +42,14 @@ def temp_db(tmp_path):
     """)
     conn.commit()
     conn.close()
+
+    # Initialize enterprise schemas & default tenant using mocked DB path
+    with patch("backend.core.schema.DB_PATH", db_path), \
+         patch("backend.db.DB_PATH", db_path):
+        from backend.core.schema import init_phase0_schema, ensure_default_tenant
+        init_phase0_schema()
+        ensure_default_tenant()
+
     return db_path
 
 
