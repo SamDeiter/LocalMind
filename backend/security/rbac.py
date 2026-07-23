@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import Callable
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException
 
 from backend.security.auth import get_current_user
 
