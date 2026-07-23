@@ -22,7 +22,7 @@ import os
 import shutil
 import sqlite3
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional

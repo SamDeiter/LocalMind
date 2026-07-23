@@ -21,11 +21,10 @@ import platform
 import re
 import sqlite3
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from backend.config import JOB_RETENTION_DAYS, WORKSPACE_ROOT
+from backend.config import JOB_RETENTION_DAYS
 
 logger = logging.getLogger("localmind.security.data_protection")
 

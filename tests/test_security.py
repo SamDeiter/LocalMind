@@ -59,3 +59,46 @@ def test_project_root_consistency():
     # All PROJECT_ROOTs should point to the same project root
     assert FILES_PROJECT_ROOT.resolve() == SELF_EDIT_PROJECT_ROOT.resolve()
     assert SELF_EDIT_PROJECT_ROOT.resolve() == CODE_EDITOR_PROJECT_ROOT.resolve()
+
+def test_prompt_guard_validate_tool_call_path_jailing(tmp_path):
+    """Verify that PromptGuard's validate_tool_call correctly validates tool path arguments and blocks traversal."""
+    from backend.security.prompt_guard import PromptGuard
+    guard = PromptGuard(level="strict")
+
+    # Define a clean job directory
+    job_dir = tmp_path / "job_123"
+    job_dir.mkdir()
+
+    # Define a prefix-collision fake job directory (not inside job_dir)
+    job_dir_evil = tmp_path / "job_123_evil"
+    job_dir_evil.mkdir()
+
+    # 1. Valid tool call with a path inside job_dir
+    valid_file = job_dir / "valid.txt"
+    valid_file.write_text("hello")
+    call_valid = {
+        "name": "read_file",
+        "args": {"filepath": str(valid_file)}
+    }
+    result = guard.validate_tool_call(call_valid, ["read_file"], job_dir)
+    assert result.valid is True, f"Valid path was incorrectly blocked: {result.issues}"
+
+    # 2. Blocked traversal with prefix collision (e.g. ../job_123_evil/secret.txt against /path/to/job_123)
+    evil_file = job_dir_evil / "secret.txt"
+    evil_file.write_text("evil")
+    call_evil = {
+        "name": "read_file",
+        "args": {"filepath": "../job_123_evil/secret.txt"}
+    }
+    result = guard.validate_tool_call(call_evil, ["read_file"], job_dir)
+    assert result.valid is False, "Prefix collision traversal bypass was not blocked!"
+    assert any("escapes job directory" in issue or "path resolution failed" in issue or "escapes the jail" in issue for issue in result.issues)
+
+    # 3. Blocked standard traversal with relative path ../../passwd
+    call_traversal = {
+        "name": "read_file",
+        "args": {"filepath": "../../../etc/passwd"}
+    }
+    result = guard.validate_tool_call(call_traversal, ["read_file"], job_dir)
+    assert result.valid is False, "Relative path traversal was not blocked!"
+    assert any("escapes job directory" in issue or "path resolution failed" in issue for issue in result.issues)

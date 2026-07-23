@@ -16,16 +16,14 @@ from __future__ import annotations
 import logging
 import math
 import re
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Import secret patterns from prompt_guard (single source of truth)
 # ---------------------------------------------------------------------------
-
 from backend.security.prompt_guard import (
-    SECRET_PATTERNS,
     _HIGH_ENTROPY_THRESHOLD,
     _MIN_GENERIC_TOKEN_LEN,
+    SECRET_PATTERNS,
 )
 
 logger = logging.getLogger("localmind.security.redact")
