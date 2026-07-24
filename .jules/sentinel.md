@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2025-02-15 - Backslash normalization and PromptGuard argument-mismatch traversal
+**Vulnerability:** In POSIX environments, backslashes (`\`) are treated as normal filename characters rather than path separators. A Windows-style relative path traversal attempt (e.g. `..\..\secret`) would bypass jail checks using native `pathlib` resolvers on POSIX since the resolution results in a filename containing backslashes rather than traversing upwards. Additionally, mismatched argument ordering in `safe_resolve` fallbacks and call sites inside `PromptGuard` masked path-traversal bugs.
+**Learning:** Fallbacks and imports must be strictly signature-aligned, and all user-supplied paths must be converted to use uniform forward slashes (`/`) before path resolution.
+**Prevention:** Replace backslashes in user path inputs to forward slashes inside path jail functions, and align imported/fallback function signatures to prevent argument-swapping.
