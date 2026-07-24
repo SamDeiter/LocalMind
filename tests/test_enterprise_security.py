@@ -362,6 +362,35 @@ class TestPromptGuardValidateToolCall:
         result = guard.validate_tool_call(call, ["read_file"], tmp_path)
         assert result.valid  # permissive skips this layer
 
+    def test_path_jailing_inside_job_dir_passes(self, tmp_path):
+        guard = PromptGuard("strict")
+        # Create a real file inside tmp_path so safe_resolve succeeds
+        (tmp_path / "hello.txt").write_text("content")
+        call = {"name": "read_file", "args": {"file_path": "hello.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], tmp_path)
+        assert result.valid
+
+    def test_path_jailing_escape_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        call = {"name": "read_file", "args": {"file_path": "../../secret.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], tmp_path)
+        assert not result.valid
+        assert any("escapes job directory" in i or "failed" in i for i in result.issues)
+
+    def test_path_jailing_prefix_collision_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        # Create a directory that shares a prefix with our job directory
+        job_dir = tmp_path / "job_123"
+        job_dir_evil = tmp_path / "job_123_evil"
+        job_dir.mkdir()
+        job_dir_evil.mkdir()
+        (job_dir_evil / "secret.txt").write_text("evil secrets")
+
+        call = {"name": "read_file", "args": {"file_path": "../job_123_evil/secret.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], job_dir)
+        assert not result.valid
+        assert any("escapes job directory" in i or "failed" in i for i in result.issues)
+
 
 class TestPromptGuardValidateOutput:
     """Layer 3b tests: output secret scrubbing."""
