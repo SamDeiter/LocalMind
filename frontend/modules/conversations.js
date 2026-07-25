@@ -30,14 +30,20 @@ export function renderConversations() {
     }`;
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none" aria-label="Export conversation" title="Export">
+          <span class="material-symbols-outlined text-sm pointer-events-none">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none" aria-label="Delete conversation" title="Delete">
+          <span class="material-symbols-outlined text-sm pointer-events-none">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
       e.stopPropagation();
-      deleteConversation(c.id);
+      if (window.confirm("Are you sure you want to delete this conversation?")) {
+        deleteConversation(c.id);
+      }
     });
     div.querySelector(".export-btn").addEventListener("click", (e) => {
       e.stopPropagation();
