@@ -232,7 +232,8 @@ export function bindEvents() {
   });
   $("#uploadDocsBtn")?.addEventListener("click", () => docUpload?.click());
 
-  // ── Stop ─────────────────────────────────────────────────────
+  // ── Stop Generation ──────────────────────────────────────────
+  // Click handler for stopBtn to abort active streaming context
   $("#stopBtn")?.addEventListener("click", () => {
     if (state.abortController) state.abortController.abort();
   });
