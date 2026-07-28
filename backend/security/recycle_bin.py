@@ -45,7 +45,8 @@ except ImportError:  # pragma: no cover — paths.py not written yet
         This mirrors the contract that backend/security/paths.py will provide.
         """
         base = base_dir.resolve()
-        candidate = (base / user_path).resolve()
+        user_path_str = str(user_path).replace("\\", "/")
+        candidate = (base / user_path_str).resolve()
         try:
             candidate.relative_to(base)
         except ValueError:
