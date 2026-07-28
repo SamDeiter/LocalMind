@@ -7,3 +7,8 @@
 **Vulnerability:** Simple prefix checks like `command.startswith("rm")` are easily bypassed by chaining commands with shell operators such as `;`, `&&`, `||`, or newlines (e.g., `ls ; rm -rf /`).
 **Learning:** `startswith()` only checks the beginning of the entire input string. In a shell context, one input string can contain multiple independent commands.
 **Prevention:** Split the input command string by shell operators (`[;&|\n]`) and validate each resulting segment individually. Use regex with word boundaries (`\b`) to prevent false positives and bypasses (e.g., `army` vs `rm`).
+
+## 2025-02-14 - POSIX Path Traversal Bypass via Backslashes
+**Vulnerability:** Under POSIX/Linux, backslashes (`\`) are treated as normal characters in file paths rather than directory separators. However, downstream consumers (or Windows environments) may still interpret them as directory separators. This mismatch allows Windows-style traversal sequences (like `..\..\etc\passwd`) to bypass jailing validation in `Path.resolve()`, because POSIX resolves the sequence as a single file name staying inside the jail.
+**Learning:** File path validation must normalize path separators across operating system standards before performing security boundary checks.
+**Prevention:** Normalize all backslashes (`\`) to forward slashes (`/`) in the input string before resolving or jailing the path.
