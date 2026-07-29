@@ -27,11 +27,19 @@ logger = logging.getLogger("localmind.security.prompt_guard")
 # ---------------------------------------------------------------------------
 
 try:
-    from backend.security.paths import safe_resolve  # type: ignore
+    from backend.security.paths import SecurityError, safe_resolve  # type: ignore
 except ImportError:  # paths module not yet available (circular / missing)
-    def safe_resolve(path: str | Path, base: Path) -> Path:  # type: ignore[misc]
-        """Fallback: resolve without jail check."""
-        return Path(path).resolve()
+
+    class SecurityError(Exception):  # type: ignore[no-redef]
+        """Raised when a path escapes the jail."""
+
+    def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
+        """Fallback: resolve relative to base_dir and verify it stays inside."""
+        base = Path(base_dir).resolve()
+        candidate = (base / user_path).resolve()
+        if not candidate.is_relative_to(base):
+            raise SecurityError(f"Path {user_path!r} escapes jail {base!r}")
+        return candidate
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -48,12 +56,12 @@ SSRF_PATTERNS: list[str] = [
     r"(?:^|[/@])127\.0\.0\.1(?:[:/]|$)",
     r"(?:^|[/@])0\.0\.0\.0(?:[:/]|$)",
     r"(?:^|[/@])::1(?:[:/]|$)",
-    r"169\.254\.\d{1,3}\.\d{1,3}",   # link-local / EC2 metadata
+    r"169\.254\.\d{1,3}\.\d{1,3}",  # link-local / EC2 metadata
     r"(?:^|[/@])10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?:[:/]|$)",
     r"(?:^|[/@])172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}(?:[:/]|$)",
     r"(?:^|[/@])192\.168\.\d{1,3}\.\d{1,3}(?:[:/]|$)",
     r"metadata\.google\.internal",
-    r"100\.64\.\d{1,3}\.\d{1,3}",    # shared address space (RFC 6598)
+    r"100\.64\.\d{1,3}\.\d{1,3}",  # shared address space (RFC 6598)
 ]
 _SSRF_RE: list[re.Pattern] = [re.compile(p, re.IGNORECASE) for p in SSRF_PATTERNS]
 
@@ -104,19 +112,17 @@ _INJECTION_RAW: list[str] = [
     r"(?i:---+\s*new\s+task\s*---+)",
 ]
 
-INJECTION_PATTERNS: list[re.Pattern] = [
-    re.compile(p, re.IGNORECASE | re.UNICODE) for p in _INJECTION_RAW
-]
+INJECTION_PATTERNS: list[re.Pattern] = [re.compile(p, re.IGNORECASE | re.UNICODE) for p in _INJECTION_RAW]
 
 # Unicode control / invisible character ranges to strip
 _CONTROL_CHARS_RE: re.Pattern = re.compile(
-    r"[\u200B\u200C\u200D\u200E\u200F"   # zero-width space/non-joiner/joiner/LRM/RLM
-    r"\u202A-\u202E"                       # bidi embedding / override
-    r"\u2060-\u2064"                       # word joiner / invisible operators
-    r"\u206A-\u206F"                       # deprecated format characters
-    r"\uFEFF"                              # BOM / zero-width no-break space
-    r"\uFFF0-\uFFFD"                       # specials
-    r"\U000E0000-\U000E007F"               # tags block (used in injection tricks)
+    r"[\u200B\u200C\u200D\u200E\u200F"  # zero-width space/non-joiner/joiner/LRM/RLM
+    r"\u202A-\u202E"  # bidi embedding / override
+    r"\u2060-\u2064"  # word joiner / invisible operators
+    r"\u206A-\u206F"  # deprecated format characters
+    r"\uFEFF"  # BOM / zero-width no-break space
+    r"\uFFF0-\uFFFD"  # specials
+    r"\U000E0000-\U000E007F"  # tags block (used in injection tricks)
     r"]",
     re.UNICODE,
 )
@@ -167,12 +173,10 @@ _SECRET_RAW: list[str] = [
     r"gho_[A-Za-z0-9]{36}",
     r"github_pat_[A-Za-z0-9_]{82}",
     # Generic high-entropy tokens (≥32 alphanum chars in non-prose context)
-    r'(?<![A-Za-z0-9])([A-Za-z0-9+/=]{32,})(?![A-Za-z0-9])',
+    r"(?<![A-Za-z0-9])([A-Za-z0-9+/=]{32,})(?![A-Za-z0-9])",
 ]
 
-SECRET_PATTERNS: list[re.Pattern] = [
-    re.compile(p) for p in _SECRET_RAW
-]
+SECRET_PATTERNS: list[re.Pattern] = [re.compile(p) for p in _SECRET_RAW]
 
 # Shannon-entropy threshold for generic token scrubbing
 _HIGH_ENTROPY_THRESHOLD: float = 4.5
@@ -213,6 +217,7 @@ PROMPT_GUARD_LEVELS: dict[str, dict] = {
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ValidationResult:
     """Result of a tool-call or output validation pass."""
@@ -226,7 +231,7 @@ class ValidationResult:
 class Anomaly:
     """Behavioral anomaly detected by Layer 4."""
 
-    severity: str          # "warning" | "critical"
+    severity: str  # "warning" | "critical"
     description: str
     event: str
 
@@ -234,6 +239,7 @@ class Anomaly:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _shannon_entropy(text: str) -> float:
     """Compute Shannon entropy (bits) of a string."""
@@ -243,10 +249,7 @@ def _shannon_entropy(text: str) -> float:
     for ch in text:
         freq[ch] = freq.get(ch, 0) + 1
     length = len(text)
-    return -sum(
-        (count / length) * math.log2(count / length)
-        for count in freq.values()
-    )
+    return -sum((count / length) * math.log2(count / length) for count in freq.values())
 
 
 def _is_high_entropy_token(token: str) -> bool:
@@ -263,9 +266,11 @@ def _scrub_secrets(text: str) -> tuple[str, list[str]]:
 
     # Named patterns first (OpenAI, Slack, AWS, GitHub…)
     for pat in SECRET_PATTERNS[:-1]:  # last pattern is generic catch-all
+
         def _repl_named(m: re.Match, kind: str = pat.pattern[:12]) -> str:
             scrubbed.append(kind)
             return "[REDACTED]"
+
         result = pat.sub(_repl_named, result)
 
     # Generic high-entropy tokens (last pattern)
@@ -286,6 +291,7 @@ def _scrub_secrets(text: str) -> tuple[str, list[str]]:
 # Main class
 # ---------------------------------------------------------------------------
 
+
 class PromptGuard:
     """4-layer defense against prompt injection for LocalMind task workers."""
 
@@ -303,10 +309,7 @@ class PromptGuard:
             Defaults to ``strict`` (all 4 layers active, anomalies halt jobs).
         """
         if level not in PROMPT_GUARD_LEVELS:
-            raise ValueError(
-                f"Unknown guard level '{level}'. "
-                f"Choose from: {list(PROMPT_GUARD_LEVELS)}"
-            )
+            raise ValueError(f"Unknown guard level '{level}'. Choose from: {list(PROMPT_GUARD_LEVELS)}")
         self.level = level
         self._config = PROMPT_GUARD_LEVELS[level]
         self._tool_call_counts = {}
@@ -341,9 +344,7 @@ class PromptGuard:
 
         # 1. Length cap
         if len(text) > MAX_INPUT_LENGTH:
-            logger.warning(
-                "Input truncated from %d to %d chars", len(text), MAX_INPUT_LENGTH
-            )
+            logger.warning("Input truncated from %d to %d chars", len(text), MAX_INPUT_LENGTH)
             text = text[:MAX_INPUT_LENGTH]
 
         # 2. NFC normalization — collapses composed / decomposed sequences
@@ -353,9 +354,7 @@ class PromptGuard:
         original_len = len(text)
         text = _CONTROL_CHARS_RE.sub("", text)
         if len(text) != original_len:
-            logger.debug(
-                "Stripped %d invisible/control chars", original_len - len(text)
-            )
+            logger.debug("Stripped %d invisible/control chars", original_len - len(text))
 
         # 4. Homoglyph normalization
         text = text.translate(_HOMOGLYPH_TABLE)
@@ -364,9 +363,7 @@ class PromptGuard:
         for pat in INJECTION_PATTERNS:
             cleaned, count = pat.subn(" ", text)
             if count:
-                logger.warning(
-                    "Injection pattern detected and removed: %r (×%d)", pat.pattern[:40], count
-                )
+                logger.warning("Injection pattern detected and removed: %r (×%d)", pat.pattern[:40], count)
                 text = cleaned
 
         return text
@@ -450,9 +447,7 @@ class PromptGuard:
 
         # 1. Tool allowlist
         if tool_name not in allowed_tools:
-            issues.append(
-                f"Tool '{tool_name}' is not in the allowed list: {allowed_tools}"
-            )
+            issues.append(f"Tool '{tool_name}' is not in the allowed list: {allowed_tools}")
             logger.warning("Blocked disallowed tool call: %s", tool_name)
 
         # 2. Validate each argument
@@ -461,12 +456,12 @@ class PromptGuard:
                 # Shell metacharacters
                 found_meta = [ch for ch in SHELL_METACHARACTERS if ch in arg_value]
                 if found_meta:
-                    issues.append(
-                        f"Arg '{arg_name}' contains shell metacharacters: {found_meta}"
-                    )
+                    issues.append(f"Arg '{arg_name}' contains shell metacharacters: {found_meta}")
                     logger.warning(
                         "Shell metacharacters in tool arg %s.%s: %s",
-                        tool_name, arg_name, found_meta,
+                        tool_name,
+                        arg_name,
+                        found_meta,
                     )
 
                 # SSRF in URL-like args
@@ -474,12 +469,12 @@ class PromptGuard:
                 if any(kw in lower_name for kw in ("url", "uri", "endpoint", "host")):
                     for ssrf_re in _SSRF_RE:
                         if ssrf_re.search(arg_value):
-                            issues.append(
-                                f"Arg '{arg_name}' matches SSRF-blocked pattern: {arg_value!r}"
-                            )
+                            issues.append(f"Arg '{arg_name}' matches SSRF-blocked pattern: {arg_value!r}")
                             logger.warning(
                                 "SSRF pattern in tool arg %s.%s: %r",
-                                tool_name, arg_name, arg_value,
+                                tool_name,
+                                arg_name,
+                                arg_value,
                             )
                             break
 
@@ -487,19 +482,18 @@ class PromptGuard:
                 lower_name = arg_name.lower()
                 if any(kw in lower_name for kw in ("path", "file", "dir", "folder", "dest", "src")):
                     try:
-                        resolved = safe_resolve(arg_value, job_dir)
-                        if not str(resolved).startswith(str(job_dir.resolve())):
-                            issues.append(
-                                f"Arg '{arg_name}' escapes job directory: {resolved}"
-                            )
+                        resolved = safe_resolve(job_dir, arg_value)
+                        if not resolved.is_relative_to(job_dir.resolve()):
+                            issues.append(f"Arg '{arg_name}' escapes job directory: {resolved}")
                             logger.warning(
                                 "Path escape attempt in tool arg %s.%s: %r -> %s",
-                                tool_name, arg_name, arg_value, resolved,
+                                tool_name,
+                                arg_name,
+                                arg_value,
+                                resolved,
                             )
                     except Exception as exc:
-                        issues.append(
-                            f"Arg '{arg_name}' path resolution failed: {exc}"
-                        )
+                        issues.append(f"Arg '{arg_name}' path resolution failed: {exc}")
 
         valid = len(issues) == 0
         return ValidationResult(valid=valid, cleaned_text="", issues=issues)
@@ -606,13 +600,9 @@ class PromptGuard:
 
             # Count calls per node
             count_key = f"{node_type}::{tool_name}"
-            self._tool_call_counts[count_key] = (
-                self._tool_call_counts.get(count_key, 0) + 1
-            )
+            self._tool_call_counts[count_key] = self._tool_call_counts.get(count_key, 0) + 1
             total_key = f"{node_type}::__total__"
-            self._tool_call_counts[total_key] = (
-                self._tool_call_counts.get(total_key, 0) + 1
-            )
+            self._tool_call_counts[total_key] = self._tool_call_counts.get(total_key, 0) + 1
             total = self._tool_call_counts[total_key]
 
             if total > self._MAX_TOOL_CALLS_PER_NODE:
@@ -630,10 +620,7 @@ class PromptGuard:
 
             # Tool not in allowed list
             if allowed and tool_name not in allowed:
-                description = (
-                    f"Node '{node_type}' attempted to call disallowed tool '{tool_name}'. "
-                    f"Allowed: {allowed}"
-                )
+                description = f"Node '{node_type}' attempted to call disallowed tool '{tool_name}'. Allowed: {allowed}"
                 logger.warning(description)
                 return Anomaly(
                     severity="critical",

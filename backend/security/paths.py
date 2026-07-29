@@ -66,9 +66,7 @@ MIME_TYPE_MAP: dict[str, str] = {
 # U+200B         Zero-width space
 # U+202E         Right-to-left override (bidi attack)
 # U+FEFF         BOM / zero-width no-break space
-_DANGEROUS_CHARS_RE = re.compile(
-    r"[\x00-\x1f\x7f\x80-\x9f\u200b\u202e\ufeff]"
-)
+_DANGEROUS_CHARS_RE = re.compile(r"[\x00-\x1f\x7f\x80-\x9f\u200b\u202e\ufeff]")
 
 # A path separator on *any* OS.
 _PATH_SEP_RE = re.compile(r"[/\\]")
@@ -142,7 +140,8 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         If the resolved path escapes the jail for any reason.
     """
     base_dir = Path(base_dir)
-    user_path_str = str(user_path)
+    # Normalize Windows-style backslashes to forward slashes for robust POSIX/Windows traversal checks.
+    user_path_str = str(user_path).replace("\\", "/")
 
     # --- Null-byte check (would truncate C strings silently) ---------------
     if "\x00" in user_path_str:
@@ -175,9 +174,7 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         resolved_candidate = candidate.resolve()
     except OSError as exc:
         # A dangling symlink or permission error still counts as a violation.
-        raise SecurityError(
-            f"Cannot resolve candidate path {candidate!r}: {exc}"
-        ) from exc
+        raise SecurityError(f"Cannot resolve candidate path {candidate!r}: {exc}") from exc
 
     # --- Enforce jail via string prefix comparison -------------------------
     # We must compare strings (not Path parents) so that a jail at
@@ -194,8 +191,7 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
     jail_prefix = resolved_base_str.rstrip(os.sep) + os.sep
 
     if not (
-        resolved_candidate_str == resolved_base_str.rstrip(os.sep)
-        or resolved_candidate_str.startswith(jail_prefix)
+        resolved_candidate_str == resolved_base_str.rstrip(os.sep) or resolved_candidate_str.startswith(jail_prefix)
     ):
         logger.warning(
             "Path escape attempt: %r resolved to %r, outside jail %r",
@@ -203,9 +199,7 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
             resolved_candidate,
             resolved_base,
         )
-        raise SecurityError(
-            f"Path {user_path_str!r} escapes the jail {resolved_base!r}"
-        )
+        raise SecurityError(f"Path {user_path_str!r} escapes the jail {resolved_base!r}")
 
     logger.debug("safe_resolve OK: %r → %r", user_path_str, resolved_candidate)
     return resolved_candidate
@@ -249,20 +243,14 @@ def sanitize_filename(filename: str) -> str:
 
     # Also strip Unicode "other" categories (Cc, Cf) beyond what the regex
     # catches — paranoia pass using unicodedata.
-    cleaned = "".join(
-        ch
-        for ch in cleaned
-        if unicodedata.category(ch) not in ("Cc", "Cf")
-    )
+    cleaned = "".join(ch for ch in cleaned if unicodedata.category(ch) not in ("Cc", "Cf"))
 
     if not cleaned:
         raise SecurityError(f"Filename {filename!r} is empty after sanitization")
 
     # Double-extension check.
     if _has_double_extension(cleaned):
-        raise SecurityError(
-            f"Double extension detected in filename: {cleaned!r}"
-        )
+        raise SecurityError(f"Double extension detected in filename: {cleaned!r}")
 
     # Truncate to 255 bytes without splitting a multibyte sequence.
     encoded = cleaned.encode("utf-8")
@@ -277,9 +265,7 @@ def sanitize_filename(filename: str) -> str:
             except UnicodeDecodeError:
                 encoded = encoded[:-1]
         else:
-            raise SecurityError(
-                f"Filename {filename!r} could not be truncated to valid UTF-8"
-            )
+            raise SecurityError(f"Filename {filename!r} could not be truncated to valid UTF-8")
 
     logger.debug("sanitize_filename: %r → %r", filename, cleaned)
     return cleaned
@@ -322,23 +308,18 @@ def validate_upload(filepath: Path, max_size_mb: int = 100) -> None:
     size_bytes = filepath.stat().st_size
     max_size_bytes = max_size_mb * 1024 * 1024
     if size_bytes > max_size_bytes:
-        raise SecurityError(
-            f"Upload too large: {size_bytes} bytes exceeds {max_size_mb} MB limit"
-        )
+        raise SecurityError(f"Upload too large: {size_bytes} bytes exceeds {max_size_mb} MB limit")
 
     # --- Extension check ---------------------------------------------------
     name = filepath.name
 
     if _has_double_extension(name):
-        raise SecurityError(
-            f"Double extension in upload filename: {name!r}"
-        )
+        raise SecurityError(f"Double extension in upload filename: {name!r}")
 
     suffix = filepath.suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
         raise SecurityError(
-            f"Extension {suffix!r} is not in the upload allowlist. "
-            f"Allowed: {sorted(ALLOWED_EXTENSIONS)}"
+            f"Extension {suffix!r} is not in the upload allowlist. Allowed: {sorted(ALLOWED_EXTENSIONS)}"
         )
 
     # --- MIME check --------------------------------------------------------
@@ -349,9 +330,7 @@ def validate_upload(filepath: Path, max_size_mb: int = 100) -> None:
     expected_mime = MIME_TYPE_MAP.get(suffix)
     if expected_mime is None:
         # Should be unreachable given the allowlist check above, but be safe.
-        raise SecurityError(
-            f"No MIME mapping for extension {suffix!r} (internal error)"
-        )
+        raise SecurityError(f"No MIME mapping for extension {suffix!r} (internal error)")
 
     guessed_mime, _encoding = mimetypes.guess_type(str(filepath))
     if guessed_mime is None:
@@ -362,10 +341,7 @@ def validate_upload(filepath: Path, max_size_mb: int = 100) -> None:
             filepath.name,
         )
     elif guessed_mime != expected_mime:
-        raise SecurityError(
-            f"MIME mismatch for {filepath.name!r}: "
-            f"expected {expected_mime!r}, got {guessed_mime!r}"
-        )
+        raise SecurityError(f"MIME mismatch for {filepath.name!r}: expected {expected_mime!r}, got {guessed_mime!r}")
 
     logger.debug(
         "validate_upload OK: %r (%d bytes, %s)",
