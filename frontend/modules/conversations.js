@@ -25,14 +25,18 @@ export function renderConversations() {
     const div = document.createElement("div");
     div.className = `conversation-item flex items-center justify-between px-3 py-2 text-sm rounded-r-lg cursor-pointer transition-all group ${
       c.id === state.currentConvId
-        ? "text-[#c0c1ff] bg-primary/10 border-l-2 border-[#6366f1]"
-        : "text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b]"
+        ? "text-[#c0c1ff] bg-primary/10 border-l-2 border-[#6366f1] focus-within:bg-primary/15"
+        : "text-[#8e9192] hover:text-[#e5e2e1] hover:bg-[#1c1b1b] focus-within:bg-[#1c1b1b] focus-within:text-[#e5e2e1]"
     }`;
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-all flex items-center justify-center" aria-label="Export conversation" title="Export">
+          <span class="material-symbols-outlined text-sm">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-all flex items-center justify-center" aria-label="Delete conversation" title="Delete">
+          <span class="material-symbols-outlined text-sm">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
@@ -63,6 +67,7 @@ export async function loadConversation(id) {
 }
 
 export async function deleteConversation(id) {
+  if (!window.confirm("Are you sure you want to delete this conversation?")) return;
   try {
     await fetch(`${API}/api/conversations/${id}`, { method: "DELETE" });
     if (state.currentConvId === id) {
