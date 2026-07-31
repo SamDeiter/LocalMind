@@ -144,6 +144,11 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
     base_dir = Path(base_dir)
     user_path_str = str(user_path)
 
+    # --- Windows-style backslash normalization -----------------------------
+    # Normalize Windows-style backslashes (\) to forward slashes (/) on all
+    # platforms before path resolution to safely handle cross-platform traversal.
+    user_path_str = user_path_str.replace("\\", "/")
+
     # --- Null-byte check (would truncate C strings silently) ---------------
     if "\x00" in user_path_str:
         logger.warning("Null byte detected in path: %r", user_path_str)

@@ -629,6 +629,12 @@ class TestIsAllowed:
     def test_operator_disallowed_post_admin(self):
         assert _is_allowed("operator", "POST", "/api/admin/keys") is False
 
+    def test_operator_prefix_collision_blocked(self):
+        # /api/chat-admin contains /api/chat but is not a subpath segment
+        assert _is_allowed("operator", "POST", "/api/chat-admin") is False
+        assert _is_allowed("operator", "POST", "/api/chat/123") is True
+        assert _is_allowed("operator", "POST", "/api/chat") is True
+
     def test_viewer_get_allowed(self):
         assert _is_allowed("viewer", "GET", "/api/anything") is True
 
