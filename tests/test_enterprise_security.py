@@ -362,6 +362,32 @@ class TestPromptGuardValidateToolCall:
         result = guard.validate_tool_call(call, ["read_file"], tmp_path)
         assert result.valid  # permissive skips this layer
 
+    def test_tool_call_safe_path(self, tmp_path):
+        guard = PromptGuard("strict")
+        # Ensure file exists so safe_resolve doesn't fail on resolution
+        safe_file = tmp_path / "safe.txt"
+        safe_file.write_text("safe content")
+        call = {"name": "read_file", "args": {"filepath": "safe.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], tmp_path)
+        assert result.valid
+
+    def test_tool_call_traversal_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        call = {"name": "read_file", "args": {"filepath": "../../etc/passwd"}}
+        result = guard.validate_tool_call(call, ["read_file"], tmp_path)
+        assert not result.valid
+        assert any("escapes" in i or "failed" in i for i in result.issues)
+
+    def test_tool_call_prefix_collision_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        # Create a sibling path to test prefix-collision
+        sibling = tmp_path.parent / f"{tmp_path.name}_evil"
+        sibling.mkdir(exist_ok=True)
+        call = {"name": "read_file", "args": {"filepath": f"../{tmp_path.name}_evil/file.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], tmp_path)
+        assert not result.valid
+        assert any("escapes" in i or "failed" in i for i in result.issues)
+
 
 class TestPromptGuardValidateOutput:
     """Layer 3b tests: output secret scrubbing."""
