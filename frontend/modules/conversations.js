@@ -30,14 +30,23 @@ export function renderConversations() {
     }`;
     div.innerHTML = `
       <span class="truncate pr-2 pointer-events-none">${escapeHtml(c.title || "New Chat")}</span>
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button class="export-btn p-1 text-outline hover:text-secondary rounded" title="Export">📥</button>
-        <button class="delete-btn p-1 text-outline hover:text-error rounded" title="Delete">✕</button>
+      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
+        <button class="export-btn p-1 text-outline hover:text-secondary rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors" title="Export" aria-label="Export conversation ${escapeHtml(c.title || "New Chat")}">
+          <span class="material-symbols-outlined text-sm block">download</span>
+        </button>
+        <button class="delete-btn p-1 text-outline hover:text-error rounded focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-colors" title="Delete" aria-label="Delete conversation ${escapeHtml(c.title || "New Chat")}">
+          <span class="material-symbols-outlined text-sm block">delete</span>
+        </button>
       </div>`;
     div.addEventListener("click", () => loadConversation(c.id));
     div.querySelector(".delete-btn").addEventListener("click", (e) => {
       e.stopPropagation();
-      deleteConversation(c.id);
+      const confirmDelete = window.confirm(
+        `Are you sure you want to delete the conversation "${c.title || "New Chat"}"?`
+      );
+      if (confirmDelete) {
+        deleteConversation(c.id);
+      }
     });
     div.querySelector(".export-btn").addEventListener("click", (e) => {
       e.stopPropagation();
