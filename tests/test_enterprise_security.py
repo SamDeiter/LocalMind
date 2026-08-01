@@ -362,6 +362,18 @@ class TestPromptGuardValidateToolCall:
         result = guard.validate_tool_call(call, ["read_file"], tmp_path)
         assert result.valid  # permissive skips this layer
 
+    def test_tool_path_traversal_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        job_dir = tmp_path / "job_123"
+        job_dir.mkdir()
+        call = {
+            "name": "read_file",
+            "args": {"file_path": "../escaped_secret.txt"}
+        }
+        result = guard.validate_tool_call(call, ["read_file"], job_dir)
+        assert not result.valid
+        assert any("escapes" in i or "failed" in i for i in result.issues)
+
 
 class TestPromptGuardValidateOutput:
     """Layer 3b tests: output secret scrubbing."""
