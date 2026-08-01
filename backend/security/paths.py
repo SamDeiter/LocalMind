@@ -149,6 +149,9 @@ def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:
         logger.warning("Null byte detected in path: %r", user_path_str)
         raise SecurityError(f"Null byte in path: {user_path_str!r}")
 
+    # Normalize Windows backslashes to forward slashes for cross-platform safety
+    user_path_str = user_path_str.replace("\\", "/")
+
     # --- Resolve the jail root itself (follow its symlinks too) ------------
     try:
         resolved_base = base_dir.resolve()
