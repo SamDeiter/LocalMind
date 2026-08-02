@@ -362,6 +362,37 @@ class TestPromptGuardValidateToolCall:
         result = guard.validate_tool_call(call, ["read_file"], tmp_path)
         assert result.valid  # permissive skips this layer
 
+    def test_path_jailing_valid_path(self, tmp_path):
+        guard = PromptGuard("strict")
+        call = {"name": "read_file", "args": {"filepath": "hello.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], tmp_path)
+        assert result.valid
+
+    def test_path_jailing_relative_traversal_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        call = {"name": "read_file", "args": {"filepath": "../../etc/passwd"}}
+        result = guard.validate_tool_call(call, ["read_file"], tmp_path)
+        assert not result.valid
+        assert any("escapes" in i or "failed" in i for i in result.issues)
+
+    def test_path_jailing_backslash_traversal_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        call = {"name": "read_file", "args": {"filepath": "..\\..\\etc\\passwd"}}
+        result = guard.validate_tool_call(call, ["read_file"], tmp_path)
+        assert not result.valid
+        assert any("escapes" in i or "failed" in i for i in result.issues)
+
+    def test_path_jailing_prefix_collision_blocked(self, tmp_path):
+        guard = PromptGuard("strict")
+        # Ensure a prefix collision like job_dir_evil matching job_dir's prefix is blocked
+        job_dir = tmp_path / "job_123"
+        job_dir.mkdir()
+        # The untrusted path escapes job_dir into job_123_evil
+        call = {"name": "read_file", "args": {"filepath": "../job_123_evil/secret.txt"}}
+        result = guard.validate_tool_call(call, ["read_file"], job_dir)
+        assert not result.valid
+        assert any("escapes" in i or "failed" in i for i in result.issues)
+
 
 class TestPromptGuardValidateOutput:
     """Layer 3b tests: output secret scrubbing."""
