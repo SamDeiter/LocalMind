@@ -5,6 +5,7 @@ heuristics to ToolDispatcher. This file owns the streaming
 loops and conversation persistence.
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -454,28 +455,51 @@ class ChatService:
     # ------------------------------------------------------------------
 
     async def _get_history(self, conversation_id: str):
-        db = self.db_factory()
-        rows = db.execute("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at", (conversation_id,)).fetchall()
-        db.close()
-        return [{"role": r["role"], "content": r["content"]} for r in rows]
+        # ⚡ Bolt: Offload blocking SQLite queries to worker threads via asyncio.to_thread
+        def _sync():
+            db = self.db_factory()
+            try:
+                rows = db.execute(
+                    "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at",
+                    (conversation_id,),
+                ).fetchall()
+                return [{"role": r["role"], "content": r["content"]} for r in rows]
+            finally:
+                db.close()
+        return await asyncio.to_thread(_sync)
 
     async def _save_msg(self, conversation_id, role, content):
-        db = self.db_factory()
-        now = time.time()
-        db.execute("INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)", (conversation_id, role, content, now))
-        db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conversation_id))
-        db.commit()
-        db.close()
+        # ⚡ Bolt: Offload blocking SQLite write operations to worker threads via asyncio.to_thread
+        def _sync():
+            db = self.db_factory()
+            try:
+                now = time.time()
+                db.execute(
+                    "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+                    (conversation_id, role, content, now),
+                )
+                db.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conversation_id))
+                db.commit()
+            finally:
+                db.close()
+        await asyncio.to_thread(_sync)
 
     async def _create_conversation(self, message, model, system_prompt):
         cid = str(uuid.uuid4())
-        db = self.db_factory()
-        now = time.time()
-        title = message[:50] + "..." if len(message) > 50 else message
-        db.execute("INSERT INTO conversations (id, title, model, system_prompt, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-                   (cid, title, model, system_prompt or config.DEFAULT_SYSTEM_PROMPT, now, now))
-        db.commit()
-        db.close()
+        # ⚡ Bolt: Offload blocking SQLite write operations to worker threads via asyncio.to_thread
+        def _sync():
+            db = self.db_factory()
+            try:
+                now = time.time()
+                title = message[:50] + "..." if len(message) > 50 else message
+                db.execute(
+                    "INSERT INTO conversations (id, title, model, system_prompt, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (cid, title, model, system_prompt or config.DEFAULT_SYSTEM_PROMPT, now, now),
+                )
+                db.commit()
+            finally:
+                db.close()
+        await asyncio.to_thread(_sync)
         return cid
 
     async def _auto_save_facts(self, last_user_message: str, enabled: bool):

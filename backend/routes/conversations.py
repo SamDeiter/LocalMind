@@ -16,6 +16,7 @@ Each conversation can have its own system prompt, allowing users
 to customize AI behavior per conversation (e.g., "Act as a Python tutor").
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -53,10 +54,16 @@ async def list_conversations():
     Returns conversation metadata (not messages) for the sidebar.
     Sorted by updated_at so recently active conversations appear first.
     """
-    db = _get_db()
-    rows = db.execute("SELECT * FROM conversations ORDER BY updated_at DESC").fetchall()
-    db.close()
-    return {"conversations": [dict(r) for r in rows]}
+    # ⚡ Bolt: Offload blocking SQLite queries to worker threads via asyncio.to_thread
+    def _sync():
+        db = _get_db()
+        try:
+            rows = db.execute("SELECT * FROM conversations ORDER BY updated_at DESC").fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            db.close()
+    conversations = await asyncio.to_thread(_sync)
+    return {"conversations": conversations}
 
 
 @router.get("/conversations/{conv_id}/messages")
@@ -66,13 +73,19 @@ async def get_conversation_messages(conv_id: str):
     Used when the user clicks on a conversation in the sidebar to load
     the full chat history. Messages include role (user/assistant) and content.
     """
-    db = _get_db()
-    rows = db.execute(
-        "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at",
-        (conv_id,),
-    ).fetchall()
-    db.close()
-    return {"messages": [dict(r) for r in rows]}
+    # ⚡ Bolt: Offload blocking SQLite queries to worker threads via asyncio.to_thread
+    def _sync():
+        db = _get_db()
+        try:
+            rows = db.execute(
+                "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at",
+                (conv_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            db.close()
+    messages = await asyncio.to_thread(_sync)
+    return {"messages": messages}
 
 
 @router.delete("/conversations/{conv_id}")
@@ -82,11 +95,16 @@ async def delete_conversation(conv_id: str):
     Deletes from both tables. Messages are deleted first to respect
     the foreign key constraint, then the conversation record itself.
     """
-    db = _get_db()
-    db.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
-    db.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
-    db.commit()
-    db.close()
+    # ⚡ Bolt: Offload blocking SQLite write operations to worker threads via asyncio.to_thread
+    def _sync():
+        db = _get_db()
+        try:
+            db.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
+            db.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
+            db.commit()
+        finally:
+            db.close()
+    await asyncio.to_thread(_sync)
     logger.info(f"Deleted conversation: {conv_id}")
     return {"ok": True}
 
@@ -98,12 +116,18 @@ async def get_conversation(conv_id: str):
     Used by the frontend to load conversation settings and display
     the model name and custom system prompt in the UI.
     """
-    db = _get_db()
-    row = db.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
-    db.close()
+    # ⚡ Bolt: Offload blocking SQLite queries to worker threads via asyncio.to_thread
+    def _sync():
+        db = _get_db()
+        try:
+            row = db.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+            return dict(row) if row else None
+        finally:
+            db.close()
+    row = await asyncio.to_thread(_sync)
     if not row:
         return {"error": "Conversation not found"}
-    return dict(row)
+    return row
 
 
 @router.put("/conversations/{conv_id}/system-prompt")
@@ -116,13 +140,18 @@ async def update_system_prompt(conv_id: str, request: Request):
     """
     body = await request.json()
     prompt = body.get("system_prompt", "")
-    db = _get_db()
-    db.execute(
-        "UPDATE conversations SET system_prompt = ?, updated_at = ? WHERE id = ?",
-        (prompt, time.time(), conv_id),
-    )
-    db.commit()
-    db.close()
+    # ⚡ Bolt: Offload blocking SQLite write operations to worker threads via asyncio.to_thread
+    def _sync():
+        db = _get_db()
+        try:
+            db.execute(
+                "UPDATE conversations SET system_prompt = ?, updated_at = ? WHERE id = ?",
+                (prompt, time.time(), conv_id),
+            )
+            db.commit()
+        finally:
+            db.close()
+    await asyncio.to_thread(_sync)
     logger.info(f"Updated system prompt for conversation: {conv_id}")
     return {"ok": True, "system_prompt": prompt}
 
@@ -148,14 +177,24 @@ async def export_conversation(conv_id: str, format: str = "md"):
     Both formats include a Content-Disposition header so the browser
     downloads the file rather than displaying it inline.
     """
-    db = _get_db()
-    conv = db.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
-    msgs = db.execute(
-        "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at",
-        (conv_id,),
-    ).fetchall()
-    db.close()
+    # ⚡ Bolt: Offload blocking SQLite queries to worker threads via asyncio.to_thread
+    def _sync():
+        db = _get_db()
+        try:
+            conv = db.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+            conv_dict = dict(conv) if conv else None
+            msgs = []
+            if conv:
+                rows = db.execute(
+                    "SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at",
+                    (conv_id,),
+                ).fetchall()
+                msgs = [dict(m) for m in rows]
+            return conv_dict, msgs
+        finally:
+            db.close()
 
+    conv, msgs = await asyncio.to_thread(_sync)
     if not conv:
         return {"error": "Conversation not found"}
 
@@ -165,7 +204,7 @@ async def export_conversation(conv_id: str, format: str = "md"):
             "title": conv["title"],
             "model": conv["model"],
             "created_at": conv["created_at"],
-            "messages": [dict(m) for m in msgs],
+            "messages": msgs,
         }
         return Response(
             content=json.dumps(export_data, indent=2),
