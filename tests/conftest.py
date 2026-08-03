@@ -19,6 +19,15 @@ sys.path.insert(0, str(PROJECT_ROOT))
 def temp_db(tmp_path):
     """Create a temporary SQLite database with the schema."""
     db_path = tmp_path / "test_conversations.db"
+
+    # Run the enterprise phase 0 schema initialization on this test database
+    with patch("backend.config.DB_PATH", db_path), \
+         patch("backend.core.schema.DB_PATH", db_path, create=True), \
+         patch("backend.security.auth.DB_PATH", db_path, create=True):
+        from backend.core.schema import init_phase0_schema, ensure_default_tenant
+        init_phase0_schema()
+        ensure_default_tenant()
+
     conn = sqlite3.connect(str(db_path))
     conn.execute("""
         CREATE TABLE IF NOT EXISTS conversations (
