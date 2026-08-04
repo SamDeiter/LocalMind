@@ -38,14 +38,15 @@ except ImportError:  # pragma: no cover — paths.py not written yet
     class SecurityError(Exception):
         """Raised when a path escapes its jail."""
 
-    def safe_resolve(base_dir: Path, user_path: str | Path) -> Path:  # type: ignore[misc]
+    def safe_resolve(base_dir: Path | str, user_path: str | Path) -> Path:  # type: ignore[misc]
         """Resolve *user_path* relative to *base_dir* and verify it stays inside.
 
         Raises SecurityError if the resolved path escapes the base directory.
         This mirrors the contract that backend/security/paths.py will provide.
         """
-        base = base_dir.resolve()
-        candidate = (base / user_path).resolve()
+        base = Path(base_dir).resolve()
+        user_path_str = str(user_path).replace("\\", "/")
+        candidate = (base / user_path_str).resolve()
         try:
             candidate.relative_to(base)
         except ValueError:
